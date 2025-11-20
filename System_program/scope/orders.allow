@@ -1,0 +1,20 @@
+# Feature: orders
+# Allowed files for order management feature
+
+# Models
+models/store.rb
+models/order.rb
+models/order_item.rb
+
+# Routes
+routes/orders_api.rb
+
+# Migrations
+db/migrate/001_create_stores.rb
+db/migrate/002_create_orders.rb
+db/migrate/003_create_order_items.rb
+
+# Tests (future)
+# test/models/store_test.rb
+# test/models/order_test.rb
+# test/models/order_item_test.rb

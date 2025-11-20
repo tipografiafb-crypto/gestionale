@@ -1,0 +1,14 @@
+# Feature: orders
+# Forbidden files for order management feature
+
+# Do not modify Switch-specific files
+models/switch_job.rb
+services/switch_client.rb
+routes/switch_api.rb
+
+# Do not modify asset storage
+services/asset_downloader.rb
+storage/**
+
+# Do not modify UI views directly
+views/**

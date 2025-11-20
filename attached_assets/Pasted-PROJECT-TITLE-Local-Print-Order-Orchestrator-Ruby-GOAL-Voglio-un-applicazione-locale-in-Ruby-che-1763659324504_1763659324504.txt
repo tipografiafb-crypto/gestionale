@@ -1,0 +1,189 @@
+PROJECT TITLE: Local Print Order Orchestrator (Ruby)
+
+GOAL
+Voglio un’applicazione locale in Ruby che faccia da “mini gestionale” per i lavori di stampa:
+- riceve/accoglie gli ordini provenienti dai miei e-commerce (con plugin Magenta Product Designer)
+- memorizza JSON e immagini di ogni ordine
+- invia i lavori a Enfocus Switch tramite webhook
+- riceve da Switch l’esito e le anteprime dei file impaginati
+- mostra tutto in una semplice interfaccia web (tabella ordini + anteprima).
+
+IMPORTANT
+In questo repo ci sarà anche un file `AGENT_WORKFLOW.md` (già pronto) che definisce come gli agenti AI devono lavorare.  
+Voglio riutilizzare la stessa logica “Enterprise-Grade Module Routing System” del mio progetto Magenta:
+- feature targeting
+- file .allow/.deny
+- strumenti di qualità (quality, contracts, ecc.).
+
+Stack Tecnico richiesto
+- Linguaggio: Ruby (versione recente, es. 3.x)
+- Web framework leggero: Sinatra o Roda (server HTTP semplice, niente monolite gigante)
+- DB: PostgreSQL o SQLite all’inizio (scegli tu, ma prepara un layer pulito tipo Sequel/ActiveRecord)
+- Frontend: HTML + un po’ di CSS/JS minimale (niente mega framework, va bene anche Bootstrap o Tailwind se serve)
+- Autenticazione super minimale (anche solo login singolo o basic auth per ora).
+
+MVP – FUNZIONALITÀ MINIME
+
+1. MODELLO DATI
+   Definisci questi modelli (puoi usare ORM):
+
+   - Store
+     - id
+     - code (es. "TPH_IT", "TPH_DE")
+     - name
+
+   - Order
+     - id
+     - external_order_code (es. "DE11132")
+     - store_id (FK)
+     - status (enum: "new", "sent_to_switch", "processing", "done", "error")
+     - created_at, updated_at
+
+   - OrderItem
+     - id
+     - order_id (FK)
+     - sku
+     - quantity
+     - raw_json (JSONB o testo per i dati item specifici, opzionale)
+
+   - Asset (immagini collegate agli item)
+     - id
+     - order_item_id (FK)
+     - original_url
+     - local_path (dove è salvato sul disco locale)
+     - type (es. "front", "back", "mask", ecc.)
+
+   - SwitchJob
+     - id
+     - order_id (FK)
+     - switch_job_id (id usato da Switch se serve)
+     - status ( "pending", "sent", "completed", "failed")
+     - result_preview_url (url o path verso il file prodotto)
+     - log (testo libero per messaggi di errore o log Switch)
+
+2. API DI INGRESSO ORDINI (da e-commerce / gestionale esistente)
+   Implementa un endpoint HTTP:
+
+   - `POST /api/orders/import`
+     - riceve un JSON con struttura simile:
+
+       {
+         "store_id": "TPH_DE",
+         "external_order_code": "DE11132",
+         "items": [
+           {
+             "sku": "PICK-ROCK-1MM",
+             "quantity": 100,
+             "image_urls": [
+               "https://example.com/orders/DE11132/front.png",
+               "https://example.com/orders/DE11132/back.png"
+             ]
+           }
+         ]
+       }
+
+     - crea Store se non esiste
+     - crea Order, OrderItem, Asset (solo con `original_url` all’inizio)
+     - ritorna 200 + JSON con `order_id`.
+
+   Non servono calcoli complessi, solo I/O e salvataggio.
+
+3. DOWNLOAD IMMAGINI IN LOCALE
+   Aggiungi un servizio Ruby che:
+   - per un ordine specifico scarica tutte le `image_urls` degli Asset
+   - salva i file in una struttura tipo:
+     `storage/<store_code>/<external_order_code>/<sku>/front.png`
+   - aggiorna il campo `local_path` su ogni Asset.
+
+   Esporre un endpoint o comando interno:
+
+   - `POST /api/orders/:id/download_assets`
+     - scarica le immagini mancanti
+     - ritorna un riepilogo (quante scaricate, errori, ecc.).
+
+4. INTEGRAZIONE ENFOCUS SWITCH – INVIO JOB
+   Voglio un endpoint che Switch possa usare come webhook di ingresso, oppure un servizio che chiama il webhook HTTP di Switch.
+
+   Prima versione (più semplice):
+   - `POST /api/orders/:id/send_to_switch`
+     - prepara un payload JSON per Switch con:
+       - dati ordine (store, external_order_code, sku, qty…)
+       - path locali delle immagini (`local_path`)
+     - fa una `POST` al webhook HTTP di Enfocus Switch (URL configurabile in un file .env)
+     - crea/aggiorna un record `SwitchJob` per tracciare lo stato
+     - se la chiamata va a buon fine, status = "sent".
+
+   Non devi gestire tutti i dettagli Switch, ma struttura il codice in modo che sia facile cambiare il formato del payload.
+
+5. CALLBACK DA SWITCH
+   Prepara un endpoint per ricevere la risposta di Switch a fine flusso:
+
+   - `POST /api/switch/callback`
+     - body di esempio (può essere adattato in seguito):
+
+       {
+         "external_order_code": "DE11132",
+         "status": "done",
+         "result_preview_url": "http://switch-server/output/DE11132/preview.pdf",
+         "log": "Ok" 
+       }
+
+     - trova l’Order tramite `external_order_code`
+     - aggiorna Order.status (done/error)
+     - aggiorna SwitchJob con `status`, `result_preview_url`, `log`.
+
+6. INTERFACCIA WEB SEMPLICE (OPERATORE)
+   Pagina base:
+
+   - `/orders`
+     - tabella con:
+       - data
+       - store
+       - external_order_code
+       - status
+       - azioni:
+         - “Scarica immagini”
+         - “Invia a Switch”
+         - “Vedi anteprima”
+
+   - `/orders/:id`
+     - dettaglio ordine
+     - lista item + immagini (mini preview, anche solo `<img src="/file/...">` se il path è locale)
+     - se `result_preview_url` esiste, link o embed dell’anteprima Switch.
+
+   La grafica può essere minimal, basta che sia pulita e estensibile.
+
+7. STRUTTURA PROGETTO PROPOSTA
+
+   - `app.rb` o `config.ru` (entrypoint Sinatra/Rack)
+   - `config/` (DB, env, ecc.)
+   - `models/` (Store, Order, OrderItem, Asset, SwitchJob)
+   - `services/`
+     - `asset_downloader.rb`
+     - `switch_client.rb`
+   - `routes/`
+     - `orders_api.rb`
+     - `switch_api.rb`
+     - `web_ui.rb`
+   - `views/` (ERB/Haml/altro)
+   - `storage/` (cartella dati locale, ignorata da git)
+   - `System_program/` + `AGENT_WORKFLOW.md` (per workflow agent come da file fornito)
+
+8. AGENT WORKFLOW (DA `AGENT_WORKFLOW.md`)
+   Integra la logica di AGENT_WORKFLOW anche qui:
+   - definisci feature target per questo progetto, es:
+     - `orders`, `switch`, `storage`, `ui`, `integration`, `quality`.
+   - prepara file di scope (anche minimi) e struttura System_program come nel file:
+     - `System_program/FEATURE_MAPPING.md`
+     - `System_program/scope/<feature>.allow`
+     - ecc.
+   L’obiettivo è permettere in futuro ad altri agenti AI di lavorare in modo “chirurgico” sui singoli moduli, come nel progetto Magenta.
+
+DELIVERABLE INIZIALE CHE VOGLIO
+- Un repo Replit funzionante con:
+  - dipendenze Ruby configurate (Gemfile)
+  - migrazioni DB o schema pronto
+  - endpoint di base creati (anche se alcuni possono restituire stub)
+  - una pagina `/orders` che mostra una tabella vuota ma reale
+- Commenti nel codice che mi aiutino ad estendere le feature in seguito.
+

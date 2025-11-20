@@ -1,0 +1,15 @@
+# Feature: switch
+# Forbidden files for Switch integration feature
+
+# Do not modify order models
+models/store.rb
+models/order_item.rb
+
+# Do not modify storage
+models/asset.rb
+services/asset_downloader.rb
+storage/**
+
+# Do not modify UI
+views/**
+routes/web_ui.rb

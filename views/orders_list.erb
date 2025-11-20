@@ -1,0 +1,94 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1>Print Orders</h1>
+  <div class="text-muted">
+    Total: <%= @orders.count %> orders
+  </div>
+</div>
+
+<% if @orders.empty? %>
+  <div class="alert alert-info">
+    <h4>No orders yet</h4>
+    <p>Orders will appear here when imported via the API endpoint:</p>
+    <code>POST /api/orders/import</code>
+  </div>
+<% else %>
+  <div class="table-responsive">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Store</th>
+          <th>Order Code</th>
+          <th>Status</th>
+          <th>Items</th>
+          <th>Assets</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @orders.each do |order| %>
+          <tr>
+            <td><%= order.created_at.strftime('%Y-%m-%d %H:%M') %></td>
+            <td><strong><%= order.store.code %></strong><br><small class="text-muted"><%= order.store.name %></small></td>
+            <td><a href="/orders/<%= order.id %>"><%= order.external_order_code %></a></td>
+            <td>
+              <span class="badge status-badge status-<%= order.status %>">
+                <%= order.status.gsub('_', ' ').upcase %>
+              </span>
+            </td>
+            <td><%= order.order_items.count %></td>
+            <td>
+              <%= order.assets.count %> total
+              <% if order.assets_downloaded? %>
+                <span class="badge bg-success">✓</span>
+              <% else %>
+                <span class="badge bg-warning text-dark">pending</span>
+              <% end %>
+            </td>
+            <td>
+              <div class="btn-group btn-group-sm">
+                <form action="/orders/<%= order.id %>/download" method="post" class="d-inline">
+                  <button type="submit" class="btn btn-outline-primary" <%= 'disabled' if order.assets_downloaded? %>>
+                    📥 Download
+                  </button>
+                </form>
+                <form action="/orders/<%= order.id %>/send" method="post" class="d-inline">
+                  <button type="submit" class="btn btn-outline-success" <%= 'disabled' unless order.ready_for_switch? %>>
+                    🚀 Send to Switch
+                  </button>
+                </form>
+                <a href="/orders/<%= order.id %>" class="btn btn-outline-secondary">👁️ View</a>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
+<div class="mt-5">
+  <h5>API Documentation</h5>
+  <div class="card">
+    <div class="card-body">
+      <h6>Import Order:</h6>
+      <pre>POST /api/orders/import
+Content-Type: application/json
+
+{
+  "store_id": "TPH_DE",
+  "external_order_code": "DE11132",
+  "items": [
+    {
+      "sku": "PICK-ROCK-1MM",
+      "quantity": 100,
+      "image_urls": [
+        "https://example.com/front.png",
+        "https://example.com/back.png"
+      ]
+    }
+  ]
+}</pre>
+    </div>
+  </div>
+</div>

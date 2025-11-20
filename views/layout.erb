@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Print Order Orchestrator</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .status-badge {
+      font-size: 0.85em;
+      padding: 0.35em 0.65em;
+    }
+    .status-new { background-color: #0d6efd; }
+    .status-sent_to_switch { background-color: #6c757d; }
+    .status-processing { background-color: #ffc107; color: #000; }
+    .status-done { background-color: #198754; }
+    .status-error { background-color: #dc3545; }
+    .asset-preview {
+      max-width: 100px;
+      max-height: 100px;
+      object-fit: cover;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .log-box {
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/orders">🖨️ Print Order Orchestrator</a>
+    </div>
+  </nav>
+  
+  <div class="container mt-4">
+    <%= yield %>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

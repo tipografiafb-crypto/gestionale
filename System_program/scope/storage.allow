@@ -1,0 +1,18 @@
+# Feature: storage
+# Allowed files for asset storage feature
+
+# Models
+models/asset.rb
+
+# Services
+services/asset_downloader.rb
+
+# Migrations
+db/migrate/004_create_assets.rb
+
+# Storage directory
+storage/**
+
+# Tests (future)
+# test/models/asset_test.rb
+# test/services/asset_downloader_test.rb

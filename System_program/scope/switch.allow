@@ -1,0 +1,18 @@
+# Feature: switch
+# Allowed files for Switch integration feature
+
+# Models
+models/switch_job.rb
+
+# Services
+services/switch_client.rb
+
+# Routes
+routes/switch_api.rb
+
+# Migrations
+db/migrate/005_create_switch_jobs.rb
+
+# Tests (future)
+# test/models/switch_job_test.rb
+# test/services/switch_client_test.rb

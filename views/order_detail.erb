@@ -1,0 +1,143 @@
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/orders">Orders</a></li>
+      <li class="breadcrumb-item active"><%= @order.external_order_code %></li>
+    </ol>
+  </nav>
+</div>
+
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h1>Order: <%= @order.external_order_code %></h1>
+  </div>
+  <div class="col-md-4 text-end">
+    <form action="/orders/<%= @order.id %>/download" method="post" class="d-inline">
+      <button type="submit" class="btn btn-primary" <%= 'disabled' if @order.assets_downloaded? %>>
+        📥 Download Images
+      </button>
+    </form>
+    <form action="/orders/<%= @order.id %>/send" method="post" class="d-inline">
+      <button type="submit" class="btn btn-success" <%= 'disabled' unless @order.ready_for_switch? %>>
+        🚀 Send to Switch
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mb-4">
+      <div class="card-header">
+        <strong>Order Information</strong>
+      </div>
+      <div class="card-body">
+        <table class="table table-sm table-borderless">
+          <tr>
+            <th>ID:</th>
+            <td><%= @order.id %></td>
+          </tr>
+          <tr>
+            <th>External Code:</th>
+            <td><strong><%= @order.external_order_code %></strong></td>
+          </tr>
+          <tr>
+            <th>Store:</th>
+            <td><%= @order.store.code %> (<%= @order.store.name %>)</td>
+          </tr>
+          <tr>
+            <th>Status:</th>
+            <td>
+              <span class="badge status-badge status-<%= @order.status %>">
+                <%= @order.status.gsub('_', ' ').upcase %>
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <th>Created:</th>
+            <td><%= @order.created_at.strftime('%Y-%m-%d %H:%M:%S') %></td>
+          </tr>
+          <tr>
+            <th>Updated:</th>
+            <td><%= @order.updated_at.strftime('%Y-%m-%d %H:%M:%S') %></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <% if @order.switch_job %>
+      <div class="card mb-4">
+        <div class="card-header">
+          <strong>Switch Job</strong>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm table-borderless">
+            <tr>
+              <th>Job ID:</th>
+              <td><%= @order.switch_job.switch_job_id || 'N/A' %></td>
+            </tr>
+            <tr>
+              <th>Status:</th>
+              <td><span class="badge bg-secondary"><%= @order.switch_job.status.upcase %></span></td>
+            </tr>
+            <% if @order.switch_job.result_preview_url %>
+              <tr>
+                <th>Preview:</th>
+                <td><a href="<%= @order.switch_job.result_preview_url %>" target="_blank">View Preview</a></td>
+              </tr>
+            <% end %>
+          </table>
+          <% if @order.switch_job.log.present? %>
+            <h6>Log:</h6>
+            <div class="log-box"><%= @order.switch_job.log %></div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<h3>Order Items (<%= @order.order_items.count %>)</h3>
+
+<% @order.order_items.each_with_index do |item, index| %>
+  <div class="card mb-3">
+    <div class="card-header">
+      <strong>Item #<%= index + 1 %>:</strong> <%= item.sku %> (Qty: <%= item.quantity %>)
+    </div>
+    <div class="card-body">
+      <% if item.assets.any? %>
+        <h6>Assets (<%= item.assets.count %>):</h6>
+        <div class="row">
+          <% item.assets.each do |asset| %>
+            <div class="col-md-3 mb-3">
+              <div class="card">
+                <div class="card-body text-center">
+                  <% if asset.downloaded? && asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) %>
+                    <img src="/file/<%= asset.id %>" alt="<%= asset.asset_type %>" class="asset-preview mb-2">
+                  <% else %>
+                    <div class="asset-preview mb-2 d-flex align-items-center justify-content-center" style="background-color: #f0f0f0;">
+                      <span>📄</span>
+                    </div>
+                  <% end %>
+                  <small class="d-block"><strong><%= asset.asset_type || 'N/A' %></strong></small>
+                  <% if asset.downloaded? %>
+                    <span class="badge bg-success">Downloaded</span>
+                  <% else %>
+                    <span class="badge bg-warning text-dark">Pending</span>
+                  <% end %>
+                  <div class="mt-2">
+                    <a href="<%= asset.original_url %>" target="_blank" class="btn btn-sm btn-outline-primary">Original URL</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-muted">No assets for this item.</p>
+      <% end %>
+    </div>
+  </div>
+<% end %>
