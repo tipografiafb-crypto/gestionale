@@ -14,6 +14,9 @@ class PrintOrchestrator < Sinatra::Base
     set :database_file, 'config/database.yml'
     set :bind, '0.0.0.0'
     set :port, ENV['PORT'] || 5000
+    
+    # Disable host authorization for Replit dynamic URLs
+    set :protection, except: [:host_authorization]
   end
 
   # Load models
