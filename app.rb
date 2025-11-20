@@ -15,8 +15,8 @@ class PrintOrchestrator < Sinatra::Base
     set :bind, '0.0.0.0'
     set :port, ENV['PORT'] || 5000
     
-    # Disable host authorization for Replit dynamic URLs
-    set :protection, except: [:host_authorization]
+    # Disable host authorization for Replit (development environment)
+    set :protection, except: :host_authorization
   end
 
   # Load models
