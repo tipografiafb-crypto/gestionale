@@ -14,9 +14,11 @@ class PrintOrchestrator < Sinatra::Base
     set :database_file, 'config/database.yml'
     set :bind, '0.0.0.0'
     set :port, ENV['PORT'] || 5000
-    
-    # Disable host authorization for Replit (development environment)
-    set :protection, except: :host_authorization
+  end
+  
+  # Disable Rack::Protection for Replit (allows dynamic hostnames)
+  configure :development do
+    disable :protection
   end
 
   # Load models
