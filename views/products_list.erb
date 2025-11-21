@@ -2,7 +2,7 @@
   <div class="row mb-4">
     <div class="col-md-8">
       <h1>📦 Prodotti (SKU)</h1>
-      <p class="text-muted">Configura il routing dei prodotti verso i webhook Switch</p>
+      <p class="text-muted">Configura il routing dei prodotti verso i flussi di stampa</p>
     </div>
     <div class="col-md-4 text-end">
       <a href="/products/new" class="btn btn-primary">➕ Nuovo Prodotto</a>
@@ -39,7 +39,11 @@
                 <%= product.name %>
               </td>
               <td>
-                <span class="badge bg-info"><%= product.switch_webhook.name %></span>
+                <% if product.print_flow %>
+                  <span class="badge bg-info"><%= product.print_flow.name %></span>
+                <% else %>
+                  <span class="badge bg-warning">Non assegnato</span>
+                <% end %>
               </td>
               <td>
                 <small><%= product.notes.present? ? product.notes : '—' %></small>
