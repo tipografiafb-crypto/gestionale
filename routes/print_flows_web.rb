@@ -12,6 +12,7 @@ class PrintOrchestrator < Sinatra::Base
   # GET /print_flows/new - New print flow form
   get '/print_flows/new' do
     @flow = nil
+    @webhooks = SwitchWebhook.active.order(name: :asc)
     erb :print_flow_form
   end
 
@@ -19,8 +20,8 @@ class PrintOrchestrator < Sinatra::Base
   post '/print_flows' do
     flow = PrintFlow.new(
       name: params[:name],
-      preprint_hook_path: params[:preprint_hook_path],
-      print_hook_path: params[:print_hook_path],
+      preprint_webhook_id: params[:preprint_webhook_id],
+      print_webhook_id: params[:print_webhook_id],
       notes: params[:notes],
       active: params[:active] == 'true'
     )
@@ -29,6 +30,7 @@ class PrintOrchestrator < Sinatra::Base
       redirect '/print_flows?success=created'
     else
       @flow = flow
+      @webhooks = SwitchWebhook.active.order(name: :asc)
       @error = flow.errors.full_messages.join(', ')
       erb :print_flow_form
     end
@@ -37,6 +39,7 @@ class PrintOrchestrator < Sinatra::Base
   # GET /print_flows/:id/edit - Edit print flow form
   get '/print_flows/:id/edit' do
     @flow = PrintFlow.find(params[:id])
+    @webhooks = SwitchWebhook.active.order(name: :asc)
     erb :print_flow_form
   rescue ActiveRecord::RecordNotFound
     status 404
@@ -48,8 +51,8 @@ class PrintOrchestrator < Sinatra::Base
     flow = PrintFlow.find(params[:id])
     flow.update(
       name: params[:name],
-      preprint_hook_path: params[:preprint_hook_path],
-      print_hook_path: params[:print_hook_path],
+      preprint_webhook_id: params[:preprint_webhook_id],
+      print_webhook_id: params[:print_webhook_id],
       notes: params[:notes],
       active: params[:active] == 'true'
     )

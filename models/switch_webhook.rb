@@ -5,6 +5,8 @@
 class SwitchWebhook < ActiveRecord::Base
   belongs_to :store, optional: true
   has_many :switch_jobs
+  has_many :print_flows_as_preprint, class_name: 'PrintFlow', foreign_key: 'preprint_webhook_id', dependent: :nullify
+  has_many :print_flows_as_print, class_name: 'PrintFlow', foreign_key: 'print_webhook_id', dependent: :nullify
 
   validates :name, presence: true
   validates :hook_path, presence: true, format: { with: /\A\//, message: "deve iniziare con /" }

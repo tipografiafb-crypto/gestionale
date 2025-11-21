@@ -49,13 +49,15 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_21_204148) do
 
   create_table "print_flows", force: :cascade do |t|
     t.string "name", null: false
-    t.string "preprint_hook_path", null: false
-    t.string "print_hook_path", null: false
     t.text "notes"
     t.boolean "active", default: true
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "preprint_webhook_id"
+    t.bigint "print_webhook_id"
     t.index ["name"], name: "index_print_flows_on_name", unique: true
+    t.index ["preprint_webhook_id"], name: "index_print_flows_on_preprint_webhook_id"
+    t.index ["print_webhook_id"], name: "index_print_flows_on_print_webhook_id"
   end
 
   create_table "products", force: :cascade do |t|
@@ -103,6 +105,8 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_21_204148) do
   add_foreign_key "assets", "order_items"
   add_foreign_key "order_items", "orders"
   add_foreign_key "orders", "stores"
+  add_foreign_key "print_flows", "switch_webhooks", column: "preprint_webhook_id"
+  add_foreign_key "print_flows", "switch_webhooks", column: "print_webhook_id"
   add_foreign_key "products", "print_flows"
   add_foreign_key "switch_jobs", "orders"
   add_foreign_key "switch_webhooks", "stores"

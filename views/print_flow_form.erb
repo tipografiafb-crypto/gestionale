@@ -17,15 +17,29 @@
     </div>
 
     <div class="mb-3">
-      <label for="preprint_hook_path" class="form-label">Webhook Pre-Stampa *</label>
-      <input type="text" class="form-control" id="preprint_hook_path" name="preprint_hook_path" value="<%= @flow&.preprint_hook_path %>" placeholder="/api/preprint" required>
-      <small class="text-muted">Path relativo (es: /api/jobs/preprint). La URL base viene da SWITCH_WEBHOOK_BASE_URL</small>
+      <label for="preprint_webhook_id" class="form-label">Webhook Pre-Stampa *</label>
+      <select class="form-select" id="preprint_webhook_id" name="preprint_webhook_id" required>
+        <option value="">-- Seleziona webhook pre-stampa --</option>
+        <% @webhooks.each do |webhook| %>
+          <option value="<%= webhook.id %>" <%= 'selected' if @flow&.preprint_webhook_id == webhook.id %>>
+            <%= webhook.name %> (<%= webhook.hook_path %>)
+          </option>
+        <% end %>
+      </select>
+      <small class="text-muted">Webhook per la fase di preparazione e validazione dei file</small>
     </div>
 
     <div class="mb-3">
-      <label for="print_hook_path" class="form-label">Webhook Stampa *</label>
-      <input type="text" class="form-control" id="print_hook_path" name="print_hook_path" value="<%= @flow&.print_hook_path %>" placeholder="/api/print" required>
-      <small class="text-muted">Path relativo (es: /api/jobs/print). La URL base viene da SWITCH_WEBHOOK_BASE_URL</small>
+      <label for="print_webhook_id" class="form-label">Webhook Stampa *</label>
+      <select class="form-select" id="print_webhook_id" name="print_webhook_id" required>
+        <option value="">-- Seleziona webhook stampa --</option>
+        <% @webhooks.each do |webhook| %>
+          <option value="<%= webhook.id %>" <%= 'selected' if @flow&.print_webhook_id == webhook.id %>>
+            <%= webhook.name %> (<%= webhook.hook_path %>)
+          </option>
+        <% end %>
+      </select>
+      <small class="text-muted">Webhook per l'invio dei file alle macchine di stampa</small>
     </div>
 
     <div class="mb-3">

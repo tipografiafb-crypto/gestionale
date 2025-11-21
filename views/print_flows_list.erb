@@ -19,8 +19,8 @@
         <thead class="table-light">
           <tr>
             <th>Nome</th>
-            <th>Pre-Stampa Webhook</th>
-            <th>Stampa Webhook</th>
+            <th>Pre-Stampa</th>
+            <th>Stampa</th>
             <th>Prodotti</th>
             <th>Status</th>
             <th>Azioni</th>
@@ -30,8 +30,8 @@
           <% @flows.each do |flow| %>
             <tr>
               <td><strong><%= flow.name %></strong></td>
-              <td><code><%= flow.preprint_hook_path %></code></td>
-              <td><code><%= flow.print_hook_path %></code></td>
+              <td><%= flow.preprint_webhook&.name %><br><code><%= flow.preprint_webhook&.hook_path %></code></td>
+              <td><%= flow.print_webhook&.name %><br><code><%= flow.print_webhook&.hook_path %></code></td>
               <td><span class="badge bg-info"><%= flow.products.count %></span></td>
               <td><%= flow.active? ? '✅ Attivo' : '⏸️ Inattivo' %></td>
               <td>
