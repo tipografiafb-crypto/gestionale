@@ -50,27 +50,59 @@ class FTPPoller
     return unless ftp
     
     begin
+      puts "[FTPPoller] Changing to directory: #{@ftp_path}"
       ftp.chdir(@ftp_path)
-      files = ftp.nlst('*.json')
+      
+      # Try to get file list - try nlst first, fallback to list
+      files = get_json_files(ftp)
+      
+      if files.empty?
+        puts "[FTPPoller] No .json files found in #{@ftp_path}"
+        return
+      end
+      
+      puts "[FTPPoller] Found #{files.length} JSON file(s)"
       
       files.each do |filename|
         next if @processed_files.include?(filename)
         
-        puts "[FTPPoller] Found new file: #{filename}"
+        puts "[FTPPoller] Processing: #{filename}"
         process_file(ftp, filename)
         @processed_files.add(filename)
       end
+    rescue => e
+      puts "[FTPPoller] Error during polling: #{e.message}"
     ensure
-      ftp.close
+      ftp.close rescue nil
     end
+  end
+
+  def get_json_files(ftp)
+    # Try nlst first (more efficient)
+    begin
+      return ftp.nlst('*.json')
+    rescue => e
+      puts "[FTPPoller] nlst failed: #{e.message}, trying list..."
+    end
+    
+    # Fallback to list and filter
+    begin
+      list_output = ftp.list('*.json')
+      return list_output.map { |line| line.split.last }.compact
+    rescue => e
+      puts "[FTPPoller] list also failed: #{e.message}"
+    end
+    
+    []
   end
 
   def connect
     ftp = Net::FTP.new(@ftp_host, port: @ftp_port, username: @ftp_user, password: @ftp_pass)
     ftp.passive = true
+    puts "[FTPPoller] ✓ Connected to #{@ftp_host}:#{@ftp_port}"
     ftp
   rescue => e
-    puts "[FTPPoller] Connection failed: #{e.message}"
+    puts "[FTPPoller] ✗ Connection failed: #{e.message}"
     nil
   end
 
