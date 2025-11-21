@@ -33,6 +33,7 @@ class PrintOrchestrator < Sinatra::Base
   # Load services
   require_relative 'services/asset_downloader'
   require_relative 'services/switch_client'
+  require_relative 'services/ftp_poller'
 
   # Serve local asset files
   get '/file/:id' do
@@ -65,4 +66,9 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'routes/orders_api'
   require_relative 'routes/switch_api'
   require_relative 'routes/web_ui'
+  
+  # Start FTP poller in background (if configured)
+  configure do
+    FTPPoller.new.start
+  end
 end
