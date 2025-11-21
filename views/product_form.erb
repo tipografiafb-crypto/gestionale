@@ -42,7 +42,7 @@
             <option value="">-- Seleziona flusso --</option>
             <% @flows.each do |flow| %>
               <option value="<%= flow.id %>" <%= 'selected' if @product&.print_flow_id == flow.id %>>
-                <%= flow.name %> (Pre: <%= flow.preprint_hook_path %> → Stampa: <%= flow.print_hook_path %>)
+                <%= flow.name %> (Pre: <%= flow.preprint_webhook&.name %> → Stampa: <%= flow.print_webhook&.name %>)
               </option>
             <% end %>
           </select>
