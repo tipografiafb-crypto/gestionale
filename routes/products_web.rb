@@ -12,7 +12,7 @@ class PrintOrchestrator < Sinatra::Base
   # GET /products/new - New product form
   get '/products/new' do
     @product = nil
-    @webhooks = SwitchWebhook.active.order(name: :asc)
+    @flows = PrintFlow.active.order(name: :asc)
     erb :product_form
   end
 
@@ -21,7 +21,7 @@ class PrintOrchestrator < Sinatra::Base
     product = Product.new(
       sku: params[:sku].upcase,
       name: params[:name],
-      switch_webhook_id: params[:switch_webhook_id],
+      print_flow_id: params[:print_flow_id],
       notes: params[:notes],
       active: params[:active] == 'true'
     )
@@ -30,7 +30,7 @@ class PrintOrchestrator < Sinatra::Base
       redirect '/products?success=created'
     else
       @product = product
-      @webhooks = SwitchWebhook.active.order(name: :asc)
+      @flows = PrintFlow.active.order(name: :asc)
       @error = product.errors.full_messages.join(', ')
       erb :product_form
     end
@@ -39,7 +39,7 @@ class PrintOrchestrator < Sinatra::Base
   # GET /products/:id/edit - Edit product form
   get '/products/:id/edit' do
     @product = Product.find(params[:id])
-    @webhooks = SwitchWebhook.active.order(name: :asc)
+    @flows = PrintFlow.active.order(name: :asc)
     erb :product_form
   rescue ActiveRecord::RecordNotFound
     status 404
@@ -52,7 +52,7 @@ class PrintOrchestrator < Sinatra::Base
     product.update(
       sku: params[:sku].upcase,
       name: params[:name],
-      switch_webhook_id: params[:switch_webhook_id],
+      print_flow_id: params[:print_flow_id],
       notes: params[:notes],
       active: params[:active] == 'true'
     )

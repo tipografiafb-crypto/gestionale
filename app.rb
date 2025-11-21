@@ -31,6 +31,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'models/asset'
   require_relative 'models/switch_job'
   require_relative 'models/switch_webhook'
+  require_relative 'models/print_flow'
   require_relative 'models/product'
 
   # Load services
