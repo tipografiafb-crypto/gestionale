@@ -47,4 +47,14 @@ class PrintOrchestrator < Sinatra::Base
     status 404
     erb :not_found
   end
+
+  # DELETE /orders/:id - Delete order
+  delete '/orders/:id' do
+    order = Order.find(params[:id])
+    order.destroy
+    redirect '/orders'
+  rescue ActiveRecord::RecordNotFound
+    status 404
+    erb :not_found
+  end
 end
