@@ -12,6 +12,8 @@ class Order < ActiveRecord::Base
   validates :external_order_code, presence: true
   validates :status, inclusion: { in: STATUSES }
   validates :external_order_code, uniqueness: { scope: :store_id }
+  
+  attr_accessor :customer_name, :customer_note
 
   # Scopes for filtering
   scope :recent, -> { order(created_at: :desc) }
