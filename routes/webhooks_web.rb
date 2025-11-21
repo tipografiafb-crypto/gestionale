@@ -20,7 +20,7 @@ class PrintOrchestrator < Sinatra::Base
   post '/webhooks' do
     webhook = SwitchWebhook.new(
       name: params[:name],
-      webhook_url: params[:webhook_url],
+      hook_path: params[:hook_path],
       store_id: params[:store_id].presence,
       active: params[:active] == 'true'
     )
@@ -50,7 +50,7 @@ class PrintOrchestrator < Sinatra::Base
     webhook = SwitchWebhook.find(params[:id])
     webhook.update(
       name: params[:name],
-      webhook_url: params[:webhook_url],
+      hook_path: params[:hook_path],
       store_id: params[:store_id].presence,
       active: params[:active] == 'true'
     )

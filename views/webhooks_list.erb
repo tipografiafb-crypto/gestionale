@@ -22,7 +22,8 @@
         <thead class="table-dark">
           <tr>
             <th>Nome</th>
-            <th>Webhook URL</th>
+            <th>Hook Path</th>
+            <th>URL Completo</th>
             <th>Negozio</th>
             <th>Stato</th>
             <th>Azioni</th>
@@ -35,7 +36,10 @@
                 <strong><%= webhook.name %></strong>
               </td>
               <td>
-                <code style="font-size: 0.85rem;"><%= webhook.webhook_url %></code>
+                <code style="font-size: 0.85rem;"><%= webhook.hook_path %></code>
+              </td>
+              <td>
+                <code style="font-size: 0.80rem;"><%= webhook.webhook_url %></code>
               </td>
               <td>
                 <% if webhook.store %>
