@@ -47,16 +47,27 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_21_204148) do
     t.index ["store_id"], name: "index_orders_on_store_id"
   end
 
+  create_table "print_flows", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "preprint_hook_path", null: false
+    t.string "print_hook_path", null: false
+    t.text "notes"
+    t.boolean "active", default: true
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_print_flows_on_name", unique: true
+  end
+
   create_table "products", force: :cascade do |t|
     t.string "sku", null: false
-    t.bigint "switch_webhook_id", null: false
     t.text "notes"
     t.boolean "active", default: true
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "name", null: false
+    t.bigint "print_flow_id"
+    t.index ["print_flow_id"], name: "index_products_on_print_flow_id"
     t.index ["sku"], name: "index_products_on_sku", unique: true
-    t.index ["switch_webhook_id"], name: "index_products_on_switch_webhook_id"
   end
 
   create_table "stores", force: :cascade do |t|
@@ -92,7 +103,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_21_204148) do
   add_foreign_key "assets", "order_items"
   add_foreign_key "order_items", "orders"
   add_foreign_key "orders", "stores"
-  add_foreign_key "products", "switch_webhooks"
+  add_foreign_key "products", "print_flows"
   add_foreign_key "switch_jobs", "orders"
   add_foreign_key "switch_webhooks", "stores"
 end

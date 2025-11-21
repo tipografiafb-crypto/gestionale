@@ -37,16 +37,16 @@
         </div>
 
         <div class="mb-3">
-          <label for="switch_webhook_id" class="form-label">Webhook Switch <span class="text-danger">*</span></label>
-          <select id="switch_webhook_id" name="switch_webhook_id" class="form-select" required>
-            <option value="">-- Seleziona webhook --</option>
-            <% @webhooks.each do |webhook| %>
-              <option value="<%= webhook.id %>" <%= 'selected' if @product&.switch_webhook_id == webhook.id %>>
-                <%= webhook.name %> (<%= webhook.hook_path %>)
+          <label for="print_flow_id" class="form-label">Flusso di Stampa <span class="text-danger">*</span></label>
+          <select id="print_flow_id" name="print_flow_id" class="form-select" required>
+            <option value="">-- Seleziona flusso --</option>
+            <% @flows.each do |flow| %>
+              <option value="<%= flow.id %>" <%= 'selected' if @product&.print_flow_id == flow.id %>>
+                <%= flow.name %> (Pre: <%= flow.preprint_hook_path %> → Stampa: <%= flow.print_hook_path %>)
               </option>
             <% end %>
           </select>
-          <small class="text-muted">Quando un ordine contiene questo SKU, sarà inviato a questo webhook</small>
+          <small class="text-muted">Quando un ordine contiene questo SKU, verrà processato attraverso questo flusso di stampa (pre-stampa e stampa)</small>
         </div>
 
         <div class="mb-3">
