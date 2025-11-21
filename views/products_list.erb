@@ -22,6 +22,7 @@
         <thead class="table-dark">
           <tr>
             <th>SKU</th>
+            <th>Nome Prodotto</th>
             <th>Webhook Assegnato</th>
             <th>Note</th>
             <th>Stato</th>
@@ -33,6 +34,9 @@
             <tr>
               <td>
                 <strong><code><%= product.sku %></code></strong>
+              </td>
+              <td>
+                <%= product.name %>
               </td>
               <td>
                 <span class="badge bg-info"><%= product.switch_webhook.name %></span>

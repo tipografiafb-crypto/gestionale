@@ -17,11 +17,23 @@
   <form method="POST" action="<%= @product ? "/products/#{@product.id}?_method=PUT" : '/products' %>" class="mt-4">
     <div class="card">
       <div class="card-body">
-        <div class="mb-3">
-          <label for="sku" class="form-label">SKU Prodotto <span class="text-danger">*</span></label>
-          <input type="text" id="sku" name="sku" class="form-control text-uppercase" 
-                 value="<%= @product&.sku %>" placeholder="es. POSTER-A4, CARD-BUSINESS" required>
-          <small class="text-muted">Codice SKU del prodotto (es. da WooCommerce). Sarà automaticamente convertito in maiuscole.</small>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="sku" class="form-label">SKU Prodotto <span class="text-danger">*</span></label>
+              <input type="text" id="sku" name="sku" class="form-control text-uppercase" 
+                     value="<%= @product&.sku %>" placeholder="es. POSTER-A4" required>
+              <small class="text-muted">Codice SKU (sarà convertito in maiuscole)</small>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="name" class="form-label">Nome Prodotto <span class="text-danger">*</span></label>
+              <input type="text" id="name" name="name" class="form-control" 
+                     value="<%= @product&.name %>" placeholder="es. Poster A4 Lucido" required>
+              <small class="text-muted">Nome descrittivo del prodotto</small>
+            </div>
+          </div>
         </div>
 
         <div class="mb-3">

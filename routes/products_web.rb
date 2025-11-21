@@ -20,6 +20,7 @@ class PrintOrchestrator < Sinatra::Base
   post '/products' do
     product = Product.new(
       sku: params[:sku].upcase,
+      name: params[:name],
       switch_webhook_id: params[:switch_webhook_id],
       notes: params[:notes],
       active: params[:active] == 'true'
@@ -50,6 +51,7 @@ class PrintOrchestrator < Sinatra::Base
     product = Product.find(params[:id])
     product.update(
       sku: params[:sku].upcase,
+      name: params[:name],
       switch_webhook_id: params[:switch_webhook_id],
       notes: params[:notes],
       active: params[:active] == 'true'

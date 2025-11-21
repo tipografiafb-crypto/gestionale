@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_11_21_193043) do
+ActiveRecord::Schema[7.2].define(version: 2025_11_21_204148) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -54,6 +54,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_21_193043) do
     t.boolean "active", default: true
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "name", null: false
     t.index ["sku"], name: "index_products_on_sku", unique: true
     t.index ["switch_webhook_id"], name: "index_products_on_switch_webhook_id"
   end
