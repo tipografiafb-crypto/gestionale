@@ -1,0 +1,67 @@
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-8">
+      <h1><%= @webhook ? '✎ Modifica Webhook' : '➕ Nuovo Webhook' %></h1>
+    </div>
+    <div class="col-md-4 text-end">
+      <a href="/webhooks" class="btn btn-secondary">← Indietro</a>
+    </div>
+  </div>
+
+  <% if @error %>
+    <div class="alert alert-danger mt-3">
+      <strong>⚠ Errore:</strong> <%= @error %>
+    </div>
+  <% end %>
+
+  <form method="POST" action="<%= @webhook ? "/webhooks/#{@webhook.id}?_method=PUT" : '/webhooks' %>" class="mt-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="mb-3">
+          <label for="name" class="form-label">Nome Webhook <span class="text-danger">*</span></label>
+          <input type="text" id="name" name="name" class="form-control" 
+                 value="<%= @webhook&.name %>" placeholder="es. Main Switch, Backup Switch" required>
+          <small class="text-muted">Nome descrittivo per identificare questo webhook</small>
+        </div>
+
+        <div class="mb-3">
+          <label for="webhook_url" class="form-label">URL Webhook <span class="text-danger">*</span></label>
+          <input type="url" id="webhook_url" name="webhook_url" class="form-control" 
+                 value="<%= @webhook&.webhook_url %>" placeholder="https://switch.example.com/api/jobs" required>
+          <small class="text-muted">URL completo dell'endpoint Switch (es. https://switch-prod.company.com/api/webhook)</small>
+        </div>
+
+        <div class="mb-3">
+          <label for="store_id" class="form-label">Negozio (Opzionale)</label>
+          <select id="store_id" name="store_id" class="form-select">
+            <option value="">-- Globale (tutti i negozi) --</option>
+            <% @stores.each do |store| %>
+              <option value="<%= store.id %>" <%= 'selected' if @webhook&.store_id == store.id %>>
+                <%= store.name %> (<%= store.code %>)
+              </option>
+            <% end %>
+          </select>
+          <small class="text-muted">Se non specificato, questo webhook sarà usato per tutti i negozi</small>
+        </div>
+
+        <div class="mb-3">
+          <div class="form-check">
+            <input type="checkbox" id="active" name="active" class="form-check-input" value="true"
+                   <%= 'checked' if !@webhook || @webhook.active %>>
+            <label class="form-check-label" for="active">
+              Webhook attivo
+            </label>
+          </div>
+          <small class="text-muted">Deseleziona per disabilitare temporaneamente questo webhook</small>
+        </div>
+      </div>
+
+      <div class="card-footer bg-light">
+        <button type="submit" class="btn btn-primary">
+          <%= @webhook ? '💾 Salva Modifiche' : '➕ Crea Webhook' %>
+        </button>
+        <a href="/webhooks" class="btn btn-outline-secondary">Annulla</a>
+      </div>
+    </div>
+  </form>
+</div>
