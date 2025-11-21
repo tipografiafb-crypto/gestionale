@@ -143,15 +143,7 @@ class FTPPoller
           order_item.store_json_data(item_data)
           order_item.save
           
-          # Create assets from product image
-          if item_data['product_image_url'].present?
-            order_item.assets.create!(
-              original_url: item_data['product_image_url'],
-              asset_type: 'product_image'
-            )
-          end
-          
-          # Create assets from print files
+          # Create assets from print files (skip product_image)
           item_data['print_files'].each_with_index do |url, index|
             order_item.assets.create!(
               original_url: url,
@@ -176,7 +168,13 @@ class FTPPoller
         }
       end
       
+      # Auto-download all assets immediately after import
+      order = Order.find(result[:order_id])
+      downloader = AssetDownloader.new(order)
+      download_results = downloader.download_all
+      
       puts "[FTPPoller] ✓ Imported order: #{result[:external_order_code]} (ID: #{result[:order_id]}) - #{result[:items_count]} items, #{result[:assets_count]} assets"
+      puts "[FTPPoller] ✓ Downloaded: #{download_results[:downloaded]}, Errors: #{download_results[:errors]}, Skipped: #{download_results[:skipped]}"
       
       # Optional: Delete file after successful import
       if ENV['FTP_DELETE_AFTER_IMPORT'].downcase == 'true'
