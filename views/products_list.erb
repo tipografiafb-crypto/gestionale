@@ -1,0 +1,73 @@
+<div class="container mt-4">
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <h1>📦 Prodotti (SKU)</h1>
+      <p class="text-muted">Configura il routing dei prodotti verso i webhook Switch</p>
+    </div>
+    <div class="col-md-4 text-end">
+      <a href="/products/new" class="btn btn-primary">➕ Nuovo Prodotto</a>
+    </div>
+  </div>
+
+  <% if params[:success] %>
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+      ✓ Prodotto <%= params[:success] %> con successo!
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  <% end %>
+
+  <% if @products.any? %>
+    <div class="table-responsive">
+      <table class="table table-striped table-hover">
+        <thead class="table-dark">
+          <tr>
+            <th>SKU</th>
+            <th>Webhook Assegnato</th>
+            <th>Note</th>
+            <th>Stato</th>
+            <th>Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @products.each do |product| %>
+            <tr>
+              <td>
+                <strong><code><%= product.sku %></code></strong>
+              </td>
+              <td>
+                <span class="badge bg-info"><%= product.switch_webhook.name %></span>
+              </td>
+              <td>
+                <small><%= product.notes.present? ? product.notes : '—' %></small>
+              </td>
+              <td>
+                <% if product.active %>
+                  <span class="badge bg-success">✓ Attivo</span>
+                <% else %>
+                  <span class="badge bg-danger">✗ Inattivo</span>
+                <% end %>
+              </td>
+              <td>
+                <a href="/products/<%= product.id %>/edit" class="btn btn-sm btn-outline-primary">✎ Modifica</a>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(<%= product.id %>)">🗑 Elimina</button>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="alert alert-info">
+      📭 Nessun prodotto registrato. <a href="/products/new">Crea il primo prodotto</a>
+    </div>
+  <% end %>
+</div>
+
+<script>
+function deleteProduct(id) {
+  if (confirm('Sei sicuro? Eliminerai questo prodotto dal routing.')) {
+    fetch('/products/' + id, { method: 'DELETE' })
+      .then(() => location.href = '/products?success=deleted');
+  }
+}
+</script>

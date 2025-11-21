@@ -1,0 +1,66 @@
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-8">
+      <h1><%= @product ? '✎ Modifica Prodotto' : '➕ Nuovo Prodotto' %></h1>
+    </div>
+    <div class="col-md-4 text-end">
+      <a href="/products" class="btn btn-secondary">← Indietro</a>
+    </div>
+  </div>
+
+  <% if @error %>
+    <div class="alert alert-danger mt-3">
+      <strong>⚠ Errore:</strong> <%= @error %>
+    </div>
+  <% end %>
+
+  <form method="POST" action="<%= @product ? "/products/#{@product.id}?_method=PUT" : '/products' %>" class="mt-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="mb-3">
+          <label for="sku" class="form-label">SKU Prodotto <span class="text-danger">*</span></label>
+          <input type="text" id="sku" name="sku" class="form-control text-uppercase" 
+                 value="<%= @product&.sku %>" placeholder="es. POSTER-A4, CARD-BUSINESS" required>
+          <small class="text-muted">Codice SKU del prodotto (es. da WooCommerce). Sarà automaticamente convertito in maiuscole.</small>
+        </div>
+
+        <div class="mb-3">
+          <label for="switch_webhook_id" class="form-label">Webhook Switch <span class="text-danger">*</span></label>
+          <select id="switch_webhook_id" name="switch_webhook_id" class="form-select" required>
+            <option value="">-- Seleziona webhook --</option>
+            <% @webhooks.each do |webhook| %>
+              <option value="<%= webhook.id %>" <%= 'selected' if @product&.switch_webhook_id == webhook.id %>>
+                <%= webhook.name %> (<%= webhook.hook_path %>)
+              </option>
+            <% end %>
+          </select>
+          <small class="text-muted">Quando un ordine contiene questo SKU, sarà inviato a questo webhook</small>
+        </div>
+
+        <div class="mb-3">
+          <label for="notes" class="form-label">Note (Opzionale)</label>
+          <textarea id="notes" name="notes" class="form-control" rows="3" placeholder="es. Cliente personalizzato, QA speciale..."><%= @product&.notes %></textarea>
+          <small class="text-muted">Note interne per il tuo team</small>
+        </div>
+
+        <div class="mb-3">
+          <div class="form-check">
+            <input type="checkbox" id="active" name="active" class="form-check-input" value="true"
+                   <%= 'checked' if !@product || @product.active %>>
+            <label class="form-check-label" for="active">
+              Prodotto attivo
+            </label>
+          </div>
+          <small class="text-muted">Deseleziona per disabilitare temporaneamente questo routing</small>
+        </div>
+      </div>
+
+      <div class="card-footer bg-light">
+        <button type="submit" class="btn btn-primary">
+          <%= @product ? '💾 Salva Modifiche' : '➕ Crea Prodotto' %>
+        </button>
+        <a href="/products" class="btn btn-outline-secondary">Annulla</a>
+      </div>
+    </div>
+  </form>
+</div>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_11_21_192144) do
+ActiveRecord::Schema[7.2].define(version: 2025_11_21_193043) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -47,6 +47,17 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_21_192144) do
     t.index ["store_id"], name: "index_orders_on_store_id"
   end
 
+  create_table "products", force: :cascade do |t|
+    t.string "sku", null: false
+    t.bigint "switch_webhook_id", null: false
+    t.text "notes"
+    t.boolean "active", default: true
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["sku"], name: "index_products_on_sku", unique: true
+    t.index ["switch_webhook_id"], name: "index_products_on_switch_webhook_id"
+  end
+
   create_table "stores", force: :cascade do |t|
     t.string "code", null: false
     t.string "name", null: false
@@ -80,6 +91,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_21_192144) do
   add_foreign_key "assets", "order_items"
   add_foreign_key "order_items", "orders"
   add_foreign_key "orders", "stores"
+  add_foreign_key "products", "switch_webhooks"
   add_foreign_key "switch_jobs", "orders"
   add_foreign_key "switch_webhooks", "stores"
 end
