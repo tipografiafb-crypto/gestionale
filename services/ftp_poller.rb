@@ -216,7 +216,11 @@ class FTPPoller
                     else
                       {}
                     end
-      cart_id = lumise_data['cart_id']
+      
+      # Try to find cart_id from multiple sources
+      cart_id = lumise_data['cart_id'] ||
+                (meta_data.is_a?(Hash) && meta_data['_wc_ai_customization']&.dig('artwork_id')) ||
+                nil
       
       {
         'sku' => item['sku'],
