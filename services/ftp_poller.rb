@@ -210,7 +210,12 @@ class FTPPoller
     screenshots_map = build_assets_map(raw_data['screenshots_with_cart_id'])
     
     raw_data['line_items'].map do |item|
-      lumise_data = item['meta_data']&.dig('lumise_data') || {}
+      meta_data = item['meta_data']
+      lumise_data = if meta_data.is_a?(Hash)
+                      meta_data['lumise_data'] || {}
+                    else
+                      {}
+                    end
       cart_id = lumise_data['cart_id']
       
       {
