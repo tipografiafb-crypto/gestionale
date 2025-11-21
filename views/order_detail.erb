@@ -22,9 +22,12 @@
         🚀 Send to Switch
       </button>
     </form>
-    <button type="button" class="btn btn-danger" onclick="deleteOrder(<%= @order.id %>)">
-      🗑 Delete
-    </button>
+    <form action="/orders/<%= @order.id %>" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro? Eliminerai completamente questo ordine.');">
+      <input type="hidden" name="_method" value="DELETE">
+      <button type="submit" class="btn btn-danger">
+        🗑 Delete
+      </button>
+    </form>
   </div>
 </div>
 

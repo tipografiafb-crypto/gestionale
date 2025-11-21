@@ -58,6 +58,10 @@
                   </button>
                 </form>
                 <a href="/orders/<%= order.id %>" class="btn btn-outline-secondary">👁️ View</a>
+                <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
+                  <input type="hidden" name="_method" value="DELETE">
+                  <button type="submit" class="btn btn-outline-danger">🗑 Delete</button>
+                </form>
               </div>
             </td>
           </tr>

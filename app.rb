@@ -1,5 +1,6 @@
 require 'sinatra/base'
 require 'sinatra/activerecord'
+require 'sinatra/contrib'
 require 'dotenv/load'
 require 'json'
 require 'time'
