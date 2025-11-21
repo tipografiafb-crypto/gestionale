@@ -134,9 +134,9 @@ class FTPPoller
           customer_note: data['customer_note']
         )
         
-        data['items'].each do |item_data|
+        data['items'].each_with_index do |item_data, idx|
           order_item = order.order_items.create!(
-            sku: item_data['sku'].presence || "SKU-#{order.id}-#{order_item.count + 1}",
+            sku: item_data['sku'].presence || "SKU-#{order.id}-#{idx + 1}",
             quantity: item_data['quantity']
           )
           
