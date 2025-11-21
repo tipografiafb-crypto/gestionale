@@ -23,6 +23,7 @@
           <tr>
             <th>SKU</th>
             <th>Nome Prodotto</th>
+            <th>Categoria</th>
             <th>Flusso</th>
             <th>Note</th>
             <th>Stato</th>
@@ -37,6 +38,13 @@
               </td>
               <td>
                 <%= product.name %>
+              </td>
+              <td>
+                <% if product.product_category %>
+                  <span class="badge bg-secondary"><%= product.product_category.name %></span>
+                <% else %>
+                  <span class="text-muted">—</span>
+                <% end %>
               </td>
               <td>
                 <% if product.print_flow %>

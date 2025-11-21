@@ -6,6 +6,7 @@ class PrintOrchestrator < Sinatra::Base
   # GET /products - List all products
   get '/products' do
     @products = Product.all.order(created_at: :desc)
+    @categories = ProductCategory.ordered
     erb :products_list
   end
 
@@ -13,6 +14,7 @@ class PrintOrchestrator < Sinatra::Base
   get '/products/new' do
     @product = nil
     @flows = PrintFlow.active.order(name: :asc)
+    @categories = ProductCategory.active.ordered
     erb :product_form
   end
 
@@ -22,6 +24,7 @@ class PrintOrchestrator < Sinatra::Base
       sku: params[:sku].upcase,
       name: params[:name],
       print_flow_id: params[:print_flow_id],
+      product_category_id: params[:product_category_id].presence,
       notes: params[:notes],
       active: params[:active] == 'true'
     )
@@ -31,6 +34,7 @@ class PrintOrchestrator < Sinatra::Base
     else
       @product = product
       @flows = PrintFlow.active.order(name: :asc)
+      @categories = ProductCategory.active.ordered
       @error = product.errors.full_messages.join(', ')
       erb :product_form
     end
@@ -40,6 +44,7 @@ class PrintOrchestrator < Sinatra::Base
   get '/products/:id/edit' do
     @product = Product.find(params[:id])
     @flows = PrintFlow.active.order(name: :asc)
+    @categories = ProductCategory.active.ordered
     erb :product_form
   rescue ActiveRecord::RecordNotFound
     status 404
@@ -53,6 +58,7 @@ class PrintOrchestrator < Sinatra::Base
       sku: params[:sku].upcase,
       name: params[:name],
       print_flow_id: params[:print_flow_id],
+      product_category_id: params[:product_category_id].presence,
       notes: params[:notes],
       active: params[:active] == 'true'
     )
@@ -61,7 +67,8 @@ class PrintOrchestrator < Sinatra::Base
       redirect '/products?success=updated'
     else
       @product = product
-      @webhooks = SwitchWebhook.active.order(name: :asc)
+      @flows = PrintFlow.active.order(name: :asc)
+      @categories = ProductCategory.active.ordered
       @error = product.errors.full_messages.join(', ')
       erb :product_form
     end

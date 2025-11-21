@@ -36,17 +36,35 @@
           </div>
         </div>
 
-        <div class="mb-3">
-          <label for="print_flow_id" class="form-label">Flusso di Stampa <span class="text-danger">*</span></label>
-          <select id="print_flow_id" name="print_flow_id" class="form-select" required>
-            <option value="">-- Seleziona flusso --</option>
-            <% @flows.each do |flow| %>
-              <option value="<%= flow.id %>" <%= 'selected' if @product&.print_flow_id == flow.id %>>
-                <%= flow.name %> (Pre: <%= flow.preprint_webhook&.name %> → Stampa: <%= flow.print_webhook&.name %>)
-              </option>
-            <% end %>
-          </select>
-          <small class="text-muted">Quando un ordine contiene questo SKU, verrà processato attraverso questo flusso di stampa (pre-stampa e stampa)</small>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="product_category_id" class="form-label">Categoria (Opzionale)</label>
+              <select id="product_category_id" name="product_category_id" class="form-select">
+                <option value="">-- Nessuna categoria --</option>
+                <% @categories.each do |category| %>
+                  <option value="<%= category.id %>" <%= 'selected' if @product&.product_category_id == category.id %>>
+                    <%= category.name %>
+                  </option>
+                <% end %>
+              </select>
+              <small class="text-muted">Organizza i prodotti per categorie</small>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="print_flow_id" class="form-label">Flusso di Stampa <span class="text-danger">*</span></label>
+              <select id="print_flow_id" name="print_flow_id" class="form-select" required>
+                <option value="">-- Seleziona flusso --</option>
+                <% @flows.each do |flow| %>
+                  <option value="<%= flow.id %>" <%= 'selected' if @product&.print_flow_id == flow.id %>>
+                    <%= flow.name %> (Pre: <%= flow.preprint_webhook&.name %> → Stampa: <%= flow.print_webhook&.name %>)
+                  </option>
+                <% end %>
+              </select>
+              <small class="text-muted">Flusso di stampa per questo prodotto</small>
+            </div>
+          </div>
         </div>
 
         <div class="mb-3">
