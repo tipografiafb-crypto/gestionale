@@ -90,11 +90,11 @@ class PrintOrchestrator < Sinatra::Base
               content = file[:tempfile].read
               File.open(full_path, 'wb') { |f| f.write(content) }
               
-              # Create Asset record
+              # Create Asset record (manual orders only have print assets)
               asset = order_item.assets.build(
                 original_url: filename,
                 local_path: local_path,
-                asset_type: 'uploaded'
+                asset_type: 'print'
               )
               asset.save!
             rescue => e
