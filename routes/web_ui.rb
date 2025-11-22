@@ -4,6 +4,13 @@
 require 'json'
 
 class PrintOrchestrator < Sinatra::Base
+  VALID_FILE_EXTENSIONS = %w[png jpg jpeg pdf].freeze
+
+  def valid_file_extension?(filename)
+    ext = File.extname(filename).downcase.sub(/^\./, '')
+    VALID_FILE_EXTENSIONS.include?(ext)
+  end
+
   # GET / - Redirect to orders list
   get '/' do
     redirect '/orders'
@@ -74,6 +81,12 @@ class PrintOrchestrator < Sinatra::Base
           file = item_params[:file]
           if file.present? && file.is_a?(Hash) && file[:filename].present?
             begin
+              # Validate file extension
+              unless valid_file_extension?(file[:filename])
+                order.destroy
+                redirect "/orders/new?error=Tipo file non consentito per #{item_params[:sku]}. Solo PNG, JPG, JPEG, PDF"
+              end
+
               # Create storage directory if needed
               store_code = store.code || store.id.to_s
               order_code = params[:order_code]
@@ -158,6 +171,11 @@ class PrintOrchestrator < Sinatra::Base
     file = params[:file]
     if file.present? && file.is_a?(Hash) && file[:filename].present?
       begin
+        # Validate file extension
+        unless valid_file_extension?(file[:filename])
+          redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Tipo file non consentito. Solo PNG, JPG, JPEG, PDF')}"
+        end
+
         store_code = order.store.code || order.store.id.to_s
         order_code = order.external_order_code
         sku = item.sku
