@@ -138,6 +138,16 @@ class PrintOrchestrator < Sinatra::Base
     erb :not_found
   end
 
+  # GET /orders/:order_id/items/:item_id/print - Print item card
+  get '/orders/:order_id/items/:item_id/print' do
+    @order = Order.includes(:store).find(params[:order_id])
+    @item = @order.order_items.includes(:assets).find(params[:item_id])
+    erb :print_item_card, layout: false
+  rescue ActiveRecord::RecordNotFound
+    status 404
+    'Item not found'
+  end
+
   # POST /orders/:id/download - Trigger asset download (web form)
   post '/orders/:id/download' do
     order = Order.find(params[:id])

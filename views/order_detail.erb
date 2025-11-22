@@ -156,6 +156,10 @@
             </form>
           <% end %>
           
+          <a href="/orders/<%= @order.id %>/items/<%= item.id %>/print" class="btn btn-sm btn-outline-info" target="_blank" title="Stampa scheda item">
+            🖨️ Stampa
+          </a>
+          
           <form action="/orders/<%= @order.id %>/items/<%= item.id %>/reset" method="post" class="d-inline" onsubmit="return confirm('Reimpostare questo item?');">
             <button type="submit" class="btn btn-sm btn-outline-secondary" 
                     <%= 'disabled' if item.preprint_status == 'pending' && item.print_status == 'pending' %>
