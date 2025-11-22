@@ -14,7 +14,10 @@
     </div>
   <% end %>
 
-  <form method="POST" action="<%= @product ? "/products/#{@product.id}?_method=PUT" : '/products' %>" class="mt-4">
+  <form method="POST" action="<%= @product ? "/products/#{@product.id}" : '/products' %>" class="mt-4">
+    <% if @product %>
+      <input type="hidden" name="_method" value="PUT">
+    <% end %>
     <input type="hidden" name="authenticity_token" value="<%= session[:csrf] %>">
     <div class="card">
       <div class="card-body">
