@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_11_22_085003) do
+ActiveRecord::Schema[7.2].define(version: 2025_11_22_085004) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -38,9 +38,11 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085003) do
     t.string "print_job_id"
     t.datetime "preprint_completed_at"
     t.datetime "print_completed_at"
+    t.bigint "selected_print_flow_id"
     t.index ["order_id"], name: "index_order_items_on_order_id"
     t.index ["preprint_status"], name: "index_order_items_on_preprint_status"
     t.index ["print_status"], name: "index_order_items_on_print_status"
+    t.index ["selected_print_flow_id"], name: "index_order_items_on_selected_print_flow_id"
   end
 
   create_table "orders", force: :cascade do |t|
@@ -139,6 +141,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085003) do
 
   add_foreign_key "assets", "order_items"
   add_foreign_key "order_items", "orders"
+  add_foreign_key "order_items", "print_flows", column: "selected_print_flow_id"
   add_foreign_key "orders", "stores"
   add_foreign_key "print_flows", "switch_webhooks", column: "label_webhook_id"
   add_foreign_key "print_flows", "switch_webhooks", column: "preprint_webhook_id"
