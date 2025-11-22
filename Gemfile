@@ -13,7 +13,7 @@ gem 'dotenv', '~> 3.0'
 gem 'http', '~> 5.1'
 gem 'rack', '~> 3.0'
 gem 'net-ftp', '~> 0.3'
-gem 'ruby-vips', '~> 2.2'
+gem 'mini_magick', '~> 4.12'
 
 group :development do
   gem 'rerun', '~> 0.14'

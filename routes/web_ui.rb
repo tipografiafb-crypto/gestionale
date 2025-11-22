@@ -2,7 +2,7 @@
 # @domain web
 # Web UI routes - HTML interface for operators
 require 'json'
-require 'vips'
+require 'mini_magick'
 
 class PrintOrchestrator < Sinatra::Base
   # GET / - Redirect to orders list
@@ -181,23 +181,24 @@ class PrintOrchestrator < Sinatra::Base
     zoom = params[:zoom].to_f / 100.0
 
     begin
-      # Load image with Vips
-      image = Vips::Image.new_from_file(asset.local_path_full)
+      # Load and process image with ImageMagick
+      image = MiniMagick::Image.open(asset.local_path_full)
       
       # Apply zoom (resize)
-      image = image.resize(zoom, vscale: zoom)
+      new_width = (image.width * zoom).round
+      new_height = (image.height * zoom).round
+      image.resize("#{new_width}x#{new_height}!")
       
       # Apply offset (create canvas and composite)
       canvas_width = (image.width + (offset_x.abs * 2)).round
       canvas_height = (image.height + (offset_y.abs * 2)).round
-      canvas = Vips::Image.black(canvas_width, canvas_height)
+      left = offset_x >= 0 ? offset_x : offset_x.abs
+      top = offset_y >= 0 ? offset_y : offset_y.abs
       
-      left = offset_x >= 0 ? offset_x : 0
-      top = offset_y >= 0 ? offset_y : 0
-      canvas = canvas.composite(image, :over, x: left, y: top)
+      image.background('white').gravity('Center').extent("#{canvas_width}x#{canvas_height}+#{left}+#{top}")
       
       # Save back to original path
-      canvas.write_to_file(asset.local_path_full)
+      image.write(asset.local_path_full)
       
       redirect "/orders/#{order.id}?msg=success&text=Asset+modificato+con+successo"
     rescue => e
