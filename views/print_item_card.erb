@@ -99,32 +99,6 @@
       color: #333;
     }
     
-    .preview-section {
-      margin-top: 20px;
-      padding: 20px;
-      background: #f5f5f5;
-      border-radius: 4px;
-      text-align: center;
-    }
-    
-    .preview-section h3 {
-      font-size: 14px;
-      margin-bottom: 10px;
-      color: #666;
-    }
-    
-    .preview-image {
-      max-width: 5cm;
-      max-height: 5cm;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-    
-    .no-preview {
-      color: #999;
-      font-style: italic;
-      padding: 40px;
-    }
     
     .footer {
       margin-top: 30px;
@@ -186,15 +160,6 @@
         </div>
       </div>
       
-      <% preview_assets = @item.assets.select { |a| a.downloaded? && a.asset_type == 'print' && a.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) } %>
-      <% if preview_assets.any? %>
-        <div class="preview-section">
-          <h3>Anteprima File</h3>
-          <% preview_assets.each do |asset| %>
-            <img src="/file/<%= asset.id %>" alt="Preview" class="preview-image">
-          <% end %>
-        </div>
-      <% end %>
     </div>
     
     <div class="footer">
