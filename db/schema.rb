@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_11_22_085002) do
+ActiveRecord::Schema[7.2].define(version: 2025_11_22_085003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -80,6 +80,17 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085002) do
     t.index ["name"], name: "index_product_categories_on_name", unique: true
   end
 
+  create_table "product_print_flows", force: :cascade do |t|
+    t.bigint "product_id", null: false
+    t.bigint "print_flow_id", null: false
+    t.boolean "default_flow", default: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["print_flow_id"], name: "index_product_print_flows_on_print_flow_id"
+    t.index ["product_id", "print_flow_id"], name: "index_product_print_flows_on_product_id_and_print_flow_id", unique: true
+    t.index ["product_id"], name: "index_product_print_flows_on_product_id"
+  end
+
   create_table "products", force: :cascade do |t|
     t.string "sku", null: false
     t.text "notes"
@@ -132,6 +143,8 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085002) do
   add_foreign_key "print_flows", "switch_webhooks", column: "label_webhook_id"
   add_foreign_key "print_flows", "switch_webhooks", column: "preprint_webhook_id"
   add_foreign_key "print_flows", "switch_webhooks", column: "print_webhook_id"
+  add_foreign_key "product_print_flows", "print_flows"
+  add_foreign_key "product_print_flows", "products"
   add_foreign_key "products", "print_flows"
   add_foreign_key "products", "product_categories"
   add_foreign_key "switch_jobs", "orders"
