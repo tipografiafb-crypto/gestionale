@@ -21,7 +21,10 @@ class PrintOrchestrator < Sinatra::Base
   # POST /products - Create new product
   post '/products' do
     flow_ids = (params[:print_flow_ids] || []).reject(&:empty?)
-    default_flow_id = params[:default_print_flow_id]
+    default_flow_id = params[:default_print_flow_id].presence
+    
+    # If no default flow selected, use the first selected flow
+    default_flow_id ||= flow_ids.first if flow_ids.present?
     
     product = Product.new(
       sku: params[:sku].upcase,
@@ -59,7 +62,10 @@ class PrintOrchestrator < Sinatra::Base
   put '/products/:id' do
     product = Product.find(params[:id])
     flow_ids = (params[:print_flow_ids] || []).reject(&:empty?)
-    default_flow_id = params[:default_print_flow_id]
+    default_flow_id = params[:default_print_flow_id].presence
+    
+    # If no default flow selected, use the first selected flow
+    default_flow_id ||= flow_ids.first if flow_ids.present?
     
     product.update(
       sku: params[:sku].upcase,
