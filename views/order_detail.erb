@@ -223,10 +223,30 @@
                         <span class="badge bg-warning text-dark">Pending</span>
                       <% end %>
                       <% if asset.downloaded? && asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg)$/i) %>
-                        <div class="mt-2">
-                          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editAssetModal_<%= asset.id %>">
-                            ✏️ Edit
-                          </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-bs-toggle="collapse" data-bs-target="#editForm_<%= asset.id %>" aria-expanded="false">
+                          ✏️ Modifica
+                        </button>
+                        <div class="collapse mt-3" id="editForm_<%= asset.id %>">
+                          <div class="card card-body bg-light">
+                            <form method="post" action="/orders/<%= @order.id %>/items/<%= item.id %>/assets/<%= asset.id %>/transform" accept-charset="UTF-8">
+                              <div class="mb-2">
+                                <label class="form-label small">Offset X (pixel)</label>
+                                <input type="number" class="form-control form-control-sm" name="offset_x" value="0">
+                                <small class="text-muted">Positivo = destra, Negativo = sinistra</small>
+                              </div>
+                              <div class="mb-2">
+                                <label class="form-label small">Offset Y (pixel)</label>
+                                <input type="number" class="form-control form-control-sm" name="offset_y" value="0">
+                                <small class="text-muted">Positivo = basso, Negativo = alto</small>
+                              </div>
+                              <div class="mb-3">
+                                <label class="form-label small">Zoom (%)</label>
+                                <input type="number" class="form-control form-control-sm" name="zoom" value="100" min="10" max="400">
+                                <small class="text-muted">100 = originale, 110 = 10% più grande</small>
+                              </div>
+                              <button type="submit" class="btn btn-sm btn-primary w-100">💾 Salva</button>
+                            </form>
+                          </div>
                         </div>
                       <% end %>
                     </div>
@@ -236,45 +256,6 @@
             </div>
           <% else %>
             <p class="text-muted">No assets for this item.</p>
-          <% end %>
-
-          <!-- Edit Asset Modals -->
-          <% item.assets.each do |asset| %>
-            <% if asset.downloaded? && asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg)$/i) %>
-              <div class="modal fade" id="editAssetModal_<%= asset.id %>" tabindex="-1">
-                <div class="modal-dialog modal-sm">
-                  <div class="modal-content">
-                    <div class="modal-header">
-                      <h5 class="modal-title">📐 Modifica Asset</h5>
-                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <form method="post" action="/orders/<%= @order.id %>/items/<%= item.id %>/assets/<%= asset.id %>/transform" accept-charset="UTF-8">
-                      <div class="modal-body">
-                        <div class="mb-3">
-                          <label class="form-label">Offset X (pixel)</label>
-                          <input type="number" class="form-control" name="offset_x" value="0">
-                          <small class="text-muted">Positivo = destra, Negativo = sinistra</small>
-                        </div>
-                        <div class="mb-3">
-                          <label class="form-label">Offset Y (pixel)</label>
-                          <input type="number" class="form-control" name="offset_y" value="0">
-                          <small class="text-muted">Positivo = basso, Negativo = alto</small>
-                        </div>
-                        <div class="mb-3">
-                          <label class="form-label">Zoom (%)</label>
-                          <input type="number" class="form-control" name="zoom" value="100" min="10" max="400">
-                          <small class="text-muted">100 = originale, 110 = 10% più grande</small>
-                        </div>
-                      </div>
-                      <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                        <button type="submit" class="btn btn-primary">💾 Salva</button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              </div>
-            <% end %>
           <% end %>
         </div>
 
