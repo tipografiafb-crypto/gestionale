@@ -18,6 +18,7 @@ class Order < ActiveRecord::Base
   scope :by_status, ->(status) { where(status: status) if status.present? }
   scope :by_store, ->(store_id) { where(store_id: store_id) if store_id.present? }
   scope :by_order_code, ->(code) { where('external_order_code ILIKE ?', "%#{code}%") if code.present? }
+  scope :by_date, ->(date_str) { where('DATE(created_at) = ?', date_str) if date_str.present? }
 
   # Check if all assets have been downloaded
   def assets_downloaded?

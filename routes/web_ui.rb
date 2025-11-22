@@ -16,10 +16,12 @@ class PrintOrchestrator < Sinatra::Base
     @orders = Order.includes(:store, :switch_job).recent
     @orders = @orders.by_store(params[:store_id]) if params[:store_id].present?
     @orders = @orders.by_order_code(params[:order_code]) if params[:order_code].present?
+    @orders = @orders.by_date(params[:order_date]) if params[:order_date].present?
     @orders = @orders.limit(100)
     
     @filter_store = params[:store_id]
     @filter_order_code = params[:order_code]
+    @filter_order_date = params[:order_date]
     
     erb :orders_list
   end
