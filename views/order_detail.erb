@@ -114,7 +114,7 @@
     <div class="card-header">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <strong>Item #<%= index + 1 %>:</strong> <%= item.sku %> (Qty: <%= item.quantity %>)
+          <strong><%= item.product&.name || item.sku %></strong> - Quantità: <%= item.quantity %>
         </div>
         <div class="btn-group btn-group-sm">
           <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_preprint" method="post" class="d-inline">
