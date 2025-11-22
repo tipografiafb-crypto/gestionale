@@ -31,4 +31,32 @@ class Order < ActiveRecord::Base
   def update_status(new_status)
     update(status: new_status) if STATUSES.include?(new_status)
   end
+
+  # Duplicate order for reprinting
+  def duplicate
+    new_order = dup
+    new_order.external_order_code = "#{external_order_code}-COPY-#{Time.now.to_i}"
+    new_order.status = 'new'
+    new_order.save!
+    
+    # Duplicate order items and assets
+    order_items.each do |item|
+      new_item = item.dup
+      new_item.order_id = new_order.id
+      new_item.preprint_status = 'pending'
+      new_item.preprint_job_id = nil
+      new_item.print_status = 'pending'
+      new_item.print_job_id = nil
+      new_item.save!
+      
+      # Duplicate assets
+      item.assets.each do |asset|
+        new_asset = asset.dup
+        new_asset.order_item_id = new_item.id
+        new_asset.save!
+      end
+    end
+    
+    new_order
+  end
 end

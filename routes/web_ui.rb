@@ -57,4 +57,14 @@ class PrintOrchestrator < Sinatra::Base
     status 404
     erb :not_found
   end
+
+  # POST /orders/:id/duplicate - Duplicate order for reprinting
+  post '/orders/:id/duplicate' do
+    order = Order.find(params[:id])
+    new_order = order.duplicate
+    redirect "/orders/#{new_order.id}"
+  rescue ActiveRecord::RecordNotFound
+    status 404
+    erb :not_found
+  end
 end
