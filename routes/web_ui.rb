@@ -9,9 +9,18 @@ class PrintOrchestrator < Sinatra::Base
     redirect '/orders'
   end
 
-  # GET /orders - List all orders
+  # GET /orders - List all orders with filtering
   get '/orders' do
-    @orders = Order.includes(:store, :switch_job).recent.limit(100)
+    @stores = Store.where(active: true).ordered
+    
+    @orders = Order.includes(:store, :switch_job).recent
+    @orders = @orders.by_store(params[:store_id]) if params[:store_id].present?
+    @orders = @orders.by_order_code(params[:order_code]) if params[:order_code].present?
+    @orders = @orders.limit(100)
+    
+    @filter_store = params[:store_id]
+    @filter_order_code = params[:order_code]
+    
     erb :orders_list
   end
 

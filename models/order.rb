@@ -16,6 +16,8 @@ class Order < ActiveRecord::Base
   # Scopes for filtering
   scope :recent, -> { order(created_at: :desc) }
   scope :by_status, ->(status) { where(status: status) if status.present? }
+  scope :by_store, ->(store_id) { where(store_id: store_id) if store_id.present? }
+  scope :by_order_code, ->(code) { where('external_order_code ILIKE ?', "%#{code}%") if code.present? }
 
   # Check if all assets have been downloaded
   def assets_downloaded?
