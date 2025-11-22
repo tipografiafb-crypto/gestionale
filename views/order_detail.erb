@@ -168,36 +168,31 @@
     </div>
     <div class="card-body">
       <!-- Timeline/Resoconto -->
-      <div class="mb-4">
-        <h6>📋 Resoconto</h6>
-        <div class="timeline">
-          <div style="display: flex; align-items: flex-start; margin-bottom: 15px;">
-            <div style="width: 30px; text-align: center;">🖨️</div>
-            <div>
-              <strong>Pre-stampa:</strong>
-              <% if item.preprint_completed_at %>
-                <span class="badge bg-success">Completata</span>
-                <br><small class="text-muted"><%= item.preprint_completed_at.strftime('%d-%m-%y %H:%M:%S') %></small>
-              <% elsif item.preprint_status == 'failed' %>
-                <span class="badge bg-danger">Errore</span>
-              <% else %>
-                <span class="badge bg-warning text-dark"><%= item.preprint_status.upcase %></span>
-              <% end %>
-            </div>
+      <div class="mb-3" style="display: flex; gap: 40px; align-items: center; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">🖨️</span>
+          <div>
+            <% if item.preprint_completed_at %>
+              <span class="badge bg-success">✓</span>
+              <small class="text-muted"><%= item.preprint_completed_at.strftime('%d-%m-%y %H:%M') %></small>
+            <% elsif item.preprint_status == 'failed' %>
+              <span class="badge bg-danger">✗</span>
+            <% else %>
+              <span class="badge bg-warning text-dark"><%= item.preprint_status.upcase %></span>
+            <% end %>
           </div>
-          <div style="display: flex; align-items: flex-start;">
-            <div style="width: 30px; text-align: center;">✅</div>
-            <div>
-              <strong>Stampa:</strong>
-              <% if item.print_completed_at %>
-                <span class="badge bg-success">Completata</span>
-                <br><small class="text-muted"><%= item.print_completed_at.strftime('%d-%m-%y %H:%M:%S') %></small>
-              <% elsif item.print_status == 'failed' %>
-                <span class="badge bg-danger">Errore</span>
-              <% else %>
-                <span class="badge bg-warning text-dark"><%= item.print_status.upcase %></span>
-              <% end %>
-            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">✅</span>
+          <div>
+            <% if item.print_completed_at %>
+              <span class="badge bg-success">✓</span>
+              <small class="text-muted"><%= item.print_completed_at.strftime('%d-%m-%y %H:%M') %></small>
+            <% elsif item.print_status == 'failed' %>
+              <span class="badge bg-danger">✗</span>
+            <% else %>
+              <span class="badge bg-warning text-dark"><%= item.print_status.upcase %></span>
+            <% end %>
           </div>
         </div>
       </div>
