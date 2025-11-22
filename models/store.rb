@@ -9,6 +9,7 @@ class Store < ActiveRecord::Base
   validates :name, presence: true
 
   scope :active, -> { where(active: true) }
+  scope :ordered, -> { order(name: :asc) }
 
   def self.find_by_code(code)
     find_by(code: code, active: true)
