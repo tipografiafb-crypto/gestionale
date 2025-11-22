@@ -53,7 +53,7 @@ class SwitchClient
   def self.send_to_switch(webhook_path:, job_data:)
     # Simulation mode for testing
     if ENV['SWITCH_SIMULATION'] == 'true'
-      return { success: true, job_id: job_data[:job_id], message: 'Simulato: Inviato a Switch' }
+      return load_simulation_response(job_data)
     end
 
     begin
@@ -70,6 +70,28 @@ class SwitchClient
     rescue StandardError => e
       { success: false, error: e.message }
     end
+  end
+
+  private
+
+  def self.load_simulation_response(job_data)
+    sim_file = File.join(Dir.pwd, 'config', 'switch_simulation.json')
+    if File.exist?(sim_file)
+      sim_data = JSON.parse(File.read(sim_file))
+      { 
+        success: true, 
+        job_id: job_data[:job_id],
+        message: sim_data['message'] || 'Simulazione riuscita'
+      }
+    else
+      { 
+        success: true, 
+        job_id: job_data[:job_id], 
+        message: 'Simulazione attiva (file non trovato)'
+      }
+    end
+  rescue JSON::ParserError
+    { success: true, job_id: job_data[:job_id], message: 'Simulazione attiva' }
   end
 
   private

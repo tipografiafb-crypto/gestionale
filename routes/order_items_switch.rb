@@ -39,11 +39,16 @@ class PrintOrchestrator < Sinatra::Base
         job_data: job_data
       )
       
-      item.update(
-        preprint_status: 'processing',
-        preprint_job_id: job_data[:job_id]
-      )
-      redirect "/orders/#{order.id}?msg=success&text=Item+inviato+a+pre-stampa,+controlla+e+conferma"
+      if result[:success]
+        item.update(
+          preprint_status: 'processing',
+          preprint_job_id: result[:job_id]
+        )
+        redirect "/orders/#{order.id}?msg=success&text=Item+inviato+a+pre-stampa,+controlla+e+conferma"
+      else
+        item.update(preprint_status: 'failed')
+        redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore: ' + result[:error].to_s)}"
+      end
     rescue => e
       item.update(preprint_status: 'failed')
       error_msg = e.message.length > 50 ? e.message[0..50] + "..." : e.message
@@ -121,11 +126,16 @@ class PrintOrchestrator < Sinatra::Base
         job_data: job_data
       )
       
-      item.update(
-        print_status: 'processing',
-        print_job_id: job_data[:job_id]
-      )
-      redirect "/orders/#{order.id}?msg=success&text=Item+inviato+in+stampa,+controlla+e+conferma"
+      if result[:success]
+        item.update(
+          print_status: 'processing',
+          print_job_id: result[:job_id]
+        )
+        redirect "/orders/#{order.id}?msg=success&text=Item+inviato+in+stampa,+controlla+e+conferma"
+      else
+        item.update(print_status: 'failed')
+        redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore: ' + result[:error].to_s)}"
+      end
     rescue => e
       item.update(print_status: 'failed')
       error_msg = e.message.length > 50 ? e.message[0..50] + "..." : e.message
