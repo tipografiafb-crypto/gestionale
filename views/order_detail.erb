@@ -154,37 +154,68 @@
       </div>
     </div>
     <div class="card-body">
-      <% if item.assets.any? %>
-        <h6>Assets (<%= item.assets.count %>):</h6>
-        <div class="row">
-          <% item.assets.each do |asset| %>
-            <div class="col-md-3 mb-3">
-              <div class="card">
-                <div class="card-body text-center">
-                  <% if asset.downloaded? && asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) %>
-                    <img src="/file/<%= asset.id %>" alt="<%= asset.asset_type %>" class="asset-preview mb-2">
-                  <% else %>
-                    <div class="asset-preview mb-2 d-flex align-items-center justify-content-center" style="background-color: #f0f0f0;">
-                      <span>📄</span>
+      <div class="row">
+        <!-- Original Assets -->
+        <div class="col-md-6">
+          <h6>Assets (<%= item.assets.count %>):</h6>
+          <% if item.assets.any? %>
+            <div class="row">
+              <% item.assets.each do |asset| %>
+                <div class="col-md-6 mb-3">
+                  <div class="card">
+                    <div class="card-body text-center">
+                      <% if asset.downloaded? && asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) %>
+                        <img src="/file/<%= asset.id %>" alt="<%= asset.asset_type %>" class="asset-preview mb-2">
+                      <% else %>
+                        <div class="asset-preview mb-2 d-flex align-items-center justify-content-center" style="background-color: #f0f0f0;">
+                          <span>📄</span>
+                        </div>
+                      <% end %>
+                      <small class="d-block"><strong><%= asset.asset_type || 'N/A' %></strong></small>
+                      <% if asset.downloaded? %>
+                        <span class="badge bg-success">Downloaded</span>
+                      <% else %>
+                        <span class="badge bg-warning text-dark">Pending</span>
+                      <% end %>
+                      <div class="mt-2">
+                        <a href="<%= asset.original_url %>" target="_blank" class="btn btn-sm btn-outline-primary">URL</a>
+                      </div>
                     </div>
-                  <% end %>
-                  <small class="d-block"><strong><%= asset.asset_type || 'N/A' %></strong></small>
-                  <% if asset.downloaded? %>
-                    <span class="badge bg-success">Downloaded</span>
-                  <% else %>
-                    <span class="badge bg-warning text-dark">Pending</span>
-                  <% end %>
-                  <div class="mt-2">
-                    <a href="<%= asset.original_url %>" target="_blank" class="btn btn-sm btn-outline-primary">Original URL</a>
                   </div>
                 </div>
+              <% end %>
+            </div>
+          <% else %>
+            <p class="text-muted">No assets for this item.</p>
+          <% end %>
+        </div>
+
+        <!-- Switch Preview -->
+        <div class="col-md-6">
+          <h6>📊 Anteprima Switch:</h6>
+          <% if item.preprint_job&.result_preview_url %>
+            <div class="card mb-3">
+              <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Pre-stampa</h6>
+                <img src="<%= item.preprint_job.result_preview_url %>" alt="Preprint Preview" class="img-fluid mb-2">
+                <a href="<%= item.preprint_job.result_preview_url %>" target="_blank" class="btn btn-sm btn-outline-primary w-100">Apri Preview</a>
               </div>
             </div>
           <% end %>
+          <% if item.print_job&.result_preview_url %>
+            <div class="card mb-3">
+              <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Stampa</h6>
+                <img src="<%= item.print_job.result_preview_url %>" alt="Print Preview" class="img-fluid mb-2">
+                <a href="<%= item.print_job.result_preview_url %>" target="_blank" class="btn btn-sm btn-outline-primary w-100">Apri Preview</a>
+              </div>
+            </div>
+          <% end %>
+          <% if !item.preprint_job&.result_preview_url && !item.print_job&.result_preview_url %>
+            <p class="text-muted">Nessuna anteprima disponibile.</p>
+          <% end %>
         </div>
-      <% else %>
-        <p class="text-muted">No assets for this item.</p>
-      <% end %>
+      </div>
     </div>
   </div>
 <% end %>
