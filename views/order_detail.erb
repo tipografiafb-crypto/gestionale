@@ -222,7 +222,7 @@
                       <% else %>
                         <span class="badge bg-warning text-dark">Pending</span>
                       <% end %>
-                      <% if asset.downloaded? && asset.asset_type == 'print' && asset.local_path_full.to_s.match?(/\.png$/i) %>
+                      <% if asset.downloaded? && asset.asset_type == 'print' && asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg)$/i) %>
                         <div class="mt-2">
                           <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editAssetModal_<%= asset.id %>">
                             ✏️ Edit
@@ -240,7 +240,7 @@
 
           <!-- Edit Asset Modals -->
           <% item.assets.each do |asset| %>
-            <% if asset.downloaded? && asset.asset_type == 'print' && asset.local_path_full.to_s.match?(/\.png$/i) %>
+            <% if asset.downloaded? && asset.asset_type == 'print' && asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg)$/i) %>
               <div class="modal fade" id="editAssetModal_<%= asset.id %>" tabindex="-1">
                 <div class="modal-dialog modal-sm">
                   <div class="modal-content">
