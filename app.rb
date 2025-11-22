@@ -75,6 +75,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'routes/product_categories_web'
   require_relative 'routes/webhooks_web'
   require_relative 'routes/products_web'
+  require_relative 'routes/order_items_switch'
   
   # Start FTP poller in background (if configured)
   configure do

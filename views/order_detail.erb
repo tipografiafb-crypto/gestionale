@@ -105,7 +105,38 @@
 <% @order.order_items.each_with_index do |item, index| %>
   <div class="card mb-3">
     <div class="card-header">
-      <strong>Item #<%= index + 1 %>:</strong> <%= item.sku %> (Qty: <%= item.quantity %>)
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <strong>Item #<%= index + 1 %>:</strong> <%= item.sku %> (Qty: <%= item.quantity %>)
+        </div>
+        <div class="btn-group btn-group-sm">
+          <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_preprint" method="post" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-outline-warning" 
+                    <%= 'disabled' unless item.can_send_to_preprint? %>
+                    title="<%= item.can_send_to_preprint? ? 'Invia a pre-stampa' : 'Immagini non ancora scaricate' %>">
+              🖨️ Pre-stampa
+              <% if item.preprint_status != 'pending' %>
+                <span class="badge <%= item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
+                  <%= item.preprint_status.upcase %>
+                </span>
+              <% end %>
+            </button>
+          </form>
+          
+          <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_print" method="post" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-outline-success" 
+                    <%= 'disabled' unless item.can_send_to_print? %>
+                    title="<%= item.can_send_to_print? ? 'Invia in stampa' : 'Completare prima la pre-stampa' %>">
+              ✅ Stampa
+              <% if item.print_status != 'pending' %>
+                <span class="badge <%= item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
+                  <%= item.print_status.upcase %>
+                </span>
+              <% end %>
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
     <div class="card-body">
       <% if item.assets.any? %>
