@@ -51,20 +51,40 @@
               <small class="text-muted">Organizza i prodotti per categorie</small>
             </div>
           </div>
-          <div class="col-md-6">
-            <div class="mb-3">
-              <label for="print_flow_id" class="form-label">Flusso di Stampa <span class="text-danger">*</span></label>
-              <select id="print_flow_id" name="print_flow_id" class="form-select" required>
-                <option value="">-- Seleziona flusso --</option>
-                <% @flows.each do |flow| %>
-                  <option value="<%= flow.id %>" <%= 'selected' if @product&.print_flow_id == flow.id %>>
-                    <%= flow.name %> (Pre: <%= flow.preprint_webhook&.name %> → Stampa: <%= flow.print_webhook&.name %>)
-                  </option>
-                <% end %>
-              </select>
-              <small class="text-muted">Flusso di stampa per questo prodotto</small>
-            </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Flussi di Stampa <span class="text-danger">*</span></label>
+          <div class="card bg-light p-3">
+            <% if @flows.empty? %>
+              <p class="text-muted mb-0">Nessun flusso disponibile. <a href="/print_flows/new">Crea un flusso</a></p>
+            <% else %>
+              <% @flows.each do |flow| %>
+                <div class="form-check mb-2">
+                  <input type="checkbox" class="form-check-input flow-checkbox" 
+                         id="flow_<%= flow.id %>" name="print_flow_ids[]" value="<%= flow.id %>"
+                         <%= 'checked' if @product&.print_flows&.include?(flow) %>>
+                  <label class="form-check-label" for="flow_<%= flow.id %>">
+                    <strong><%= flow.name %></strong> (Pre: <%= flow.preprint_webhook&.name %> → Stampa: <%= flow.print_webhook&.name %>)
+                  </label>
+                </div>
+              <% end %>
+            <% end %>
           </div>
+          <small class="text-muted">Seleziona uno o più flussi per questo prodotto</small>
+        </div>
+
+        <div class="mb-3">
+          <label for="default_print_flow_id" class="form-label">Flusso di Stampa Default <span class="text-danger">*</span></label>
+          <select id="default_print_flow_id" name="default_print_flow_id" class="form-select" required>
+            <option value="">-- Seleziona flusso default --</option>
+            <% @flows.each do |flow| %>
+              <option value="<%= flow.id %>" <%= 'selected' if @product&.default_print_flow_id == flow.id %>>
+                <%= flow.name %>
+              </option>
+            <% end %>
+          </select>
+          <small class="text-muted">Flusso selezionato di default quando l'operatore sceglie di mandare in pre-stampa</small>
         </div>
 
         <div class="mb-3">

@@ -6,7 +6,8 @@ class PrintFlow < ActiveRecord::Base
   belongs_to :preprint_webhook, class_name: 'SwitchWebhook'
   belongs_to :print_webhook, class_name: 'SwitchWebhook'
   belongs_to :label_webhook, class_name: 'SwitchWebhook', optional: true
-  has_many :products, dependent: :nullify
+  has_many :product_print_flows, dependent: :destroy
+  has_many :products, through: :product_print_flows
   
   validates :name, presence: true, uniqueness: true
   validates :preprint_webhook_id, presence: true

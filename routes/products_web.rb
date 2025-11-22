@@ -20,16 +20,20 @@ class PrintOrchestrator < Sinatra::Base
 
   # POST /products - Create new product
   post '/products' do
+    flow_ids = (params[:print_flow_ids] || []).reject(&:empty?)
+    default_flow_id = params[:default_print_flow_id]
+    
     product = Product.new(
       sku: params[:sku].upcase,
       name: params[:name],
-      print_flow_id: params[:print_flow_id],
+      default_print_flow_id: default_flow_id,
       product_category_id: params[:product_category_id].presence,
       notes: params[:notes],
       active: params[:active] == 'true'
     )
 
     if product.save
+      product.print_flow_ids = flow_ids
       redirect '/products?success=created'
     else
       @product = product
@@ -54,16 +58,20 @@ class PrintOrchestrator < Sinatra::Base
   # PUT /products/:id - Update product
   put '/products/:id' do
     product = Product.find(params[:id])
+    flow_ids = (params[:print_flow_ids] || []).reject(&:empty?)
+    default_flow_id = params[:default_print_flow_id]
+    
     product.update(
       sku: params[:sku].upcase,
       name: params[:name],
-      print_flow_id: params[:print_flow_id],
+      default_print_flow_id: default_flow_id,
       product_category_id: params[:product_category_id].presence,
       notes: params[:notes],
       active: params[:active] == 'true'
     )
 
     if product.save
+      product.print_flow_ids = flow_ids
       redirect '/products?success=updated'
     else
       @product = product
