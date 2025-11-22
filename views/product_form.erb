@@ -53,86 +53,19 @@
           </div>
           <div class="col-md-6">
             <div class="mb-3">
-              <label class="form-label">Flussi di Stampa <span class="text-danger">*</span></label>
-              <div class="card">
-                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
-                  <% if @flows.empty? %>
-                    <p class="text-muted mb-0">Nessun flusso disponibile</p>
-                  <% else %>
-                    <% 
-                      selected_flow_ids = @product&.product_print_flows&.map(&:print_flow_id) || []
-                      default_flow_id = @product&.product_print_flows&.find_by(default_flow: true)&.print_flow_id
-                    %>
-                    <% @flows.each do |flow| %>
-                      <div class="form-check mb-2">
-                        <input type="checkbox" class="form-check-input flow-checkbox" 
-                               id="flow_<%= flow.id %>" 
-                               name="flow_ids[]" 
-                               value="<%= flow.id %>"
-                               <%= 'checked' if selected_flow_ids.include?(flow.id) %>>
-                        <label class="form-check-label" for="flow_<%= flow.id %>">
-                          <strong><%= flow.name %></strong>
-                          <br><small class="text-muted"><%= flow.preprint_webhook&.name %> → <%= flow.print_webhook&.name %></small>
-                        </label>
-                        <div class="form-check form-check-inline ms-3" style="display: inline-block;">
-                          <input type="radio" class="form-check-input default-radio" 
-                                 name="default_flow_id" 
-                                 value="<%= flow.id %>"
-                                 id="default_<%= flow.id %>"
-                                 <%= 'checked' if default_flow_id == flow.id %>
-                                 <%= 'disabled' unless selected_flow_ids.include?(flow.id) %>>
-                          <label class="form-check-label" for="default_<%= flow.id %>">
-                            <small>Default</small>
-                          </label>
-                        </div>
-                      </div>
-                    <% end %>
-                  <% end %>
-                </div>
-              </div>
-              <small class="text-muted">Seleziona uno o più flussi e indica quale usare come default</small>
+              <label for="print_flow_id" class="form-label">Flusso di Stampa <span class="text-danger">*</span></label>
+              <select id="print_flow_id" name="print_flow_id" class="form-select" required>
+                <option value="">-- Seleziona flusso --</option>
+                <% @flows.each do |flow| %>
+                  <option value="<%= flow.id %>" <%= 'selected' if @product&.print_flow_id == flow.id %>>
+                    <%= flow.name %> (Pre: <%= flow.preprint_webhook&.name %> → Stampa: <%= flow.print_webhook&.name %>)
+                  </option>
+                <% end %>
+              </select>
+              <small class="text-muted">Flusso di stampa per questo prodotto</small>
             </div>
           </div>
         </div>
-
-        <script>
-          // Enable/disable default radio when checkbox is toggled
-          document.querySelectorAll('.flow-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-              const flowId = this.value;
-              const defaultRadio = document.getElementById('default_' + flowId);
-              defaultRadio.disabled = !this.checked;
-              
-              // If unchecking and it was default, uncheck the radio
-              if (!this.checked && defaultRadio.checked) {
-                defaultRadio.checked = false;
-              }
-              
-              // If checking and no default is selected, auto-select this as default
-              const anyDefaultChecked = Array.from(document.querySelectorAll('.default-radio')).some(r => r.checked);
-              if (this.checked && !anyDefaultChecked) {
-                defaultRadio.checked = true;
-              }
-            });
-          });
-          
-          // Ensure at least one flow is selected before submit
-          document.querySelector('form').addEventListener('submit', function(e) {
-            const checkedFlows = document.querySelectorAll('.flow-checkbox:checked');
-            if (checkedFlows.length === 0) {
-              e.preventDefault();
-              alert('Seleziona almeno un flusso di stampa');
-              return false;
-            }
-            
-            const defaultChecked = document.querySelector('.default-radio:checked');
-            if (!defaultChecked) {
-              e.preventDefault();
-              alert('Seleziona un flusso di default');
-              return false;
-            }
-          });
-        </script>
 
         <div class="mb-3">
           <label for="notes" class="form-label">Note (Opzionale)</label>

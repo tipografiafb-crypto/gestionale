@@ -16,8 +16,12 @@ class PrintOrchestrator < Sinatra::Base
     set :bind, '0.0.0.0'
     set :port, ENV['PORT'] || 5000
     
-    # Disable protection for Replit iframe embedding
-    disable :protection
+    # Allow Replit domains (wildcard subdomains)
+    set :host_authorization, permitted_hosts: [
+      'localhost',
+      '.replit.dev',   # All *.replit.dev subdomains
+      '.repl.co'       # All *.repl.co subdomains
+    ]
   end
 
   # Load models
@@ -30,7 +34,6 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'models/print_flow'
   require_relative 'models/product_category'
   require_relative 'models/product'
-  require_relative 'models/product_print_flow'
 
   # Load services
   require_relative 'services/asset_downloader'

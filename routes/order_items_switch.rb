@@ -12,11 +12,6 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}?msg=error&text=Non+puoi+inviare+questo+item+a+pre-stampa"
     end
 
-    # If a specific flow was selected, save it
-    if params[:flow_id].present?
-      item.update(selected_print_flow_id: params[:flow_id])
-    end
-
     # Update status
     item.update(preprint_status: 'processing')
 

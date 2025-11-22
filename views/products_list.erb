@@ -47,13 +47,8 @@
                 <% end %>
               </td>
               <td>
-                <% if product.print_flows.any? %>
-                  <% product.print_flows.each do |flow| %>
-                    <% is_default = product.default_print_flow&.id == flow.id %>
-                    <span class="badge <%= is_default ? 'bg-primary' : 'bg-info' %>">
-                      <%= flow.name %><%= is_default ? ' ★' : '' %>
-                    </span>
-                  <% end %>
+                <% if product.print_flow %>
+                  <span class="badge bg-info"><%= product.print_flow.name %></span>
                 <% else %>
                   <span class="badge bg-warning">Non assegnato</span>
                 <% end %>

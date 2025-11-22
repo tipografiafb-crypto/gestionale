@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_11_22_085005) do
+ActiveRecord::Schema[7.2].define(version: 2025_11_22_085002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -38,11 +38,9 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085005) do
     t.string "print_job_id"
     t.datetime "preprint_completed_at"
     t.datetime "print_completed_at"
-    t.bigint "selected_print_flow_id"
     t.index ["order_id"], name: "index_order_items_on_order_id"
     t.index ["preprint_status"], name: "index_order_items_on_preprint_status"
     t.index ["print_status"], name: "index_order_items_on_print_status"
-    t.index ["selected_print_flow_id"], name: "index_order_items_on_selected_print_flow_id"
   end
 
   create_table "orders", force: :cascade do |t|
@@ -82,17 +80,6 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085005) do
     t.index ["name"], name: "index_product_categories_on_name", unique: true
   end
 
-  create_table "product_print_flows", force: :cascade do |t|
-    t.bigint "product_id", null: false
-    t.bigint "print_flow_id", null: false
-    t.boolean "default_flow", default: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["print_flow_id"], name: "index_product_print_flows_on_print_flow_id"
-    t.index ["product_id", "print_flow_id"], name: "index_product_print_flows_on_product_id_and_print_flow_id", unique: true
-    t.index ["product_id"], name: "index_product_print_flows_on_product_id"
-  end
-
   create_table "products", force: :cascade do |t|
     t.string "sku", null: false
     t.text "notes"
@@ -100,7 +87,9 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085005) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "name", null: false
+    t.bigint "print_flow_id"
     t.bigint "product_category_id"
+    t.index ["print_flow_id"], name: "index_products_on_print_flow_id"
     t.index ["product_category_id"], name: "index_products_on_product_category_id"
     t.index ["sku"], name: "index_products_on_sku", unique: true
   end
@@ -139,13 +128,11 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085005) do
 
   add_foreign_key "assets", "order_items"
   add_foreign_key "order_items", "orders"
-  add_foreign_key "order_items", "print_flows", column: "selected_print_flow_id"
   add_foreign_key "orders", "stores"
   add_foreign_key "print_flows", "switch_webhooks", column: "label_webhook_id"
   add_foreign_key "print_flows", "switch_webhooks", column: "preprint_webhook_id"
   add_foreign_key "print_flows", "switch_webhooks", column: "print_webhook_id"
-  add_foreign_key "product_print_flows", "print_flows"
-  add_foreign_key "product_print_flows", "products"
+  add_foreign_key "products", "print_flows"
   add_foreign_key "products", "product_categories"
   add_foreign_key "switch_jobs", "orders"
   add_foreign_key "switch_webhooks", "stores"

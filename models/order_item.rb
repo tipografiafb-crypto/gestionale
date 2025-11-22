@@ -46,17 +46,6 @@ class OrderItem < ActiveRecord::Base
   end
 
   def print_flow
-    # If a specific flow was selected for this item, use it
-    # Otherwise use the product's default flow
-    if selected_print_flow_id
-      PrintFlow.find_by(id: selected_print_flow_id)
-    else
-      product&.default_print_flow
-    end
-  end
-  
-  # Get all available print flows for this item's product
-  def available_print_flows
-    product&.print_flows || []
+    product&.print_flow
   end
 end
