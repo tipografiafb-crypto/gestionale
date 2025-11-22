@@ -47,8 +47,8 @@
                 <% end %>
               </td>
               <td>
-                <% if product.print_flow %>
-                  <span class="badge bg-info"><%= product.print_flow.name %></span>
+                <% if product.default_print_flow %>
+                  <span class="badge bg-info"><%= product.default_print_flow.name %></span>
                 <% else %>
                   <span class="badge bg-warning">Non assegnato</span>
                 <% end %>
