@@ -39,7 +39,7 @@
                 <td><strong><code><%= store.code %></code></strong></td>
                 <td><%= store.name %></td>
                 <td><span class="badge bg-info"><%= store.orders.count %></span></td>
-                <td><%= store.active? ? '✅ Attivo' : '⏸️ Inattivo' %></td>
+                <td><%= store.active.nil? || store.active? ? '✅ Attivo' : '⏸️ Inattivo' %></td>
                 <td>
                   <a href="/stores/<%= store.id %>/edit" class="btn btn-sm btn-warning">✏️ Modifica</a>
                   <% if store.orders.empty? %>
