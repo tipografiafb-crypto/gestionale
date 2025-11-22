@@ -149,6 +149,39 @@ class PrintOrchestrator < Sinatra::Base
     erb :not_found
   end
 
+  # POST /orders/:order_id/items/:item_id/upload_asset - Re-upload asset file
+  post '/orders/:order_id/items/:item_id/upload_asset' do
+    order = Order.find(params[:order_id])
+    item = order.order_items.find(params[:item_id])
+    asset = Asset.find(params[:asset_id])
+    
+    file = params[:file]
+    if file.present? && file.is_a?(Hash) && file[:filename].present?
+      begin
+        store_code = order.store.code || order.store.id.to_s
+        order_code = order.external_order_code
+        sku = item.sku
+        upload_dir = File.join(Dir.pwd, 'storage', store_code, order_code, sku)
+        FileUtils.mkdir_p(upload_dir) unless Dir.exist?(upload_dir)
+        
+        filename = File.basename(file[:filename])
+        local_path = "storage/#{store_code}/#{order_code}/#{sku}/#{filename}"
+        full_path = File.join(Dir.pwd, local_path)
+        
+        content = file[:tempfile].read
+        File.open(full_path, 'wb') { |f| f.write(content) }
+        
+        asset.update(local_path: local_path)
+      rescue => e
+        warn "File upload error for #{sku}: #{e.message}"
+      end
+    end
+    
+    redirect "/orders/#{order.id}"
+  rescue => e
+    redirect "/orders"
+  end
+
   # DELETE /orders/:id - Delete order
   delete '/orders/:id' do
     order = Order.find(params[:id])

@@ -57,6 +57,38 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
+  # Download asset file
+  get '/assets/:id/download' do
+    begin
+      asset = Asset.find(params[:id])
+      
+      if asset.downloaded? && File.exist?(asset.local_path_full)
+        send_file asset.local_path_full, disposition: 'attachment'
+      else
+        redirect request.referer || '/orders'
+      end
+    rescue ActiveRecord::RecordNotFound
+      redirect request.referer || '/orders'
+    end
+  end
+
+  # Delete asset file
+  delete '/assets/:id' do
+    begin
+      asset = Asset.find(params[:id])
+      order_id = asset.order_item.order_id
+      
+      if asset.downloaded? && File.exist?(asset.local_path_full)
+        File.delete(asset.local_path_full)
+        asset.update(local_path: nil)
+      end
+      
+      redirect "/orders/#{order_id}"
+    rescue => e
+      redirect "/orders"
+    end
+  end
+
   # Health check endpoint
   get '/health' do
     content_type :json

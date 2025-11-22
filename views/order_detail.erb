@@ -217,11 +217,27 @@
                         </div>
                       <% end %>
                       <small class="d-block"><strong><%= asset.asset_type || 'N/A' %></strong></small>
-                      <% if asset.downloaded? %>
-                        <span class="badge bg-success">Downloaded</span>
-                      <% else %>
-                        <span class="badge bg-warning text-dark">Pending</span>
-                      <% end %>
+                      <div class="btn-group btn-group-sm mt-2" role="group">
+                        <% if asset.downloaded? %>
+                          <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Scarica file">
+                            📥
+                          </a>
+                          <form action="/assets/<%= asset.id %>" method="post" class="d-inline">
+                            <input type="hidden" name="_method" value="DELETE">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Cancella file" onclick="return confirm('Cancellare questo file?');">
+                              🗑
+                            </button>
+                          </form>
+                        <% else %>
+                          <form action="/orders/<%= @order.id %>/items/<%= item.id %>/upload_asset" method="post" enctype="multipart/form-data" class="d-inline">
+                            <input type="hidden" name="asset_id" value="<%= asset.id %>">
+                            <label class="btn btn-sm btn-outline-success" style="margin: 0; cursor: pointer;">
+                              ➕
+                              <input type="file" name="file" style="display: none;" onchange="this.form.submit();">
+                            </label>
+                          </form>
+                        <% end %>
+                      </div>
                     </div>
                   </div>
                 </div>
