@@ -43,6 +43,19 @@
     </div>
 
     <div class="mb-3">
+      <label for="label_webhook_id" class="form-label">Webhook Etichetta (opzionale)</label>
+      <select class="form-select" id="label_webhook_id" name="label_webhook_id">
+        <option value="">-- Nessun webhook etichetta --</option>
+        <% @webhooks.each do |webhook| %>
+          <option value="<%= webhook.id %>" <%= 'selected' if @flow&.label_webhook_id == webhook.id %>>
+            <%= webhook.name %> (<%= webhook.hook_path %>)
+          </option>
+        <% end %>
+      </select>
+      <small class="text-muted">Webhook opzionale per l'invio delle etichette</small>
+    </div>
+
+    <div class="mb-3">
       <label for="notes" class="form-label">Note</label>
       <textarea class="form-control" id="notes" name="notes" rows="2"><%= @flow&.notes %></textarea>
     </div>
