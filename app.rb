@@ -8,6 +8,9 @@ require 'time'
 class PrintOrchestrator < Sinatra::Base
   register Sinatra::ActiveRecordExtension
 
+  # Enable method override for PUT/DELETE requests from forms
+  use Rack::MethodOverride
+
   configure do
     set :root, File.dirname(__FILE__)
     set :views, Proc.new { File.join(root, 'views') }
