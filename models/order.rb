@@ -35,7 +35,7 @@ class Order < ActiveRecord::Base
   # Duplicate order for reprinting
   def duplicate
     new_order = dup
-    new_order.external_order_code = "#{external_order_code}-COPY-#{Time.now.to_i}"
+    new_order.external_order_code = "#{external_order_code} ristampa"
     new_order.status = 'new'
     new_order.save!
     
