@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_11_22_085004) do
+ActiveRecord::Schema[7.2].define(version: 2025_11_22_085005) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -100,9 +100,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085004) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "name", null: false
-    t.bigint "print_flow_id"
     t.bigint "product_category_id"
-    t.index ["print_flow_id"], name: "index_products_on_print_flow_id"
     t.index ["product_category_id"], name: "index_products_on_product_category_id"
     t.index ["sku"], name: "index_products_on_sku", unique: true
   end
@@ -148,7 +146,6 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085004) do
   add_foreign_key "print_flows", "switch_webhooks", column: "print_webhook_id"
   add_foreign_key "product_print_flows", "print_flows"
   add_foreign_key "product_print_flows", "products"
-  add_foreign_key "products", "print_flows"
   add_foreign_key "products", "product_categories"
   add_foreign_key "switch_jobs", "orders"
   add_foreign_key "switch_webhooks", "stores"
