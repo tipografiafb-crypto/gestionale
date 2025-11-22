@@ -181,37 +181,43 @@ class PrintOrchestrator < Sinatra::Base
     zoom = params[:zoom].to_f / 100.0
 
     begin
-      # Load and process image with ImageMagick
-      image = MiniMagick::Image.open(asset.local_path_full)
+      file_path = asset.local_path_full
+      temp_file = "#{file_path}.tmp"
+      
+      # Use MiniMagick for image processing
+      image = MiniMagick::Image.open(file_path)
+      
+      # Apply zoom
       original_width = image.width
       original_height = image.height
-      
-      # Apply zoom (resize)
       new_width = (original_width * zoom).round
       new_height = (original_height * zoom).round
       image.resize("#{new_width}x#{new_height}!")
       
-      # Apply offset with proper canvas sizing
-      # Calculate new canvas size accounting for offset
-      canvas_width = new_width + offset_x.abs
-      canvas_height = new_height + offset_y.abs
+      # Apply offset by expanding canvas
+      canvas_width = new_width + (offset_x > 0 ? offset_x : offset_x.abs)
+      canvas_height = new_height + (offset_y > 0 ? offset_y : offset_y.abs)
+      x_offset = offset_x >= 0 ? offset_x : 0
+      y_offset = offset_y >= 0 ? offset_y : 0
       
-      # Calculate the position to place the image on the canvas
-      x_pos = offset_x > 0 ? offset_x : 0
-      y_pos = offset_y > 0 ? offset_y : 0
-      
-      # Create new image with white background and composite the resized image
+      # Extend canvas with white background
       image.background('white')
-      image.gravity('NorthWest')
-      image.extent("#{canvas_width}x#{canvas_height}+#{x_pos}+#{y_pos}")
+      image.gravity('NorthWest') 
+      image.extent("#{canvas_width}x#{canvas_height}+#{x_offset}+#{y_offset}")
+      image.format('png')
       
-      # Save back to original path
-      image.write(asset.local_path_full)
+      # Save to temp file then move
+      image.write(temp_file)
       
-      redirect "/orders/#{order.id}?msg=success&text=Asset+modificato+con+successo"
+      if File.exist?(temp_file) && File.size(temp_file) > 0
+        FileUtils.mv(temp_file, file_path, force: true)
+        redirect "/orders/#{order.id}?msg=success&text=Asset+modificato+con+successo"
+      else
+        raise "Image processing failed"
+      end
     rescue => e
-      puts "Transform error: #{e.message}\n#{e.backtrace.join("\n")}"
-      redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore modifica: ' + e.message)}"
+      FileUtils.rm(temp_file) if File.exist?(temp_file)
+      redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore: ' + e.message[0..50])}"
     end
   end
 
