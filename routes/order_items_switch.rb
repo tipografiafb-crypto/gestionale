@@ -22,8 +22,8 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}?msg=error&text=Flusso+di+stampa+non+configurato"
     end
 
-    # Prepare job data for Switch
-    downloaded_assets = item.assets.select { |a| a.downloaded? }
+    # Prepare job data for Switch - only send print assets (not preview)
+    downloaded_assets = item.assets.select { |a| a.downloaded? && a.asset_type == 'print' }
     job_data = {
       job_id: "PREPRINT-ORD#{order.id}-IT#{item.id}-#{Time.now.to_i}",
       order_code: order.external_order_code,
@@ -88,8 +88,8 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}?msg=error&text=Flusso+di+stampa+non+configurato"
     end
 
-    # Prepare job data for Switch
-    downloaded_assets = item.assets.select { |a| a.downloaded? }
+    # Prepare job data for Switch - only send print assets (not preview)
+    downloaded_assets = item.assets.select { |a| a.downloaded? && a.asset_type == 'print' }
     job_data = {
       job_id: "PRINT-ORD#{order.id}-IT#{item.id}-#{Time.now.to_i}",
       preprint_job_id: item.preprint_job_id,
