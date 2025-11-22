@@ -225,3 +225,121 @@
     </div>
   </div>
 <% end %>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Anteprima File</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
+        <!-- Immagine -->
+        <div id="imageContainer" style="display: none; text-align: center;">
+          <img id="previewImage" class="img-fluid" alt="Preview">
+        </div>
+        
+        <!-- PDF -->
+        <div id="pdfContainer" style="display: none;">
+          <div id="pdf-viewer" style="margin-bottom: 20px;"></div>
+          <div style="display: flex; justify-content: center; gap: 10px; margin-top: 15px;">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="prevPage" style="display: none;">← Precedente</button>
+            <span id="pageInfo" style="align-self: center;"></span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="nextPage" style="display: none;">Prossima →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  // Impostare worker di PDF.js
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  let currentPdf = null;
+  let currentPageNum = 1;
+  let currentTotalPages = 0;
+
+  const previewModal = document.getElementById('previewModal');
+  const imageContainer = document.getElementById('imageContainer');
+  const pdfContainer = document.getElementById('pdfContainer');
+  const previewImage = document.getElementById('previewImage');
+  const pdfViewer = document.getElementById('pdf-viewer');
+  const pageInfo = document.getElementById('pageInfo');
+  const prevPageBtn = document.getElementById('prevPage');
+  const nextPageBtn = document.getElementById('nextPage');
+
+  // Evento quando il modal si apre
+  previewModal.addEventListener('show.bs.modal', async function(e) {
+    const button = e.relatedTarget;
+    const fileUrl = button.getAttribute('data-file-url');
+    const fileType = button.getAttribute('data-file-type');
+
+    imageContainer.style.display = 'none';
+    pdfContainer.style.display = 'none';
+    pdfViewer.innerHTML = '';
+
+    if (fileType === 'image') {
+      previewImage.src = fileUrl;
+      imageContainer.style.display = 'block';
+    } else if (fileType === 'pdf') {
+      try {
+        const pdf = await pdfjsLib.getDocument(fileUrl).promise;
+        currentPdf = pdf;
+        currentPageNum = 1;
+        currentTotalPages = pdf.numPages;
+        pdfContainer.style.display = 'block';
+        
+        prevPageBtn.style.display = currentTotalPages > 1 ? 'block' : 'none';
+        nextPageBtn.style.display = currentTotalPages > 1 ? 'block' : 'none';
+        
+        renderPage(1);
+      } catch (error) {
+        pdfContainer.style.display = 'block';
+        pdfViewer.innerHTML = '<p class="text-danger">Errore nel caricamento del PDF</p>';
+      }
+    }
+  });
+
+  async function renderPage(pageNum) {
+    if (!currentPdf) return;
+    
+    try {
+      const page = await currentPdf.getPage(pageNum);
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      const viewport = page.getViewport({ scale: 2 });
+      
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      
+      await page.render({ canvasContext: context, viewport }).promise;
+      
+      pdfViewer.innerHTML = '';
+      pdfViewer.appendChild(canvas);
+      
+      pageInfo.textContent = 'Pagina ' + pageNum + ' di ' + currentTotalPages;
+      currentPageNum = pageNum;
+      
+      prevPageBtn.disabled = pageNum === 1;
+      nextPageBtn.disabled = pageNum === currentTotalPages;
+    } catch (error) {
+      pdfViewer.innerHTML = '<p class="text-danger">Errore nel rendering della pagina</p>';
+    }
+  }
+
+  prevPageBtn.addEventListener('click', function() {
+    if (currentPageNum > 1) {
+      renderPage(currentPageNum - 1);
+    }
+  });
+
+  nextPageBtn.addEventListener('click', function() {
+    if (currentPageNum < currentTotalPages) {
+      renderPage(currentPageNum + 1);
+    }
+  });
+</script>
