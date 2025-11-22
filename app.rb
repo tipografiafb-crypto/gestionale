@@ -16,8 +16,8 @@ class PrintOrchestrator < Sinatra::Base
     set :bind, '0.0.0.0'
     set :port, ENV['PORT'] || 5000
     
-    # Disable host authorization for Replit (allows all hosts)
-    disable :protection
+    # Allow all hosts for Replit iframe preview
+    set :protection, except: :http_origin
   end
 
   # Load models
