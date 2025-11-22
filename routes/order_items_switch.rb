@@ -9,8 +9,7 @@ class PrintOrchestrator < Sinatra::Base
     item = order.order_items.find(params[:item_id])
 
     unless item.can_send_to_preprint?
-      flash[:error] = "Non puoi inviare questo item a pre-stampa"
-      redirect "/orders/#{order.id}"
+      redirect "/orders/#{order.id}?msg=error&text=Non+puoi+inviare+questo+item+a+pre-stampa"
     end
 
     # Update status
@@ -20,8 +19,7 @@ class PrintOrchestrator < Sinatra::Base
     print_flow = item.print_flow
     unless print_flow&.preprint_webhook
       item.update(preprint_status: 'failed')
-      flash[:error] = "Flusso di stampa non configurato per questo prodotto"
-      redirect "/orders/#{order.id}"
+      redirect "/orders/#{order.id}?msg=error&text=Flusso+di+stampa+non+configurato"
     end
 
     # Prepare job data for Switch
@@ -44,13 +42,11 @@ class PrintOrchestrator < Sinatra::Base
         preprint_status: 'completed',
         preprint_job_id: job_data[:job_id]
       )
-      flash[:success] = "Item inviato a pre-stampa ✓"
+      redirect "/orders/#{order.id}?msg=success&text=Item+inviato+a+pre-stampa"
     rescue => e
       item.update(preprint_status: 'failed')
-      flash[:error] = "Errore nell'invio a pre-stampa: #{e.message}"
+      redirect "/orders/#{order.id}?msg=error&text=Errore+invio:+#{URI.encode_www_form_component(e.message)}"
     end
-
-    redirect "/orders/#{order.id}"
   end
 
   # POST /orders/:order_id/items/:item_id/send_print - Send item to print phase
@@ -59,8 +55,7 @@ class PrintOrchestrator < Sinatra::Base
     item = order.order_items.find(params[:item_id])
 
     unless item.can_send_to_print?
-      flash[:error] = "Non puoi inviare questo item in stampa"
-      redirect "/orders/#{order.id}"
+      redirect "/orders/#{order.id}?msg=error&text=Non+puoi+inviare+questo+item+in+stampa"
     end
 
     # Update status
@@ -70,8 +65,7 @@ class PrintOrchestrator < Sinatra::Base
     print_flow = item.print_flow
     unless print_flow&.print_webhook
       item.update(print_status: 'failed')
-      flash[:error] = "Flusso di stampa non configurato per questo prodotto"
-      redirect "/orders/#{order.id}"
+      redirect "/orders/#{order.id}?msg=error&text=Flusso+di+stampa+non+configurato"
     end
 
     # Prepare job data for Switch
@@ -95,12 +89,10 @@ class PrintOrchestrator < Sinatra::Base
         print_status: 'completed',
         print_job_id: job_data[:job_id]
       )
-      flash[:success] = "Item inviato in stampa ✓"
+      redirect "/orders/#{order.id}?msg=success&text=Item+inviato+in+stampa"
     rescue => e
       item.update(print_status: 'failed')
-      flash[:error] = "Errore nell'invio in stampa: #{e.message}"
+      redirect "/orders/#{order.id}?msg=error&text=Errore+invio:+#{URI.encode_www_form_component(e.message)}"
     end
-
-    redirect "/orders/#{order.id}"
   end
 end
