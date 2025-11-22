@@ -248,30 +248,27 @@
                       <h5 class="modal-title">📐 Modifica Asset</h5>
                       <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <form id="transformForm_<%= asset.id %>" class="transform-form">
-                      <input type="hidden" name="order_id" value="<%= @order.id %>">
-                      <input type="hidden" name="item_id" value="<%= item.id %>">
-                      <input type="hidden" name="asset_id" value="<%= asset.id %>">
+                    <form method="post" action="/orders/<%= @order.id %>/items/<%= item.id %>/assets/<%= asset.id %>/transform" accept-charset="UTF-8">
                       <div class="modal-body">
                         <div class="mb-3">
                           <label class="form-label">Offset X (pixel)</label>
-                          <input type="number" class="form-control" name="offset_x" value="0" required>
+                          <input type="number" class="form-control" name="offset_x" value="0">
                           <small class="text-muted">Positivo = destra, Negativo = sinistra</small>
                         </div>
                         <div class="mb-3">
                           <label class="form-label">Offset Y (pixel)</label>
-                          <input type="number" class="form-control" name="offset_y" value="0" required>
+                          <input type="number" class="form-control" name="offset_y" value="0">
                           <small class="text-muted">Positivo = basso, Negativo = alto</small>
                         </div>
                         <div class="mb-3">
                           <label class="form-label">Zoom (%)</label>
-                          <input type="number" class="form-control" name="zoom" value="100" min="10" max="400" required>
+                          <input type="number" class="form-control" name="zoom" value="100" min="10" max="400">
                           <small class="text-muted">100 = originale, 110 = 10% più grande</small>
                         </div>
                       </div>
                       <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                        <button type="button" class="btn btn-primary transform-submit">💾 Salva</button>
+                        <button type="submit" class="btn btn-primary">💾 Salva</button>
                       </div>
                     </form>
                   </div>
@@ -428,53 +425,5 @@
     if (currentPageNum < currentTotalPages) {
       renderPage(currentPageNum + 1);
     }
-  });
-
-  // Handle transform form submissions
-  document.querySelectorAll('.transform-form').forEach(form => {
-    const submitBtn = form.querySelector('.transform-submit');
-    submitBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      
-      const orderId = form.querySelector('input[name="order_id"]').value;
-      const itemId = form.querySelector('input[name="item_id"]').value;
-      const assetId = form.querySelector('input[name="asset_id"]').value;
-      const offsetX = form.querySelector('input[name="offset_x"]').value;
-      const offsetY = form.querySelector('input[name="offset_y"]').value;
-      const zoom = form.querySelector('input[name="zoom"]').value;
-      
-      const url = `/orders/${orderId}/items/${itemId}/assets/${assetId}/transform`;
-      
-      submitBtn.disabled = true;
-      submitBtn.textContent = '⏳ Elaborando...';
-      
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: new URLSearchParams({
-            offset_x: offsetX,
-            offset_y: offsetY,
-            zoom: zoom
-          })
-        });
-        
-        if (response.redirected) {
-          window.location.href = response.url;
-        } else if (response.ok) {
-          window.location.reload();
-        } else {
-          alert('Errore: ' + response.statusText);
-          submitBtn.disabled = false;
-          submitBtn.textContent = '💾 Salva';
-        }
-      } catch (error) {
-        alert('Errore di rete: ' + error.message);
-        submitBtn.disabled = false;
-        submitBtn.textContent = '💾 Salva';
-      }
-    });
   });
 </script>
