@@ -124,6 +124,15 @@
               <% end %>
             </button>
           </form>
+
+          <% if item.preprint_status == 'processing' %>
+            <form action="/orders/<%= @order.id %>/items/<%= item.id %>/confirm_preprint" method="post" class="d-inline">
+              <button type="submit" class="btn btn-sm btn-outline-info" 
+                      title="Conferma manualmente il completamento della pre-stampa">
+                ✓ Conferma
+              </button>
+            </form>
+          <% end %>
           
           <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_print" method="post" class="d-inline">
             <button type="submit" class="btn btn-sm btn-outline-success" 

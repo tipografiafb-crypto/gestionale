@@ -51,6 +51,21 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
+  # POST /orders/:order_id/items/:item_id/confirm_preprint - Manually confirm preprint completion
+  post '/orders/:order_id/items/:item_id/confirm_preprint' do
+    order = Order.find(params[:order_id])
+    item = order.order_items.find(params[:item_id])
+
+    unless item.preprint_status == 'processing'
+      redirect "/orders/#{order.id}?msg=error&text=Questo+item+non+è+in+fase+di+pre-stampa"
+    end
+
+    item.update(preprint_status: 'completed')
+    redirect "/orders/#{order.id}?msg=success&text=Pre-stampa+confermata+manualmente"
+  rescue => e
+    redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore conferma: ' + e.message)}"
+  end
+
   # POST /orders/:order_id/items/:item_id/reset - Reset item to initial state
   post '/orders/:order_id/items/:item_id/reset' do
     order = Order.find(params[:order_id])
