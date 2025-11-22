@@ -46,6 +46,11 @@ class OrderItem < ActiveRecord::Base
   end
 
   def print_flow
-    product&.print_flow
+    # Return selected print flow, or default from product
+    preprint_print_flow || product&.default_print_flow
+  end
+  
+  def available_print_flows
+    product&.print_flows || []
   end
 end

@@ -12,15 +12,16 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}?msg=error&text=Non+puoi+inviare+questo+item+a+pre-stampa"
     end
 
-    # Update status
-    item.update(preprint_status: 'processing')
-
-    # Get print flow and preprint webhook
-    print_flow = item.print_flow
+    # Get selected print flow or use default
+    print_flow_id = params[:print_flow_id] || item.product&.default_print_flow_id
+    print_flow = PrintFlow.find_by(id: print_flow_id)
+    
     unless print_flow&.preprint_webhook
-      item.update(preprint_status: 'failed')
       redirect "/orders/#{order.id}?msg=error&text=Flusso+di+stampa+non+configurato"
     end
+
+    # Store selected print flow in item
+    item.update(preprint_print_flow_id: print_flow.id, preprint_status: 'processing')
 
     # Prepare job data for Switch - only send print assets (not preview)
     downloaded_assets = item.assets.select { |a| a.downloaded? && a.asset_type == 'print' }
