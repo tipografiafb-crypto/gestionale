@@ -157,4 +157,43 @@ class PrintOrchestrator < Sinatra::Base
   rescue => e
     redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore conferma: ' + e.message)}"
   end
+
+  # POST /orders/:order_id/items/:item_id/send_label - Send item to label webhook
+  post '/orders/:order_id/items/:item_id/send_label' do
+    order = Order.find(params[:order_id])
+    item = order.order_items.find(params[:item_id])
+
+    # Get print flow and label webhook
+    print_flow = item.print_flow
+    unless print_flow&.label_webhook
+      redirect "/orders/#{order.id}?msg=error&text=Webhook+etichetta+non+configurato"
+    end
+
+    # Prepare job data for label
+    downloaded_assets = item.assets.select { |a| a.downloaded? && a.asset_type == 'print' }
+    job_data = {
+      job_id: "LABEL-ORD#{order.id}-IT#{item.id}-#{Time.now.to_i}",
+      order_code: order.external_order_code,
+      item_sku: item.sku,
+      quantity: item.quantity,
+      assets: downloaded_assets.map { |a| a.local_path_full }
+    }
+
+    # Send to label webhook
+    begin
+      result = SwitchClient.send_to_switch(
+        webhook_path: print_flow.label_webhook.hook_path,
+        job_data: job_data
+      )
+      
+      if result[:success]
+        redirect "/orders/#{order.id}?msg=success&text=Etichetta+inviata+con+successo"
+      else
+        redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore: ' + result[:error].to_s)}"
+      end
+    rescue => e
+      error_msg = e.message.length > 50 ? e.message[0..50] + "..." : e.message
+      redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + error_msg)}"
+    end
+  end
 end

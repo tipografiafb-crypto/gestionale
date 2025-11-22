@@ -159,6 +159,14 @@
           <a href="/orders/<%= @order.id %>/items/<%= item.id %>/print" class="btn btn-sm btn-outline-info" target="_blank" title="Stampa scheda lavoro">
             🖨️ Scheda Lavoro
           </a>
+
+          <% if item.print_flow&.label_webhook %>
+            <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_label" method="post" class="d-inline">
+              <button type="submit" class="btn btn-sm btn-outline-primary" title="Invia a etichetta">
+                🏷️ Etichetta
+              </button>
+            </form>
+          <% end %>
           
           <form action="/orders/<%= @order.id %>/items/<%= item.id %>/reset" method="post" class="d-inline" onsubmit="return confirm('Reimpostare questo item?');">
             <button type="submit" class="btn btn-sm btn-outline-secondary" 
