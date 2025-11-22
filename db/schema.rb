@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_11_22_085000) do
+ActiveRecord::Schema[7.2].define(version: 2025_11_22_085002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -64,6 +64,8 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085000) do
     t.datetime "updated_at", null: false
     t.bigint "preprint_webhook_id"
     t.bigint "print_webhook_id"
+    t.bigint "label_webhook_id"
+    t.index ["label_webhook_id"], name: "index_print_flows_on_label_webhook_id"
     t.index ["name"], name: "index_print_flows_on_name", unique: true
     t.index ["preprint_webhook_id"], name: "index_print_flows_on_preprint_webhook_id"
     t.index ["print_webhook_id"], name: "index_print_flows_on_print_webhook_id"
@@ -127,6 +129,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085000) do
   add_foreign_key "assets", "order_items"
   add_foreign_key "order_items", "orders"
   add_foreign_key "orders", "stores"
+  add_foreign_key "print_flows", "switch_webhooks", column: "label_webhook_id"
   add_foreign_key "print_flows", "switch_webhooks", column: "preprint_webhook_id"
   add_foreign_key "print_flows", "switch_webhooks", column: "print_webhook_id"
   add_foreign_key "products", "print_flows"
