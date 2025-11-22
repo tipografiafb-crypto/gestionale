@@ -429,4 +429,52 @@
       renderPage(currentPageNum + 1);
     }
   });
+
+  // Handle transform form submissions
+  document.querySelectorAll('.transform-form').forEach(form => {
+    const submitBtn = form.querySelector('.transform-submit');
+    submitBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      
+      const orderId = form.querySelector('input[name="order_id"]').value;
+      const itemId = form.querySelector('input[name="item_id"]').value;
+      const assetId = form.querySelector('input[name="asset_id"]').value;
+      const offsetX = form.querySelector('input[name="offset_x"]').value;
+      const offsetY = form.querySelector('input[name="offset_y"]').value;
+      const zoom = form.querySelector('input[name="zoom"]').value;
+      
+      const url = `/orders/${orderId}/items/${itemId}/assets/${assetId}/transform`;
+      
+      submitBtn.disabled = true;
+      submitBtn.textContent = '⏳ Elaborando...';
+      
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            offset_x: offsetX,
+            offset_y: offsetY,
+            zoom: zoom
+          })
+        });
+        
+        if (response.redirected) {
+          window.location.href = response.url;
+        } else if (response.ok) {
+          window.location.reload();
+        } else {
+          alert('Errore: ' + response.statusText);
+          submitBtn.disabled = false;
+          submitBtn.textContent = '💾 Salva';
+        }
+      } catch (error) {
+        alert('Errore di rete: ' + error.message);
+        submitBtn.disabled = false;
+        submitBtn.textContent = '💾 Salva';
+      }
+    });
+  });
 </script>
