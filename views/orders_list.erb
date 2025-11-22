@@ -1,10 +1,15 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1>📋 Ordini</h1>
-  <div class="text-muted">
-    Total: <%= @orders.count %> orders
-    <% if @filter_order_code.present? || @filter_store.present? || @filter_order_date.present? %>
-      | <a href="/orders" class="text-reset">✕ Azzera filtri</a>
-    <% end %>
+  <div class="d-flex align-items-center gap-3">
+    <div class="text-muted">
+      Total: <%= @orders.count %> orders
+      <% if @filter_order_code.present? || @filter_store.present? || @filter_order_date.present? %>
+        | <a href="/orders" class="text-reset">✕ Azzera filtri</a>
+      <% end %>
+    </div>
+    <a href="/orders/new" class="btn btn-primary">
+      ➕ Aggiungi Ordine
+    </a>
   </div>
 </div>
 
