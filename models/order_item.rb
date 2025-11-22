@@ -32,7 +32,7 @@ class OrderItem < ActiveRecord::Base
 
   # Check if can send to preprint
   def can_send_to_preprint?
-    preprint_status == 'pending' && assets.any?(&:downloaded?)
+    preprint_status == 'pending' && (assets.empty? || assets.any?(&:downloaded?))
   end
 
   # Check if can send to print

@@ -23,17 +23,18 @@ class PrintOrchestrator < Sinatra::Base
     end
 
     # Prepare job data for Switch
+    downloaded_assets = item.assets.select { |a| a.downloaded? }
     job_data = {
       job_id: "PREPRINT-ORD#{order.id}-IT#{item.id}-#{Time.now.to_i}",
       order_code: order.external_order_code,
       item_sku: item.sku,
       quantity: item.quantity,
-      assets: item.assets.select { |a| a.downloaded? }.map { |a| a.local_path_full }
+      assets: downloaded_assets.map { |a| a.local_path_full }
     }
 
     # Send to preprint webhook
     begin
-      SwitchClient.send_to_switch(
+      result = SwitchClient.send_to_switch(
         webhook_path: print_flow.preprint_webhook.hook_path,
         job_data: job_data
       )
@@ -45,7 +46,8 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}?msg=success&text=Item+inviato+a+pre-stampa"
     rescue => e
       item.update(preprint_status: 'failed')
-      redirect "/orders/#{order.id}?msg=error&text=Errore+invio:+#{URI.encode_www_form_component(e.message)}"
+      error_msg = e.message.length > 50 ? e.message[0..50] + "..." : e.message
+      redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + error_msg)}"
     end
   end
 
@@ -87,18 +89,19 @@ class PrintOrchestrator < Sinatra::Base
     end
 
     # Prepare job data for Switch
+    downloaded_assets = item.assets.select { |a| a.downloaded? }
     job_data = {
       job_id: "PRINT-ORD#{order.id}-IT#{item.id}-#{Time.now.to_i}",
       preprint_job_id: item.preprint_job_id,
       order_code: order.external_order_code,
       item_sku: item.sku,
       quantity: item.quantity,
-      assets: item.assets.select { |a| a.downloaded? }.map { |a| a.local_path_full }
+      assets: downloaded_assets.map { |a| a.local_path_full }
     }
 
     # Send to print webhook
     begin
-      SwitchClient.send_to_switch(
+      result = SwitchClient.send_to_switch(
         webhook_path: print_flow.print_webhook.hook_path,
         job_data: job_data
       )
@@ -110,7 +113,8 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}?msg=success&text=Item+inviato+in+stampa"
     rescue => e
       item.update(print_status: 'failed')
-      redirect "/orders/#{order.id}?msg=error&text=Errore+invio:+#{URI.encode_www_form_component(e.message)}"
+      error_msg = e.message.length > 50 ? e.message[0..50] + "..." : e.message
+      redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + error_msg)}"
     end
   end
 end
