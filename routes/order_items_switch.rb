@@ -49,6 +49,24 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
+  # POST /orders/:order_id/items/:item_id/reset - Reset item to initial state
+  post '/orders/:order_id/items/:item_id/reset' do
+    order = Order.find(params[:order_id])
+    item = order.order_items.find(params[:item_id])
+
+    item.update(
+      preprint_status: 'pending',
+      preprint_job_id: nil,
+      preprint_preview_url: nil,
+      print_status: 'pending',
+      print_job_id: nil
+    )
+
+    redirect "/orders/#{order.id}?msg=success&text=Item+reset+completato"
+  rescue => e
+    redirect "/orders/#{order.id}?msg=error&text=Errore+reset:+#{URI.encode_www_form_component(e.message)}"
+  end
+
   # POST /orders/:order_id/items/:item_id/send_print - Send item to print phase
   post '/orders/:order_id/items/:item_id/send_print' do
     order = Order.find(params[:order_id])
