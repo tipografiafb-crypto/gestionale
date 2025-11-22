@@ -183,25 +183,34 @@ class PrintOrchestrator < Sinatra::Base
     begin
       # Load and process image with ImageMagick
       image = MiniMagick::Image.open(asset.local_path_full)
+      original_width = image.width
+      original_height = image.height
       
       # Apply zoom (resize)
-      new_width = (image.width * zoom).round
-      new_height = (image.height * zoom).round
+      new_width = (original_width * zoom).round
+      new_height = (original_height * zoom).round
       image.resize("#{new_width}x#{new_height}!")
       
-      # Apply offset (create canvas and composite)
-      canvas_width = (image.width + (offset_x.abs * 2)).round
-      canvas_height = (image.height + (offset_y.abs * 2)).round
-      left = offset_x >= 0 ? offset_x : offset_x.abs
-      top = offset_y >= 0 ? offset_y : offset_y.abs
+      # Apply offset with proper canvas sizing
+      # Calculate new canvas size accounting for offset
+      canvas_width = new_width + offset_x.abs
+      canvas_height = new_height + offset_y.abs
       
-      image.background('white').gravity('Center').extent("#{canvas_width}x#{canvas_height}+#{left}+#{top}")
+      # Calculate the position to place the image on the canvas
+      x_pos = offset_x > 0 ? offset_x : 0
+      y_pos = offset_y > 0 ? offset_y : 0
+      
+      # Create new image with white background and composite the resized image
+      image.background('white')
+      image.gravity('NorthWest')
+      image.extent("#{canvas_width}x#{canvas_height}+#{x_pos}+#{y_pos}")
       
       # Save back to original path
       image.write(asset.local_path_full)
       
       redirect "/orders/#{order.id}?msg=success&text=Asset+modificato+con+successo"
     rescue => e
+      puts "Transform error: #{e.message}\n#{e.backtrace.join("\n")}"
       redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore modifica: ' + e.message)}"
     end
   end
