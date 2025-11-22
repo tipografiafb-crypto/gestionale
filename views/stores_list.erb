@@ -1,0 +1,62 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1>🏪 Negozi</h1>
+  <a href="/stores/new" class="btn btn-primary">+ Nuovo Negozio</a>
+</div>
+
+<% if params[:success] %>
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    Negozio <strong><%= params[:success].upcase %></strong> con successo!
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+
+<% if params[:msg] %>
+  <div class="alert alert-<%= params[:msg] == 'success' ? 'success' : 'danger' %> alert-dismissible fade show" role="alert">
+    <%= params[:text]&.gsub('+', ' ') %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+
+<div class="card">
+  <div class="card-body">
+    <% if @stores.empty? %>
+      <p class="text-muted mb-0">Nessun negozio configurato. <a href="/stores/new">Creane uno nuovo</a></p>
+    <% else %>
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead class="table-light">
+            <tr>
+              <th>Codice</th>
+              <th>Nome</th>
+              <th>Ordini</th>
+              <th>Stato</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @stores.each do |store| %>
+              <tr>
+                <td><strong><code><%= store.code %></code></strong></td>
+                <td><%= store.name %></td>
+                <td><span class="badge bg-info"><%= store.orders.count %></span></td>
+                <td><%= store.active? ? '✅ Attivo' : '⏸️ Inattivo' %></td>
+                <td>
+                  <a href="/stores/<%= store.id %>/edit" class="btn btn-sm btn-warning">✏️ Modifica</a>
+                  <% if store.orders.empty? %>
+                    <form action="/stores/<%= store.id %>" method="post" style="display:inline;">
+                      <input type="hidden" name="_method" value="DELETE">
+                      <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Cancellare questo negozio?')">🗑️ Cancella</button>
+                    </form>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<hr>
+<a href="/" class="btn btn-secondary">← Torna alla Home</a>

@@ -1,0 +1,38 @@
+<div class="container mt-5" style="max-width: 600px;">
+  <h1><%= @store&.id ? "Modifica Negozio" : "Nuovo Negozio" %></h1>
+
+  <% if @error %>
+    <div class="alert alert-danger"><%= @error %></div>
+  <% end %>
+
+  <form action="<%= @store&.id ? "/stores/#{@store.id}" : "/stores" %>" method="post">
+    <% if @store&.id %>
+      <input type="hidden" name="_method" value="PUT">
+    <% end %>
+
+    <div class="mb-3">
+      <label for="code" class="form-label">Codice Negozio *</label>
+      <input type="text" class="form-control text-uppercase" id="code" name="code" value="<%= @store&.code %>" placeholder="es. TPH_IT, TPH_DE, TPH_EU" required>
+      <small class="text-muted">Codice univoco del negozio (es: TPH_IT per Italia). Gli ordini con codici non riconosciuti verranno rifiutati.</small>
+    </div>
+
+    <div class="mb-3">
+      <label for="name" class="form-label">Nome Negozio *</label>
+      <input type="text" class="form-control" id="name" name="name" value="<%= @store&.name %>" placeholder="es. The Pickers - Italia" required>
+      <small class="text-muted">Nome descrittivo del negozio</small>
+    </div>
+
+    <div class="mb-3">
+      <div class="form-check">
+        <input type="checkbox" class="form-check-input" id="active" name="active" value="true" <%= @store&.active? ? 'checked' : '' %>>
+        <label class="form-check-label" for="active">Attivo</label>
+      </div>
+      <small class="text-muted">Disabilita temporaneamente questo negozio senza eliminare i dati</small>
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary">💾 Salva Negozio</button>
+      <a href="/stores" class="btn btn-secondary">Annulla</a>
+    </div>
+  </form>
+</div>

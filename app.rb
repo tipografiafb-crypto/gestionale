@@ -71,6 +71,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'routes/orders_api'
   require_relative 'routes/switch_api'
   require_relative 'routes/web_ui'
+  require_relative 'routes/stores_web'
   require_relative 'routes/print_flows_web'
   require_relative 'routes/product_categories_web'
   require_relative 'routes/webhooks_web'

@@ -118,13 +118,28 @@ class FTPPoller
       # Convert WooCommerce format to standard format
       data = normalize_order_data(raw_data)
       
+      # Validate store exists and is active
+      store = Store.find_by_code(data['store_id'])
+      unless store
+        puts "[FTPPoller] ✗ Store not found or inactive: #{data['store_id']}"
+        return
+      end
+      
+      # Validate all products exist
+      products_not_found = []
+      data['items'].each do |item_data|
+        unless Product.exists?(sku: item_data['sku'])
+          products_not_found << item_data['sku']
+        end
+      end
+      
+      unless products_not_found.empty?
+        puts "[FTPPoller] ✗ Products not found in #{filename}: #{products_not_found.join(', ')}"
+        return
+      end
+      
       # Import using transaction
       result = ActiveRecord::Base.transaction do
-        store = Store.find_or_create_by_code(
-          data['store_id'],
-          data['store_name']
-        )
-        
         order = Order.create!(
           store: store,
           external_order_code: data['external_order_code'],
@@ -136,7 +151,7 @@ class FTPPoller
         
         data['items'].each_with_index do |item_data, idx|
           order_item = order.order_items.create!(
-            sku: item_data['sku'].presence || "SKU-#{order.id}-#{idx + 1}",
+            sku: item_data['sku'],
             quantity: item_data['quantity']
           )
           

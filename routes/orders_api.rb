@@ -12,14 +12,28 @@ class PrintOrchestrator < Sinatra::Base
     begin
       data = JSON.parse(request.body.read)
       
+      # Validate store exists and is active
+      store = Store.find_by_code(data['store_id'])
+      unless store
+        status 422
+        return { success: false, error: "Store not found or inactive: #{data['store_id']}" }.to_json
+      end
+      
+      # Validate all products exist
+      products_not_found = []
+      data['items'].each do |item_data|
+        unless Product.exists?(sku: item_data['sku'])
+          products_not_found << item_data['sku']
+        end
+      end
+      
+      unless products_not_found.empty?
+        status 422
+        return { success: false, error: "Products not found: #{products_not_found.join(', ')}" }.to_json
+      end
+      
       # Wrap all database operations in a transaction for data integrity
       result = ActiveRecord::Base.transaction do
-        # Find or create store
-        store = Store.find_or_create_by_code(
-          data['store_id'],
-          data['store_name']
-        )
-        
         # Create order
         order = Order.create!(
           store: store,
