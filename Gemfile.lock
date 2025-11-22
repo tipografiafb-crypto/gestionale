@@ -79,6 +79,9 @@ GEM
       ffi (~> 1.0)
     rerun (0.14.0)
       listen (~> 3.0)
+    ruby-vips (2.2.5)
+      ffi (~> 1.12)
+      logger
     ruby2_keywords (0.0.5)
     securerandom (0.4.1)
     sinatra (4.2.1)
@@ -117,6 +120,7 @@ DEPENDENCIES
   rack (~> 3.0)
   rake (~> 13.1)
   rerun (~> 0.14)
+  ruby-vips (~> 2.2)
   sinatra (~> 4.0)
   sinatra-activerecord (~> 2.0)
   sinatra-contrib (~> 4.0)

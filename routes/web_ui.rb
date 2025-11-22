@@ -169,4 +169,54 @@ class PrintOrchestrator < Sinatra::Base
     status 404
     erb :not_found
   end
+
+  # POST /orders/:order_id/items/:item_id/assets/:asset_id/transform - Transform PNG asset
+  post '/orders/:order_id/items/:item_id/assets/:asset_id/transform' do
+    order = Order.find(params[:order_id])
+    item = order.order_items.find(params[:item_id])
+    asset = item.assets.find(params[:asset_id])
+
+    offset_x = params[:offset_x].to_i
+    offset_y = params[:offset_y].to_i
+    zoom = params[:zoom].to_f / 100.0
+
+    begin
+      # Load image with Vips
+      image = Vips::Image.new_from_file(asset.local_path_full)
+      
+      # Apply zoom (resize)
+      image = image.resize(zoom, vscale: zoom)
+      
+      # Apply offset (create canvas and composite)
+      canvas_width = (image.width + (offset_x.abs * 2)).round
+      canvas_height = (image.height + (offset_y.abs * 2)).round
+      canvas = Vips::Image.black(canvas_width, canvas_height)
+      
+      left = offset_x >= 0 ? offset_x : 0
+      top = offset_y >= 0 ? offset_y : 0
+      canvas = canvas.composite(image, :over, x: left, y: top)
+      
+      # Save back to original path
+      canvas.write_to_file(asset.local_path_full)
+      
+      redirect "/orders/#{order.id}?msg=success&text=Asset+modificato+con+successo"
+    rescue => e
+      redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore modifica: ' + e.message)}"
+    end
+  end
+
+  # GET /file/:id - Serve downloaded asset file
+  get '/file/:id' do
+    asset = Asset.find(params[:id])
+    
+    if asset.downloaded? && File.exist?(asset.local_path_full)
+      send_file asset.local_path_full
+    else
+      status 404
+      body 'File not found'
+    end
+  rescue ActiveRecord::RecordNotFound
+    status 404
+    body 'Asset not found'
+  end
 end
