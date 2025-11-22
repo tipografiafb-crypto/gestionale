@@ -1,5 +1,5 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1>Print Orders</h1>
+  <h1>📋 Ordini</h1>
   <div class="text-muted">
     Total: <%= @orders.count %> orders
   </div>
@@ -12,52 +12,132 @@
     <code>POST /api/orders/import</code>
   </div>
 <% else %>
-  <div class="table-responsive">
-    <table class="table table-hover">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Store</th>
-          <th>Order Code</th>
-          <th>Status</th>
-          <th>Items</th>
-          <th>Assets</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% @orders.each do |order| %>
-          <tr>
-            <td><%= order.created_at.strftime('%d-%m-%y') %></td>
-            <td><%= order.store.name %></td>
-            <td><a href="/orders/<%= order.id %>"><%= order.external_order_code %></a></td>
-            <td>
-              <span class="badge status-badge status-<%= order.status %>">
-                <%= order.status.gsub('_', ' ').upcase %>
-              </span>
-            </td>
-            <td><%= order.order_items.count %></td>
-            <td>
-              <%= order.assets.count %> total
-              <% if order.assets_downloaded? %>
-                <span class="badge bg-success">✓</span>
-              <% else %>
-                <span class="badge bg-warning text-dark">pending</span>
+  <% in_progress = @orders.select { |o| %w[new sent_to_switch processing].include?(o.status) } %>
+  <% completed = @orders.select { |o| %w[done error].include?(o.status) } %>
+  
+  <ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="in-progress-tab" data-bs-toggle="tab" data-bs-target="#in-progress" type="button" role="tab" aria-controls="in-progress" aria-selected="true">
+        ⏳ In Lavorazione <span class="badge bg-primary"><%= in_progress.count %></span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab" aria-controls="completed" aria-selected="false">
+        ✅ Completati <span class="badge bg-success"><%= completed.count %></span>
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content mt-3">
+    <!-- In Progress Tab -->
+    <div class="tab-pane fade show active" id="in-progress" role="tabpanel" aria-labelledby="in-progress-tab">
+      <% if in_progress.empty? %>
+        <div class="alert alert-info">Nessun ordine in lavorazione</div>
+      <% else %>
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Negozio</th>
+                <th>Codice Ordine</th>
+                <th>Stato</th>
+                <th>Item</th>
+                <th>Asset</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% in_progress.each do |order| %>
+                <tr>
+                  <td><%= order.created_at.strftime('%d-%m-%y') %></td>
+                  <td><%= order.store.name %></td>
+                  <td><a href="/orders/<%= order.id %>"><%= order.external_order_code %></a></td>
+                  <td>
+                    <span class="badge status-badge status-<%= order.status %>">
+                      <%= order.status.gsub('_', ' ').upcase %>
+                    </span>
+                  </td>
+                  <td><%= order.order_items.count %></td>
+                  <td>
+                    <%= order.assets.count %> total
+                    <% if order.assets_downloaded? %>
+                      <span class="badge bg-success">✓</span>
+                    <% else %>
+                      <span class="badge bg-warning text-dark">pending</span>
+                    <% end %>
+                  </td>
+                  <td>
+                    <div class="btn-group btn-group-sm">
+                      <a href="/orders/<%= order.id %>" class="btn btn-outline-secondary">👁️ View</a>
+                      <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
+                        <input type="hidden" name="_method" value="DELETE">
+                        <button type="submit" class="btn btn-outline-danger">🗑 Delete</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
               <% end %>
-            </td>
-            <td>
-              <div class="btn-group btn-group-sm">
-                <a href="/orders/<%= order.id %>" class="btn btn-outline-secondary">👁️ View</a>
-                <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
-                  <input type="hidden" name="_method" value="DELETE">
-                  <button type="submit" class="btn btn-outline-danger">🗑 Delete</button>
-                </form>
-              </div>
-            </td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </div>
+
+    <!-- Completed Tab -->
+    <div class="tab-pane fade" id="completed" role="tabpanel" aria-labelledby="completed-tab">
+      <% if completed.empty? %>
+        <div class="alert alert-info">Nessun ordine completato</div>
+      <% else %>
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Negozio</th>
+                <th>Codice Ordine</th>
+                <th>Stato</th>
+                <th>Item</th>
+                <th>Asset</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% completed.each do |order| %>
+                <tr>
+                  <td><%= order.created_at.strftime('%d-%m-%y') %></td>
+                  <td><%= order.store.name %></td>
+                  <td><a href="/orders/<%= order.id %>"><%= order.external_order_code %></a></td>
+                  <td>
+                    <span class="badge status-badge status-<%= order.status %>">
+                      <%= order.status.gsub('_', ' ').upcase %>
+                    </span>
+                  </td>
+                  <td><%= order.order_items.count %></td>
+                  <td>
+                    <%= order.assets.count %> total
+                    <% if order.assets_downloaded? %>
+                      <span class="badge bg-success">✓</span>
+                    <% else %>
+                      <span class="badge bg-warning text-dark">pending</span>
+                    <% end %>
+                  </td>
+                  <td>
+                    <div class="btn-group btn-group-sm">
+                      <a href="/orders/<%= order.id %>" class="btn btn-outline-secondary">👁️ View</a>
+                      <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
+                        <input type="hidden" name="_method" value="DELETE">
+                        <button type="submit" class="btn btn-outline-danger">🗑 Delete</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </div>
   </div>
 <% end %>
 
