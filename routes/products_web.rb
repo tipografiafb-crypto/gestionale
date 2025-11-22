@@ -23,13 +23,24 @@ class PrintOrchestrator < Sinatra::Base
     product = Product.new(
       sku: params[:sku].upcase,
       name: params[:name],
-      print_flow_id: params[:print_flow_id],
       product_category_id: params[:product_category_id].presence,
       notes: params[:notes],
       active: params[:active] == 'true'
     )
 
     if product.save
+      # Save print flow associations
+      flow_ids = params[:flow_ids] || []
+      default_flow_id = params[:default_flow_id]
+      
+      flow_ids.each do |flow_id|
+        ProductPrintFlow.create!(
+          product_id: product.id,
+          print_flow_id: flow_id,
+          default_flow: (flow_id == default_flow_id)
+        )
+      end
+      
       redirect '/products?success=created'
     else
       @product = product
@@ -57,13 +68,28 @@ class PrintOrchestrator < Sinatra::Base
     product.update(
       sku: params[:sku].upcase,
       name: params[:name],
-      print_flow_id: params[:print_flow_id],
       product_category_id: params[:product_category_id].presence,
       notes: params[:notes],
       active: params[:active] == 'true'
     )
 
     if product.save
+      # Update print flow associations
+      flow_ids = params[:flow_ids] || []
+      default_flow_id = params[:default_flow_id]
+      
+      # Remove old associations
+      product.product_print_flows.destroy_all
+      
+      # Create new associations
+      flow_ids.each do |flow_id|
+        ProductPrintFlow.create!(
+          product_id: product.id,
+          print_flow_id: flow_id,
+          default_flow: (flow_id == default_flow_id)
+        )
+      end
+      
       redirect '/products?success=updated'
     else
       @product = product
