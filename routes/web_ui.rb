@@ -2,7 +2,6 @@
 # @domain web
 # Web UI routes - HTML interface for operators
 require 'json'
-require 'mini_magick'
 
 class PrintOrchestrator < Sinatra::Base
   # GET / - Redirect to orders list
@@ -168,71 +167,5 @@ class PrintOrchestrator < Sinatra::Base
   rescue ActiveRecord::RecordNotFound
     status 404
     erb :not_found
-  end
-
-  # POST /orders/:order_id/items/:item_id/assets/:asset_id/transform - Transform PNG asset
-  post '/orders/:order_id/items/:item_id/assets/:asset_id/transform' do
-    order = Order.find(params[:order_id])
-    item = order.order_items.find(params[:item_id])
-    asset = item.assets.find(params[:asset_id])
-
-    offset_x = params[:offset_x].to_i
-    offset_y = params[:offset_y].to_i
-    zoom = params[:zoom].to_f / 100.0
-
-    begin
-      file_path = asset.local_path_full
-      temp_file = "#{file_path}.tmp"
-      
-      # Use MiniMagick for image processing
-      image = MiniMagick::Image.open(file_path)
-      
-      # Apply zoom
-      original_width = image.width
-      original_height = image.height
-      new_width = (original_width * zoom).round
-      new_height = (original_height * zoom).round
-      image.resize("#{new_width}x#{new_height}!")
-      
-      # Apply offset by expanding canvas
-      canvas_width = new_width + (offset_x > 0 ? offset_x : offset_x.abs)
-      canvas_height = new_height + (offset_y > 0 ? offset_y : offset_y.abs)
-      x_offset = offset_x >= 0 ? offset_x : 0
-      y_offset = offset_y >= 0 ? offset_y : 0
-      
-      # Extend canvas with white background
-      image.background('white')
-      image.gravity('NorthWest') 
-      image.extent("#{canvas_width}x#{canvas_height}+#{x_offset}+#{y_offset}")
-      image.format('png')
-      
-      # Save to temp file then move
-      image.write(temp_file)
-      
-      if File.exist?(temp_file) && File.size(temp_file) > 0
-        FileUtils.mv(temp_file, file_path, force: true)
-        redirect "/orders/#{order.id}?msg=success&text=Asset+modificato+con+successo"
-      else
-        raise "Image processing failed"
-      end
-    rescue => e
-      FileUtils.rm(temp_file) if File.exist?(temp_file)
-      redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore: ' + e.message[0..50])}"
-    end
-  end
-
-  # GET /file/:id - Serve downloaded asset file
-  get '/file/:id' do
-    asset = Asset.find(params[:id])
-    
-    if asset.downloaded? && File.exist?(asset.local_path_full)
-      send_file asset.local_path_full
-    else
-      status 404
-      body 'File not found'
-    end
-  rescue ActiveRecord::RecordNotFound
-    status 404
-    body 'Asset not found'
   end
 end
