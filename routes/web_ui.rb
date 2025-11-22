@@ -26,6 +26,63 @@ class PrintOrchestrator < Sinatra::Base
     erb :orders_list
   end
 
+  # GET /orders/new - Form for manual order entry
+  get '/orders/new' do
+    @stores = Store.where(active: true).ordered
+    @products = Product.where(active: true).ordered
+    erb :new_order
+  end
+
+  # POST /orders - Create order manually
+  post '/orders' do
+    store = Store.find(params[:store_id])
+    
+    begin
+      order = Order.new(
+        store_id: store.id,
+        external_order_code: params[:order_code],
+        status: 'new'
+      )
+      
+      unless order.save
+        redirect "/orders/new?error=#{order.errors.full_messages.join(',')}"
+      end
+
+      # Add items
+      if params[:items].present?
+        params[:items].each do |item_params|
+          next if item_params[:sku].blank?
+          
+          product = Product.find_by(sku: item_params[:sku])
+          if product.nil?
+            order.destroy
+            redirect "/orders/new?error=SKU non trovato: #{item_params[:sku]}"
+          end
+
+          order_item = order.order_items.build(
+            sku: item_params[:sku],
+            quantity: item_params[:quantity].to_i,
+            raw_json: {
+              sku: item_params[:sku],
+              quantity: item_params[:quantity],
+              product_name: product.name
+            }.to_json
+          )
+          order_item.save!
+        end
+      end
+
+      if order.order_items.empty?
+        order.destroy
+        redirect "/orders/new?error=Aggiungere almeno un item"
+      end
+
+      redirect "/orders/#{order.id}"
+    rescue => e
+      redirect "/orders/new?error=#{e.message}"
+    end
+  end
+
   # GET /orders/:id - Order detail
   get '/orders/:id' do
     @order = Order.includes(:store, { order_items: :assets }, :switch_job).find(params[:id])
