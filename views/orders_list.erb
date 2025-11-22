@@ -52,11 +52,6 @@
                     📥 Download
                   </button>
                 </form>
-                <form action="/orders/<%= order.id %>/send" method="post" class="d-inline">
-                  <button type="submit" class="btn btn-outline-success" <%= 'disabled' unless order.ready_for_switch? %>>
-                    🚀 Send to Switch
-                  </button>
-                </form>
                 <a href="/orders/<%= order.id %>" class="btn btn-outline-secondary">👁️ View</a>
                 <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
                   <input type="hidden" name="_method" value="DELETE">

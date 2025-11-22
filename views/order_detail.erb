@@ -17,11 +17,6 @@
         📥 Download Images
       </button>
     </form>
-    <form action="/orders/<%= @order.id %>/send" method="post" class="d-inline">
-      <button type="submit" class="btn btn-success" <%= 'disabled' unless @order.ready_for_switch? %>>
-        🚀 Send to Switch
-      </button>
-    </form>
     <form action="/orders/<%= @order.id %>" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro? Eliminerai completamente questo ordine.');">
       <input type="hidden" name="_method" value="DELETE">
       <button type="submit" class="btn btn-danger">
