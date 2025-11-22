@@ -2,6 +2,7 @@
 # @domain web
 # Web UI routes - HTML interface for operators
 require 'json'
+require 'vips'
 
 class PrintOrchestrator < Sinatra::Base
   # GET / - Redirect to orders list
