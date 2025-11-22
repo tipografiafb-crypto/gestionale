@@ -16,12 +16,8 @@ class PrintOrchestrator < Sinatra::Base
     set :bind, '0.0.0.0'
     set :port, ENV['PORT'] || 5000
     
-    # Allow Replit domains (wildcard subdomains)
-    set :host_authorization, permitted_hosts: [
-      'localhost',
-      '.replit.dev',   # All *.replit.dev subdomains
-      '.repl.co'       # All *.repl.co subdomains
-    ]
+    # Disable host authorization for Replit (allows all hosts)
+    set :protection, except: [:host_authorization]
   end
 
   # Load models
@@ -34,6 +30,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'models/print_flow'
   require_relative 'models/product_category'
   require_relative 'models/product'
+  require_relative 'models/product_print_flow'
 
   # Load services
   require_relative 'services/asset_downloader'
