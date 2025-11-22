@@ -12,8 +12,13 @@ class SwitchClient
     @switch_job = order.switch_job || order.build_switch_job
   end
 
-  # Send order to Switch
+  # Send order to Switch (or simulate if SWITCH_SIMULATION=true)
   def send_to_switch
+    # Simulation mode for testing
+    if ENV['SWITCH_SIMULATION'] == 'true'
+      return simulate_success
+    end
+
     # Check if order is ready
     unless @order.ready_for_switch?
       return { success: false, error: 'Order not ready (assets not downloaded)' }
@@ -41,6 +46,29 @@ class SwitchClient
 
     rescue StandardError => e
       handle_exception(e)
+    end
+  end
+
+  # Static method for item-level Send to Switch with simulation support
+  def self.send_to_switch(webhook_path:, job_data:)
+    # Simulation mode for testing
+    if ENV['SWITCH_SIMULATION'] == 'true'
+      return { success: true, job_id: job_data[:job_id], message: 'Simulato: Inviato a Switch' }
+    end
+
+    begin
+      response = HTTP
+        .timeout(30)
+        .headers('Content-Type' => 'application/json')
+        .post("http://localhost:9999#{webhook_path}", json: job_data)
+
+      if response.status.success?
+        { success: true, job_id: job_data[:job_id], message: 'Sent to Switch' }
+      else
+        { success: false, error: "Switch returned #{response.status}" }
+      end
+    rescue StandardError => e
+      { success: false, error: e.message }
     end
   end
 
