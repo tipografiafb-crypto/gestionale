@@ -12,11 +12,6 @@
     <h1>Order: <%= @order.external_order_code %></h1>
   </div>
   <div class="col-md-4 text-end">
-    <form action="/orders/<%= @order.id %>/download" method="post" class="d-inline">
-      <button type="submit" class="btn btn-primary" <%= 'disabled' if @order.assets_downloaded? %>>
-        📥 Download Images
-      </button>
-    </form>
     <form action="/orders/<%= @order.id %>" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro? Eliminerai completamente questo ordine.');">
       <input type="hidden" name="_method" value="DELETE">
       <button type="submit" class="btn btn-danger">
