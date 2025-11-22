@@ -248,7 +248,10 @@
                       <h5 class="modal-title">📐 Modifica Asset</h5>
                       <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <form action="/orders/<%= @order.id %>/items/<%= item.id %>/assets/<%= asset.id %>/transform" method="post">
+                    <form id="transformForm_<%= asset.id %>" class="transform-form">
+                      <input type="hidden" name="order_id" value="<%= @order.id %>">
+                      <input type="hidden" name="item_id" value="<%= item.id %>">
+                      <input type="hidden" name="asset_id" value="<%= asset.id %>">
                       <div class="modal-body">
                         <div class="mb-3">
                           <label class="form-label">Offset X (pixel)</label>
@@ -268,7 +271,7 @@
                       </div>
                       <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                        <button type="submit" class="btn btn-primary">💾 Salva</button>
+                        <button type="button" class="btn btn-primary transform-submit">💾 Salva</button>
                       </div>
                     </form>
                   </div>
