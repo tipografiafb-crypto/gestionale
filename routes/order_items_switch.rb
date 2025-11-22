@@ -40,10 +40,10 @@ class PrintOrchestrator < Sinatra::Base
       )
       
       item.update(
-        preprint_status: 'completed',
+        preprint_status: 'processing',
         preprint_job_id: job_data[:job_id]
       )
-      redirect "/orders/#{order.id}?msg=success&text=Item+inviato+a+pre-stampa"
+      redirect "/orders/#{order.id}?msg=success&text=Item+inviato+a+pre-stampa,+controlla+e+conferma"
     rescue => e
       item.update(preprint_status: 'failed')
       error_msg = e.message.length > 50 ? e.message[0..50] + "..." : e.message
