@@ -165,9 +165,11 @@
                   <div class="card">
                     <div class="card-body text-center">
                       <% if asset.downloaded? && asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) %>
-                        <img src="/file/<%= asset.id %>" alt="<%= asset.asset_type %>" class="asset-preview mb-2">
+                        <button type="button" class="btn-preview-image" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="/file/<%= asset.id %>" data-file-type="image" style="border: none; background: none; padding: 0; cursor: pointer;">
+                          <img src="/file/<%= asset.id %>" alt="<%= asset.asset_type %>" class="asset-preview mb-2" style="cursor: pointer;">
+                        </button>
                       <% else %>
-                        <div class="asset-preview mb-2 d-flex align-items-center justify-content-center" style="background-color: #f0f0f0;">
+                        <div class="asset-preview mb-2 d-flex align-items-center justify-content-center" style="background-color: #f0f0f0; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= asset.original_url %>" data-file-type="pdf">
                           <span>📄</span>
                         </div>
                       <% end %>
@@ -197,8 +199,10 @@
             <div class="card mb-3">
               <div class="card-body">
                 <h6 class="card-subtitle mb-2 text-muted">Pre-stampa</h6>
-                <img src="<%= item.preprint_job.result_preview_url %>" alt="Preprint Preview" class="img-fluid mb-2">
-                <a href="<%= item.preprint_job.result_preview_url %>" target="_blank" class="btn btn-sm btn-outline-primary w-100">Apri Preview</a>
+                <button type="button" class="btn-preview-switch" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= item.preprint_job.result_preview_url %>" data-file-type="pdf" style="border: none; background: none; padding: 0; width: 100%;">
+                  <img src="<%= item.preprint_job.result_preview_url %>" alt="Preprint Preview" class="img-fluid mb-2" style="cursor: pointer;">
+                </button>
+                <a href="<%= item.preprint_job.result_preview_url %>" target="_blank" class="btn btn-sm btn-outline-primary w-100">📥 Scarica</a>
               </div>
             </div>
           <% end %>
@@ -206,8 +210,10 @@
             <div class="card mb-3">
               <div class="card-body">
                 <h6 class="card-subtitle mb-2 text-muted">Stampa</h6>
-                <img src="<%= item.print_job.result_preview_url %>" alt="Print Preview" class="img-fluid mb-2">
-                <a href="<%= item.print_job.result_preview_url %>" target="_blank" class="btn btn-sm btn-outline-primary w-100">Apri Preview</a>
+                <button type="button" class="btn-preview-switch" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= item.print_job.result_preview_url %>" data-file-type="pdf" style="border: none; background: none; padding: 0; width: 100%;">
+                  <img src="<%= item.print_job.result_preview_url %>" alt="Print Preview" class="img-fluid mb-2" style="cursor: pointer;">
+                </button>
+                <a href="<%= item.print_job.result_preview_url %>" target="_blank" class="btn btn-sm btn-outline-primary w-100">📥 Scarica</a>
               </div>
             </div>
           <% end %>
