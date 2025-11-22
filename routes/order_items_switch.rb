@@ -60,7 +60,7 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}?msg=error&text=Questo+item+non+è+in+fase+di+pre-stampa"
     end
 
-    item.update(preprint_status: 'completed')
+    item.update(preprint_status: 'completed', preprint_completed_at: Time.now)
     redirect "/orders/#{order.id}?msg=success&text=Pre-stampa+confermata+manualmente"
   rescue => e
     redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore conferma: ' + e.message)}"

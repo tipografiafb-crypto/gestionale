@@ -36,6 +36,8 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085000) do
     t.string "preprint_preview_url"
     t.string "print_status", default: "pending"
     t.string "print_job_id"
+    t.datetime "preprint_completed_at"
+    t.datetime "print_completed_at"
     t.index ["order_id"], name: "index_order_items_on_order_id"
     t.index ["preprint_status"], name: "index_order_items_on_preprint_status"
     t.index ["print_status"], name: "index_order_items_on_print_status"
