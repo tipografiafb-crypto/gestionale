@@ -112,10 +112,16 @@
           <strong><%= item.product&.name || item.sku %></strong> - Quantità: <%= item.quantity %>
         </div>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_preprint" method="post" class="d-inline">
-            <button type="submit" class="btn btn-sm btn-outline-warning" 
-                    <%= 'disabled' unless item.can_send_to_preprint? %>
-                    title="<%= item.can_send_to_preprint? ? 'Invia a pre-stampa' : 'Immagini non ancora scaricate' %>">
+          <% 
+            available_flows = item.available_print_flows 
+            has_multiple_flows = available_flows.count > 1
+          %>
+          
+          <% if has_multiple_flows && item.can_send_to_preprint? %>
+            <button type="button" class="btn btn-sm btn-outline-warning" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#flowSelectionModal_<%= item.id %>"
+                    title="Scegli il flusso di stampa">
               🖨️ Pre-stampa
               <% if item.preprint_status != 'pending' %>
                 <span class="badge <%= item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
@@ -123,7 +129,20 @@
                 </span>
               <% end %>
             </button>
-          </form>
+          <% else %>
+            <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_preprint" method="post" class="d-inline">
+              <button type="submit" class="btn btn-sm btn-outline-warning" 
+                      <%= 'disabled' unless item.can_send_to_preprint? %>
+                      title="<%= item.can_send_to_preprint? ? 'Invia a pre-stampa' : 'Immagini non ancora scaricate' %>">
+                🖨️ Pre-stampa
+                <% if item.preprint_status != 'pending' %>
+                  <span class="badge <%= item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
+                    <%= item.preprint_status.upcase %>
+                  </span>
+                <% end %>
+              </button>
+            </form>
+          <% end %>
 
           <% if item.preprint_status == 'processing' %>
             <form action="/orders/<%= @order.id %>/items/<%= item.id %>/confirm_preprint" method="post" class="d-inline">
@@ -290,6 +309,61 @@
       </div>
     </div>
   </div>
+  
+  <!-- Flow Selection Modal for this item -->
+  <% if available_flows.count > 1 %>
+    <div class="modal fade" id="flowSelectionModal_<%= item.id %>" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Scegli il Flusso di Stampa</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-3">Prodotto: <strong><%= item.product&.name || item.sku %></strong></p>
+            <p class="text-muted mb-3">Seleziona il flusso di stampa da utilizzare per questo item:</p>
+            
+            <% 
+              default_flow = item.product&.default_print_flow
+              # Sort flows to show default first
+              sorted_flows = available_flows.sort_by { |f| f.id == default_flow&.id ? 0 : 1 }
+            %>
+            
+            <div class="list-group">
+              <% sorted_flows.each do |flow| %>
+                <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_preprint" method="post" style="margin: 0;">
+                  <input type="hidden" name="flow_id" value="<%= flow.id %>">
+                  <button type="submit" class="list-group-item list-group-item-action" style="text-align: left; border: 1px solid #dee2e6; margin-bottom: 8px; border-radius: 4px;">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <strong><%= flow.name %></strong>
+                        <% if flow.id == default_flow&.id %>
+                          <span class="badge bg-primary ms-2">Default</span>
+                        <% end %>
+                        <br>
+                        <small class="text-muted">
+                          Pre: <%= flow.preprint_webhook&.name %> → Stampa: <%= flow.print_webhook&.name %>
+                          <% if flow.label_webhook %>
+                            → Etichetta: <%= flow.label_webhook&.name %>
+                          <% end %>
+                        </small>
+                      </div>
+                      <div>
+                        <span class="badge bg-success">Seleziona</span>
+                      </div>
+                    </div>
+                  </button>
+                </form>
+              <% end %>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% end %>
 <% end %>
 
 <!-- Preview Modal -->
