@@ -114,8 +114,8 @@
     }
     
     .preview-image {
-      max-width: 100%;
-      max-height: 400px;
+      max-width: 5cm;
+      max-height: 5cm;
       border: 1px solid #ddd;
       border-radius: 4px;
     }
@@ -186,18 +186,13 @@
         </div>
       </div>
       
-      <% if @item.assets.any? { |a| a.downloaded? && a.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) } %>
+      <% preview_assets = @item.assets.select { |a| a.downloaded? && a.asset_type == 'print' && a.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) } %>
+      <% if preview_assets.any? %>
         <div class="preview-section">
           <h3>Anteprima File</h3>
-          <% @item.assets.each do |asset| %>
-            <% if asset.downloaded? && asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) %>
-              <img src="/file/<%= asset.id %>" alt="Preview" class="preview-image">
-            <% end %>
+          <% preview_assets.each do |asset| %>
+            <img src="/file/<%= asset.id %>" alt="Preview" class="preview-image">
           <% end %>
-        </div>
-      <% else %>
-        <div class="preview-section">
-          <div class="no-preview">Nessuna anteprima disponibile</div>
         </div>
       <% end %>
     </div>
