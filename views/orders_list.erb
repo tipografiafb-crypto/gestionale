@@ -47,11 +47,6 @@
             </td>
             <td>
               <div class="btn-group btn-group-sm">
-                <form action="/orders/<%= order.id %>/download" method="post" class="d-inline">
-                  <button type="submit" class="btn btn-outline-primary" <%= 'disabled' if order.assets_downloaded? %>>
-                    📥 Download
-                  </button>
-                </form>
                 <a href="/orders/<%= order.id %>" class="btn btn-outline-secondary">👁️ View</a>
                 <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
                   <input type="hidden" name="_method" value="DELETE">
