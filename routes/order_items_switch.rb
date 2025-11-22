@@ -28,7 +28,7 @@ class PrintOrchestrator < Sinatra::Base
       order_code: order.external_order_code,
       item_sku: item.sku,
       quantity: item.quantity,
-      assets: item.assets.where(downloaded: true).map { |a| a.local_path_full }
+      assets: item.assets.select { |a| a.downloaded? }.map { |a| a.local_path_full }
     }
 
     # Send to preprint webhook
@@ -93,7 +93,7 @@ class PrintOrchestrator < Sinatra::Base
       order_code: order.external_order_code,
       item_sku: item.sku,
       quantity: item.quantity,
-      assets: item.assets.where(downloaded: true).map { |a| a.local_path_full }
+      assets: item.assets.select { |a| a.downloaded? }.map { |a| a.local_path_full }
     }
 
     # Send to print webhook
