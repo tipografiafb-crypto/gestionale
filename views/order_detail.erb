@@ -111,7 +111,7 @@
         <div>
           <strong><%= item.product&.name || item.sku %></strong> - Quantità: <%= item.quantity %>
         </div>
-        <div class="btn-group btn-group-sm">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_preprint" method="post" class="d-inline">
             <button type="submit" class="btn btn-sm btn-outline-warning" 
                     <%= 'disabled' unless item.can_send_to_preprint? %>
@@ -156,8 +156,8 @@
             </form>
           <% end %>
           
-          <a href="/orders/<%= @order.id %>/items/<%= item.id %>/print" class="btn btn-sm btn-outline-info" target="_blank" title="Stampa scheda item">
-            🖨️ Stampa
+          <a href="/orders/<%= @order.id %>/items/<%= item.id %>/print" class="btn btn-sm btn-outline-info" target="_blank" title="Stampa scheda lavoro">
+            🖨️ Scheda Lavoro
           </a>
           
           <form action="/orders/<%= @order.id %>/items/<%= item.id %>/reset" method="post" class="d-inline" onsubmit="return confirm('Reimpostare questo item?');">
