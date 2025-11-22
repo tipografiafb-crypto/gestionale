@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_11_21_204148) do
+ActiveRecord::Schema[7.2].define(version: 2025_11_22_084500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -31,7 +31,14 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_21_204148) do
     t.text "raw_json"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "preprint_status", default: "pending"
+    t.string "preprint_job_id"
+    t.string "preprint_preview_url"
+    t.string "print_status", default: "pending"
+    t.string "print_job_id"
     t.index ["order_id"], name: "index_order_items_on_order_id"
+    t.index ["preprint_status"], name: "index_order_items_on_preprint_status"
+    t.index ["print_status"], name: "index_order_items_on_print_status"
   end
 
   create_table "orders", force: :cascade do |t|
