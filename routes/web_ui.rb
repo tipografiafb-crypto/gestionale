@@ -50,7 +50,7 @@ class PrintOrchestrator < Sinatra::Base
 
       # Add items
       if params[:items].present?
-        params[:items].each do |item_params|
+        params[:items].each_with_index do |item_params, index|
           next if item_params[:sku].blank?
           
           product = Product.find_by(sku: item_params[:sku])
@@ -69,6 +69,36 @@ class PrintOrchestrator < Sinatra::Base
             }.to_json
           )
           order_item.save!
+
+          # Handle file upload
+          file = item_params[:file]
+          if file && file.is_a?(Hash)
+            begin
+              # Create storage directory if needed
+              store_code = store.code || store.id.to_s
+              order_code = params[:order_code]
+              sku = item_params[:sku]
+              upload_dir = File.join(Dir.pwd, 'storage', store_code, order_code, sku)
+              FileUtils.mkdir_p(upload_dir)
+              
+              # Save file
+              filename = File.basename(file[:filename])
+              local_path = "storage/#{store_code}/#{order_code}/#{sku}/#{filename}"
+              full_path = File.join(Dir.pwd, local_path)
+              File.write(full_path, file[:tempfile].read)
+              
+              # Create Asset record
+              asset = order_item.assets.build(
+                original_url: filename,
+                local_path: local_path,
+                asset_type: 'uploaded'
+              )
+              asset.save!
+            rescue => e
+              # Log error but continue
+              warn "File upload error: #{e.message}"
+            end
+          end
         end
       end
 

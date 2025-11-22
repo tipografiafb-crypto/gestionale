@@ -8,7 +8,7 @@
 <div class="container mt-4">
   <h1>Crea Ordine Manuale</h1>
   
-  <form method="post" action="/orders" class="needs-validation" novalidate>
+  <form method="post" action="/orders" class="needs-validation" novalidate enctype="multipart/form-data">
     <div class="row mb-4">
       <div class="col-md-6">
         <label for="store_id" class="form-label">Negozio *</label>
@@ -31,7 +31,7 @@
     <h4>Item Ordine</h4>
     <div id="items-container">
       <div class="item-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
-        <div class="row">
+        <div class="row mb-2">
           <div class="col-md-5">
             <label class="form-label">Prodotto (SKU) *</label>
             <select class="form-select product-select" name="items[][sku]" required>
@@ -54,6 +54,13 @@
             <button type="button" class="btn btn-outline-danger w-100 remove-item-btn" style="display: none;">
               🗑 Rimuovi
             </button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12">
+            <label class="form-label">📎 File (immagine/PDF)</label>
+            <input type="file" class="form-control" name="items[][file]" accept="image/*,.pdf">
+            <small class="text-muted">Opzionale - Carica immagine o PDF</small>
           </div>
         </div>
       </div>
@@ -96,7 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
     row.style.backgroundColor = '#f8f9fa';
     
     row.innerHTML = `
-      <div class="row">
+      <div class="row mb-2">
         <div class="col-md-5">
           <label class="form-label">Prodotto (SKU) *</label>
           <select class="form-select product-select" name="items[][sku]" required>
@@ -115,6 +122,13 @@ document.addEventListener('DOMContentLoaded', function() {
           <button type="button" class="btn btn-outline-danger w-100 remove-item-btn">
             🗑 Rimuovi
           </button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-12">
+          <label class="form-label">📎 File (immagine/PDF)</label>
+          <input type="file" class="form-control" name="items[][file]" accept="image/*,.pdf">
+          <small class="text-muted">Opzionale - Carica immagine o PDF</small>
         </div>
       </div>
     `;
