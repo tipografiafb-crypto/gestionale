@@ -272,24 +272,15 @@
         <h5 class="modal-title">Anteprima File</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body" style="max-height: 75vh; overflow: auto;">
-        <!-- Zoom/Pan Controls -->
-        <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 15px;" id="zoomControls">
-          <button type="button" class="btn btn-sm btn-outline-secondary" id="zoomOut" title="Rimpicciolisci">🔍−</button>
-          <button type="button" class="btn btn-sm btn-outline-secondary" id="zoomReset" title="Reset zoom">⟲</button>
-          <button type="button" class="btn btn-sm btn-outline-secondary" id="zoomIn" title="Ingrandisci">🔍+</button>
+      <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
+        <!-- Immagine -->
+        <div id="imageContainer" style="display: none; text-align: center;">
+          <img id="previewImage" class="img-fluid" alt="Preview">
         </div>
         
-        <!-- Immagine con zoom/pan -->
-        <div id="imageContainer" style="display: none; text-align: center; overflow: hidden; max-height: 60vh;">
-          <div id="imagePanZoomContainer" style="display: inline-block; max-width: 100%;">
-            <img id="previewImage" class="img-fluid" alt="Preview" style="max-width: 100%; display: block;">
-          </div>
-        </div>
-        
-        <!-- PDF con zoom/pan -->
+        <!-- PDF -->
         <div id="pdfContainer" style="display: none;">
-          <div id="pdf-viewer" style="margin-bottom: 20px; overflow: hidden; max-height: 60vh; display: flex; justify-content: center; align-items: flex-start;"></div>
+          <div id="pdf-viewer" style="margin-bottom: 20px;"></div>
           <div style="display: flex; justify-content: center; gap: 10px; margin-top: 15px;">
             <button type="button" class="btn btn-sm btn-outline-secondary" id="prevPage" style="display: none;">← Precedente</button>
             <span id="pageInfo" style="align-self: center;"></span>
@@ -302,7 +293,6 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/panzoom@9.4.0/dist/panzoom.min.js"></script>
 <script>
   // Impostare worker di PDF.js
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -310,21 +300,15 @@
   let currentPdf = null;
   let currentPageNum = 1;
   let currentTotalPages = 0;
-  let imageZoom = null;
-  let pdfZoom = null;
 
   const previewModal = document.getElementById('previewModal');
   const imageContainer = document.getElementById('imageContainer');
   const pdfContainer = document.getElementById('pdfContainer');
-  const imagePanZoomContainer = document.getElementById('imagePanZoomContainer');
   const previewImage = document.getElementById('previewImage');
   const pdfViewer = document.getElementById('pdf-viewer');
   const pageInfo = document.getElementById('pageInfo');
   const prevPageBtn = document.getElementById('prevPage');
   const nextPageBtn = document.getElementById('nextPage');
-  const zoomInBtn = document.getElementById('zoomIn');
-  const zoomOutBtn = document.getElementById('zoomOut');
-  const zoomResetBtn = document.getElementById('zoomReset');
 
   // Evento quando il modal si apre
   previewModal.addEventListener('show.bs.modal', async function(e) {
@@ -339,15 +323,6 @@
     if (fileType === 'image') {
       previewImage.src = fileUrl;
       imageContainer.style.display = 'block';
-      
-      // Setup zoom/pan per immagine
-      if (imageZoom) imageZoom.dispose();
-      imageZoom = Panzoom(imagePanZoomContainer, {
-        maxScale: 10,
-        minScale: 0.5,
-        step: 0.5,
-        animate: true
-      });
     } else if (fileType === 'pdf') {
       try {
         const pdf = await pdfjsLib.getDocument(fileUrl).promise;
@@ -382,21 +357,7 @@
       await page.render({ canvasContext: context, viewport }).promise;
       
       pdfViewer.innerHTML = '';
-      const wrapper = document.createElement('div');
-      wrapper.style.display = 'inline-block';
-      wrapper.id = 'pdfCanvasWrapper';
-      wrapper.appendChild(canvas);
-      pdfViewer.appendChild(wrapper);
-      
-      // Setup zoom/pan per PDF
-      if (pdfZoom) pdfZoom.dispose();
-      pdfZoom = Panzoom(wrapper, {
-        maxScale: 10,
-        minScale: 0.5,
-        step: 0.5,
-        animate: true
-      });
-      pdfZoom.reset();
+      pdfViewer.appendChild(canvas);
       
       pageInfo.textContent = 'Pagina ' + pageNum + ' di ' + currentTotalPages;
       currentPageNum = pageNum;
@@ -417,33 +378,6 @@
   nextPageBtn.addEventListener('click', function() {
     if (currentPageNum < currentTotalPages) {
       renderPage(currentPageNum + 1);
-    }
-  });
-
-  // Zoom controls
-  zoomInBtn.addEventListener('click', function() {
-    if (imageZoom) imageZoom.zoomIn();
-    else if (pdfZoom) pdfZoom.zoomIn();
-  });
-
-  zoomOutBtn.addEventListener('click', function() {
-    if (imageZoom) imageZoom.zoomOut();
-    else if (pdfZoom) pdfZoom.zoomOut();
-  });
-
-  zoomResetBtn.addEventListener('click', function() {
-    if (imageZoom) imageZoom.reset();
-    else if (pdfZoom) pdfZoom.reset();
-  });
-
-  // Mouse wheel zoom
-  previewModal.addEventListener('wheel', function(e) {
-    if (imageContainer.style.display !== 'none' && imageZoom) {
-      e.preventDefault();
-      imageZoom.zoomToPoint(e.clientX, e.clientY, e.deltaY > 0 ? 0.8 : 1.2, { animate: true });
-    } else if (pdfContainer.style.display !== 'none' && pdfZoom) {
-      e.preventDefault();
-      pdfZoom.zoomToPoint(e.clientX, e.clientY, e.deltaY > 0 ? 0.8 : 1.2, { animate: true });
     }
   });
 </script>
