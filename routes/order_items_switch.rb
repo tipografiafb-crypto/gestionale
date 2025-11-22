@@ -122,14 +122,29 @@ class PrintOrchestrator < Sinatra::Base
       )
       
       item.update(
-        print_status: 'completed',
+        print_status: 'processing',
         print_job_id: job_data[:job_id]
       )
-      redirect "/orders/#{order.id}?msg=success&text=Item+inviato+in+stampa"
+      redirect "/orders/#{order.id}?msg=success&text=Item+inviato+in+stampa,+controlla+e+conferma"
     rescue => e
       item.update(print_status: 'failed')
       error_msg = e.message.length > 50 ? e.message[0..50] + "..." : e.message
       redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + error_msg)}"
     end
+  end
+
+  # POST /orders/:order_id/items/:item_id/confirm_print - Manually confirm print completion
+  post '/orders/:order_id/items/:item_id/confirm_print' do
+    order = Order.find(params[:order_id])
+    item = order.order_items.find(params[:item_id])
+
+    unless item.print_status == 'processing'
+      redirect "/orders/#{order.id}?msg=error&text=Questo+item+non+è+in+fase+di+stampa"
+    end
+
+    item.update(print_status: 'completed', print_completed_at: Time.now)
+    redirect "/orders/#{order.id}?msg=success&text=Stampa+confermata,+item+completato"
+  rescue => e
+    redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore conferma: ' + e.message)}"
   end
 end
