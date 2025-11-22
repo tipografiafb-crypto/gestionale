@@ -49,6 +49,31 @@
                 <th>Asset</th>
                 <th>Azioni</th>
               </tr>
+              <!-- Filter Row -->
+              <tr style="background-color: #f8f9fa;">
+                <td>
+                  <form method="get" action="/orders" class="d-inline" style="display: contents;">
+                    <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>" onchange="this.form.submit()">
+                </td>
+                <td>
+                    <select class="form-select form-select-sm" name="store_id" onchange="this.form.submit()">
+                      <option value="">Tutti</option>
+                      <% @stores.each do |store| %>
+                        <option value="<%= store.id %>" <%= 'selected' if @filter_store == store.id.to_s %>>
+                          <%= store.name %>
+                        </option>
+                      <% end %>
+                    </select>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm" name="order_code" placeholder="Codice..." value="<%= @filter_order_code %>" onchange="this.form.submit()">
+                </td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                  </form>
+              </tr>
             </thead>
             <tbody>
               <% in_progress.each do |order| %>
@@ -106,6 +131,31 @@
                 <th>Item</th>
                 <th>Asset</th>
                 <th>Azioni</th>
+              </tr>
+              <!-- Filter Row -->
+              <tr style="background-color: #f8f9fa;">
+                <td>
+                  <form method="get" action="/orders" class="d-inline" style="display: contents;">
+                    <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>" onchange="this.form.submit()">
+                </td>
+                <td>
+                    <select class="form-select form-select-sm" name="store_id" onchange="this.form.submit()">
+                      <option value="">Tutti</option>
+                      <% @stores.each do |store| %>
+                        <option value="<%= store.id %>" <%= 'selected' if @filter_store == store.id.to_s %>>
+                          <%= store.name %>
+                        </option>
+                      <% end %>
+                    </select>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm" name="order_code" placeholder="Codice..." value="<%= @filter_order_code %>" onchange="this.form.submit()">
+                </td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                  </form>
               </tr>
             </thead>
             <tbody>
