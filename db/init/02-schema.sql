@@ -89,9 +89,13 @@ CREATE TABLE IF NOT EXISTS switch_webhooks (
   id SERIAL PRIMARY KEY,
   name VARCHAR NOT NULL,
   hook_path VARCHAR NOT NULL,
+  store_id INTEGER REFERENCES stores(id),
+  active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS index_switch_webhooks_on_name_and_store_id ON switch_webhooks(name, store_id);
 
 -- Print Flows
 CREATE TABLE IF NOT EXISTS print_flows (
