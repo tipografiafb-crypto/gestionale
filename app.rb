@@ -108,6 +108,7 @@ class PrintOrchestrator < Sinatra::Base
   # Load routes
   require_relative 'routes/orders_api'
   require_relative 'routes/switch_api'
+  require_relative 'routes/switch_callback'
   require_relative 'routes/switch_json_payload'
   require_relative 'routes/switch_asset_download'
   require_relative 'routes/web_ui'
