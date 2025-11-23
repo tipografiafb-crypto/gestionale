@@ -149,6 +149,14 @@
                           </label>
                         </div>
                       <% end %>
+                      
+                      <div class="mb-3 mt-4">
+                        <label for="percentuale_<%= item.id %>" class="form-label">Percentuale (%)</label>
+                        <input type="number" class="form-control" id="percentuale_<%= item.id %>" 
+                               name="percentuale" value="0" step="1" min="-999" max="999"
+                               placeholder="Inserisci percentuale (es: +10, -5)">
+                        <small class="text-muted">Valore positivo o negativo che verrà inviato a Switch</small>
+                      </div>
                     </div>
                     <div class="modal-footer">
                       <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
@@ -161,6 +169,7 @@
           <% else %>
             <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_preprint" method="post" class="d-inline">
               <input type="hidden" name="print_flow_id" value="<%= item.product&.default_print_flow_id %>">
+              <input type="hidden" name="percentuale" value="0">
               <button type="submit" class="btn btn-sm btn-outline-warning" 
                       <%= 'disabled' unless item.can_send_to_preprint? %>
                       title="<%= item.can_send_to_preprint? ? 'Invia a pre-stampa' : 'Immagini non ancora scaricate' %>">

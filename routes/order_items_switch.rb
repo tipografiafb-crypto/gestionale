@@ -20,8 +20,16 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}?msg=error&text=Flusso+di+stampa+non+configurato"
     end
 
+    # Get percentuale from form and build campi_webhook
+    percentuale = params[:percentuale].to_i rescue 0
+    campi_webhook = { percentuale: percentuale.to_s }
+    
     # Store selected print flow in item
-    item.update(preprint_print_flow_id: print_flow.id, preprint_status: 'processing')
+    item.update(
+      preprint_print_flow_id: print_flow.id, 
+      preprint_status: 'processing',
+      campi_webhook: campi_webhook
+    )
 
     # Prepare job data for Switch - only send print assets (not preview)
     downloaded_assets = item.assets.select { |a| a.downloaded? && a.asset_type == 'print' }
