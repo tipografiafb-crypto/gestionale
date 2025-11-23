@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env.local
+.env.*.local
+*.log
+log/
+tmp/
+node_modules/
+coverage/
+.replit
+.DS_Store
+Thumbs.db
