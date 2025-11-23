@@ -16,6 +16,7 @@ class PrintFlow < ActiveRecord::Base
   validates :print_webhook_id, presence: true
 
   scope :active, -> { where(active: true) }
+  scope :ordered, -> { order(name: :asc) }
 
   def display_name
     "#{name} (#{products.count} prodotti)"

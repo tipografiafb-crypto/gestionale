@@ -38,6 +38,8 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'models/product_category'
   require_relative 'models/product'
   require_relative 'models/product_print_flow'
+  require_relative 'models/print_machine'
+  require_relative 'models/print_flow_machine'
 
   # Load services
   require_relative 'services/asset_downloader'
@@ -115,6 +117,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'routes/webhooks_web'
   require_relative 'routes/products_web'
   require_relative 'routes/order_items_switch'
+  require_relative 'routes/admin_print_machines'
   
   # Start FTP poller in background (if configured)
   configure do
