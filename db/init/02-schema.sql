@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS switch_webhooks (
 CREATE TABLE IF NOT EXISTS print_flows (
   id SERIAL PRIMARY KEY,
   name VARCHAR NOT NULL,
+  active BOOLEAN DEFAULT true,
   preprint_webhook_id INTEGER REFERENCES switch_webhooks(id),
   print_webhook_id INTEGER REFERENCES switch_webhooks(id),
   label_webhook_id INTEGER REFERENCES switch_webhooks(id),
