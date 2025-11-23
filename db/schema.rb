@@ -39,6 +39,10 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085005) do
     t.datetime "preprint_completed_at"
     t.datetime "print_completed_at"
     t.bigint "preprint_print_flow_id"
+    t.string "scala", default: "1:1"
+    t.string "materiale"
+    t.json "campi_custom", default: {}
+    t.json "campi_webhook", default: {}
     t.index ["order_id"], name: "index_order_items_on_order_id"
     t.index ["preprint_print_flow_id"], name: "index_order_items_on_preprint_print_flow_id"
     t.index ["preprint_status"], name: "index_order_items_on_preprint_status"
@@ -67,6 +71,8 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085005) do
     t.bigint "preprint_webhook_id"
     t.bigint "print_webhook_id"
     t.bigint "label_webhook_id"
+    t.integer "operation_id"
+    t.json "opzioni_stampa", default: {}
     t.index ["label_webhook_id"], name: "index_print_flows_on_label_webhook_id"
     t.index ["name"], name: "index_print_flows_on_name", unique: true
     t.index ["preprint_webhook_id"], name: "index_print_flows_on_preprint_webhook_id"
@@ -124,6 +130,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_22_085005) do
     t.text "log"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "job_operation_id"
     t.index ["order_id"], name: "index_switch_jobs_on_order_id"
   end
 

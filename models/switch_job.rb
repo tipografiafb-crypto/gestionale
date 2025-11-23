@@ -1,6 +1,8 @@
 # @feature switch
 # @domain data-models
 # SwitchJob model - Tracks jobs sent to Enfocus Switch
+# Fields for Switch integration:
+# - job_operation_id: Switch operation identifier for job tracking
 class SwitchJob < ActiveRecord::Base
   STATUSES = %w[pending sent completed failed].freeze
 
