@@ -8,6 +8,8 @@ class PrintFlow < ActiveRecord::Base
   belongs_to :label_webhook, class_name: 'SwitchWebhook', optional: true
   has_many :product_print_flows, dependent: :destroy
   has_many :products, through: :product_print_flows
+  has_many :print_flow_machines, dependent: :destroy
+  has_many :print_machines, through: :print_flow_machines
   
   validates :name, presence: true, uniqueness: true
   validates :preprint_webhook_id, presence: true

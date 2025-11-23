@@ -107,8 +107,12 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}?msg=error&text=Non+puoi+inviare+questo+item+in+stampa"
     end
 
-    # Update status
-    item.update(print_status: 'processing')
+    # Get selected print machine
+    print_machine_id = params[:print_machine_id]
+    print_machine = PrintMachine.find_by(id: print_machine_id) if print_machine_id.present?
+    
+    # Update status and machine
+    item.update(print_status: 'processing', print_machine_id: print_machine&.id)
 
     # Get print flow and print webhook
     print_flow = item.print_flow

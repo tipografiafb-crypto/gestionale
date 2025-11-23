@@ -1,0 +1,65 @@
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>🔧 Macchine da Stampa</h2>
+    <a href="/admin/print_machines/new" class="btn btn-primary">➕ Nuova Macchina</a>
+  </div>
+
+  <% if params[:msg] == 'success' %>
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+      <%= params[:text] %>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  <% elsif params[:msg] == 'error' %>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+      <%= params[:text] %>
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  <% end %>
+
+  <% if @machines.any? %>
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Descrizione</th>
+            <th>Stato</th>
+            <th>Flussi Collegati</th>
+            <th>Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @machines.each do |machine| %>
+            <tr>
+              <td><strong><%= machine.name %></strong></td>
+              <td><%= machine.description || '-' %></td>
+              <td>
+                <% if machine.active %>
+                  <span class="badge bg-success">Attiva</span>
+                <% else %>
+                  <span class="badge bg-secondary">Inattiva</span>
+                <% end %>
+              </td>
+              <td><%= machine.print_flows.count %></td>
+              <td>
+                <div class="btn-group btn-group-sm" role="group">
+                  <a href="/admin/print_machines/<%= machine.id %>/edit" class="btn btn-outline-primary">✏️</a>
+                  <a href="/admin/print_machines/<%= machine.id %>/link_flows" class="btn btn-outline-info">🔗</a>
+                  <form action="/admin/print_machines/<%= machine.id %>" method="post" class="d-inline">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Eliminare questa macchina?');">🗑</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="alert alert-info">Nessuna macchina configurata. <a href="/admin/print_machines/new">Crea la prima</a></div>
+  <% end %>
+
+  <hr>
+  <a href="/orders" class="btn btn-secondary">← Torna agli Ordini</a>
+</div>

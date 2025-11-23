@@ -84,6 +84,7 @@ class PrintOrchestrator < Sinatra::Base
       scala: item.scala || "1:1",
       quantita: item.quantity,
       materiale: item.materiale,
+      macchina: item.print_machine&.name, # Print machine name
       campi_custom: item.campi_custom || {},
       opzioni_stampa: print_flow&.opzioni_stampa || {},
       campi_webhook: item.campi_webhook || { percentuale: "0" },

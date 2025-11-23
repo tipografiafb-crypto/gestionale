@@ -1,0 +1,39 @@
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <h2><%= @machine.new_record? ? '➕ Nuova Macchina' : '✏️ Modifica Macchina' %></h2>
+
+      <% if @error_message %>
+        <div class="alert alert-danger"><%= @error_message %></div>
+      <% end %>
+
+      <form action="<%= @machine.new_record? ? '/admin/print_machines' : "/admin/print_machines/#{@machine.id}" %>" method="post" class="card p-4">
+        <% if !@machine.new_record? %>
+          <input type="hidden" name="_method" value="PUT">
+        <% end %>
+
+        <div class="mb-3">
+          <label for="name" class="form-label">Nome Macchina *</label>
+          <input type="text" class="form-control" id="name" name="name" value="<%= @machine.name %>" required placeholder="es: Stampante UV 01">
+        </div>
+
+        <div class="mb-3">
+          <label for="description" class="form-label">Descrizione</label>
+          <textarea class="form-control" id="description" name="description" rows="3" placeholder="Descrizione opzionale della macchina"><%= @machine.description %></textarea>
+        </div>
+
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="active" name="active" <%= 'checked' if @machine.active != false %>>
+          <label class="form-check-label" for="active">
+            Attiva
+          </label>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">💾 Salva</button>
+          <a href="/admin/print_machines" class="btn btn-secondary">Annulla</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

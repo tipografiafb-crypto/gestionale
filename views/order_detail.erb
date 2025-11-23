@@ -192,10 +192,12 @@
             </form>
           <% end %>
           
-          <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_print" method="post" class="d-inline">
-            <button type="submit" class="btn btn-sm btn-outline-success" 
+          <% available_machines = item.print_flow&.print_machines || [] %>
+          <% if available_machines.count > 1 %>
+            <button type="button" class="btn btn-sm btn-outline-success" 
                     <%= 'disabled' unless item.can_send_to_print? %>
-                    title="<%= item.can_send_to_print? ? 'Invia in stampa' : 'Completare prima la pre-stampa' %>">
+                    title="<%= item.can_send_to_print? ? 'Scegli macchina e invia in stampa' : 'Completare prima la pre-stampa' %>"
+                    data-bs-toggle="modal" data-bs-target="#machineSelectModal_<%= item.id %>">
               ✅ Stampa
               <% if item.print_status != 'pending' %>
                 <span class="badge <%= item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
@@ -203,7 +205,57 @@
                 </span>
               <% end %>
             </button>
-          </form>
+
+            <!-- Modal per selezionare macchina -->
+            <div class="modal fade" id="machineSelectModal_<%= item.id %>" tabindex="-1">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Scegli Macchina da Stampa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_print" method="post">
+                    <div class="modal-body">
+                      <p class="text-muted mb-3">Seleziona la macchina per questo lavoro:</p>
+                      <% available_machines.each do |machine| %>
+                        <div class="form-check mb-2">
+                          <input class="form-check-input" type="radio" name="print_machine_id" 
+                                 value="<%= machine.id %>" id="machine_<%= item.id %>_<%= machine.id %>"
+                                 <%= 'checked' if available_machines.first.id == machine.id %>>
+                          <label class="form-check-label" for="machine_<%= item.id %>_<%= machine.id %>">
+                            <strong><%= machine.name %></strong>
+                            <% if machine.description %>
+                              <br><small class="text-muted"><%= machine.description %></small>
+                            <% end %>
+                          </label>
+                        </div>
+                      <% end %>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                      <button type="submit" class="btn btn-success">✅ Invia in Stampa</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          <% else %>
+            <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_print" method="post" class="d-inline">
+              <% if available_machines.count == 1 %>
+                <input type="hidden" name="print_machine_id" value="<%= available_machines.first.id %>">
+              <% end %>
+              <button type="submit" class="btn btn-sm btn-outline-success" 
+                      <%= 'disabled' unless item.can_send_to_print? %>
+                      title="<%= item.can_send_to_print? ? 'Invia in stampa' : 'Completare prima la pre-stampa' %>">
+                ✅ Stampa
+                <% if item.print_status != 'pending' %>
+                  <span class="badge <%= item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
+                    <%= item.print_status.upcase %>
+                  </span>
+                <% end %>
+              </button>
+            </form>
+          <% end %>
 
           <% if item.print_status == 'processing' %>
             <form action="/orders/<%= @order.id %>/items/<%= item.id %>/confirm_print" method="post" class="d-inline">

@@ -7,6 +7,7 @@ class OrderItem < ActiveRecord::Base
   belongs_to :preprint_job, class_name: 'SwitchJob', foreign_key: 'preprint_job_id', optional: true
   belongs_to :print_job, class_name: 'SwitchJob', foreign_key: 'print_job_id', optional: true
   belongs_to :preprint_print_flow, class_name: 'PrintFlow', optional: true
+  belongs_to :print_machine, optional: true
 
   validates :sku, presence: true
   validates :quantity, presence: true, numericality: { greater_than: 0 }
