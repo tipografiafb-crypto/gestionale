@@ -5,7 +5,7 @@ services:
     image: postgres:15
     environment:
       POSTGRES_USER: orchestrator_user
-      POSTGRES_PASSWORD: your_secure_password
+      POSTGRES_PASSWORD: postgres123
       POSTGRES_DB: print_orchestrator_dev
     ports:
       - "5432:5432"
@@ -23,7 +23,7 @@ services:
     ports:
       - "5000:5000"
     environment:
-      DATABASE_URL: postgresql://orchestrator_user:your_secure_password@db:5432/print_orchestrator_dev
+      DATABASE_URL: postgresql://orchestrator_user:postgres123@db:5432/print_orchestrator_dev
       RACK_ENV: development
       PORT: 5000
       SWITCH_WEBHOOK_URL: http://host.docker.internal:9999/webhook
