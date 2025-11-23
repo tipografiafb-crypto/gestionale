@@ -35,6 +35,25 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
+  # POST /webhooks/ - Create new webhook (with trailing slash)
+  post '/webhooks/' do
+    webhook = SwitchWebhook.new(
+      name: params[:name],
+      hook_path: params[:hook_path],
+      store_id: params[:store_id].presence,
+      active: params[:active] == 'true'
+    )
+
+    if webhook.save
+      redirect '/webhooks?success=created'
+    else
+      @webhook = webhook
+      @stores = Store.all.order(name: :asc)
+      @error = webhook.errors.full_messages.join(', ')
+      erb :webhook_form
+    end
+  end
+
   # GET /webhooks/:id/edit - Edit webhook form
   get '/webhooks/:id/edit' do
     @webhook = SwitchWebhook.find(params[:id])
