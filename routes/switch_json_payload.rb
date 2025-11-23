@@ -68,8 +68,11 @@ class PrintOrchestrator < Sinatra::Base
     # Get primary asset (print asset)
     primary_asset = item.assets.find { |a| a.asset_type == 'print' && a.downloaded? }
     
+    # Get Switch filename for primary asset
+    switch_filename = primary_asset ? item.switch_filename_for_asset(primary_asset) : nil
+    
     # Build the payload matching Switch expectations
-    {
+    payload = {
       id_riga: item.id,
       codice_ordine: order.external_order_code,
       product: product ? "#{product.sku} - #{product.name}" : item.sku,
@@ -77,7 +80,7 @@ class PrintOrchestrator < Sinatra::Base
       job_operation_id: nil, # Will be set by Switch
       url: primary_asset ? asset_download_url(primary_asset) : nil,
       widegest_url: nil, # Not used in our workflow
-      filename: primary_asset&.filename,
+      filename: switch_filename,
       scala: item.scala || "1:1",
       quantita: item.quantity,
       materiale: item.materiale,
@@ -92,6 +95,16 @@ class PrintOrchestrator < Sinatra::Base
         created_at: Time.now.iso8601
       }
     }
+    
+    # Add secondary asset info if it's a two-stage workflow
+    secondary_assets = item.switch_print_assets[1..-1]
+    if secondary_assets.present?
+      secondary_asset = secondary_assets.first
+      payload[:secondary_url] = asset_download_url(secondary_asset) if secondary_asset
+      payload[:secondary_filename] = item.switch_filename_for_asset(secondary_asset) if secondary_asset
+    end
+    
+    payload
   end
   
   def asset_download_url(asset)

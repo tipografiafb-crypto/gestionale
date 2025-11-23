@@ -16,9 +16,13 @@ class PrintOrchestrator < Sinatra::Base
         return "Asset file not found"
       end
       
+      # Get Switch filename for this asset
+      switch_filename = asset.order_item.switch_filename_for_asset(asset)
+      download_filename = switch_filename || asset.filename
+      
       # Set download headers
       content_type 'application/octet-stream'
-      headers['Content-Disposition'] = "attachment; filename='#{asset.filename}'"
+      headers['Content-Disposition'] = "attachment; filename='#{download_filename}'"
       headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
       
       # Stream the file

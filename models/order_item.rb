@@ -60,4 +60,34 @@ class OrderItem < ActiveRecord::Base
   def available_print_flows
     product&.print_flows || []
   end
+
+  # Get print assets for this item (for Switch processing)
+  def switch_print_assets
+    assets.where(asset_type: 'print').order(:id)
+  end
+
+  # Get the item number (position in order)
+  def item_number
+    order.order_items.where("id <= ?", id).count
+  end
+
+  # Generate Switch filename based on number of print stages
+  # Single file: eu{order_id}-{item_number}.png
+  # Two files: eu{order_id}-{item_number}_F.png (stage1) and _R.png (stage2)
+  def switch_filename_for_asset(asset)
+    print_assets = switch_print_assets
+    return nil unless print_assets.include?(asset)
+    
+    order_code = order.external_order_code.gsub(/[^0-9]/, '').to_i || order.id
+    
+    if print_assets.count == 1
+      # Single file: no suffix
+      "eu#{order_code}-#{item_number}.png"
+    elsif print_assets.count == 2
+      # Two files: add _F or _R based on position
+      index = print_assets.find_index(asset)
+      suffix = index == 0 ? 'F' : 'R'
+      "eu#{order_code}-#{item_number}_#{suffix}.png"
+    end
+  end
 end
