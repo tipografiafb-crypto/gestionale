@@ -76,7 +76,7 @@
             </tr>
             <tr>
               <th>Status:</th>
-              <td><span class="badge bg-secondary"><%= @order.switch_job.status.upcase %></span></td>
+              <td><span class="badge bg-secondary"><%= @order.switch_job.status&.upcase %></span></td>
             </tr>
             <% if @order.switch_job.result_preview_url %>
               <tr>
@@ -120,7 +120,7 @@
               🖨️ Pre-stampa
               <% if item.preprint_status != 'pending' %>
                 <span class="badge <%= item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
-                  <%= item.preprint_status.upcase %>
+                  <%= item.preprint_status&.upcase %>
                 </span>
               <% end %>
             </button>
@@ -176,7 +176,7 @@
                 🖨️ Pre-stampa
                 <% if item.preprint_status != 'pending' %>
                   <span class="badge <%= item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
-                    <%= item.preprint_status.upcase %>
+                    <%= item.preprint_status&.upcase %>
                   </span>
                 <% end %>
               </button>
@@ -201,7 +201,7 @@
               ✅ Stampa
               <% if item.print_status != 'pending' %>
                 <span class="badge <%= item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
-                  <%= item.print_status.upcase %>
+                  <%= item.print_status&.upcase %>
                 </span>
               <% end %>
             </button>
@@ -250,7 +250,7 @@
                 ✅ Stampa
                 <% if item.print_status != 'pending' %>
                   <span class="badge <%= item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
-                    <%= item.print_status.upcase %>
+                    <%= item.print_status&.upcase %>
                   </span>
                 <% end %>
               </button>
@@ -300,7 +300,7 @@
             <% elsif item.preprint_status == 'failed' %>
               <span class="badge bg-danger">✗</span>
             <% else %>
-              <span class="badge bg-warning text-dark"><%= item.preprint_status.upcase %></span>
+              <span class="badge bg-warning text-dark"><%= item.preprint_status&.upcase %></span>
             <% end %>
           </div>
         </div>
@@ -313,7 +313,7 @@
             <% elsif item.print_status == 'failed' %>
               <span class="badge bg-danger">✗</span>
             <% else %>
-              <span class="badge bg-warning text-dark"><%= item.print_status.upcase %></span>
+              <span class="badge bg-warning text-dark"><%= item.print_status&.upcase %></span>
             <% end %>
           </div>
         </div>
