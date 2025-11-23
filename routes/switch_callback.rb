@@ -73,7 +73,7 @@ class PrintOrchestrator < Sinatra::Base
       when 'preprint'
         item.update(
           preprint_status: new_status,
-          preprint_completed_at: Time.now if new_status == 'completed'
+          preprint_completed_at: (new_status == 'completed' ? Time.now : nil)
         )
         
         # Update or create preprint job
@@ -99,7 +99,7 @@ class PrintOrchestrator < Sinatra::Base
       when 'print'
         item.update(
           print_status: new_status,
-          print_completed_at: Time.now if new_status == 'completed'
+          print_completed_at: (new_status == 'completed' ? Time.now : nil)
         )
         
         # Update or create print job

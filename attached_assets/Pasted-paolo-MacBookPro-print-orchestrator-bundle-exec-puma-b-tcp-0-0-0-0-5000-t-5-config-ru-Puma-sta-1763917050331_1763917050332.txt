@@ -1,0 +1,104 @@
+paolo@MacBookPro print-orchestrator % bundle exec puma -b tcp://0.0.0.0:5000 -t 5 config.ru
+Puma starting in single mode...
+* Puma version: 6.6.1 ("Return to Forever")
+* Ruby version: ruby 3.2.9 (2025-07-24 revision 8f611e0c46) [x86_64-darwin23]
+*  Min threads: 5
+*  Max threads: 5
+*  Environment: development
+*          PID: 6627
+! Unable to load application: SyntaxError: /Users/paolo/print-orchestrator/routes/switch_callback.rb:76: syntax error, unexpected `if' modifier, expecting ')'
+...print_completed_at: Time.now if new_status == 'completed'
+...                             ^~
+/Users/paolo/print-orchestrator/routes/switch_callback.rb:77: syntax error, unexpected ')', expecting `end' or dummy end
+        )
+        ^
+/Users/paolo/print-orchestrator/routes/switch_callback.rb:102: syntax error, unexpected `if' modifier, expecting ')'
+...print_completed_at: Time.now if new_status == 'completed'
+...                             ^~
+/Users/paolo/print-orchestrator/routes/switch_callback.rb:103: syntax error, unexpected ')', expecting `end' or dummy end
+        )
+        ^
+/Users/paolo/print-orchestrator/routes/switch_callback.rb:213: syntax error, unexpected `end'
+bundler: failed to load command: puma (/usr/local/lib/ruby/gems/3.2.0/bin/puma)
+/Users/paolo/print-orchestrator/app.rb:111:in `require_relative': --> /Users/paolo/print-orchestrator/routes/switch_callback.rb
+Unmatched keyword, missing `end' ?
+    9  class PrintOrchestrator < Sinatra::Base
+   21    post '/api/switch/callback' do
+   24      begin
+>  62        new_status = case callback_status
+>  63                     when 'completed', 'success'
+>  65                     when 'failed', 'error'
+>  67                     else
+>  69                     end
+>  72        case phase
+>  73        when 'preprint'
+>  74          item.update(
+>  75            preprint_status: new_status,
+>  76            preprint_completed_at: Time.now if new_status == 'completed'
+>  77          )
+  148      rescue JSON::ParserError => e
+  155    end
+  213  end
+Unmatched `{', missing `}' ?Unmatched `end', missing keyword (`do', `def`, `if`, etc.) ?
+    9  class PrintOrchestrator < Sinatra::Base
+   21    post '/api/switch/callback' do
+   24      begin
+>  99        when 'print'
+> 100          item.update(
+> 101            print_status: new_status,
+> 102            print_completed_at: Time.now if new_status == 'completed'
+> 103          )
+> 124        end
+  148      rescue JSON::ParserError => e
+  155    end
+  213  end
+
+/Users/paolo/print-orchestrator/routes/switch_callback.rb:76: syntax error, unexpected `if' modifier, expecting ')' (SyntaxError)
+...print_completed_at: Time.now if new_status == 'completed'
+...                             ^~
+/Users/paolo/print-orchestrator/routes/switch_callback.rb:77: syntax error, unexpected ')', expecting `end' or dummy end
+        )
+        ^
+/Users/paolo/print-orchestrator/routes/switch_callback.rb:102: syntax error, unexpected `if' modifier, expecting ')'
+...print_completed_at: Time.now if new_status == 'completed'
+...                             ^~
+/Users/paolo/print-orchestrator/routes/switch_callback.rb:103: syntax error, unexpected ')', expecting `end' or dummy end
+        )
+        ^
+/Users/paolo/print-orchestrator/routes/switch_callback.rb:213: syntax error, unexpected `end'
+	from /Users/paolo/print-orchestrator/app.rb:111:in `<class:PrintOrchestrator>'
+	from /Users/paolo/print-orchestrator/app.rb:8:in `<top (required)>'
+	from <internal:/usr/local/Cellar/ruby@3.2/3.2.9_1/lib/ruby/3.2.0/rubygems/core_ext/kernel_require.rb>:37:in `require'
+	from <internal:/usr/local/Cellar/ruby@3.2/3.2.9_1/lib/ruby/3.2.0/rubygems/core_ext/kernel_require.rb>:37:in `require'
+	from config.ru:1:in `block (2 levels) in <top (required)>'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/rack-3.2.4/lib/rack/builder.rb:108:in `eval'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/rack-3.2.4/lib/rack/builder.rb:108:in `new_from_string'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/rack-3.2.4/lib/rack/builder.rb:97:in `load_file'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/rack-3.2.4/lib/rack/builder.rb:67:in `parse_file'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/puma-6.6.1/lib/puma/configuration.rb:386:in `load_rackup'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/puma-6.6.1/lib/puma/configuration.rb:297:in `app'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/puma-6.6.1/lib/puma/runner.rb:169:in `load_and_bind'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/puma-6.6.1/lib/puma/single.rb:44:in `run'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/puma-6.6.1/lib/puma/launcher.rb:203:in `run'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/puma-6.6.1/lib/puma/cli.rb:75:in `run'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/puma-6.6.1/bin/puma:10:in `<top (required)>'
+	from /usr/local/Cellar/ruby@3.2/3.2.9_1/lib/ruby/3.2.0/rubygems.rb:319:in `load'
+	from /usr/local/Cellar/ruby@3.2/3.2.9_1/lib/ruby/3.2.0/rubygems.rb:319:in `activate_and_load_bin_path'
+	from /usr/local/lib/ruby/gems/3.2.0/bin/puma:25:in `<top (required)>'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/bundler-2.4.10/lib/bundler/cli/exec.rb:58:in `load'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/bundler-2.4.10/lib/bundler/cli/exec.rb:58:in `kernel_load'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/bundler-2.4.10/lib/bundler/cli/exec.rb:23:in `run'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/bundler-2.4.10/lib/bundler/cli.rb:492:in `exec'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/bundler-2.4.10/lib/bundler/vendor/thor/lib/thor/command.rb:27:in `run'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/bundler-2.4.10/lib/bundler/vendor/thor/lib/thor/invocation.rb:127:in `invoke_command'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/bundler-2.4.10/lib/bundler/vendor/thor/lib/thor.rb:392:in `dispatch'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/bundler-2.4.10/lib/bundler/cli.rb:34:in `dispatch'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/bundler-2.4.10/lib/bundler/vendor/thor/lib/thor/base.rb:485:in `start'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/bundler-2.4.10/lib/bundler/cli.rb:28:in `start'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/bundler-2.4.10/exe/bundle:45:in `block in <top (required)>'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/bundler-2.4.10/lib/bundler/friendly_errors.rb:117:in `with_friendly_errors'
+	from /usr/local/lib/ruby/gems/3.2.0/gems/bundler-2.4.10/exe/bundle:33:in `<top (required)>'
+	from /usr/local/Cellar/ruby@3.2/3.2.9_1/lib/ruby/3.2.0/rubygems.rb:319:in `load'
+	from /usr/local/Cellar/ruby@3.2/3.2.9_1/lib/ruby/3.2.0/rubygems.rb:319:in `activate_and_load_bin_path'
+	from /usr/local/opt/ruby@3.2/bin/bundle:25:in `<main>'
+paolo@MacBookPro print-orchestrator % 
