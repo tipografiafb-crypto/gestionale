@@ -10,6 +10,12 @@ class OrderItem < ActiveRecord::Base
 
   validates :sku, presence: true
   validates :quantity, presence: true, numericality: { greater_than: 0 }
+  
+  # Switch payload mapping
+  # scala: stampa scale (1:1, 2:1, ecc)
+  # materiale: material type (Celluloide, Carta, ecc)
+  # campi_custom: custom fields from order
+  # campi_webhook: webhook metadata (percentuale, stato, ecc)
 
   # Statuses for two-phase workflow
   PREPRINT_STATUSES = %w[pending processing completed failed].freeze
