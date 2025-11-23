@@ -101,6 +101,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS index_switch_webhooks_on_name_and_store_id ON 
 CREATE TABLE IF NOT EXISTS print_flows (
   id SERIAL PRIMARY KEY,
   name VARCHAR NOT NULL,
+  notes TEXT,
   active BOOLEAN DEFAULT true,
   preprint_webhook_id INTEGER REFERENCES switch_webhooks(id),
   print_webhook_id INTEGER REFERENCES switch_webhooks(id),
