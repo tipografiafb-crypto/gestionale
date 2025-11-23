@@ -13,6 +13,7 @@ class PrintOrchestrator < Sinatra::Base
   get '/print_flows/new' do
     @flow = nil
     @webhooks = SwitchWebhook.active.order(name: :asc)
+    @machines = PrintMachine.ordered
     erb :print_flow_form
   end
 
@@ -41,6 +42,7 @@ class PrintOrchestrator < Sinatra::Base
   get '/print_flows/:id/edit' do
     @flow = PrintFlow.find(params[:id])
     @webhooks = SwitchWebhook.active.order(name: :asc)
+    @machines = PrintMachine.ordered
     erb :print_flow_form
   rescue ActiveRecord::RecordNotFound
     status 404
@@ -60,9 +62,18 @@ class PrintOrchestrator < Sinatra::Base
     )
 
     if flow.save
+      # Update machine associations
+      flow.print_flow_machines.destroy_all
+      machine_ids = params[:machine_ids] || []
+      machine_ids.each do |machine_id|
+        PrintFlowMachine.create(print_flow_id: flow.id, print_machine_id: machine_id)
+      end
+      
       redirect '/print_flows?success=updated'
     else
       @flow = flow
+      @machines = PrintMachine.ordered
+      @webhooks = SwitchWebhook.active.order(name: :asc)
       @error = flow.errors.full_messages.join(', ')
       erb :print_flow_form
     end

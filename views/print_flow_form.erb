@@ -42,6 +42,32 @@
       <small class="text-muted">Webhook per l'invio dei file alle macchine di stampa</small>
     </div>
 
+    <% if @flow&.id %>
+    <div class="mb-3 p-3 bg-light border rounded">
+      <label class="form-label fw-bold">🔧 Macchine da Stampa Disponibili</label>
+      <p class="text-muted small mb-2">Seleziona le macchine disponibili per questo flusso</p>
+      
+      <% if @machines.any? %>
+        <div class="list-group" style="max-height: 300px; overflow-y: auto;">
+          <% @machines.each do |machine| %>
+            <label class="list-group-item">
+              <input type="checkbox" name="machine_ids[]" value="<%= machine.id %>" 
+                     <%= 'checked' if @flow.print_machines.include?(machine) %>>
+              <strong><%= machine.name %></strong>
+              <% if machine.description %>
+                <br><small class="text-muted"><%= machine.description %></small>
+              <% end %>
+            </label>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="alert alert-info small mb-0">
+          Nessuna macchina configurata. <a href="/admin/print_machines">Crea una macchina</a>
+        </div>
+      <% end %>
+    </div>
+    <% end %>
+
     <div class="mb-3">
       <label for="label_webhook_id" class="form-label">Webhook Etichetta (opzionale)</label>
       <select class="form-select" id="label_webhook_id" name="label_webhook_id">
