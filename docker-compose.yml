@@ -12,6 +12,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
     command: 
       - "postgres"
       - "-c"
@@ -19,7 +20,7 @@ services:
 
   web:
     build: .
-    command: bash -c "bundle exec rake db:create db:migrate && bundle exec puma -b tcp://0.0.0.0:5000 config.ru"
+    command: bash -c "sleep 5 && bundle exec rake db:drop db:create db:migrate && bundle exec puma -b tcp://0.0.0.0:5000 config.ru"
     ports:
       - "5000:5000"
     environment:
