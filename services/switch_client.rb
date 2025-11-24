@@ -25,24 +25,29 @@ class SwitchClient
     end
 
     begin
-      # Prepare payload
-      payload = build_payload
+      # Prepare payload - each item becomes a separate entry
+      payloads = build_payload
 
-      # Send to Switch webhook
-      response = HTTP
-        .timeout(30)
-        .headers(
-          'Content-Type' => 'application/json',
-          'X-API-Key' => ENV['SWITCH_API_KEY'] || ''
-        )
-        .post(switch_webhook_url, json: payload)
+      # Send each item to Switch webhook
+      payloads.each do |payload|
+        response = HTTP
+          .timeout(30)
+          .headers(
+            'Content-Type' => 'application/json',
+            'X-API-Key' => ENV['SWITCH_API_KEY'] || ''
+          )
+          .post(switch_webhook_url, json: payload)
 
-      # Process response
-      if response.status.success?
-        handle_success(response)
-      else
-        handle_error(response)
+        # Process response
+        if response.status.success?
+          handle_success(response)
+        else
+          handle_error(response)
+        end
       end
+
+      # Final success message
+      { success: true, message: "Sent #{payloads.length} item(s) to Switch" }
 
     rescue StandardError => e
       handle_exception(e)
@@ -100,29 +105,31 @@ class SwitchClient
     ENV['SWITCH_WEBHOOK_URL'] || 'http://localhost:9999/webhook'
   end
 
+  def server_base_url
+    ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
+  end
+
   def build_payload
-    {
-      external_order_code: @order.external_order_code,
-      store_code: @order.store.code,
-      store_name: @order.store.name,
-      items: @order.order_items.map do |item|
-        {
-          sku: item.sku,
-          quantity: item.quantity,
-          assets: item.assets.map do |asset|
-            {
-              type: asset.asset_type,
-              url: asset.original_url,
-              local_path: asset.local_path_full
-            }
-          end
-        }
-      end,
-      metadata: {
-        order_id: @order.id,
-        created_at: @order.created_at.iso8601
+    # Build payload in Switch format for each item
+    @order.order_items.map.with_index do |item, idx|
+      product = item.product
+      primary_asset = item.assets.first
+      
+      {
+        id_riga: item.id,
+        codice_ordine: @order.external_order_code,
+        product: product ? "#{product.sku} - #{product.name}" : item.sku,
+        operation_id: idx + 1,
+        job_operation_id: nil,  # Filled by Switch
+        url: "#{server_base_url}/api/assets/#{primary_asset&.id}/download",
+        filename: primary_asset&.filename || "#{@order.external_order_code}_#{idx + 1}.png",
+        quantita: item.quantity,
+        materiale: product&.material || "Non specificato",
+        campi_custom: {},
+        opzioni_stampa: {},
+        campi_webhook: {}
       }
-    }
+    end
   end
 
   def handle_success(response)
