@@ -16,6 +16,14 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 
 ## Recent Work
 
+### November 24, 2025 (Ubuntu Deployment)
+- Consolidated fragmented 30+ migrations into single clean migration
+- Fixed schema mismatch issues (missing `hook_path`, `active` columns)
+- Created automated installation scripts for Linux (Ubuntu 24.04+)
+- Fixed mass assignment security for Store model
+- Set up complete database with all 15 tables correctly
+- Deployed successfully on Ubuntu 24.04.3 LTS at 192.168.1.100:5000
+
 ### November 20, 2025
 - Initial project setup with Ruby 3.2 and Sinatra 4.2
 - Created all database models and migrations
