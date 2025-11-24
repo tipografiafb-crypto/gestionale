@@ -12,7 +12,7 @@ class PrintOrchestrator < Sinatra::Base
   # GET /print_flows/new - New print flow form
   get '/print_flows/new' do
     @flow = nil
-    @webhooks = SwitchWebhook.active.order(name: :asc)
+    @webhooks = SwitchWebhook.all.order(name: :asc)
     @machines = PrintMachine.ordered
     erb :print_flow_form
   end
@@ -32,7 +32,7 @@ class PrintOrchestrator < Sinatra::Base
       redirect '/print_flows?success=created'
     else
       @flow = flow
-      @webhooks = SwitchWebhook.active.order(name: :asc)
+      @webhooks = SwitchWebhook.all.order(name: :asc)
       @error = flow.errors.full_messages.join(', ')
       erb :print_flow_form
     end
@@ -41,7 +41,7 @@ class PrintOrchestrator < Sinatra::Base
   # GET /print_flows/:id/edit - Edit print flow form
   get '/print_flows/:id/edit' do
     @flow = PrintFlow.find(params[:id])
-    @webhooks = SwitchWebhook.active.order(name: :asc)
+    @webhooks = SwitchWebhook.all.order(name: :asc)
     @machines = PrintMachine.ordered
     erb :print_flow_form
   rescue ActiveRecord::RecordNotFound
@@ -73,7 +73,7 @@ class PrintOrchestrator < Sinatra::Base
     else
       @flow = flow
       @machines = PrintMachine.ordered
-      @webhooks = SwitchWebhook.active.order(name: :asc)
+      @webhooks = SwitchWebhook.all.order(name: :asc)
       @error = flow.errors.full_messages.join(', ')
       erb :print_flow_form
     end
