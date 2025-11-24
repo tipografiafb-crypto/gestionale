@@ -1,0 +1,68 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1>🔗 Article da Fare</h1>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" action="/line_items" class="d-flex gap-2">
+      <input type="text" class="form-control" name="search" placeholder="Cerca per nome prodotto..." value="<%= @search_term %>">
+      <button type="submit" class="btn btn-primary">Cerca</button>
+      <% if @search_term.present? %>
+        <a href="/line_items" class="btn btn-outline-secondary">Azzera</a>
+      <% end %>
+    </form>
+  </div>
+</div>
+
+<% if @line_items.empty? %>
+  <div class="alert alert-info">
+    <% if @search_term.present? %>
+      Nessun article trovato con il nome "<%= @search_term %>"
+    <% else %>
+      Nessun article in lavorazione
+    <% end %>
+  </div>
+<% else %>
+  <div class="table-responsive">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Data Ordine</th>
+          <th>Codice Ordine</th>
+          <th>Negozio</th>
+          <th>Nome Prodotto</th>
+          <th>SKU</th>
+          <th>Quantità</th>
+          <th>Stato Ordine</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @line_items.each do |li| %>
+          <tr>
+            <td><%= li[:order].created_at.strftime('%d-%m-%y') %></td>
+            <td><a href="/orders/<%= li[:order].id %>"><%= li[:order].external_order_code %></a></td>
+            <td><%= li[:order].store.name %></td>
+            <td><strong><%= li[:product_name] %></strong></td>
+            <td><code><%= li[:item].sku %></code></td>
+            <td><%= li[:item].quantity %></td>
+            <td>
+              <span class="badge status-badge status-<%= li[:order].status %>">
+                <%= li[:order].status.gsub('_', ' ').upcase %>
+              </span>
+            </td>
+            <td>
+              <div style="display: flex; gap: 4px;">
+                <a href="/orders/<%= li[:order].id %>" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 14px;" title="Visualizza ordine">👁️</a>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+  
+  <div class="alert alert-info mt-4">
+    <strong>Totale:</strong> <%= @line_items.count %> article da elaborare
+  </div>
+<% end %>

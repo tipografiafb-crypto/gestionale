@@ -229,4 +229,31 @@ class PrintOrchestrator < Sinatra::Base
     status 404
     erb :not_found
   end
+
+  # GET /line_items - List all order items from in-progress orders with product search
+  get '/line_items' do
+    # Get only orders that are in progress (not done/error)
+    in_progress_orders = Order.where("status NOT IN ('done', 'error')").includes(:store, :order_items)
+    
+    # Get all order items from these orders, with their associated order and product
+    @line_items = []
+    in_progress_orders.each do |order|
+      order.order_items.each do |item|
+        @line_items << {
+          item: item,
+          order: order,
+          product_name: item.product&.name || item.sku
+        }
+      end
+    end
+    
+    # Filter by product name if search param is provided
+    if params[:search].present?
+      search_term = params[:search].downcase
+      @line_items = @line_items.select { |li| li[:product_name].downcase.include?(search_term) }
+    end
+    
+    @search_term = params[:search]
+    erb :line_items
+  end
 end
