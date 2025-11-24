@@ -100,4 +100,27 @@ class PrintOrchestrator < Sinatra::Base
   rescue ActiveRecord::RecordNotFound
     status 404
   end
+
+  # POST /products/:id/duplicate - Duplicate product with all configurations
+  post '/products/:id/duplicate' do
+    content_type :json
+    
+    begin
+      product = Product.find(params[:id])
+      duplicated = product.duplicate
+      
+      if duplicated
+        { success: true, id: duplicated.id, sku: duplicated.sku }.to_json
+      else
+        status 400
+        { success: false, error: 'Duplicazione fallita' }.to_json
+      end
+    rescue ActiveRecord::RecordNotFound
+      status 404
+      { success: false, error: 'Prodotto non trovato' }.to_json
+    rescue => e
+      status 500
+      { success: false, error: e.message }.to_json
+    end
+  end
 end

@@ -65,6 +65,7 @@
               </td>
               <td>
                 <a href="/products/<%= product.id %>/edit" class="btn btn-sm btn-outline-primary">✎ Modifica</a>
+                <button class="btn btn-sm btn-outline-info" onclick="duplicateProduct(<%= product.id %>)">📋 Duplica</button>
                 <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(<%= product.id %>)">🗑 Elimina</button>
               </td>
             </tr>
@@ -80,6 +81,19 @@
 </div>
 
 <script>
+function duplicateProduct(id) {
+  fetch('/products/' + id + '/duplicate', { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        location.href = '/products?success=duplicated';
+      } else {
+        alert('Errore: ' + (data.error || 'Duplicazione fallita'));
+      }
+    })
+    .catch(err => alert('Errore: ' + err));
+}
+
 function deleteProduct(id) {
   if (confirm('Sei sicuro? Eliminerai questo prodotto dal routing.')) {
     fetch('/products/' + id, { method: 'DELETE' })
