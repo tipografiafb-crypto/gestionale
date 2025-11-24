@@ -3,8 +3,6 @@
 # Product model - SKU to print flow routing configuration
 
 class Product < ActiveRecord::Base
-  attr_accessor :product_category_id, :default_print_flow_id, :min_stock_level
-  
   has_many :product_print_flows, dependent: :destroy
   has_many :print_flows, through: :product_print_flows
   has_one :inventory, dependent: :destroy

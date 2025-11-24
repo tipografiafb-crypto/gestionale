@@ -45,11 +45,15 @@ class PrintOrchestrator < Sinatra::Base
       default_print_flow_id: default_flow_id,
       product_category_id: params[:product_category_id].presence,
       notes: params[:notes],
-      min_stock_level: params[:min_stock_level].to_i
+      min_stock_level: params[:min_stock_level].to_i.presence
     )
 
     if product.save
-      product.print_flow_ids = flow_ids
+      if flow_ids.present?
+        flow_ids.each do |flow_id|
+          ProductPrintFlow.create(product_id: product.id, print_flow_id: flow_id)
+        end
+      end
       redirect '/products?success=created'
     else
       @product = product
@@ -86,11 +90,17 @@ class PrintOrchestrator < Sinatra::Base
       default_print_flow_id: default_flow_id,
       product_category_id: params[:product_category_id].presence,
       notes: params[:notes],
-      min_stock_level: params[:min_stock_level].to_i
+      min_stock_level: params[:min_stock_level].to_i.presence
     )
 
     if product.save
-      product.print_flow_ids = flow_ids
+      # Update print flow associations
+      product.product_print_flows.destroy_all
+      if flow_ids.present?
+        flow_ids.each do |flow_id|
+          ProductPrintFlow.create(product_id: product.id, print_flow_id: flow_id)
+        end
+      end
       redirect '/products?success=updated'
     else
       @product = product
