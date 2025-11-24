@@ -3,6 +3,8 @@
 # SwitchWebhook model - Registered Switch webhook endpoints with names
 
 class SwitchWebhook < ActiveRecord::Base
+  attr_accessor :store_id, :active
+  
   belongs_to :store, optional: true
   has_many :switch_jobs
   has_many :print_flows_as_preprint, class_name: 'PrintFlow', foreign_key: 'preprint_webhook_id', dependent: :nullify

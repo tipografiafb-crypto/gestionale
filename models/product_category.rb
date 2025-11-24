@@ -3,6 +3,8 @@
 # ProductCategory model - Categories for organizing products
 
 class ProductCategory < ActiveRecord::Base
+  attr_accessor :active
+  
   has_many :products, dependent: :restrict_with_error
 
   validates :name, presence: true, uniqueness: true
