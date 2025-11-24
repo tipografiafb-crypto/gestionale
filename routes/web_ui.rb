@@ -66,16 +66,22 @@ class PrintOrchestrator < Sinatra::Base
             redirect "/orders/new?error=SKU non trovato: #{item_params[:sku]}"
           end
 
+          quantity = item_params[:quantity].to_i
           order_item = order.order_items.build(
             sku: item_params[:sku],
-            quantity: item_params[:quantity].to_i,
+            quantity: quantity,
             raw_json: {
               sku: item_params[:sku],
-              quantity: item_params[:quantity],
+              quantity: quantity,
               product_name: product.name
             }.to_json
           )
           order_item.save!
+
+          # Deduct from inventory
+          if product.inventory
+            product.inventory.remove_stock(quantity)
+          end
 
           # Handle file upload
           file = item_params[:file]
