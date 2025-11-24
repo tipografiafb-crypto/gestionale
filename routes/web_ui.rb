@@ -269,6 +269,17 @@ class PrintOrchestrator < Sinatra::Base
   # GET /inventory - Manage warehouse stock
   get '/inventory' do
     @inventory_items = Inventory.includes(:product).all
+    
+    # Filter by SKU or product name if search param is provided
+    if params[:search].present?
+      search_term = params[:search].downcase
+      @inventory_items = @inventory_items.select do |inv|
+        inv.product.sku.downcase.include?(search_term) || 
+        inv.product.name.downcase.include?(search_term)
+      end
+    end
+    
+    @search_term = params[:search]
     erb :inventory
   end
 

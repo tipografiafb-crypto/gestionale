@@ -2,6 +2,18 @@
   <h1>📦 Gestione Magazzino</h1>
 </div>
 
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" action="/inventory" class="d-flex gap-2">
+      <input type="text" class="form-control" name="search" placeholder="Cerca per SKU o nome prodotto..." value="<%= @search_term %>">
+      <button type="submit" class="btn btn-primary">Cerca</button>
+      <% if @search_term.present? %>
+        <a href="/inventory" class="btn btn-outline-secondary">Azzera</a>
+      <% end %>
+    </form>
+  </div>
+</div>
+
 <% if @inventory_items.empty? %>
   <div class="alert alert-info">
     Nessun prodotto in magazzino
