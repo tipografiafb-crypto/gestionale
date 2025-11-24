@@ -3,7 +3,7 @@
 # SwitchWebhook model - Registered Switch webhook endpoints with names
 
 class SwitchWebhook < ActiveRecord::Base
-  attr_accessor :store_id, :active
+  attr_accessor :store_id
   
   belongs_to :store, optional: true
   has_many :switch_jobs
@@ -14,7 +14,6 @@ class SwitchWebhook < ActiveRecord::Base
   validates :hook_path, presence: true, format: { with: /\A\//, message: "deve iniziare con /" }
   validates :name, uniqueness: { scope: :store_id, allow_nil: true }
 
-  scope :active, -> { where(active: true) }
   scope :by_store, ->(store_id) { where(store_id: store_id) }
 
   # Compute full webhook URL from hook_path

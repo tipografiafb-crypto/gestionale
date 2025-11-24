@@ -50,17 +50,6 @@
           <small class="text-muted">Se non specificato, questo webhook sarà usato per tutti i negozi</small>
         </div>
 
-        <div class="mb-3">
-          <div class="form-check">
-            <input type="checkbox" id="active" name="active" class="form-check-input" value="true"
-                   <%= 'checked' if !@webhook || @webhook.active %> onchange="document.getElementById('active_value').value = this.checked ? 'true' : 'false'">
-            <label class="form-check-label" for="active">
-              Webhook attivo
-            </label>
-            <input type="hidden" id="active_value" name="active_value" value="<%= @webhook&.active ? 'true' : 'false' %>">
-          </div>
-          <small class="text-muted">Deseleziona per disabilitare temporaneamente questo webhook</small>
-        </div>
       </div>
 
       <div class="card-footer bg-light">

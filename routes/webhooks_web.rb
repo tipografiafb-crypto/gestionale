@@ -21,8 +21,7 @@ class PrintOrchestrator < Sinatra::Base
     webhook = SwitchWebhook.new(
       name: params[:name],
       hook_path: params[:hook_path],
-      store_id: params[:store_id].presence,
-      active: (params[:active_value] || params[:active]) == 'true'
+      store_id: params[:store_id].presence
     )
 
     if webhook.save
@@ -40,8 +39,7 @@ class PrintOrchestrator < Sinatra::Base
     webhook = SwitchWebhook.new(
       name: params[:name],
       hook_path: params[:hook_path],
-      store_id: params[:store_id].presence,
-      active: (params[:active_value] || params[:active]) == 'true'
+      store_id: params[:store_id].presence
     )
 
     if webhook.save
@@ -70,8 +68,7 @@ class PrintOrchestrator < Sinatra::Base
     webhook.update(
       name: params[:name],
       hook_path: params[:hook_path],
-      store_id: params[:store_id].presence,
-      active: (params[:active_value] || params[:active]) == 'true'
+      store_id: params[:store_id].presence
     )
 
     if webhook.save
