@@ -35,8 +35,14 @@ class CreateAllTables < ActiveRecord::Migration[7.2]
       t.string :preprint_status, default: 'pending'
       t.string :preprint_job_id
       t.string :preprint_preview_url
+      t.datetime :preprint_started_at
+      t.datetime :preprint_completed_at
+      
       t.string :print_status, default: 'pending'
       t.string :print_job_id
+      t.datetime :print_started_at
+      t.datetime :print_completed_at
+      
       t.references :preprint_print_flow, foreign_key: { to_table: :print_flows }, optional: true
       t.bigint :print_machine_id
       
