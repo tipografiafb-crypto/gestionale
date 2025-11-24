@@ -19,18 +19,17 @@ class PrintOrchestrator < Sinatra::Base
     set :bind, '0.0.0.0'
     set :port, ENV['PORT'] || 5000
     
-    # Host authorization - allow specific hosts or all if empty
-    allowed_hosts = if ENV['RACK_ENV'] == 'production'
-      # Production: only allow specified domains
-      [
-        'localhost',
-        '.replit.dev',   # All *.replit.dev subdomains
-        '.repl.co'       # All *.repl.co subdomains
-      ]
-    else
-      # Development/Local: allow all hosts (empty array disables host check)
-      []
-    end
+    # Host authorization - allow specific hosts
+    allowed_hosts = [
+      'localhost',
+      '127.0.0.1',
+      '.replit.dev',   # All *.replit.dev subdomains
+      '.repl.co',      # All *.repl.co subdomains
+      # Allow private network ranges for local deployment
+      IPAddr.new('192.168.0.0/16'),   # 192.168.0.0 - 192.168.255.255
+      IPAddr.new('10.0.0.0/8'),       # 10.0.0.0 - 10.255.255.255
+      IPAddr.new('172.16.0.0/12'),    # 172.16.0.0 - 172.31.255.255
+    ]
     
     set :host_authorization, permitted_hosts: allowed_hosts
   end
