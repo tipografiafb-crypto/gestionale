@@ -26,19 +26,22 @@
           <th>SKU</th>
           <th>Nome Prodotto</th>
           <th>Quantità</th>
+          <th>Sottoscorta</th>
           <th>Azioni</th>
         </tr>
       </thead>
       <tbody>
         <% @inventory_items.each do |inv| %>
-          <tr>
+          <% row_bg = inv.quantity_in_stock == 0 ? 'bg-danger bg-opacity-25' : (inv.quantity_in_stock < inv.product.min_stock_level ? 'bg-warning bg-opacity-25' : '') %>
+          <tr class="<%= row_bg %>">
             <td><code><%= inv.product.sku %></code></td>
             <td><strong><%= inv.product.name %></strong></td>
             <td>
-              <span class="badge <%= inv.quantity_in_stock > 0 ? 'bg-success' : 'bg-danger' %>">
+              <span class="badge <%= inv.quantity_in_stock == 0 ? 'bg-danger' : (inv.quantity_in_stock < inv.product.min_stock_level ? 'bg-warning text-dark' : 'bg-success') %>">
                 <%= inv.quantity_in_stock %>
               </span>
             </td>
+            <td><%= inv.product.min_stock_level %></td>
             <td>
               <div style="display: flex; gap: 4px;">
                 <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalCarico<%= inv.id %>" title="Carico">⬆️</button>

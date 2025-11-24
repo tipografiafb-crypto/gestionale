@@ -55,6 +55,14 @@
               <small class="text-muted">Organizza i prodotti per categorie</small>
             </div>
           </div>
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="min_stock_level" class="form-label">Sottoscorta (Opzionale)</label>
+              <input type="number" id="min_stock_level" name="min_stock_level" class="form-control" 
+                     value="<%= @product&.min_stock_level || 0 %>" min="0" placeholder="es. 50">
+              <small class="text-muted">Quantità minima prima di avviso (0 = nessuno)</small>
+            </div>
+          </div>
         </div>
 
         <div class="mb-3">

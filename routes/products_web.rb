@@ -32,6 +32,7 @@ class PrintOrchestrator < Sinatra::Base
       default_print_flow_id: default_flow_id,
       product_category_id: params[:product_category_id].presence,
       notes: params[:notes],
+      min_stock_level: params[:min_stock_level].to_i,
       active: params[:active] == 'true'
     )
 
@@ -73,6 +74,7 @@ class PrintOrchestrator < Sinatra::Base
       default_print_flow_id: default_flow_id,
       product_category_id: params[:product_category_id].presence,
       notes: params[:notes],
+      min_stock_level: params[:min_stock_level].to_i,
       active: params[:active] == 'true'
     )
 
