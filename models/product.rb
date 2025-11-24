@@ -17,12 +17,6 @@ class Product < ActiveRecord::Base
   # Create inventory record when product is created
   after_create :create_inventory_record
 
-  private
-
-  def create_inventory_record
-    Inventory.create!(product_id: id, quantity_in_stock: 0)
-  end
-
   scope :active, -> { where(active: true) }
   scope :by_flow, ->(flow_id) { joins(:print_flows).where(print_flows: { id: flow_id }) if flow_id.present? }
   scope :by_category, ->(category_id) { where(product_category_id: category_id) if category_id.present? }
@@ -49,5 +43,11 @@ class Product < ActiveRecord::Base
     else
       nil
     end
+  end
+
+  private
+
+  def create_inventory_record
+    Inventory.create!(product_id: id, quantity_in_stock: 0)
   end
 end
