@@ -51,6 +51,7 @@
         </div>
 
         <div class="mb-3">
+          <input type="hidden" name="active" value="false">
           <div class="form-check">
             <input type="checkbox" id="active" name="active" class="form-check-input" value="true"
                    <%= 'checked' if !@webhook || @webhook.active %>>
@@ -67,7 +68,27 @@
           <%= @webhook ? '💾 Salva Modifiche' : '➕ Crea Webhook' %>
         </button>
         <a href="/webhooks" class="btn btn-outline-secondary">Annulla</a>
+        <% if @webhook %>
+          <button type="button" class="btn btn-outline-danger float-end" onclick="deleteWebhookForm()">🗑 Elimina</button>
+        <% end %>
       </div>
     </div>
   </form>
 </div>
+
+<% if @webhook %>
+<script>
+function deleteWebhookForm() {
+  if (confirm('Sei sicuro? Eliminerai questo webhook.')) {
+    fetch('/webhooks/<%= @webhook.id %>', { 
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(() => window.location.href = '/webhooks?success=deleted')
+    .catch(err => alert('Errore: ' + err));
+  }
+}
+</script>
+<% end %>
