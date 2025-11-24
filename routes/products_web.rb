@@ -26,8 +26,8 @@ class PrintOrchestrator < Sinatra::Base
   # GET /products/new - New product form
   get '/products/new' do
     @product = nil
-    @flows = PrintFlow.active.order(name: :asc)
-    @categories = ProductCategory.active.ordered
+    @flows = PrintFlow.all.order(name: :asc)
+    @categories = ProductCategory.all.ordered
     erb :product_form
   end
 
@@ -45,8 +45,7 @@ class PrintOrchestrator < Sinatra::Base
       default_print_flow_id: default_flow_id,
       product_category_id: params[:product_category_id].presence,
       notes: params[:notes],
-      min_stock_level: params[:min_stock_level].to_i,
-      active: params[:active] == 'true'
+      min_stock_level: params[:min_stock_level].to_i
     )
 
     if product.save
@@ -54,8 +53,8 @@ class PrintOrchestrator < Sinatra::Base
       redirect '/products?success=created'
     else
       @product = product
-      @flows = PrintFlow.active.order(name: :asc)
-      @categories = ProductCategory.active.ordered
+      @flows = PrintFlow.all.order(name: :asc)
+      @categories = ProductCategory.all.ordered
       @error = product.errors.full_messages.join(', ')
       erb :product_form
     end
@@ -64,8 +63,8 @@ class PrintOrchestrator < Sinatra::Base
   # GET /products/:id/edit - Edit product form
   get '/products/:id/edit' do
     @product = Product.find(params[:id])
-    @flows = PrintFlow.active.order(name: :asc)
-    @categories = ProductCategory.active.ordered
+    @flows = PrintFlow.all.order(name: :asc)
+    @categories = ProductCategory.all.ordered
     erb :product_form
   rescue ActiveRecord::RecordNotFound
     status 404
@@ -87,8 +86,7 @@ class PrintOrchestrator < Sinatra::Base
       default_print_flow_id: default_flow_id,
       product_category_id: params[:product_category_id].presence,
       notes: params[:notes],
-      min_stock_level: params[:min_stock_level].to_i,
-      active: params[:active] == 'true'
+      min_stock_level: params[:min_stock_level].to_i
     )
 
     if product.save
@@ -96,8 +94,8 @@ class PrintOrchestrator < Sinatra::Base
       redirect '/products?success=updated'
     else
       @product = product
-      @flows = PrintFlow.active.order(name: :asc)
-      @categories = ProductCategory.active.ordered
+      @flows = PrintFlow.all.order(name: :asc)
+      @categories = ProductCategory.all.ordered
       @error = product.errors.full_messages.join(', ')
       erb :product_form
     end

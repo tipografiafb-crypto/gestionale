@@ -3,7 +3,7 @@
 # Product model - SKU to print flow routing configuration
 
 class Product < ActiveRecord::Base
-  attr_accessor :active, :product_category_id, :default_print_flow_id, :min_stock_level
+  attr_accessor :product_category_id, :default_print_flow_id, :min_stock_level
   
   has_many :product_print_flows, dependent: :destroy
   has_many :print_flows, through: :product_print_flows
@@ -19,7 +19,6 @@ class Product < ActiveRecord::Base
   # Create inventory record when product is created
   after_create :create_inventory_record
 
-  scope :active, -> { where(active: true) }
   scope :by_flow, ->(flow_id) { joins(:print_flows).where(print_flows: { id: flow_id }) if flow_id.present? }
   scope :by_category, ->(category_id) { where(product_category_id: category_id) if category_id.present? }
   scope :ordered, -> { order(name: :asc) }
