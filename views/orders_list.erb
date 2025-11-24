@@ -101,14 +101,14 @@
                     <% end %>
                   </td>
                   <td>
-                    <div class="btn-group btn-group-sm">
-                      <a href="/orders/<%= order.id %>" class="btn btn-outline-secondary">👁️ View</a>
+                    <div style="display: flex; gap: 4px;">
+                      <a href="/orders/<%= order.id %>" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 14px;" title="Visualizza">👁️</a>
                       <form action="/orders/<%= order.id %>/duplicate" method="post" class="d-inline">
-                        <button type="submit" class="btn btn-outline-success">📋 Duplica</button>
+                        <button type="submit" class="btn btn-sm btn-outline-success" style="padding: 2px 6px; font-size: 14px;" title="Duplica">📋</button>
                       </form>
                       <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
                         <input type="hidden" name="_method" value="DELETE">
-                        <button type="submit" class="btn btn-outline-danger">🗑 Delete</button>
+                        <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella">🗑</button>
                       </form>
                     </div>
                   </td>
@@ -184,14 +184,14 @@
                     <% end %>
                   </td>
                   <td>
-                    <div class="btn-group btn-group-sm">
-                      <a href="/orders/<%= order.id %>" class="btn btn-outline-secondary">👁️ View</a>
+                    <div style="display: flex; gap: 4px;">
+                      <a href="/orders/<%= order.id %>" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 14px;" title="Visualizza">👁️</a>
                       <form action="/orders/<%= order.id %>/duplicate" method="post" class="d-inline">
-                        <button type="submit" class="btn btn-outline-success">📋 Duplica</button>
+                        <button type="submit" class="btn btn-sm btn-outline-success" style="padding: 2px 6px; font-size: 14px;" title="Duplica">📋</button>
                       </form>
                       <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
                         <input type="hidden" name="_method" value="DELETE">
-                        <button type="submit" class="btn btn-outline-danger">🗑 Delete</button>
+                        <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella">🗑</button>
                       </form>
                     </div>
                   </td>
