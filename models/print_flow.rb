@@ -3,7 +3,7 @@
 # PrintFlow model - Two-step print workflow with pre-print and print webhooks
 
 class PrintFlow < ActiveRecord::Base
-  attr_accessor :active, :preprint_webhook_id, :print_webhook_id, :label_webhook_id
+  attr_accessor :preprint_webhook_id, :print_webhook_id, :label_webhook_id
   
   belongs_to :preprint_webhook, class_name: 'SwitchWebhook'
   belongs_to :print_webhook, class_name: 'SwitchWebhook'

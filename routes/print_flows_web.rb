@@ -24,8 +24,7 @@ class PrintOrchestrator < Sinatra::Base
       preprint_webhook_id: params[:preprint_webhook_id],
       print_webhook_id: params[:print_webhook_id],
       label_webhook_id: params[:label_webhook_id],
-      notes: params[:notes],
-      active: params[:active] == 'true'
+      notes: params[:notes]
     )
 
     if flow.save
@@ -57,8 +56,7 @@ class PrintOrchestrator < Sinatra::Base
       preprint_webhook_id: params[:preprint_webhook_id],
       print_webhook_id: params[:print_webhook_id],
       label_webhook_id: params[:label_webhook_id],
-      notes: params[:notes],
-      active: params[:active] == 'true'
+      notes: params[:notes]
     )
 
     if flow.save
