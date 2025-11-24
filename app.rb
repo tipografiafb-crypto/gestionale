@@ -19,12 +19,20 @@ class PrintOrchestrator < Sinatra::Base
     set :bind, '0.0.0.0'
     set :port, ENV['PORT'] || 5000
     
-    # Allow Replit domains (wildcard subdomains)
-    set :host_authorization, permitted_hosts: [
-      'localhost',
-      '.replit.dev',   # All *.replit.dev subdomains
-      '.repl.co'       # All *.repl.co subdomains
-    ]
+    # Host authorization - allow specific hosts or all if empty
+    allowed_hosts = if ENV['RACK_ENV'] == 'production'
+      # Production: only allow specified domains
+      [
+        'localhost',
+        '.replit.dev',   # All *.replit.dev subdomains
+        '.repl.co'       # All *.repl.co subdomains
+      ]
+    else
+      # Development/Local: allow all hosts (empty array disables host check)
+      []
+    end
+    
+    set :host_authorization, permitted_hosts: allowed_hosts
   end
 
   # Load models
