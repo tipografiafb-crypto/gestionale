@@ -268,7 +268,7 @@ class PrintOrchestrator < Sinatra::Base
 
   # GET /inventory - Manage warehouse stock
   get '/inventory' do
-    @inventory_items = Inventory.includes(:product).order(:id)
+    @inventory_items = Inventory.includes(:product).all
     erb :inventory
   end
 
