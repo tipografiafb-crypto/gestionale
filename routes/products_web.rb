@@ -3,10 +3,23 @@
 # Products management routes - Register and manage SKU to webhook routing
 
 class PrintOrchestrator < Sinatra::Base
-  # GET /products - List all products
+  # GET /products - List all products with search filtering
   get '/products' do
-    @products = Product.all.order(created_at: :desc)
+    @products = Product.all
+    
+    # Filter by search term (SKU, name, or category)
+    if params[:search].present?
+      search_term = params[:search].downcase
+      @products = @products.select do |product|
+        product.sku.downcase.include?(search_term) ||
+        product.name.downcase.include?(search_term) ||
+        (product.product_category && product.product_category.name.downcase.include?(search_term))
+      end
+    end
+    
+    @products = @products.sort_by { |p| p.created_at }.reverse
     @categories = ProductCategory.ordered
+    @search_term = params[:search]
     erb :products_list
   end
 
