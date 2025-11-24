@@ -14,7 +14,10 @@
     </div>
   <% end %>
 
-  <form method="POST" action="<%= @webhook ? "/webhooks/#{@webhook.id}?_method=PUT" : '/webhooks' %>" class="mt-4">
+  <form method="POST" action="<%= @webhook ? "/webhooks/#{@webhook.id}" : '/webhooks' %>" class="mt-4">
+    <% if @webhook %>
+      <input type="hidden" name="_method" value="PUT">
+    <% end %>
     <div class="card">
       <div class="card-body">
         <div class="mb-3">
