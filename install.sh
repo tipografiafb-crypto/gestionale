@@ -83,9 +83,9 @@ bundle exec rake db:create
 echo -e "${GREEN}✓ Database created${NC}"
 
 echo ""
-echo -e "${YELLOW}Step 5: Running migrations...${NC}"
+echo -e "${YELLOW}Step 5: Running migrations (CONSOLIDATED)...${NC}"
 bundle exec rake db:migrate
-echo -e "${GREEN}✓ Migrations completed${NC}"
+echo -e "${GREEN}✓ All tables created from single consolidated migration${NC}"
 
 echo ""
 echo -e "${YELLOW}Step 6: Loading seed data...${NC}"
@@ -96,39 +96,43 @@ echo ""
 echo -e "${YELLOW}Step 7: Creating .env file...${NC}"
 if [ ! -f .env ]; then
   cat > .env << EOF
-# Database
+# Database (Auto-configured for print-orchestrator)
 DATABASE_URL=$DATABASE_URL
 
 # Server
 PORT=5000
 RACK_ENV=development
 
-# Enfocus Switch
-SWITCH_WEBHOOK_BASE_URL=http://localhost:9000
-SWITCH_API_KEY=your_api_key_here
-
-# FTP Settings
-FTP_HOST=your_ftp_host
-FTP_PORT=21
-FTP_USER=your_ftp_user
-FTP_PASSWORD=your_ftp_password
-FTP_DIRECTORY=/orders
+# Switch Integration (Optional)
+# SWITCH_WEBHOOK_URL=https://your-switch-instance/webhook
+# SWITCH_API_KEY=your-api-key
 EOF
   echo -e "${GREEN}✓ .env file created${NC}"
-  echo -e "${YELLOW}  ⚠ Update .env with your Enfocus Switch and FTP credentials${NC}"
 else
-  echo -e "${GREEN}✓ .env file already exists${NC}"
+  echo -e "${YELLOW}(Existing .env file kept)${NC}"
 fi
 
 echo ""
-echo "================================================"
-echo -e "${GREEN}✅ Installation complete!${NC}"
-echo "================================================"
+echo -e "${YELLOW}Step 8: Testing application...${NC}"
+if bundle exec rake -T > /dev/null 2>&1; then
+  echo -e "${GREEN}✓ Application is ready${NC}"
+else
+  echo -e "${RED}❌ Application test failed${NC}"
+  exit 1
+fi
+
+echo ""
+echo -e "${GREEN}================================================${NC}"
+echo -e "${GREEN}✓ Installation completed successfully!${NC}"
+echo -e "${GREEN}================================================${NC}"
 echo ""
 echo "Next steps:"
-echo "  1. Update .env with your Enfocus Switch and FTP credentials"
-echo "  2. Start the server: bundle exec puma -b tcp://0.0.0.0:5000 config.ru"
-echo "  3. Open http://localhost:5000 in your browser"
+echo "  1. Start the server:"
+echo "     bundle exec puma -b tcp://0.0.0.0:5000 -p 5000 config.ru"
 echo ""
-echo "For systemd service setup, run: sudo ./setup_service.sh"
+echo "  2. Or setup as systemd service:"
+echo "     sudo bash setup_service.sh"
+echo ""
+echo "  3. Access the application at:"
+echo "     http://$(hostname -I | awk '{print $1}'):5000"
 echo ""
