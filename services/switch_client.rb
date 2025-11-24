@@ -122,6 +122,7 @@ class SwitchClient
         operation_id: idx + 1,
         job_operation_id: nil,  # Filled by Switch
         url: "#{server_base_url}/api/assets/#{primary_asset&.id}/download",
+        widegest_url: "#{server_base_url}/api/v1/reports_create",  # ← Switch callback endpoint
         filename: primary_asset&.filename || "#{@order.external_order_code}_#{idx + 1}.png",
         quantita: item.quantity,
         materiale: product&.material || "Non specificato",

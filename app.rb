@@ -120,6 +120,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'routes/products_web'
   require_relative 'routes/order_items_switch'
   require_relative 'routes/admin_print_machines'
+  require_relative 'routes/switch_reports'
   
   # Start FTP poller in background (if configured)
   configure do
