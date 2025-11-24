@@ -4,12 +4,37 @@
 
 <div class="card mb-4">
   <div class="card-body">
-    <form method="get" action="/inventory" class="d-flex gap-2">
-      <input type="text" class="form-control" name="search" placeholder="Cerca per SKU o nome prodotto..." value="<%= @search_term %>">
-      <button type="submit" class="btn btn-primary">Cerca</button>
-      <% if @search_term.present? %>
-        <a href="/inventory" class="btn btn-outline-secondary">Azzera</a>
-      <% end %>
+    <form method="get" action="/inventory">
+      <div class="row mb-3">
+        <div class="col-md-8">
+          <div class="d-flex gap-2">
+            <input type="text" class="form-control" name="search" placeholder="Cerca per SKU o nome prodotto..." value="<%= @search_term %>">
+            <button type="submit" class="btn btn-primary">Cerca</button>
+            <% if @search_term.present? || @status_filter.present? %>
+              <a href="/inventory" class="btn btn-outline-secondary">Azzera</a>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-12">
+          <div class="btn-group" role="group">
+            <a href="/inventory<%= @search_term ? "?search=#{@search_term}" : "" %>" class="btn <%= !@status_filter ? 'btn-primary' : 'btn-outline-primary' %>">
+              📦 Tutti
+            </a>
+            <button type="submit" name="status" value="disponibili" class="btn <%= @status_filter == 'disponibili' ? 'btn-success' : 'btn-outline-success' %>">
+              ✓ Disponibili
+            </button>
+            <button type="submit" name="status" value="sottoscorta" class="btn <%= @status_filter == 'sottoscorta' ? 'btn-warning' : 'btn-outline-warning' %>">
+              ⚠️ Sottoscorta
+            </button>
+            <button type="submit" name="status" value="finiti" class="btn <%= @status_filter == 'finiti' ? 'btn-danger' : 'btn-outline-danger' %>">
+              ✕ Finiti
+            </button>
+          </div>
+        </div>
+      </div>
     </form>
   </div>
 </div>

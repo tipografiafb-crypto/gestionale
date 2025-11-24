@@ -270,6 +270,23 @@ class PrintOrchestrator < Sinatra::Base
   get '/inventory' do
     @inventory_items = Inventory.includes(:product).all
     
+    # Filter by status if provided (disponibili, sottoscorta, finiti)
+    @status_filter = params[:status]
+    if @status_filter.present?
+      @inventory_items = @inventory_items.select do |inv|
+        case @status_filter
+        when 'finiti'
+          inv.quantity_in_stock == 0
+        when 'sottoscorta'
+          inv.quantity_in_stock > 0 && inv.quantity_in_stock < inv.product.min_stock_level
+        when 'disponibili'
+          inv.quantity_in_stock >= inv.product.min_stock_level
+        else
+          true
+        end
+      end
+    end
+    
     # Filter by SKU or product name if search param is provided
     if params[:search].present?
       search_term = params[:search].downcase
