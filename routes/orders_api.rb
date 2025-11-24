@@ -52,6 +52,12 @@ class PrintOrchestrator < Sinatra::Base
           order_item.store_json_data(item_data) if item_data.keys.length > 2
           order_item.save
           
+          # Deduct from inventory
+          product = Product.find_by(sku: item_data['sku'])
+          if product && product.inventory
+            product.inventory.remove_stock(item_data['quantity'])
+          end
+          
           # Create assets from image URLs
           item_data['image_urls'].each_with_index do |url, index|
             # Try to determine asset type from URL or position

@@ -213,6 +213,15 @@ class PrintOrchestrator < Sinatra::Base
   # DELETE /orders/:id - Delete order
   delete '/orders/:id' do
     order = Order.find(params[:id])
+    
+    # Restore inventory before deleting order
+    order.order_items.each do |item|
+      product = Product.find_by(sku: item.sku)
+      if product && product.inventory
+        product.inventory.add_stock(item.quantity)
+      end
+    end
+    
     order.destroy
     redirect '/orders'
   rescue ActiveRecord::RecordNotFound
@@ -255,5 +264,40 @@ class PrintOrchestrator < Sinatra::Base
     
     @search_term = params[:search]
     erb :line_items
+  end
+
+  # GET /inventory - Manage warehouse stock
+  get '/inventory' do
+    @inventory_items = Inventory.includes(:product).order(:id)
+    erb :inventory
+  end
+
+  # POST /inventory/:id/add - Add stock
+  post '/inventory/:id/add' do
+    inventory = Inventory.find(params[:id])
+    quantity = params[:quantity].to_i
+    
+    if quantity > 0
+      inventory.add_stock(quantity)
+      redirect "/inventory?msg=success&text=Aggiunto%20#{quantity}%20prodotti"
+    else
+      redirect "/inventory?msg=error&text=Quantità%20non%20valida"
+    end
+  rescue => e
+    redirect "/inventory?msg=error&text=Errore%20nell'aggiunta"
+  end
+
+  # POST /inventory/:id/remove - Remove stock
+  post '/inventory/:id/remove' do
+    inventory = Inventory.find(params[:id])
+    quantity = params[:quantity].to_i
+    
+    if quantity > 0 && inventory.remove_stock(quantity)
+      redirect "/inventory?msg=success&text=Rimosso%20#{quantity}%20prodotti"
+    else
+      redirect "/inventory?msg=error&text=Quantità%20insufficiente%20o%20non%20valida"
+    end
+  rescue => e
+    redirect "/inventory?msg=error&text=Errore%20nella%20rimozione"
   end
 end

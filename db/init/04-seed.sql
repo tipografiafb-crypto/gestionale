@@ -49,4 +49,11 @@ BEGIN
     SELECT setval('products_id_seq', 7);
   END IF;
 
+  -- Insert inventory records
+  IF (SELECT COUNT(*) FROM inventory) = 0 THEN
+    INSERT INTO inventory (product_id, quantity_in_stock) VALUES
+      (7, 100);
+    SELECT setval('inventory_id_seq', 1);
+  END IF;
+
 END $$;

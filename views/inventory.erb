@@ -1,0 +1,89 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1>📦 Gestione Magazzino</h1>
+</div>
+
+<% if @inventory_items.empty? %>
+  <div class="alert alert-info">
+    Nessun prodotto in magazzino
+  </div>
+<% else %>
+  <div class="table-responsive">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Nome Prodotto</th>
+          <th>Quantità</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @inventory_items.each do |inv| %>
+          <tr>
+            <td><code><%= inv.product.sku %></code></td>
+            <td><strong><%= inv.product.name %></strong></td>
+            <td>
+              <span class="badge <%= inv.quantity_in_stock > 0 ? 'bg-success' : 'bg-danger' %>">
+                <%= inv.quantity_in_stock %>
+              </span>
+            </td>
+            <td>
+              <div style="display: flex; gap: 4px;">
+                <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalCarico<%= inv.id %>" title="Carico">⬆️</button>
+                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalScarico<%= inv.id %>" title="Scarico">⬇️</button>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Modal Carico -->
+          <div class="modal fade" id="modalCarico<%= inv.id %>" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Carico: <%= inv.product.name %></h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/inventory/<%= inv.id %>/add" method="post">
+                  <div class="modal-body">
+                    <div class="mb-3">
+                      <label class="form-label">Quantità da aggiungere</label>
+                      <input type="number" class="form-control" name="quantity" min="1" required autofocus>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success">Aggiungi</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Scarico -->
+          <div class="modal fade" id="modalScarico<%= inv.id %>" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Scarico: <%= inv.product.name %></h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/inventory/<%= inv.id %>/remove" method="post">
+                  <div class="modal-body">
+                    <div class="mb-3">
+                      <label class="form-label">Quantità da rimuovere (Max: <%= inv.quantity_in_stock %>)</label>
+                      <input type="number" class="form-control" name="quantity" min="1" max="<%= inv.quantity_in_stock %>" required autofocus>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-danger">Rimuovi</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
