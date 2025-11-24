@@ -32,4 +32,22 @@ class Product < ActiveRecord::Base
     flow_names = print_flows.map(&:name).join(', ')
     "#{sku} - #{name} → [#{flow_names}]"
   end
+
+  # Duplicate product with all its configurations
+  def duplicate
+    new_product = self.dup
+    # Generate new unique SKU by appending a timestamp
+    new_product.sku = "#{sku}_copy_#{Time.now.to_i}"
+    new_product.name = "#{name} (Copia)"
+    
+    if new_product.save
+      # Copy print flow associations
+      product_print_flows.each do |ppf|
+        new_product.product_print_flows.create(print_flow_id: ppf.print_flow_id)
+      end
+      new_product
+    else
+      nil
+    end
+  end
 end
