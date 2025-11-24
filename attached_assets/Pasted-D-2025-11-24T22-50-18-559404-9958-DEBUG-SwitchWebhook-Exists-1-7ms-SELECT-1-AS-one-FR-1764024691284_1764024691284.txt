@@ -1,0 +1,20 @@
+D, [2025-11-24T22:50:18.559404 #9958] DEBUG -- :   SwitchWebhook Exists? (1.7ms)  SELECT 1 AS one FROM "switch_webhooks" LIMIT $1  [["LIMIT", 1]]
+D, [2025-11-24T22:50:18.567933 #9958] DEBUG -- :   SwitchWebhook Load (2.2ms)  SELECT "switch_webhooks".* FROM "switch_webhooks" ORDER BY "switch_webhooks"."created_at" DESC
+[FTPPoller] ✗ Connection failed: 530 Login authentication failed
+D, [2025-11-24T22:50:19.947600 #9958] DEBUG -- :   SwitchWebhook Load (1.0ms)  SELECT "switch_webhooks".* FROM "switch_webhooks" WHERE "switch_webhooks"."id" = $1 LIMIT $2  [["id", 1], ["LIMIT", 1]]
+D, [2025-11-24T22:50:19.968794 #9958] DEBUG -- :   Store Load (2.6ms)  SELECT "stores".* FROM "stores" ORDER BY "stores"."name" ASC
+D, [2025-11-24T22:50:23.127459 #9958] DEBUG -- :   SwitchWebhook Load (1.3ms)  SELECT "switch_webhooks".* FROM "switch_webhooks" WHERE "switch_webhooks"."id" = $1 LIMIT $2  [["id", 1], ["LIMIT", 1]]
+D, [2025-11-24T22:50:23.132629 #9958] DEBUG -- :   TRANSACTION (0.6ms)  BEGIN
+D, [2025-11-24T22:50:23.135107 #9958] DEBUG -- :   SwitchWebhook Exists? (3.0ms)  SELECT 1 AS one FROM "switch_webhooks" WHERE "switch_webhooks"."name" = $1 AND "switch_webhooks"."id" != $2 AND "switch_webhooks"."store_id" IS NULL LIMIT $3  [["name", "TPH DEpp"], ["id", 1], ["LIMIT", 1]]
+D, [2025-11-24T22:50:23.137875 #9958] DEBUG -- :   TRANSACTION (0.7ms)  COMMIT
+D, [2025-11-24T22:50:23.141178 #9958] DEBUG -- :   TRANSACTION (0.5ms)  BEGIN
+D, [2025-11-24T22:50:23.142846 #9958] DEBUG -- :   SwitchWebhook Exists? (2.2ms)  SELECT 1 AS one FROM "switch_webhooks" WHERE "switch_webhooks"."name" = $1 AND "switch_webhooks"."id" != $2 AND "switch_webhooks"."store_id" IS NULL LIMIT $3  [["name", "TPH DEpp"], ["id", 1], ["LIMIT", 1]]
+D, [2025-11-24T22:50:23.145100 #9958] DEBUG -- :   TRANSACTION (0.7ms)  COMMIT
+D, [2025-11-24T22:50:23.178846 #9958] DEBUG -- :   SwitchWebhook Exists? (1.3ms)  SELECT 1 AS one FROM "switch_webhooks" LIMIT $1  [["LIMIT", 1]]
+D, [2025-11-24T22:50:23.181189 #9958] DEBUG -- :   SwitchWebhook Load (1.2ms)  SELECT "switch_webhooks".* FROM "switch_webhooks" ORDER BY "switch_webhooks"."created_at" DESC
+D, [2025-11-24T22:50:40.109370 #9958] DEBUG -- :   SwitchWebhook Load (1.4ms)  SELECT "switch_webhooks".* FROM "switch_webhooks" WHERE "switch_webhooks"."id" = $1 LIMIT $2  [["id", 1], ["LIMIT", 1]]
+D, [2025-11-24T22:50:40.127932 #9958] DEBUG -- :   TRANSACTION (0.8ms)  BEGIN
+D, [2025-11-24T22:50:40.155239 #9958] DEBUG -- :   PrintFlow Update All (2.2ms)  UPDATE "print_flows" SET "preprint_webhook_id" = $1 WHERE "print_flows"."preprint_webhook_id" = $2  [["preprint_webhook_id", nil], ["preprint_webhook_id", 1]]
+D, [2025-11-24T22:50:40.156644 #9958] DEBUG -- :   TRANSACTION (0.7ms)  ROLLBACK
+2025-11-24 22:50:40 - ActiveRecord::StatementInvalid - PG::UndefinedColumn: ERROR:  column print_flows.preprint_webhook_id does not exist:
+	LINE 1: ...print_flows" SET "preprint_webhook_id" = $1 WHERE "print_flo...
