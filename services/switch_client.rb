@@ -90,7 +90,7 @@ class SwitchClient
   def self.generate_job_id(job_data)
     operation_map = { 1 => 'PREPRINT', 2 => 'PRINT', 3 => 'LABEL' }
     operation_name = operation_map[job_data[:operation_id]] || 'JOB'
-    codice = job_data[:codice_ordine].gsub(/[^0-9A-Z]/i, '')
+    codice = job_data[:codice_ordine].to_s.gsub(/[^0-9A-Z]/i, '')
     id_riga = job_data[:id_riga]
     timestamp = Time.now.to_i
     "#{operation_name}-#{codice}-#{id_riga}-#{timestamp}"
