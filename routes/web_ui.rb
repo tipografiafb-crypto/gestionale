@@ -123,6 +123,7 @@ class PrintOrchestrator < Sinatra::Base
               # Read and write file content
               content = file[:tempfile].read
               File.open(full_path, 'wb') { |f| f.write(content) }
+              puts "[UPLOAD] File saved: #{full_path} (#{File.size(full_path)} bytes)"
               
               # Create Asset record (manual orders only have print assets)
               asset = order_item.assets.build(
@@ -132,7 +133,10 @@ class PrintOrchestrator < Sinatra::Base
                 imported_at: Time.current
               )
               asset.save!
+              puts "[UPLOAD] Asset created: ID=#{asset.id}, local_path=#{local_path}, type=print"
             rescue => e
+              puts "[UPLOAD ERROR] File upload failed for #{item_params[:sku]}: #{e.class} - #{e.message}"
+              puts e.backtrace.join("\n")
               # Log error but continue
               warn "File upload error for #{item_params[:sku]}: #{e.message}"
             end
