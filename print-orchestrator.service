@@ -1,0 +1,21 @@
+[Unit]
+Description=Print Order Orchestrator
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=paolo
+WorkingDirectory=/home/paolo/apps/print-orchestrator
+Environment="PATH=/home/paolo/.local/share/gem/ruby/3.2.0/bin:/usr/local/bin:/usr/bin"
+Environment="RACK_ENV=production"
+Environment="PORT=5000"
+Environment="DATABASE_URL=postgresql://orchestrator_user:paolo@localhost:5432/print_orchestrator"
+Environment="SWITCH_WEBHOOK_BASE_URL=http://192.168.1.162/webhook"
+Environment="SERVER_BASE_URL=http://192.168.1.100:5000"
+ExecStart=/usr/bin/bundle exec puma -b tcp://0.0.0.0:5000 config.ru
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
