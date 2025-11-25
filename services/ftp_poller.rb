@@ -150,9 +150,7 @@ class FTPPoller
           store: store,
           external_order_code: data['external_order_code'],
           status: 'new',
-          source: 'ftp',
-          customer_name: data['customer_name'] || 'N/A',
-          customer_note: data['customer_note'] || ''
+          source: 'ftp'
         )
         
         data['items'].each_with_index do |item_data, idx|
