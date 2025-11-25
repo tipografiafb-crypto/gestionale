@@ -56,19 +56,27 @@ class SwitchClient
 
   # Static method for item-level Send to Switch with simulation support
   def self.send_to_switch(webhook_path:, job_data:)
+    # Generate job_id from payload (operation_id + codice_ordine + id_riga + timestamp)
+    generated_job_id = generate_job_id(job_data)
+    
     # Simulation mode for testing
     if ENV['SWITCH_SIMULATION'] == 'true'
-      return load_simulation_response(job_data)
+      return load_simulation_response(generated_job_id)
     end
 
     begin
+      # Build full Switch webhook URL
+      switch_base = ENV['SWITCH_WEBHOOK_URL'] || 'http://localhost:9999/'
+      switch_base = "#{switch_base}/" unless switch_base.end_with?('/')
+      full_url = "#{switch_base}#{webhook_path}".gsub(/\/+/, '/').sub(%r{/(?=:)}, '://')
+      
       response = HTTP
         .timeout(30)
         .headers('Content-Type' => 'application/json')
-        .post("http://localhost:9999#{webhook_path}", json: job_data)
+        .post(full_url, json: job_data)
 
       if response.status.success?
-        { success: true, job_id: job_data[:job_id], message: 'Sent to Switch' }
+        { success: true, job_id: generated_job_id, message: 'Sent to Switch' }
       else
         { success: false, error: "Switch returned #{response.status}" }
       end
@@ -79,24 +87,33 @@ class SwitchClient
 
   private
 
-  def self.load_simulation_response(job_data)
+  def self.generate_job_id(job_data)
+    operation_map = { 1 => 'PREPRINT', 2 => 'PRINT', 3 => 'LABEL' }
+    operation_name = operation_map[job_data[:operation_id]] || 'JOB'
+    codice = job_data[:codice_ordine].gsub(/[^0-9A-Z]/i, '')
+    id_riga = job_data[:id_riga]
+    timestamp = Time.now.to_i
+    "#{operation_name}-#{codice}-#{id_riga}-#{timestamp}"
+  end
+
+  def self.load_simulation_response(job_id)
     sim_file = File.join(Dir.pwd, 'config', 'switch_simulation.json')
     if File.exist?(sim_file)
       sim_data = JSON.parse(File.read(sim_file))
       { 
         success: true, 
-        job_id: job_data[:job_id],
+        job_id: job_id,
         message: sim_data['message'] || 'Simulazione riuscita'
       }
     else
       { 
         success: true, 
-        job_id: job_data[:job_id], 
+        job_id: job_id, 
         message: 'Simulazione attiva (file non trovato)'
       }
     end
   rescue JSON::ParserError
-    { success: true, job_id: job_data[:job_id], message: 'Simulazione attiva' }
+    { success: true, job_id: job_id, message: 'Simulazione attiva' }
   end
 
   private
