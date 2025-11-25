@@ -112,76 +112,66 @@
           <strong><%= item.product&.name || item.sku %></strong> - Quantità: <%= item.quantity %>
         </div>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <% if item.available_print_flows.count > 1 %>
-            <button type="button" class="btn btn-sm btn-outline-warning" 
-                    <%= 'disabled' unless item.can_send_to_preprint? %>
-                    title="<%= item.can_send_to_preprint? ? 'Scegli flusso e invia a pre-stampa' : 'Immagini non ancora scaricate' %>"
-                    data-bs-toggle="modal" data-bs-target="#flowSelectModal_<%= item.id %>">
-              🖨️ Pre-stampa
-              <% if item.preprint_status != 'pending' %>
-                <span class="badge <%= item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
-                  <%= item.preprint_status&.upcase %>
-                </span>
-              <% end %>
-            </button>
-            
-            <!-- Modal per selezionare flusso -->
-            <div class="modal fade" id="flowSelectModal_<%= item.id %>" tabindex="-1">
-              <div class="modal-dialog">
-                <div class="modal-content">
-                  <div class="modal-header">
-                    <h5 class="modal-title">Scegli Flusso di Stampa</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                  </div>
-                  <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_preprint" method="post">
-                    <div class="modal-body">
-                      <p class="text-muted mb-3">Seleziona il flusso per questo prodotto:</p>
-                      <% item.available_print_flows.each do |flow| %>
-                        <div class="form-check mb-2">
-                          <input class="form-check-input" type="radio" name="print_flow_id" 
-                                 value="<%= flow.id %>" id="flow_<%= item.id %>_<%= flow.id %>"
-                                 <%= 'checked' if flow.id == item.product&.default_print_flow_id %>>
-                          <label class="form-check-label" for="flow_<%= item.id %>_<%= flow.id %>">
-                            <strong><%= flow.name %></strong>
-                            <% if flow.id == item.product&.default_print_flow_id %>
-                              <span class="badge bg-info">Default</span>
-                            <% end %>
-                          </label>
-                        </div>
-                      <% end %>
-                      
-                      <div class="mb-3 mt-4">
-                        <label for="percentuale_<%= item.id %>" class="form-label">Percentuale (%)</label>
-                        <input type="number" class="form-control" id="percentuale_<%= item.id %>" 
-                               name="percentuale" value="0" step="1" min="-999" max="999"
-                               placeholder="Inserisci percentuale (es: +10, -5)">
-                        <small class="text-muted">Valore positivo o negativo che verrà inviato a Switch</small>
-                      </div>
-                    </div>
-                    <div class="modal-footer">
-                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                      <button type="submit" class="btn btn-warning">🖨️ Invia a Pre-stampa</button>
-                    </div>
-                  </form>
+          <!-- Always show modal for preprint options -->
+          <button type="button" class="btn btn-sm btn-outline-warning" 
+                  <%= 'disabled' unless item.can_send_to_preprint? %>
+                  title="<%= item.can_send_to_preprint? ? 'Configura e invia a pre-stampa' : 'Immagini non ancora scaricate' %>"
+                  data-bs-toggle="modal" data-bs-target="#flowSelectModal_<%= item.id %>">
+            🖨️ Pre-stampa
+            <% if item.preprint_status != 'pending' %>
+              <span class="badge <%= item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
+                <%= item.preprint_status&.upcase %>
+              </span>
+            <% end %>
+          </button>
+          
+          <!-- Modal per selezionare flusso e opzioni -->
+          <div class="modal fade" id="flowSelectModal_<%= item.id %>" tabindex="-1">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">🖨️ Pre-stampa - Configura Invio</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
+                <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_preprint" method="post">
+                  <div class="modal-body">
+                    <% if item.available_print_flows.count > 0 %>
+                      <div class="mb-3">
+                        <label class="form-label"><strong>Flusso di Stampa</strong></label>
+                        <% item.available_print_flows.each do |flow| %>
+                          <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="print_flow_id" 
+                                   value="<%= flow.id %>" id="flow_<%= item.id %>_<%= flow.id %>"
+                                   <%= 'checked' if flow.id == item.product&.default_print_flow_id %>>
+                            <label class="form-check-label" for="flow_<%= item.id %>_<%= flow.id %>">
+                              <strong><%= flow.name %></strong>
+                              <% if flow.id == item.product&.default_print_flow_id %>
+                                <span class="badge bg-info">Default</span>
+                              <% end %>
+                            </label>
+                          </div>
+                        <% end %>
+                      </div>
+                    <% else %>
+                      <div class="alert alert-warning">Nessun flusso di stampa disponibile</div>
+                    <% end %>
+                    
+                    <div class="mb-3">
+                      <label for="percentuale_<%= item.id %>" class="form-label"><strong>Percentuale (%)</strong></label>
+                      <input type="number" class="form-control" id="percentuale_<%= item.id %>" 
+                             name="percentuale" value="0" step="1" min="-999" max="999"
+                             placeholder="Inserisci percentuale (es: +10, -5)">
+                      <small class="text-muted">Valore positivo o negativo che verrà inviato a Switch</small>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-warning">🖨️ Invia a Pre-stampa</button>
+                  </div>
+                </form>
               </div>
             </div>
-          <% else %>
-            <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_preprint" method="post" class="d-inline">
-              <input type="hidden" name="print_flow_id" value="<%= item.product&.default_print_flow_id %>">
-              <input type="hidden" name="percentuale" value="0">
-              <button type="submit" class="btn btn-sm btn-outline-warning" 
-                      <%= 'disabled' unless item.can_send_to_preprint? %>
-                      title="<%= item.can_send_to_preprint? ? 'Invia a pre-stampa' : 'Immagini non ancora scaricate' %>">
-                🖨️ Pre-stampa
-                <% if item.preprint_status != 'pending' %>
-                  <span class="badge <%= item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
-                    <%= item.preprint_status&.upcase %>
-                  </span>
-                <% end %>
-              </button>
-            </form>
-          <% end %>
+          </div>
 
           <% if item.preprint_status == 'processing' %>
             <form action="/orders/<%= @order.id %>/items/<%= item.id %>/confirm_preprint" method="post" class="d-inline">
