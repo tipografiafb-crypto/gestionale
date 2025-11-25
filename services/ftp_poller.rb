@@ -125,17 +125,23 @@ class FTPPoller
         return
       end
       
-      # Validate all products exist
-      products_not_found = []
+      # Auto-create missing products from order data
+      missing_skus = []
       data['items'].each do |item_data|
         unless Product.exists?(sku: item_data['sku'])
-          products_not_found << item_data['sku']
+          # Auto-create product with minimal data
+          Product.create!(
+            sku: item_data['sku'],
+            name: item_data['product_name'] || "Product #{item_data['sku']}",
+            description: "Auto-imported from FTP order import",
+            active: true
+          )
+          missing_skus << item_data['sku']
         end
       end
       
-      unless products_not_found.empty?
-        puts "[FTPPoller] ✗ Products not found in #{filename}: #{products_not_found.join(', ')}"
-        return
+      if missing_skus.any?
+        puts "[FTPPoller] ℹ Auto-created missing products: #{missing_skus.join(', ')}"
       end
       
       # Import using transaction
