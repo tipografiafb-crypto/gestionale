@@ -95,7 +95,33 @@ bundle exec rake db:seed 2>/dev/null || echo -e "${YELLOW}(No seed data file)${N
 echo -e "${GREEN}✓ Seed data loaded${NC}"
 
 echo ""
-echo -e "${YELLOW}Step 7: Creating .env file...${NC}"
+echo -e "${YELLOW}Step 7: Configuring FTP (optional)...${NC}"
+
+read -p "  Do you have FTP for importing orders? (y/n) [n]: " USE_FTP
+USE_FTP=${USE_FTP:-n}
+
+FTP_HOST=""
+FTP_USER=""
+FTP_PASS=""
+FTP_PORT="21"
+FTP_PATH="/orders"
+FTP_POLL_INTERVAL="60"
+
+if [[ "$USE_FTP" == "y" || "$USE_FTP" == "Y" ]]; then
+  read -p "  FTP Host: " FTP_HOST
+  read -p "  FTP User: " FTP_USER
+  read -sp "  FTP Password: " FTP_PASS
+  echo ""
+  read -p "  FTP Port [21]: " FTP_PORT
+  FTP_PORT=${FTP_PORT:-21}
+  read -p "  FTP Path [/orders]: " FTP_PATH
+  FTP_PATH=${FTP_PATH:-/orders}
+  read -p "  Poll Interval in seconds [60]: " FTP_POLL_INTERVAL
+  FTP_POLL_INTERVAL=${FTP_POLL_INTERVAL:-60}
+fi
+
+echo ""
+echo -e "${YELLOW}Step 8: Creating .env file...${NC}"
 if [ ! -f .env ]; then
   cat > .env << EOF
 # Database (Auto-configured for print-orchestrator)
@@ -103,19 +129,45 @@ DATABASE_URL=$DATABASE_URL
 
 # Server
 PORT=5000
-RACK_ENV=development
+RACK_ENV=production
 
 # Switch Integration (Optional)
-# SWITCH_WEBHOOK_URL=https://your-switch-instance/webhook
-# SWITCH_API_KEY=your-api-key
+SWITCH_WEBHOOK_URL=http://192.168.1.55:5000/api/switch/callback
+SWITCH_API_KEY=your_switch_api_key
+SWITCH_SIMULATION=false
+
+# FTP Configuration (for order imports)
 EOF
-  echo -e "${GREEN}✓ .env file created${NC}"
+
+  if [ ! -z "$FTP_HOST" ]; then
+    cat >> .env << EOF
+FTP_HOST=$FTP_HOST
+FTP_USER=$FTP_USER
+FTP_PASS=$FTP_PASS
+FTP_PORT=$FTP_PORT
+FTP_PATH=$FTP_PATH
+FTP_POLL_INTERVAL=$FTP_POLL_INTERVAL
+FTP_DELETE_AFTER_IMPORT=false
+EOF
+    echo -e "${GREEN}✓ .env file created with FTP configuration${NC}"
+  else
+    cat >> .env << EOF
+# FTP_HOST=your-ftp-host
+# FTP_USER=username
+# FTP_PASS=password
+# FTP_PORT=21
+# FTP_PATH=/orders
+# FTP_POLL_INTERVAL=60
+# FTP_DELETE_AFTER_IMPORT=false
+EOF
+    echo -e "${GREEN}✓ .env file created (FTP disabled)${NC}"
+  fi
 else
   echo -e "${YELLOW}(Existing .env file kept)${NC}"
 fi
 
 echo ""
-echo -e "${YELLOW}Step 8: Testing application...${NC}"
+echo -e "${YELLOW}Step 9: Testing application...${NC}"
 if bundle exec rake -T > /dev/null 2>&1; then
   echo -e "${GREEN}✓ Application is ready${NC}"
 else

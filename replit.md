@@ -16,6 +16,14 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 
 ## Recent Work
 
+### November 25, 2025 (FTP Integration & Schema Consolidation)
+- Fixed critical `attr_accessor` bugs in Product, PrintFlow, ProductCategory models
+- Added missing columns: preprint_completed_at, print_started_at, print_completed_at, preprint_print_flow_id
+- Consolidated all 30 fragmented migrations into single unified migration file
+- Updated installer to include FTP configuration during setup
+- Fixed webhook/print flow assignments now persist to database correctly
+- Created MIGRATION_GUIDE.md for future deployments
+
 ### November 24, 2025 (Ubuntu Deployment)
 - Consolidated fragmented 30+ migrations into single clean migration
 - Fixed schema mismatch issues (missing `hook_path`, `active` columns)
@@ -102,14 +110,26 @@ bundle exec rake db:migrate
 
 ## Environment Variables
 
-Required:
+**Database:**
 - `DATABASE_URL` - PostgreSQL connection (auto-configured)
-- `SWITCH_WEBHOOK_URL` - Enfocus Switch webhook endpoint
 
-Optional:
-- `SWITCH_API_KEY` - Switch API authentication
+**Server:**
 - `PORT` - Server port (default: 5000)
-- `RACK_ENV` - Environment mode
+- `RACK_ENV` - Environment mode (production/development)
+
+**Switch Integration:**
+- `SWITCH_WEBHOOK_URL` - Webhook callback URL for pre-stampa/stampa completion
+- `SWITCH_API_KEY` - Switch API authentication (optional)
+- `SWITCH_SIMULATION` - Test mode without real Switch (true/false)
+
+**FTP Order Import (Optional):**
+- `FTP_HOST` - FTP server hostname (e.g., c72965.sgvps.net)
+- `FTP_USER` - FTP username
+- `FTP_PASS` - FTP password
+- `FTP_PORT` - FTP port (default: 21)
+- `FTP_PATH` - Directory path on FTP server (default: /orders)
+- `FTP_POLL_INTERVAL` - Check interval in seconds (default: 60)
+- `FTP_DELETE_AFTER_IMPORT` - Delete files after import (true/false)
 
 ## Extension Guidelines
 
