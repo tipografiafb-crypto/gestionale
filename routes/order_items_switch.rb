@@ -5,6 +5,8 @@
 class PrintOrchestrator < Sinatra::Base
   # POST /orders/:order_id/items/:item_id/send_preprint - Send item to preprint phase
   post '/orders/:order_id/items/:item_id/send_preprint' do
+    puts "\n[DEBUG_PREPRINT_START] Order: #{params[:order_id]}, Item: #{params[:item_id]}"
+    
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
 
@@ -14,17 +16,22 @@ class PrintOrchestrator < Sinatra::Base
 
     # Get selected print flow or use default
     print_flow_id = params[:print_flow_id] || item.product&.default_print_flow_id
+    puts "[DEBUG_PREPRINT] print_flow_id: #{print_flow_id.inspect}"
     print_flow = PrintFlow.find_by(id: print_flow_id)
+    puts "[DEBUG_PREPRINT] print_flow found: #{print_flow.present?}"
     
     unless print_flow
       redirect "/orders/#{order.id}?msg=error&text=Flusso+di+stampa+non+trovato"
     end
     
+    puts "[DEBUG_PREPRINT] preprint_webhook: #{print_flow.preprint_webhook.inspect}"
     unless print_flow.preprint_webhook
       redirect "/orders/#{order.id}?msg=error&text=Webhook+pre-stampa+non+configurato"
     end
     
-    unless print_flow.preprint_webhook&.hook_path.present?
+    webhook_hook_path = print_flow.preprint_webhook&.hook_path
+    puts "[DEBUG_PREPRINT] webhook_hook_path: #{webhook_hook_path.inspect}"
+    unless webhook_hook_path.present?
       redirect "/orders/#{order.id}?msg=error&text=Path+webhook+pre-stampa+vuoto"
     end
 
@@ -55,6 +62,7 @@ class PrintOrchestrator < Sinatra::Base
       successful_assets = []
       
       print_assets.each do |print_asset|
+        puts "[DEBUG_PREPRINT] Processing asset: #{print_asset.id}"
         # Build Switch payload according to SWITCH_WORKFLOW.md
         job_data = {
           id_riga: item.item_number,
@@ -72,10 +80,12 @@ class PrintOrchestrator < Sinatra::Base
           campi_webhook: campi_webhook
         }
 
+        puts "[DEBUG_PREPRINT] Calling SwitchClient.send_to_switch with webhook_path: #{webhook_hook_path.inspect}"
         result = SwitchClient.send_to_switch(
-          webhook_path: print_flow.preprint_webhook&.hook_path,
+          webhook_path: webhook_hook_path,
           job_data: job_data
         )
+        puts "[DEBUG_PREPRINT] Result: #{result.inspect}"
         
         if result[:success]
           successful_assets << print_asset.id
@@ -94,8 +104,17 @@ class PrintOrchestrator < Sinatra::Base
     rescue => e
       item.update(preprint_status: 'failed')
       puts "[PREPRINT_ERROR] #{e.class}: #{e.message}"
-      puts "[PREPRINT_BACKTRACE] #{e.backtrace.first(5).join("\n")}"
-      error_msg = e.message.to_s.length > 50 ? e.message.to_s[0..50] + "..." : e.message.to_s
+      puts "[PREPRINT_ERROR_INSPECT] #{e.inspect}"
+      puts "[PREPRINT_BACKTRACE]"
+      e.backtrace.each { |line| puts "  #{line}" }
+      
+      error_msg = begin
+        msg = e.message.to_s
+        msg.length > 50 ? msg[0..50] + "..." : msg
+      rescue => msg_error
+        "Errore sconosciuto: #{e.class}"
+      end
+      
       redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + error_msg)}"
     end
   end
