@@ -78,6 +78,8 @@ fi
 
 echo ""
 echo -e "${YELLOW}Step 4: Dropping old database and recreating...${NC}"
+echo -e "${YELLOW}⚠ ATTENZIONE: Se stai aggiornando da una versione precedente,${NC}"
+echo -e "${YELLOW}   resetta SEMPRE il database con db:drop + db:create${NC}"
 bundle exec rake db:drop 2>/dev/null || true
 bundle exec rake db:create
 echo -e "${GREEN}✓ Database created${NC}"
