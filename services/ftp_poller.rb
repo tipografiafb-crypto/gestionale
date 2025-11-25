@@ -125,21 +125,18 @@ class FTPPoller
         return
       end
       
-      # Auto-create missing products from order data
+      # Validate all products exist before importing
       missing_skus = []
       data['items'].each do |item_data|
         unless Product.exists?(sku: item_data['sku'])
-          # Auto-create product with minimal data
-          Product.create!(
-            sku: item_data['sku'],
-            active: true
-          )
           missing_skus << item_data['sku']
         end
       end
       
       if missing_skus.any?
-        puts "[FTPPoller] ℹ Auto-created missing products: #{missing_skus.join(', ')}"
+        puts "[FTPPoller] ✗ Products not found in #{filename}: #{missing_skus.join(', ')}"
+        move_file_to_failed(ftp, filename)
+        return
       end
       
       # Import using transaction
@@ -193,19 +190,40 @@ class FTPPoller
       puts "[FTPPoller] ✓ Imported order: #{result[:external_order_code]} (ID: #{result[:order_id]}) - #{result[:items_count]} items, #{result[:assets_count]} assets"
       puts "[FTPPoller] ✓ Downloaded: #{download_results[:downloaded]}, Errors: #{download_results[:errors]}, Skipped: #{download_results[:skipped]}"
       
-      # Optional: Delete file after successful import
-      if ENV['FTP_DELETE_AFTER_IMPORT'].downcase == 'true'
-        ftp.delete(filename)
-        puts "[FTPPoller] Deleted: #{filename}"
-      end
+      # Move file to imported folder after successful import
+      move_file_to_imported(ftp, filename)
       
     rescue JSON::ParserError => e
-      puts "[FTPPoller] Invalid JSON in #{filename}: #{e.message}"
+      puts "[FTPPoller] ✗ Invalid JSON in #{filename}: #{e.message}"
+      move_file_to_failed(ftp, filename)
     rescue ActiveRecord::RecordInvalid => e
-      puts "[FTPPoller] Database error for #{filename}: #{e.message}"
+      puts "[FTPPoller] ✗ Database error for #{filename}: #{e.message}"
+      move_file_to_failed(ftp, filename)
     rescue => e
-      puts "[FTPPoller] Failed to process #{filename}: #{e.message}"
-      puts e.backtrace.join("\n")
+      puts "[FTPPoller] ✗ Failed to process #{filename}: #{e.message}"
+      move_file_to_failed(ftp, filename)
+    end
+  end
+
+  def move_file_to_imported(ftp, filename)
+    begin
+      # Create imported folder if not exists
+      ftp.mkdir('imported_order_test') rescue nil
+      ftp.rename(filename, "imported_order_test/#{filename}")
+      puts "[FTPPoller] ✓ Moved #{filename} to imported_order_test/"
+    rescue => e
+      puts "[FTPPoller] ⚠ Could not move file to imported folder: #{e.message}"
+    end
+  end
+
+  def move_file_to_failed(ftp, filename)
+    begin
+      # Create failed folder if not exists
+      ftp.mkdir('failed_orders_test') rescue nil
+      ftp.rename(filename, "failed_orders_test/#{filename}")
+      puts "[FTPPoller] ✓ Moved #{filename} to failed_orders_test/"
+    rescue => e
+      puts "[FTPPoller] ⚠ Could not move file to failed folder: #{e.message}"
     end
   end
 
