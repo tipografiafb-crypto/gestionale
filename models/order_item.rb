@@ -79,7 +79,9 @@ class OrderItem < ActiveRecord::Base
     print_assets = switch_print_assets
     return nil unless print_assets.include?(asset)
     
-    order_code = order.external_order_code.gsub(/[^0-9]/, '').to_i || order.id
+    # Extract numeric part from order code, fallback to order id
+    code_str = order.external_order_code.to_s.gsub(/[^0-9]/, '')
+    order_code = code_str.empty? ? order.id : code_str.to_i
     
     if print_assets.count == 1
       # Single file: no suffix
