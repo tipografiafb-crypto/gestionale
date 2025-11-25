@@ -16,8 +16,16 @@ class PrintOrchestrator < Sinatra::Base
     print_flow_id = params[:print_flow_id] || item.product&.default_print_flow_id
     print_flow = PrintFlow.find_by(id: print_flow_id)
     
-    unless print_flow&.preprint_webhook
-      redirect "/orders/#{order.id}?msg=error&text=Flusso+di+stampa+non+configurato"
+    unless print_flow
+      redirect "/orders/#{order.id}?msg=error&text=Flusso+di+stampa+non+trovato"
+    end
+    
+    unless print_flow.preprint_webhook
+      redirect "/orders/#{order.id}?msg=error&text=Webhook+pre-stampa+non+configurato"
+    end
+    
+    unless print_flow.preprint_webhook.hook_path.present?
+      redirect "/orders/#{order.id}?msg=error&text=Path+webhook+pre-stampa+vuoto"
     end
 
     # Get percentuale from form and build campi_webhook

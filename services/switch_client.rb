@@ -56,6 +56,11 @@ class SwitchClient
 
   # Static method for item-level Send to Switch with simulation support
   def self.send_to_switch(webhook_path:, job_data:)
+    # Validate webhook_path
+    unless webhook_path.present?
+      return { success: false, error: 'Missing webhook_path' }
+    end
+    
     # Generate job_id from payload (operation_id + codice_ordine + id_riga + timestamp)
     generated_job_id = generate_job_id(job_data)
     
