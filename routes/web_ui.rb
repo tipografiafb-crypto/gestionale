@@ -390,7 +390,7 @@ class PrintOrchestrator < Sinatra::Base
     rescue => e
       puts "[RESET_ERROR] #{e.class}: #{e.message}"
       puts e.backtrace.join("\n")
-      error_msg = e.message.gsub(' ', '%20').gsub("'", '%27')[0..100]
+      error_msg = e.message.to_s.gsub(' ', '%20').gsub("'", '%27')[0..100]
       redirect "/orders/#{params[:order_id]}?msg=error&text=#{error_msg}"
     end
   end

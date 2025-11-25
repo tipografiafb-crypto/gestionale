@@ -24,7 +24,7 @@ class PrintOrchestrator < Sinatra::Base
       
       # Parse job_id to extract order_id and item_id
       # Format: PREPRINT-ORD{order_id}-IT{item_id}-{timestamp}
-      match = job_id.match(/PREPRINT-ORD(\d+)-IT(\d+)-/)
+      match = job_id.to_s.match(/PREPRINT-ORD(\d+)-IT(\d+)-/)
       unless match
         status 400
         return { success: false, error: 'Invalid job_id format' }.to_json

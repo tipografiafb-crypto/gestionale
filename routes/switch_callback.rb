@@ -32,7 +32,7 @@ class PrintOrchestrator < Sinatra::Base
       
       # Parse job_id to extract order_id, item_id, and phase
       # Format: PREPRINT-ORD{order_id}-IT{item_id}-{timestamp} or PRINT-...
-      job_id = data['job_id']
+      job_id = data['job_id'].to_s
       phase_match = job_id.match(/^(PREPRINT|PRINT)-ORD(\d+)-IT(\d+)-/)
       
       unless phase_match
