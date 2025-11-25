@@ -134,7 +134,7 @@
                 <tr>
                   <td><small><%= asset.imported_at.strftime('%d-%m-%y %H:%M') %></small></td>
                   <td><%= asset.order_item.order.store.code %></td>
-                  <td><%= link_to asset.order_item.order.external_order_code, "/orders/#{asset.order_item.order.id}" %></td>
+                  <td><a href="/orders/<%= asset.order_item.order.id %>"><%= asset.order_item.order.external_order_code %></a></td>
                   <td><%= asset.order_item.sku %></td>
                   <td><code><small><%= asset.filename_from_url %></small></code></td>
                   <td>
