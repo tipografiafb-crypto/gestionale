@@ -394,4 +394,25 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{params[:order_id]}?msg=error&text=#{error_msg}"
     end
   end
+
+  # POST /import_errors/clear_all - Delete all import errors
+  post '/import_errors/clear_all' do
+    begin
+      deleted_count = ImportError.delete_all
+      redirect "/orders?msg=success&text=#{URI.encode_www_form_component(deleted_count.to_s + ' errori cancellati')}"
+    rescue => e
+      redirect "/orders?msg=error&text=#{URI.encode_www_form_component('Errore cancellazione: ' + e.message)}"
+    end
+  end
+
+  # POST /import_errors/:id/delete - Delete single import error
+  post '/import_errors/:id/delete' do
+    begin
+      error = ImportError.find(params[:id])
+      error.destroy
+      redirect "/orders?msg=success&text=Errore+cancellato"
+    rescue => e
+      redirect "/orders?msg=error&text=#{URI.encode_www_form_component('Errore cancellazione: ' + e.message)}"
+    end
+  end
 end

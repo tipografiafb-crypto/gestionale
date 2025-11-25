@@ -213,6 +213,14 @@
       <% if @import_errors.empty? %>
         <div class="alert alert-success">✓ Nessun errore di importazione</div>
       <% else %>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div></div>
+          <form action="/import_errors/clear_all" method="post" class="d-inline" onsubmit="return confirm('Cancellare TUTTI gli errori? Questa azione non può essere annullata.');">
+            <button type="submit" class="btn btn-sm btn-danger" style="padding: 4px 12px;">
+              🗑️ Cancella tutti gli errori
+            </button>
+          </form>
+        </div>
         <div class="table-responsive">
           <table class="table table-hover">
             <thead>
@@ -221,6 +229,7 @@
                 <th>Codice Ordine</th>
                 <th>File</th>
                 <th>Errore</th>
+                <th style="width: 80px;">Azioni</th>
               </tr>
               <!-- Filter Row -->
               <tr style="background-color: #f8f9fa;">
@@ -231,6 +240,7 @@
                 <td>
                     <input type="text" class="form-control form-control-sm" name="error_order_code" placeholder="Codice ordine..." value="<%= @filter_error_order_code %>" onchange="this.form.submit()">
                 </td>
+                <td></td>
                 <td></td>
                 <td>
                     <a href="/orders" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 12px;">✕ Reset</a>
@@ -246,6 +256,11 @@
                   <td><code><%= error.filename %></code></td>
                   <td style="color: #dc3545;">
                     <%= error.error_message %>
+                  </td>
+                  <td>
+                    <form action="/import_errors/<%= error.id %>/delete" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo errore?');">
+                      <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella">🗑</button>
+                    </form>
                   </td>
                 </tr>
               <% end %>
