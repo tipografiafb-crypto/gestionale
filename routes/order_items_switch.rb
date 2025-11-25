@@ -31,14 +31,32 @@ class PrintOrchestrator < Sinatra::Base
       campi_webhook: campi_webhook
     )
 
-    # Prepare job data for Switch - only send print assets (not preview)
-    downloaded_assets = item.assets.select { |a| a.downloaded? && a.asset_type == 'print' }
+    # Prepare correct payload for Switch - PREPRESS (operation_id=1)
+    # Get first print asset to create payload
+    print_asset = item.assets.find { |a| a.downloaded? && a.asset_type == 'print' }
+    unless print_asset
+      item.update(preprint_status: 'failed')
+      redirect "/orders/#{order.id}?msg=error&text=Nessun+asset+scaricato"
+    end
+
+    product = item.product
+    server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
+    
+    # Build Switch payload according to SWITCH_WORKFLOW.md
     job_data = {
-      job_id: "PREPRINT-ORD#{order.id}-IT#{item.id}-#{Time.now.to_i}",
-      order_code: order.external_order_code,
-      item_sku: item.sku,
-      quantity: item.quantity,
-      assets: downloaded_assets.map { |a| a.local_path_full }
+      id_riga: item.item_number,
+      codice_ordine: order.external_order_code,
+      product: "#{product&.sku} - #{product&.name}",
+      operation_id: 1,  # 1=prepress, 2=stampa, 3=etichetta
+      job_operation_id: nil,
+      url: "#{server_url}/api/assets/#{print_asset.id}/download",
+      widegest_url: "#{server_url}/api/v1/reports_create",
+      filename: item.switch_filename_for_asset(print_asset) || "#{order.external_order_code}_#{item.item_number}.png",
+      quantita: item.quantity,
+      materiale: product&.description || 'N/A',
+      campi_custom: item.campi_custom || {},
+      opzioni_stampa: item.opzioni_stampa || {},
+      campi_webhook: campi_webhook
     }
 
     # Send to preprint webhook
