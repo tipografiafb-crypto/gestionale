@@ -63,8 +63,9 @@ class OrderItem < ActiveRecord::Base
   end
 
   # Get print assets for this item (for Switch processing)
+  # Includes both 'print' (manual upload) and 'print_file_*' (FTP import) assets
   def switch_print_assets
-    assets.where("asset_type LIKE ?", 'print_file%').order(:id)
+    assets.where("asset_type LIKE ? OR asset_type = ?", 'print_file%', 'print').order(:id)
   end
 
   # Get the item number (position in order)
