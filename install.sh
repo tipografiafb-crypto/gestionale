@@ -90,12 +90,21 @@ bundle exec rake db:migrate
 echo -e "${GREEN}✓ All tables created from single consolidated migration${NC}"
 
 echo ""
-echo -e "${YELLOW}Step 6: Loading seed data...${NC}"
+echo -e "${YELLOW}Step 6: Adding missing columns...${NC}"
+PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" << EOF
+ALTER TABLE product_categories ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE print_machines ADD COLUMN IF NOT EXISTS description VARCHAR;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT;
+EOF
+echo -e "${GREEN}✓ Missing columns added${NC}"
+
+echo ""
+echo -e "${YELLOW}Step 7: Loading seed data...${NC}"
 bundle exec rake db:seed 2>/dev/null || echo -e "${YELLOW}(No seed data file)${NC}"
 echo -e "${GREEN}✓ Seed data loaded${NC}"
 
 echo ""
-echo -e "${YELLOW}Step 7: Configuring FTP (optional)...${NC}"
+echo -e "${YELLOW}Step 8: Configuring FTP (optional)...${NC}"
 
 read -p "  Do you have FTP for importing orders? (y/n) [n]: " USE_FTP
 USE_FTP=${USE_FTP:-n}
@@ -121,7 +130,7 @@ if [[ "$USE_FTP" == "y" || "$USE_FTP" == "Y" ]]; then
 fi
 
 echo ""
-echo -e "${YELLOW}Step 8: Creating .env file...${NC}"
+echo -e "${YELLOW}Step 9: Creating .env file...${NC}"
 if [ ! -f .env ]; then
   cat > .env << EOF
 # Database (Auto-configured for print-orchestrator)
@@ -167,7 +176,7 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}Step 9: Testing application...${NC}"
+echo -e "${YELLOW}Step 10: Testing application...${NC}"
 if bundle exec rake -T > /dev/null 2>&1; then
   echo -e "${GREEN}✓ Application is ready${NC}"
 else
