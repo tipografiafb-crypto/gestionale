@@ -79,16 +79,19 @@ class SwitchClient
 
     begin
       # Build full Switch webhook URL
-      switch_base = ENV['SWITCH_WEBHOOK_URL'].to_s.presence || 'http://localhost:9999/'
-      switch_base = "#{switch_base}/" unless switch_base.end_with?('/')
+      switch_base = ENV['SWITCH_WEBHOOK_URL'].to_s.strip.presence || 'http://localhost:9999'
       
       # Safely build URL with webhook_path validation
       webhook_path_str = webhook_path.to_s.strip
       return { success: false, error: 'Invalid webhook_path' } if webhook_path_str.empty?
       
+      # Build URL properly: remove trailing slash from base, ensure path starts with /
+      switch_base = switch_base.chomp('/')
+      webhook_path_str = "/#{webhook_path_str}" unless webhook_path_str.start_with?('/')
+      
       full_url = "#{switch_base}#{webhook_path_str}"
-      full_url = full_url.gsub(/\/+/, '/') if full_url.include?('/')
-      full_url = full_url.sub(%r{/(?=:)}, '://') if full_url.include?('/')
+      
+      puts "[SWITCH_CLIENT_DEBUG] Full URL: #{full_url}"
       
       response = HTTP
         .timeout(30)
