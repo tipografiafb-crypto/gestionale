@@ -1,0 +1,50 @@
+Nov 25 14:31:03 test bundle[3010]: [FTPPoller] nlst failed: 550 Can't check for file existence
+Nov 25 14:31:03 test bundle[3010]: , trying list...
+Nov 25 14:31:03 test bundle[3010]: [FTPPoller] No .json files found in /test/
+Nov 25 14:31:07 test bundle[3010]: - Gracefully stopping, waiting for requests to finish
+Nov 25 14:31:07 test systemd[1]: Stopping print-orchestrator.service - Print Order Orchestrator...
+Nov 25 14:31:07 test systemd[1]: print-orchestrator.service: Deactivated successfully.
+Nov 25 14:31:07 test systemd[1]: Stopped print-orchestrator.service - Print Order Orchestrator.
+Nov 25 14:31:07 test systemd[1]: print-orchestrator.service: Consumed 1.628s CPU time.
+Nov 25 14:31:07 test systemd[1]: Started print-orchestrator.service - Print Order Orchestrator.
+Nov 25 14:31:07 test bundle[3030]: Puma starting in single mode...
+Nov 25 14:31:07 test bundle[3030]: * Puma version: 6.6.1 ("Return to Forever")
+Nov 25 14:31:07 test bundle[3030]: * Ruby version: ruby 3.2.3 (2024-01-18 revision 52bb2ac0a6) [x86_64-linux-gnu]
+Nov 25 14:31:07 test bundle[3030]: *  Min threads: 5
+Nov 25 14:31:07 test bundle[3030]: *  Max threads: 5
+Nov 25 14:31:07 test bundle[3030]: *  Environment: production
+Nov 25 14:31:07 test bundle[3030]: *          PID: 3030
+Nov 25 14:31:09 test bundle[3030]: [FTPPoller] Starting FTP polling - Host: c72965.sgvps.net, Path: /test/, Interval: 60s
+Nov 25 14:31:09 test bundle[3030]: * Listening on http://0.0.0.0:5000
+Nov 25 14:31:09 test bundle[3030]: Use Ctrl-C to stop
+Nov 25 14:31:09 test bundle[3030]: [FTPPoller] ✓ Connected to c72965.sgvps.net:21
+Nov 25 14:31:09 test bundle[3030]: [FTPPoller] Changing to directory: /test/
+Nov 25 14:31:09 test bundle[3030]: [FTPPoller] nlst failed: 550 Can't check for file existence
+Nov 25 14:31:09 test bundle[3030]: , trying list...
+Nov 25 14:31:09 test bundle[3030]: [FTPPoller] No .json files found in /test/
+Nov 25 14:31:35 test bundle[3030]: - Gracefully stopping, waiting for requests to finish
+Nov 25 14:31:35 test systemd[1]: Stopping print-orchestrator.service - Print Order Orchestrator...
+Nov 25 14:31:35 test systemd[1]: print-orchestrator.service: Deactivated successfully.
+Nov 25 14:31:35 test systemd[1]: Stopped print-orchestrator.service - Print Order Orchestrator.
+Nov 25 14:31:35 test systemd[1]: print-orchestrator.service: Consumed 2.592s CPU time.
+Nov 25 14:36:14 test systemd[1]: Started print-orchestrator.service - Print Order Orchestrator.
+Nov 25 14:36:14 test bundle[3164]: Puma starting in single mode...
+Nov 25 14:36:14 test bundle[3164]: * Puma version: 6.6.1 ("Return to Forever")
+Nov 25 14:36:14 test bundle[3164]: * Ruby version: ruby 3.2.3 (2024-01-18 revision 52bb2ac0a6) [x86_64-linux-gnu]
+Nov 25 14:36:14 test bundle[3164]: *  Min threads: 5
+Nov 25 14:36:14 test bundle[3164]: *  Max threads: 5
+Nov 25 14:36:14 test bundle[3164]: *  Environment: production
+Nov 25 14:36:14 test bundle[3164]: *          PID: 3164
+Nov 25 14:36:15 test bundle[3164]: [FTPPoller] Starting FTP polling - Host: c72965.sgvps.net, Path: /test/, Interval: 60s
+Nov 25 14:36:15 test bundle[3164]: * Listening on http://0.0.0.0:5000
+Nov 25 14:36:15 test bundle[3164]: Use Ctrl-C to stop
+Nov 25 14:36:16 test bundle[3164]: [FTPPoller] ✓ Connected to c72965.sgvps.net:21
+Nov 25 14:36:16 test bundle[3164]: [FTPPoller] Changing to directory: /test/
+Nov 25 14:36:16 test bundle[3164]: [FTPPoller] nlst failed: 550 Can't check for file existence
+Nov 25 14:36:16 test bundle[3164]: , trying list...
+Nov 25 14:36:16 test bundle[3164]: [FTPPoller] No .json files found in /test/
+Nov 25 14:37:17 test bundle[3164]: [FTPPoller] ✓ Connected to c72965.sgvps.net:21
+Nov 25 14:37:17 test bundle[3164]: [FTPPoller] Changing to directory: /test/
+Nov 25 14:37:17 test bundle[3164]: [FTPPoller] nlst failed: 550 Can't check for file existence
+Nov 25 14:37:17 test bundle[3164]: , trying list...
+Nov 25 14:37:17 test bundle[3164]: [FTPPoller] No .json files found in /test/
