@@ -341,4 +341,29 @@ class PrintOrchestrator < Sinatra::Base
   rescue => e
     redirect "/inventory?msg=error&text=Errore%20nella%20rimozione"
   end
+
+  # POST /orders/:order_id/items/:item_id/reset - Reset item workflow
+  post '/orders/:order_id/items/:item_id/reset' do
+    order = Order.find(params[:order_id])
+    item = order.order_items.find(params[:item_id])
+    
+    # Reset all workflow statuses to pending
+    item.update(
+      preprint_status: 'pending',
+      preprint_job_id: nil,
+      preprint_preview_url: nil,
+      preprint_started_at: nil,
+      preprint_completed_at: nil,
+      preprint_print_flow_id: nil,
+      print_status: 'pending',
+      print_job_id: nil,
+      print_started_at: nil,
+      print_completed_at: nil,
+      print_machine_id: nil
+    )
+    
+    redirect "/orders/#{order.id}?msg=success&text=Item%20reimpostato%20al%20workflow%20iniziale"
+  rescue => e
+    redirect "/orders/#{params[:order_id]}?msg=error&text=Errore%20nel%20reset%20dell'item"
+  end
 end
