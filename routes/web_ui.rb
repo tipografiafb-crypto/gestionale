@@ -26,10 +26,18 @@ class PrintOrchestrator < Sinatra::Base
     @orders = @orders.by_date(params[:order_date]) if params[:order_date].present?
     @orders = @orders.limit(100)
     
-    @import_errors = ImportError.recent
-    @import_errors = @import_errors.where('external_order_code ILIKE ?', "%#{params[:error_order_code]}%") if params[:error_order_code].present?
-    @import_errors = @import_errors.by_date(params[:error_date]) if params[:error_date].present?
-    @import_errors = @import_errors.limit(100)
+    # Try to load import errors, but gracefully handle if table doesn't exist
+    @import_errors = []
+    begin
+      @import_errors = ImportError.recent
+      @import_errors = @import_errors.where('external_order_code ILIKE ?', "%#{params[:error_order_code]}%") if params[:error_order_code].present?
+      @import_errors = @import_errors.by_date(params[:error_date]) if params[:error_date].present?
+      @import_errors = @import_errors.limit(100)
+    rescue ActiveRecord::StatementInvalid => e
+      # Table doesn't exist yet - migrations not run on this database
+      puts "[WARNING] import_errors table not found. Run migrations: bundle exec rake db:migrate"
+      @import_errors = []
+    end
     
     @filter_store = params[:store_id]
     @filter_order_code = params[:order_code]
@@ -344,26 +352,31 @@ class PrintOrchestrator < Sinatra::Base
 
   # POST /orders/:order_id/items/:item_id/reset - Reset item workflow
   post '/orders/:order_id/items/:item_id/reset' do
-    order = Order.find(params[:order_id])
-    item = order.order_items.find(params[:item_id])
-    
-    # Reset all workflow statuses to pending
-    item.update(
-      preprint_status: 'pending',
-      preprint_job_id: nil,
-      preprint_preview_url: nil,
-      preprint_started_at: nil,
-      preprint_completed_at: nil,
-      preprint_print_flow_id: nil,
-      print_status: 'pending',
-      print_job_id: nil,
-      print_started_at: nil,
-      print_completed_at: nil,
-      print_machine_id: nil
-    )
-    
-    redirect "/orders/#{order.id}?msg=success&text=Item%20reimpostato%20al%20workflow%20iniziale"
-  rescue => e
-    redirect "/orders/#{params[:order_id]}?msg=error&text=Errore%20nel%20reset%20dell'item"
+    begin
+      order = Order.find(params[:order_id])
+      item = order.order_items.find(params[:item_id])
+      
+      # Reset all workflow statuses to pending
+      item.update(
+        preprint_status: 'pending',
+        preprint_job_id: nil,
+        preprint_preview_url: nil,
+        preprint_started_at: nil,
+        preprint_completed_at: nil,
+        preprint_print_flow_id: nil,
+        print_status: 'pending',
+        print_job_id: nil,
+        print_started_at: nil,
+        print_completed_at: nil,
+        print_machine_id: nil
+      )
+      
+      redirect "/orders/#{order.id}?msg=success&text=Item%20reimpostato%20al%20workflow%20iniziale"
+    rescue => e
+      puts "[RESET_ERROR] #{e.class}: #{e.message}"
+      puts e.backtrace.join("\n")
+      error_msg = e.message.gsub(' ', '%20').gsub("'", '%27')
+      redirect "/orders/#{params[:order_id]}?msg=error&text=#{error_msg}"
+    end
   end
 end
