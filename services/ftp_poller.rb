@@ -121,7 +121,9 @@ class FTPPoller
       # Validate store exists and is active
       store = Store.find_by_code(data['store_id'])
       unless store
-        puts "[FTPPoller] ✗ Store not found or inactive: #{data['store_id']}"
+        error_msg = "Store not found or inactive: #{data['store_id']}"
+        puts "[FTPPoller] ✗ #{error_msg}"
+        move_file_to_failed(ftp, filename, error_msg)
         return
       end
       
