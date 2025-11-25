@@ -64,7 +64,7 @@ class OrderItem < ActiveRecord::Base
 
   # Get print assets for this item (for Switch processing)
   def switch_print_assets
-    assets.where(asset_type: 'print').order(:id)
+    assets.where("asset_type LIKE ?", 'print_file%').order(:id)
   end
 
   # Get the item number (position in order)

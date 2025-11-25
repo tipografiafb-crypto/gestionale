@@ -31,10 +31,9 @@ class PrintOrchestrator < Sinatra::Base
       campi_webhook: campi_webhook
     )
 
-    # Prepare correct payload for Switch - PREPRESS (operation_id=1)
-    # Get first print asset (assets are auto-downloaded during import)
-    print_asset = item.assets.find { |a| a.asset_type == 'print' }
-    unless print_asset
+    # Get all print assets (assets are auto-downloaded during import)
+    print_assets = item.switch_print_assets
+    unless print_assets.any?
       item.update(preprint_status: 'failed')
       redirect "/orders/#{order.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
     end
@@ -42,39 +41,47 @@ class PrintOrchestrator < Sinatra::Base
     product = item.product
     server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
     
-    # Build Switch payload according to SWITCH_WORKFLOW.md
-    job_data = {
-      id_riga: item.item_number,
-      codice_ordine: order.external_order_code,
-      product: "#{product&.sku} - #{product&.name}",
-      operation_id: 1,  # 1=prepress, 2=stampa, 3=etichetta
-      job_operation_id: nil,
-      url: "#{server_url}/api/assets/#{print_asset.id}/download",
-      widegest_url: "#{server_url}/api/v1/reports_create",
-      filename: item.switch_filename_for_asset(print_asset) || "#{order.external_order_code}_#{item.item_number}.png",
-      quantita: item.quantity,
-      materiale: product&.description || 'N/A',
-      campi_custom: item.campi_custom || {},
-      opzioni_stampa: item.opzioni_stampa || {},
-      campi_webhook: campi_webhook
-    }
-
-    # Send to preprint webhook
+    # Send each print asset to preprint webhook
     begin
-      result = SwitchClient.send_to_switch(
-        webhook_path: print_flow.preprint_webhook.hook_path,
-        job_data: job_data
-      )
+      errors = []
+      successful_assets = []
       
-      if result[:success]
-        item.update(
-          preprint_status: 'processing',
-          preprint_job_id: result[:job_id]
+      print_assets.each do |print_asset|
+        # Build Switch payload according to SWITCH_WORKFLOW.md
+        job_data = {
+          id_riga: item.item_number,
+          codice_ordine: order.external_order_code,
+          product: "#{product&.sku} - #{product&.name}",
+          operation_id: 1,  # 1=prepress, 2=stampa, 3=etichetta
+          job_operation_id: nil,
+          url: "#{server_url}/api/assets/#{print_asset.id}/download",
+          widegest_url: "#{server_url}/api/v1/reports_create",
+          filename: item.switch_filename_for_asset(print_asset) || "#{order.external_order_code}_#{item.item_number}.png",
+          quantita: item.quantity,
+          materiale: product&.description || 'N/A',
+          campi_custom: item.campi_custom || {},
+          opzioni_stampa: item.opzioni_stampa || {},
+          campi_webhook: campi_webhook
+        }
+
+        result = SwitchClient.send_to_switch(
+          webhook_path: print_flow.preprint_webhook.hook_path,
+          job_data: job_data
         )
-        redirect "/orders/#{order.id}?msg=success&text=Item+inviato+a+pre-stampa,+controlla+e+conferma"
-      else
+        
+        if result[:success]
+          successful_assets << print_asset.id
+        else
+          errors << result[:error]
+        end
+      end
+      
+      if errors.any?
         item.update(preprint_status: 'failed')
-        redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore: ' + result[:error].to_s)}"
+        redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + errors.join(', '))}"
+      else
+        item.update(preprint_status: 'processing', preprint_job_id: successful_assets.join(','))
+        redirect "/orders/#{order.id}?msg=success&text=#{successful_assets.length}+asset+inviati+a+pre-stampa"
       end
     rescue => e
       item.update(preprint_status: 'failed')
@@ -139,10 +146,9 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}?msg=error&text=Flusso+di+stampa+non+configurato"
     end
 
-    # Prepare correct payload for Switch - STAMPA (operation_id=2)
-    # Get first print asset (assets are auto-downloaded during import)
-    print_asset = item.assets.find { |a| a.asset_type == 'print' }
-    unless print_asset
+    # Get all print assets (assets are auto-downloaded during import)
+    print_assets = item.switch_print_assets
+    unless print_assets.any?
       item.update(print_status: 'failed')
       redirect "/orders/#{order.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
     end
@@ -150,36 +156,47 @@ class PrintOrchestrator < Sinatra::Base
     product = item.product
     server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
     
-    # Build Switch payload according to SWITCH_WORKFLOW.md
-    job_data = {
-      id_riga: item.item_number,
-      codice_ordine: order.external_order_code,
-      product: "#{product&.sku} - #{product&.name}",
-      operation_id: 2,  # 1=prepress, 2=stampa, 3=etichetta
-      job_operation_id: nil,
-      url: "#{server_url}/api/assets/#{print_asset.id}/download",
-      widegest_url: "#{server_url}/api/v1/reports_create",
-      filename: item.switch_filename_for_asset(print_asset) || "#{order.external_order_code}_#{item.item_number}.png",
-      quantita: item.quantity,
-      materiale: product&.description || 'N/A',
-      campi_custom: item.campi_custom || {},
-      opzioni_stampa: item.opzioni_stampa || {},
-      campi_webhook: item.campi_webhook || {}
-    }
-
-    # Send to print webhook
+    # Send each print asset to print webhook
     begin
-      result = SwitchClient.send_to_switch(
-        webhook_path: print_flow.print_webhook.hook_path,
-        job_data: job_data
-      )
+      errors = []
+      successful_assets = []
       
-      if result[:success]
-        item.update(print_status: 'processing', print_started_at: Time.now)
-        redirect "/orders/#{order.id}?msg=success&text=Item+inviato+in+stampa,+controlla+e+conferma"
-      else
+      print_assets.each do |print_asset|
+        # Build Switch payload according to SWITCH_WORKFLOW.md
+        job_data = {
+          id_riga: item.item_number,
+          codice_ordine: order.external_order_code,
+          product: "#{product&.sku} - #{product&.name}",
+          operation_id: 2,  # 1=prepress, 2=stampa, 3=etichetta
+          job_operation_id: nil,
+          url: "#{server_url}/api/assets/#{print_asset.id}/download",
+          widegest_url: "#{server_url}/api/v1/reports_create",
+          filename: item.switch_filename_for_asset(print_asset) || "#{order.external_order_code}_#{item.item_number}.png",
+          quantita: item.quantity,
+          materiale: product&.description || 'N/A',
+          campi_custom: item.campi_custom || {},
+          opzioni_stampa: item.opzioni_stampa || {},
+          campi_webhook: item.campi_webhook || {}
+        }
+
+        result = SwitchClient.send_to_switch(
+          webhook_path: print_flow.print_webhook.hook_path,
+          job_data: job_data
+        )
+        
+        if result[:success]
+          successful_assets << print_asset.id
+        else
+          errors << result[:error]
+        end
+      end
+      
+      if errors.any?
         item.update(print_status: 'failed')
-        redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore: ' + result[:error].to_s)}"
+        redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + errors.join(', '))}"
+      else
+        item.update(print_status: 'processing', print_started_at: Time.now)
+        redirect "/orders/#{order.id}?msg=success&text=#{successful_assets.length}+asset+inviati+in+stampa"
       end
     rescue => e
       item.update(print_status: 'failed')
@@ -214,44 +231,54 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}?msg=error&text=Webhook+etichetta+non+configurato"
     end
 
-    # Prepare correct payload for Switch - ETICHETTA (operation_id=3)
-    # Get first print asset (assets are auto-downloaded during import)
-    print_asset = item.assets.find { |a| a.asset_type == 'print' }
-    unless print_asset
+    # Get all print assets (assets are auto-downloaded during import)
+    print_assets = item.switch_print_assets
+    unless print_assets.any?
       redirect "/orders/#{order.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
     end
 
     product = item.product
     server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
     
-    # Build Switch payload according to SWITCH_WORKFLOW.md
-    job_data = {
-      id_riga: item.item_number,
-      codice_ordine: order.external_order_code,
-      product: "#{product&.sku} - #{product&.name}",
-      operation_id: 3,  # 1=prepress, 2=stampa, 3=etichetta
-      job_operation_id: nil,
-      url: "#{server_url}/api/assets/#{print_asset.id}/download",
-      widegest_url: "#{server_url}/api/v1/reports_create",
-      filename: item.switch_filename_for_asset(print_asset) || "#{order.external_order_code}_#{item.item_number}.png",
-      quantita: item.quantity,
-      materiale: product&.description || 'N/A',
-      campi_custom: item.campi_custom || {},
-      opzioni_stampa: item.opzioni_stampa || {},
-      campi_webhook: item.campi_webhook || {}
-    }
-
-    # Send to label webhook
+    # Send each print asset to label webhook
     begin
-      result = SwitchClient.send_to_switch(
-        webhook_path: print_flow.label_webhook.hook_path,
-        job_data: job_data
-      )
+      errors = []
+      successful_assets = []
       
-      if result[:success]
-        redirect "/orders/#{order.id}?msg=success&text=Etichetta+inviata+con+successo"
+      print_assets.each do |print_asset|
+        # Build Switch payload according to SWITCH_WORKFLOW.md
+        job_data = {
+          id_riga: item.item_number,
+          codice_ordine: order.external_order_code,
+          product: "#{product&.sku} - #{product&.name}",
+          operation_id: 3,  # 1=prepress, 2=stampa, 3=etichetta
+          job_operation_id: nil,
+          url: "#{server_url}/api/assets/#{print_asset.id}/download",
+          widegest_url: "#{server_url}/api/v1/reports_create",
+          filename: item.switch_filename_for_asset(print_asset) || "#{order.external_order_code}_#{item.item_number}.png",
+          quantita: item.quantity,
+          materiale: product&.description || 'N/A',
+          campi_custom: item.campi_custom || {},
+          opzioni_stampa: item.opzioni_stampa || {},
+          campi_webhook: item.campi_webhook || {}
+        }
+
+        result = SwitchClient.send_to_switch(
+          webhook_path: print_flow.label_webhook.hook_path,
+          job_data: job_data
+        )
+        
+        if result[:success]
+          successful_assets << print_asset.id
+        else
+          errors << result[:error]
+        end
+      end
+      
+      if errors.any?
+        redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + errors.join(', '))}"
       else
-        redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore: ' + result[:error].to_s)}"
+        redirect "/orders/#{order.id}?msg=success&text=#{successful_assets.length}+etichetta+inviate+con+successo"
       end
     rescue => e
       error_msg = e.message.length > 50 ? e.message[0..50] + "..." : e.message
