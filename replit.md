@@ -16,6 +16,14 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 
 ## Recent Work
 
+### November 25, 2025 (Switch Webhook Payload Standardization)
+- Fixed Switch webhook payload format for all three operations (preprint, stampa, etichetta)
+- Implemented proper payload structure per SWITCH_WORKFLOW.md with: id_riga, codice_ordine, product, operation_id, url, widegest_url, filename, quantita, materiale, campi_custom, opzioni_stampa, campi_webhook
+- Updated SwitchClient to auto-generate job_id from payload (format: PREPRINT/PRINT/LABEL-CODICE-RIGA-TIMESTAMP)
+- Fixed webhook URL building to use ENV['SWITCH_WEBHOOK_URL'] dynamically
+- Updated installer to configure SERVER_BASE_URL and SWITCH_WEBHOOK_URL automatically
+- All three operations now send correct payload to Switch at http://192.168.1.162/webhook/
+
 ### November 25, 2025 (FTP Integration & Schema Consolidation)
 - Fixed critical `attr_accessor` bugs in Product, PrintFlow, ProductCategory models
 - Added missing columns: preprint_completed_at, print_started_at, print_completed_at, preprint_print_flow_id

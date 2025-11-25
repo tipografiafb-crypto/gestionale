@@ -132,6 +132,9 @@ fi
 echo ""
 echo -e "${YELLOW}Step 9: Creating .env file...${NC}"
 if [ ! -f .env ]; then
+  # Get local IP for default server URL
+  LOCAL_IP=$(hostname -I | awk '{print $1}' || echo "localhost")
+  
   cat > .env << EOF
 # Database (Auto-configured for print-orchestrator)
 DATABASE_URL=$DATABASE_URL
@@ -139,10 +142,11 @@ DATABASE_URL=$DATABASE_URL
 # Server
 PORT=5000
 RACK_ENV=production
+SERVER_BASE_URL=http://$LOCAL_IP:5000
 
-# Switch Integration (Optional)
-SWITCH_WEBHOOK_URL=http://192.168.1.55:5000/api/switch/callback
-SWITCH_API_KEY=your_switch_api_key
+# Switch Integration
+SWITCH_WEBHOOK_URL=http://192.168.1.162/webhook/
+SWITCH_API_KEY=
 SWITCH_SIMULATION=false
 
 # FTP Configuration (for order imports)
