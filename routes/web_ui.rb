@@ -26,11 +26,16 @@ class PrintOrchestrator < Sinatra::Base
     @orders = @orders.by_date(params[:order_date]) if params[:order_date].present?
     @orders = @orders.limit(100)
     
-    @import_errors = ImportError.recent.limit(100)
+    @import_errors = ImportError.recent
+    @import_errors = @import_errors.where('external_order_code ILIKE ?', "%#{params[:error_order_code]}%") if params[:error_order_code].present?
+    @import_errors = @import_errors.by_date(params[:error_date]) if params[:error_date].present?
+    @import_errors = @import_errors.limit(100)
     
     @filter_store = params[:store_id]
     @filter_order_code = params[:order_code]
     @filter_order_date = params[:order_date]
+    @filter_error_order_code = params[:error_order_code]
+    @filter_error_date = params[:error_date]
     
     erb :orders_list
   end

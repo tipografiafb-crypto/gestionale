@@ -222,6 +222,21 @@
                 <th>File</th>
                 <th>Errore</th>
               </tr>
+              <!-- Filter Row -->
+              <tr style="background-color: #f8f9fa;">
+                <td>
+                  <form method="get" action="/orders" class="d-inline" style="display: contents;">
+                    <input type="date" class="form-control form-control-sm" name="error_date" value="<%= @filter_error_date %>" onchange="this.form.submit()">
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm" name="error_order_code" placeholder="Codice ordine..." value="<%= @filter_error_order_code %>" onchange="this.form.submit()">
+                </td>
+                <td></td>
+                <td>
+                    <a href="/orders" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 12px;">✕ Reset</a>
+                  </form>
+                </td>
+              </tr>
             </thead>
             <tbody>
               <% @import_errors.each do |error| %>
