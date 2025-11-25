@@ -159,7 +159,7 @@ class PrintOrchestrator < Sinatra::Base
     content_type :json
     
     begin
-      job_id = params[:job_id]
+      job_id = params[:job_id].to_s
       
       # Parse job_id
       phase_match = job_id.match(/^(PREPRINT|PRINT)-ORD(\d+)-IT(\d+)-/)
