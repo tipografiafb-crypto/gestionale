@@ -56,9 +56,17 @@ class SwitchClient
 
   # Static method for item-level Send to Switch with simulation support
   def self.send_to_switch(webhook_path:, job_data:)
-    # Validate webhook_path
-    unless webhook_path.present?
+    # Validate inputs
+    unless webhook_path&.present?
       return { success: false, error: 'Missing webhook_path' }
+    end
+    
+    unless job_data&.is_a?(Hash)
+      return { success: false, error: 'Invalid job_data format' }
+    end
+    
+    unless job_data[:codice_ordine]&.present?
+      return { success: false, error: 'Missing codice_ordine in job_data' }
     end
     
     # Generate job_id from payload (operation_id + codice_ordine + id_riga + timestamp)
@@ -71,9 +79,16 @@ class SwitchClient
 
     begin
       # Build full Switch webhook URL
-      switch_base = ENV['SWITCH_WEBHOOK_URL'] || 'http://localhost:9999/'
+      switch_base = ENV['SWITCH_WEBHOOK_URL'].to_s.presence || 'http://localhost:9999/'
       switch_base = "#{switch_base}/" unless switch_base.end_with?('/')
-      full_url = "#{switch_base}#{webhook_path}".gsub(/\/+/, '/').sub(%r{/(?=:)}, '://')
+      
+      # Safely build URL with webhook_path validation
+      webhook_path_str = webhook_path.to_s.strip
+      return { success: false, error: 'Invalid webhook_path' } if webhook_path_str.empty?
+      
+      full_url = "#{switch_base}#{webhook_path_str}"
+      full_url = full_url.gsub(/\/+/, '/') if full_url.include?('/')
+      full_url = full_url.sub(%r{/(?=:)}, '://') if full_url.include?('/')
       
       response = HTTP
         .timeout(30)
@@ -86,18 +101,27 @@ class SwitchClient
         { success: false, error: "Switch returned #{response.status}" }
       end
     rescue StandardError => e
-      { success: false, error: e.message }
+      puts "[SWITCH_CLIENT_ERROR] #{e.class}: #{e.message}"
+      puts "[SWITCH_CLIENT_BACKTRACE] #{e.backtrace.first(5).join("\n")}"
+      { success: false, error: "#{e.class}: #{e.message}" }
     end
   end
 
   private
 
   def self.generate_job_id(job_data)
+    return 'JOB-INVALID-0-0' unless job_data.is_a?(Hash)
+    
     operation_map = { 1 => 'PREPRINT', 2 => 'PRINT', 3 => 'LABEL' }
-    operation_name = operation_map[job_data[:operation_id]] || 'JOB'
-    codice = job_data[:codice_ordine].to_s.gsub(/[^0-9A-Z]/i, '')
-    id_riga = job_data[:id_riga]
+    operation_name = operation_map[job_data[:operation_id]&.to_i] || 'JOB'
+    
+    codice_ordine = job_data[:codice_ordine].to_s.strip
+    return 'JOB-EMPTY-0-0' if codice_ordine.empty?
+    
+    codice = codice_ordine.gsub(/[^0-9A-Z]/i, '')
+    id_riga = job_data[:id_riga].to_s.strip
     timestamp = Time.now.to_i
+    
     "#{operation_name}-#{codice}-#{id_riga}-#{timestamp}"
   end
 
