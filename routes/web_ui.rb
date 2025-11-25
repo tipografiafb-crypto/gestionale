@@ -356,26 +356,41 @@ class PrintOrchestrator < Sinatra::Base
       order = Order.find(params[:order_id])
       item = order.order_items.find(params[:item_id])
       
-      # Reset all workflow statuses to pending
-      item.update(
+      # Reset workflow statuses to pending - only update fields that exist
+      reset_data = {
         preprint_status: 'pending',
-        preprint_job_id: nil,
-        preprint_preview_url: nil,
-        preprint_started_at: nil,
-        preprint_completed_at: nil,
-        preprint_print_flow_id: nil,
-        print_status: 'pending',
-        print_job_id: nil,
-        print_started_at: nil,
-        print_completed_at: nil,
-        print_machine_id: nil
-      )
+        print_status: 'pending'
+      }
       
+      # Add optional fields if they exist in the table
+      if OrderItem.column_names.include?('preprint_preview_url')
+        reset_data[:preprint_preview_url] = nil
+      end
+      if OrderItem.column_names.include?('preprint_started_at')
+        reset_data[:preprint_started_at] = nil
+      end
+      if OrderItem.column_names.include?('preprint_completed_at')
+        reset_data[:preprint_completed_at] = nil
+      end
+      if OrderItem.column_names.include?('preprint_print_flow_id')
+        reset_data[:preprint_print_flow_id] = nil
+      end
+      if OrderItem.column_names.include?('print_started_at')
+        reset_data[:print_started_at] = nil
+      end
+      if OrderItem.column_names.include?('print_completed_at')
+        reset_data[:print_completed_at] = nil
+      end
+      if OrderItem.column_names.include?('print_machine_id')
+        reset_data[:print_machine_id] = nil
+      end
+      
+      item.update(reset_data)
       redirect "/orders/#{order.id}?msg=success&text=Item%20reimpostato%20al%20workflow%20iniziale"
     rescue => e
       puts "[RESET_ERROR] #{e.class}: #{e.message}"
       puts e.backtrace.join("\n")
-      error_msg = e.message.gsub(' ', '%20').gsub("'", '%27')
+      error_msg = e.message.gsub(' ', '%20').gsub("'", '%27')[0..100]
       redirect "/orders/#{params[:order_id]}?msg=error&text=#{error_msg}"
     end
   end
