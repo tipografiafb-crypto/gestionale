@@ -128,7 +128,8 @@ class PrintOrchestrator < Sinatra::Base
               asset = order_item.assets.build(
                 original_url: filename,
                 local_path: local_path,
-                asset_type: 'print'
+                asset_type: 'print',
+                imported_at: Time.current
               )
               asset.save!
             rescue => e
