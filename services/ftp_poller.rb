@@ -132,8 +132,6 @@ class FTPPoller
           # Auto-create product with minimal data
           Product.create!(
             sku: item_data['sku'],
-            name: item_data['product_name'] || "Product #{item_data['sku']}",
-            description: "Auto-imported from FTP order import",
             active: true
           )
           missing_skus << item_data['sku']
