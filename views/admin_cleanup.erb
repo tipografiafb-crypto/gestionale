@@ -1,0 +1,182 @@
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/orders">Orders</a></li>
+      <li class="breadcrumb-item active">Admin</li>
+      <li class="breadcrumb-item active">Pulizia File</li>
+    </ol>
+  </nav>
+</div>
+
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h1>🧹 Pulizia File di Stampa</h1>
+  </div>
+</div>
+
+<% if params[:msg] %>
+  <div class="alert alert-<%= params[:msg] == 'success' ? 'success' : 'danger' %> alert-dismissible fade show" role="alert">
+    <%= params[:text]&.gsub('+', ' ') %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+
+<div class="row">
+  <!-- Statistiche -->
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <strong>📊 Statistiche Storage</strong>
+      </div>
+      <div class="card-body">
+        <table class="table table-sm table-borderless">
+          <tr>
+            <th>File totali importati:</th>
+            <td><strong><%= @total_assets %></strong></td>
+          </tr>
+          <tr>
+            <th>File scaricati:</th>
+            <td><strong><%= @downloaded_assets %></strong></td>
+          </tr>
+          <tr>
+            <th>File cancellati:</th>
+            <td><strong><%= @deleted_assets %></strong></td>
+          </tr>
+          <tr>
+            <th>Spazio disco usato:</th>
+            <td><strong><%= @disk_usage %></strong></td>
+          </tr>
+          <tr>
+            <th>Giorni conservazione (default):</th>
+            <td><strong><%= @retention_days %></strong></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pulizia Automatica -->
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <strong>⏰ Pulizia Automatica</strong>
+      </div>
+      <div class="card-body">
+        <p class="text-muted">File cancellati automaticamente ogni notte dopo <%= @retention_days %> giorni.</p>
+        <form action="/admin/cleanup/auto" method="post">
+          <button type="submit" class="btn btn-primary w-100" onclick="return confirm('Esegui pulizia automatica ORA (file > <%= @retention_days %> giorni)?')">
+            ▶️ Esegui Pulizia ORA
+          </button>
+        </form>
+        <small class="text-muted d-block mt-2">
+          Ultima esecuzione: <strong><%= @last_cleanup_time || 'Mai' %></strong>
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Pulizia Manuale per Mese -->
+<div class="card mb-4">
+  <div class="card-header">
+    <strong>📅 Pulizia Manuale per Mese</strong>
+  </div>
+  <div class="card-body">
+    <p class="text-muted mb-3">Seleziona un mese per visualizzare i file e decidere se eliminarli.</p>
+    
+    <form method="get" action="/admin/cleanup/preview" class="row g-3 mb-3">
+      <div class="col-md-3">
+        <label for="cleanup_year" class="form-label">Anno</label>
+        <input type="number" class="form-control" id="cleanup_year" name="year" 
+               min="2020" max="<%= Date.today.year %>" value="<%= params[:year] || Date.today.year %>">
+      </div>
+      <div class="col-md-3">
+        <label for="cleanup_month" class="form-label">Mese</label>
+        <select class="form-select" id="cleanup_month" name="month">
+          <option value="">-- Seleziona mese --</option>
+          <% 12.times do |i| %>
+            <option value="<%= i + 1 %>" <%= 'selected' if params[:month]&.to_i == (i + 1) %>>
+              <%= Date.new(2020, i + 1, 1).strftime('%B') %>
+            </option>
+          <% end %>
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">&nbsp;</label>
+        <button type="submit" class="btn btn-outline-primary w-100">🔍 Anteprima</button>
+      </div>
+    </form>
+
+    <% if params[:month].present? && params[:year].present? %>
+      <hr>
+      <h6><%= Date.new(params[:year].to_i, params[:month].to_i, 1).strftime('%B %Y') %></h6>
+      
+      <% if @preview_assets.count > 0 %>
+        <div class="alert alert-warning">
+          ⚠️ Trovati <strong><%= @preview_assets.count %></strong> file da eliminare
+          (<strong><%= @preview_space %></strong> di spazio liberato)
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>Data Import</th>
+                <th>Store</th>
+                <th>Order</th>
+                <th>SKU</th>
+                <th>File</th>
+                <th>Dimensione</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @preview_assets.each do |asset| %>
+                <tr>
+                  <td><small><%= asset.imported_at.strftime('%d-%m-%y %H:%M') %></small></td>
+                  <td><%= asset.order_item.order.store.code %></td>
+                  <td><%= link_to asset.order_item.order.external_order_code, "/orders/#{asset.order_item.order.id}" %></td>
+                  <td><%= asset.order_item.sku %></td>
+                  <td><code><small><%= asset.filename_from_url %></small></code></td>
+                  <td>
+                    <% if asset.downloaded? && File.exist?(asset.local_path_full) %>
+                      <small><%= format_file_size(File.size(asset.local_path_full)) %></small>
+                    <% else %>
+                      <small class="text-muted">N/A</small>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+
+        <form action="/admin/cleanup/delete_month" method="post" onsubmit="return confirm('Eliminare <%= @preview_assets.count %> file di <%= Date.new(params[:year].to_i, params[:month].to_i, 1).strftime('%B %Y') %>? Questa azione è irreversibile!');">
+          <input type="hidden" name="year" value="<%= params[:year] %>">
+          <input type="hidden" name="month" value="<%= params[:month] %>">
+          <button type="submit" class="btn btn-danger">
+            🗑️ Elimina <%= @preview_assets.count %> File
+          </button>
+          <a href="/admin/cleanup" class="btn btn-secondary">Annulla</a>
+        </form>
+      <% elsif params[:month].present? %>
+        <div class="alert alert-info">ℹ️ Nessun file trovato per questo mese</div>
+      <% end %>
+    <% end %>
+  </div>
+</div>
+
+<style>
+  .table-hover tbody tr:hover {
+    background-color: #f5f5f5;
+  }
+</style>
+
+<script>
+  function format_file_size(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  }
+</script>

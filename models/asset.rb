@@ -5,6 +5,9 @@ class Asset < ActiveRecord::Base
   belongs_to :order_item
 
   validates :original_url, presence: true
+  
+  scope :not_deleted, -> { where(deleted_at: nil) }
+  scope :deleted, -> { where.not(deleted_at: nil) }
 
   # Check if asset has been downloaded locally
   def downloaded?
@@ -29,5 +32,11 @@ class Asset < ActiveRecord::Base
     filename = filename_from_url
     type_prefix = asset_type.present? ? "#{asset_type}_" : ""
     "storage/#{store_code}/#{order_code}/#{sku}/#{type_prefix}#{filename}"
+  end
+  
+  # Get file size in bytes
+  def file_size
+    return 0 unless downloaded? && File.exist?(local_path_full)
+    File.size(local_path_full)
   end
 end
