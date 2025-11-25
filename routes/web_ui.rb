@@ -26,6 +26,8 @@ class PrintOrchestrator < Sinatra::Base
     @orders = @orders.by_date(params[:order_date]) if params[:order_date].present?
     @orders = @orders.limit(100)
     
+    @import_errors = ImportError.recent.limit(100)
+    
     @filter_store = params[:store_id]
     @filter_order_code = params[:order_code]
     @filter_order_date = params[:order_date]

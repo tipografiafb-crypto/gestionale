@@ -134,8 +134,9 @@ class FTPPoller
       end
       
       if missing_skus.any?
-        puts "[FTPPoller] ✗ Products not found in #{filename}: #{missing_skus.join(', ')}"
-        move_file_to_failed(ftp, filename)
+        error_msg = "Products not found: #{missing_skus.join(', ')}"
+        puts "[FTPPoller] ✗ #{error_msg}"
+        move_file_to_failed(ftp, filename, error_msg)
         return
       end
       
@@ -195,13 +196,13 @@ class FTPPoller
       
     rescue JSON::ParserError => e
       puts "[FTPPoller] ✗ Invalid JSON in #{filename}: #{e.message}"
-      move_file_to_failed(ftp, filename)
+      move_file_to_failed(ftp, filename, "Invalid JSON: #{e.message}")
     rescue ActiveRecord::RecordInvalid => e
       puts "[FTPPoller] ✗ Database error for #{filename}: #{e.message}"
-      move_file_to_failed(ftp, filename)
+      move_file_to_failed(ftp, filename, "Database error: #{e.message}")
     rescue => e
       puts "[FTPPoller] ✗ Failed to process #{filename}: #{e.message}"
-      move_file_to_failed(ftp, filename)
+      move_file_to_failed(ftp, filename, e.message)
     end
   end
 
@@ -216,8 +217,16 @@ class FTPPoller
     end
   end
 
-  def move_file_to_failed(ftp, filename)
+  def move_file_to_failed(ftp, filename, error_message = nil)
     begin
+      # Save error record
+      external_code = filename.gsub(/\.json$/, '')
+      ImportError.create!(
+        filename: filename,
+        external_order_code: external_code,
+        error_message: error_message || "Unknown error"
+      )
+      
       # Create failed folder if not exists
       ftp.mkdir('failed_orders_test') rescue nil
       ftp.rename(filename, "failed_orders_test/#{filename}")
