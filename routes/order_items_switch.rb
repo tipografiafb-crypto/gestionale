@@ -85,7 +85,9 @@ class PrintOrchestrator < Sinatra::Base
       end
     rescue => e
       item.update(preprint_status: 'failed')
-      error_msg = e.message.length > 50 ? e.message[0..50] + "..." : e.message
+      puts "[PREPRINT_ERROR] #{e.class}: #{e.message}"
+      puts "[PREPRINT_BACKTRACE] #{e.backtrace.first(5).join("\n")}"
+      error_msg = e.message.to_s.length > 50 ? e.message.to_s[0..50] + "..." : e.message.to_s
       redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + error_msg)}"
     end
   end
