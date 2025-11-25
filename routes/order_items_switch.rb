@@ -24,7 +24,7 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}?msg=error&text=Webhook+pre-stampa+non+configurato"
     end
     
-    unless print_flow.preprint_webhook.hook_path.present?
+    unless print_flow.preprint_webhook&.hook_path.present?
       redirect "/orders/#{order.id}?msg=error&text=Path+webhook+pre-stampa+vuoto"
     end
 
@@ -73,7 +73,7 @@ class PrintOrchestrator < Sinatra::Base
         }
 
         result = SwitchClient.send_to_switch(
-          webhook_path: print_flow.preprint_webhook.hook_path,
+          webhook_path: print_flow.preprint_webhook&.hook_path,
           job_data: job_data
         )
         
@@ -190,7 +190,7 @@ class PrintOrchestrator < Sinatra::Base
         }
 
         result = SwitchClient.send_to_switch(
-          webhook_path: print_flow.print_webhook.hook_path,
+          webhook_path: print_flow.print_webhook&.hook_path,
           job_data: job_data
         )
         
@@ -274,7 +274,7 @@ class PrintOrchestrator < Sinatra::Base
         }
 
         result = SwitchClient.send_to_switch(
-          webhook_path: print_flow.label_webhook.hook_path,
+          webhook_path: print_flow.label_webhook&.hook_path,
           job_data: job_data
         )
         
