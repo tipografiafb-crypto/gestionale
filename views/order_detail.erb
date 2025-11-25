@@ -163,6 +163,38 @@
                              placeholder="Inserisci percentuale (es: +10, -5)">
                       <small class="text-muted">Valore positivo o negativo che verrà inviato a Switch</small>
                     </div>
+
+                    <!-- Debug Info - Mostra dove e cosa viene inviato -->
+                    <div class="alert alert-info mt-4">
+                      <small><strong>📍 Destinazione:</strong><br>
+                      <%= ENV['SWITCH_WEBHOOK_BASE_URL'] %>/test</small><br><br>
+                      <small><strong>📦 Dati che verranno inviati:</strong><br>
+                      <code style="font-size: 11px; display: block; padding: 8px; background: #f0f0f0; border-radius: 3px; max-height: 150px; overflow-y: auto;">
+Order: <%= @order.external_order_code %><br>
+Item: <%= item.sku %> (QTà: <%= item.quantity %>)<br>
+Print Flow: <span id="flowName_<%= item.id %>"><%= item.available_print_flows.first&.name %></span><br>
+Percentuale: <span id="percValue_<%= item.id %>">0</span>%<br>
+Immagini: <%= item.assets.map(&:file_name).join(', ') || 'Nessuna' %>
+                      </code>
+                      </small>
+                    </div>
+
+                    <script>
+                      document.querySelectorAll('input[name="print_flow_id"][id^="flow_<%= item.id %>"]').forEach(radio => {
+                        radio.addEventListener('change', function() {
+                          const flowNames = {
+                            <% item.available_print_flows.each do |flow| %>
+                              '<%= flow.id %>': '<%= flow.name %>',
+                            <% end %>
+                          };
+                          document.getElementById('flowName_<%= item.id %>').textContent = flowNames[this.value];
+                        });
+                      });
+                      
+                      document.getElementById('percentuale_<%= item.id %>').addEventListener('change', function() {
+                        document.getElementById('percValue_<%= item.id %>').textContent = this.value;
+                      });
+                    </script>
                   </div>
                   <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
