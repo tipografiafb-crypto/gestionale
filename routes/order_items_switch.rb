@@ -32,11 +32,11 @@ class PrintOrchestrator < Sinatra::Base
     )
 
     # Prepare correct payload for Switch - PREPRESS (operation_id=1)
-    # Get first print asset to create payload
-    print_asset = item.assets.find { |a| a.downloaded? && a.asset_type == 'print' }
+    # Get first print asset (assets are auto-downloaded during import)
+    print_asset = item.assets.find { |a| a.asset_type == 'print' }
     unless print_asset
       item.update(preprint_status: 'failed')
-      redirect "/orders/#{order.id}?msg=error&text=Nessun+asset+scaricato"
+      redirect "/orders/#{order.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
     end
 
     product = item.product
@@ -140,11 +140,11 @@ class PrintOrchestrator < Sinatra::Base
     end
 
     # Prepare correct payload for Switch - STAMPA (operation_id=2)
-    # Get first print asset to create payload
-    print_asset = item.assets.find { |a| a.downloaded? && a.asset_type == 'print' }
+    # Get first print asset (assets are auto-downloaded during import)
+    print_asset = item.assets.find { |a| a.asset_type == 'print' }
     unless print_asset
       item.update(print_status: 'failed')
-      redirect "/orders/#{order.id}?msg=error&text=Nessun+asset+scaricato"
+      redirect "/orders/#{order.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
     end
 
     product = item.product
@@ -215,10 +215,10 @@ class PrintOrchestrator < Sinatra::Base
     end
 
     # Prepare correct payload for Switch - ETICHETTA (operation_id=3)
-    # Get first print asset to create payload
-    print_asset = item.assets.find { |a| a.downloaded? && a.asset_type == 'print' }
+    # Get first print asset (assets are auto-downloaded during import)
+    print_asset = item.assets.find { |a| a.asset_type == 'print' }
     unless print_asset
-      redirect "/orders/#{order.id}?msg=error&text=Nessun+asset+scaricato"
+      redirect "/orders/#{order.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
     end
 
     product = item.product
