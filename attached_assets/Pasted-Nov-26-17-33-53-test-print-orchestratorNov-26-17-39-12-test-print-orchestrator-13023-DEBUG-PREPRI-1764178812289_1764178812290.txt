@@ -1,0 +1,20 @@
+Nov 26 17:33:53 test print-orchestratorNov 26 17:39:12 test print-orchestrator[13023]: [DEBUG_PREPRINT_START] Order: 1, Item: 2
+Nov 26 17:39:13 test print-orchestrator[13023]: [DEBUG_PREPRINT] print_flow_id: "1"
+Nov 26 17:39:13 test print-orchestrator[13023]: [DEBUG_PREPRINT] print_flow found: true
+Nov 26 17:39:13 test print-orchestrator[13023]: [DEBUG_PREPRINT] preprint_webhook: #<SwitchWebhook id: 1, name: "plettri", hook_path: "/op", store_id: nil, active: true, created_at: "2025-11-26 17:15:05.550361000 +0000", updated_at: "2025-11-26 17:15:05.550361000 +0000">
+Nov 26 17:39:13 test print-orchestrator[13023]: [DEBUG_PREPRINT] webhook_hook_path: "/op"
+Nov 26 17:39:13 test print-orchestrator[13023]: [DEBUG_PREPRINT] Processing asset: 3
+Nov 26 17:39:13 test print-orchestrator[13023]: [DEBUG_PREPRINT] Calling SwitchClient.send_to_switch with webhook_path: "/op"
+Nov 26 17:39:13 test print-orchestrator[13023]: [SWITCH_CLIENT_DEBUG] Full URL: http://192.168.1.162:51080/switch-webhook/op
+Nov 26 17:39:13 test print-orchestrator[13023]: [SWITCH_CLIENT_ERROR] HTTP::ConnectionError: failed to connect: Connection refused - connect(2) for "192.168.1.162" port 51080
+Nov 26 17:39:13 test print-orchestrator[13023]: [SWITCH_CLIENT_BACKTRACE] /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/http-5.3.1/lib/http/timeout/global.rb:25:in `initialize'
+Nov 26 17:39:13 test print-orchestrator[13023]: /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/http-5.3.1/lib/http/timeout/global.rb:25:in `open'
+Nov 26 17:39:13 test print-orchestrator[13023]: /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/http-5.3.1/lib/http/timeout/global.rb:25:in `block in connect'
+Nov 26 17:39:13 test print-orchestrator[13023]: /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/timeout-0.4.4/lib/timeout.rb:188:in `block in timeout'
+Nov 26 17:39:13 test print-orchestrator[13023]: /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/timeout-0.4.4/lib/timeout.rb:195:in `timeout'
+Nov 26 17:39:13 test print-orchestrator[13023]: [DEBUG_PREPRINT] Result: {:success=>false, :error=>"HTTP::ConnectionError: failed to connect: Connection refused - connect(2) for \"192.168.1.162\" port 51080"}
+Nov 26 17:39:16 test print-orchestrator[13023]: [FTPPoller] ✓ Connected to c72965.sgvps.net:21
+Nov 26 17:39:16 test print-orchestrator[13023]: [FTPPoller] Changing to directory: /test/
+Nov 26 17:39:16 test print-orchestrator[13023]: [FTPPoller] nlst failed: 550 Can't check for file existence
+Nov 26 17:39:16 test print-orchestrator[13023]: , trying list...
+Nov 26 17:39:17 test print-orchestrator[13023]: [FTPPoller] No .json files found in /test/
