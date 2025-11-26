@@ -76,10 +76,10 @@ echo -e "${GREEN}✓ Database ready${NC}"
 echo -e "\n${YELLOW}[6/7]${NC} Testing database connection..."
 TABLE_COUNT=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';" 2>/dev/null || echo "0")
 
-if [ "$TABLE_COUNT" -gt 10 ]; then
+if [ "$TABLE_COUNT" -gt 12 ]; then
   echo -e "${GREEN}✓ Database connected ($TABLE_COUNT tables created)${NC}"
 else
-  echo -e "${RED}✗ Database setup incomplete ($TABLE_COUNT tables)${NC}"
+  echo -e "${RED}✗ Database setup incomplete (only $TABLE_COUNT tables, expected 15+)${NC}"
   exit 1
 fi
 
