@@ -40,12 +40,12 @@ namespace :db do
       puts "⚠️  Missing tables after migrations: #{missing_tables.join(', ')}"
       puts "🔄 Loading consolidated schema..."
 
-      schema_file = File.expand_path("db/init/consolidated_schema.sql")
+      schema_file = File.expand_path("db/init/schema_only.sql")
       if File.exist?(schema_file)
         begin
-          # Use psql command to load the dump (handles psql commands properly)
+          # Use psql command to load the schema-only dump (no data, no role dependencies)
           db_url = ENV['DATABASE_URL'] || "postgresql://orchestrator_user:paolo@localhost:5432/print_orchestrator_dev"
-          system("psql #{db_url} < #{schema_file}")
+          system("psql #{db_url} -q < #{schema_file}")
           
           puts "✓ Schema loaded from consolidated_schema.sql"
           existing_tables = conn.tables
