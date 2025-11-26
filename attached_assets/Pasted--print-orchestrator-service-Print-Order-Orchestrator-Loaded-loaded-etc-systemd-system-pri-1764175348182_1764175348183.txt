@@ -1,0 +1,31 @@
+● print-orchestrator.service - Print Order Orchestrator
+     Loaded: loaded (/etc/systemd/system/print-orchestrator.service; enabled; p>
+     Active: activating (auto-restart) (Result: exit-code) since Wed 2025-11-26>
+    Process: 9088 ExecStart=/usr/local/bin/bundle exec puma -b tcp://0.0.0.0:50>
+   Main PID: 9088 (code=exited, status=127)
+        CPU: 218ms
+
+Nov 26 16:41:20 test systemd[1]: print-orchestrator.service: Scheduled restart >
+Nov 26 16:41:20 test systemd[1]: Started print-orchestrator.service - Print Ord>
+Nov 26 16:41:20 test print-orchestrator[9076]: /usr/bin/env: ‘ruby3.2’: No such>
+Nov 26 16:41:20 test systemd[1]: print-orchestrator.service: Main process exite>
+Nov 26 16:41:20 test systemd[1]: print-orchestrator.service: Failed with result>
+Nov 26 16:41:25 test systemd[1]: print-orchestrator.service: Scheduled restart >
+Nov 26 16:41:26 test systemd[1]: Started print-orchestrator.service - Print Ord>
+Nov 26 16:41:26 test print-orchestrator[9079]: /usr/bin/env: ‘ruby3.2’: No such>
+Nov 26 16:41:26 test systemd[1]: print-orchestrator.service: Main process exite>
+Nov 26 16:41:26 test systemd[1]: print-orchestrator.service: Failed with result>
+Nov 26 16:41:31 test systemd[1]: print-orchestrator.service: Scheduled restart >
+Nov 26 16:41:31 test systemd[1]: Started print-orchestrator.service - Print Ord>
+Nov 26 16:41:31 test print-orchestrator[9081]: /usr/bin/env: ‘ruby3.2’: No such>
+Nov 26 16:41:31 test systemd[1]: print-orchestrator.service: Main process exite>
+Nov 26 16:41:31 test systemd[1]: print-orchestrator.service: Failed with result>
+Nov 26 16:41:36 test systemd[1]: print-orchestrator.service: Scheduled restart >
+Nov 26 16:41:36 test systemd[1]: Started print-orchestrator.service - Print Ord>
+Nov 26 16:41:36 test print-orchestrator[9083]: /usr/bin/env: ‘ruby3.2’: No such>
+Nov 26 16:41:36 test systemd[1]: print-orchestrator.service: Main process exite>
+Nov 26 16:41:36 test systemd[1]: print-orchestrator.service: Failed with result>
+Nov 26 16:41:41 test systemd[1]: print-orchestrator.service: Scheduled restart >
+Nov 26 16:41:41 test systemd[1]: Started print-orchestrator.service - Print Ord>
+Nov 26 16:41:41 test print-orchestrator[9085]: /usr/bin/env: ‘ruby3.2’: No such>
+lines 1-23
