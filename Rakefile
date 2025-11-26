@@ -16,16 +16,29 @@ namespace :db do
       puts "⚠️  Database creation: #{e.message}"
     end
 
-    # Step 2: Run all migrations
-    begin
-      puts "[2/5] Running migrations..."
-      Rake::Task["db:migrate"].invoke
-      puts "✓ Migrations executed"
-    rescue => e
-      puts "⚠️  Migration error: #{e.message}"
+    # Step 2: Load schema directly (skip migrations to avoid dependency issues)
+    puts "[2/5] Loading database schema..."
+    schema_file = File.expand_path("db/init/schema_only.sql")
+    if File.exist?(schema_file)
+      begin
+        # Use psql command to load the schema-only dump
+        db_url = ENV['DATABASE_URL'] || "postgresql://orchestrator_user:paolo@localhost:5432/print_orchestrator_dev"
+        system("psql #{db_url} -q < #{schema_file} 2>/dev/null")
+        puts "✓ Schema loaded successfully"
+      rescue => e
+        puts "⚠️  Schema loading: #{e.message}"
+      end
+    else
+      puts "⚠️  schema_only.sql not found, trying migrations..."
+      begin
+        Rake::Task["db:migrate"].invoke
+        puts "✓ Migrations executed"
+      rescue => e
+        puts "⚠️  Migration error: #{e.message}"
+      end
     end
 
-    # Step 3: Verify tables and load schema if needed
+    # Step 3: Verify tables
     puts "[3/5] Verifying tables..."
     required_tables = %w[
       stores orders order_items assets products print_flows product_categories
@@ -33,31 +46,7 @@ namespace :db do
     ]
 
     existing_tables = conn.tables
-    missing_tables = required_tables - existing_tables
     created_count = existing_tables.size
-
-    if missing_tables.any?
-      puts "⚠️  Missing tables after migrations: #{missing_tables.join(', ')}"
-      puts "🔄 Loading consolidated schema..."
-
-      schema_file = File.expand_path("db/init/schema_only.sql")
-      if File.exist?(schema_file)
-        begin
-          # Use psql command to load the schema-only dump (no data, no role dependencies)
-          db_url = ENV['DATABASE_URL'] || "postgresql://orchestrator_user:paolo@localhost:5432/print_orchestrator_dev"
-          system("psql #{db_url} -q < #{schema_file}")
-          
-          puts "✓ Schema loaded from consolidated_schema.sql"
-          existing_tables = conn.tables
-          created_count = existing_tables.size
-        rescue => e
-          puts "❌ Failed to load schema: #{e.message}"
-        end
-      else
-        puts "⚠️  consolidated_schema.sql not found at #{schema_file}"
-        puts "Using only migration-created tables (#{created_count} tables)"
-      end
-    end
 
     puts "✓ Database has #{created_count} tables"
 

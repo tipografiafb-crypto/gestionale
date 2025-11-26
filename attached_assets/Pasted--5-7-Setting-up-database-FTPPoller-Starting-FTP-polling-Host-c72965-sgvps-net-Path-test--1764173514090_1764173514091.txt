@@ -1,0 +1,60 @@
+[5/7] Setting up database...
+[FTPPoller] Starting FTP polling - Host: c72965.sgvps.net, Path: /test/, Interval: 60s
+🗄️  Starting complete database setup...
+[1/5] Creating database...
+Created database 'print_orchestrator_dev'
+✓ Database created/verified
+[2/5] Running migrations...
+== 20251124 CreateInventories: migrating ======================================
+-- create_table(:inventories)
+⚠️  Migration error: An error has occurred, this and all later migrations canceled:
+
+PG::UndefinedTable: ERROR:  relation "products" does not exist
+[3/5] Verifying tables...
+[FTPPoller] ✓ Connected to c72965.sgvps.net:21
+[FTPPoller] Changing to directory: /test/
+⚠️  Missing tables after migrations: stores, orders, order_items, assets, products, print_flows, product_categories, switch_jobs, switch_webhooks, print_machines, inventories, product_print_flows
+🔄 Loading consolidated schema...
+ set_config 
+------------
+ 
+(1 row)
+
+ERROR:  relation "ar_internal_metadata" already exists
+ERROR:  relation "schema_migrations" already exists
+ERROR:  multiple primary keys for table "ar_internal_metadata" are not allowed
+[FTPPoller] nlst failed: 550 Can't check for file existence
+, trying list...
+ERROR:  multiple primary keys for table "schema_migrations" are not allowed
+[FTPPoller] No .json files found in /test/
+✓ Schema loaded from consolidated_schema.sql
+✓ Database has 15 tables
+[4/5] Final verification...
+✓ All required tables created!
+[5/5] Loading seed data...
+You have 23 pending migrations:
+  20251124 CreateInventories
+  20251125 AddTimestampsToAssets
+  1763763615 CreatePrintFlows
+  1763763616 UpdateProductsForPrintFlows
+  1763763939 UpdatePrintFlowsToUseWebhooks
+  1763764998 CreateProductCategories
+  1763765000 AddCategoryToProducts
+  1763907186 AddSwitchPayloadFields
+  20251121182018 AddSourceToOrders
+  20251121185221 AddCustomerInfoToOrders
+  20251121191420 CreateSwitchWebhooks
+  20251121192144 RenameWebhookUrlToHookPath
+  20251121193043 CreateProducts
+  20251121204148 AddNameToProducts
+  20251122084500 AddSwitchTrackingToOrderItems
+  20251122085000 AddActiveToStores
+  20251122085002 AddLabelWebhookToPrintFlows
+  20251122085003 CreateProductPrintFlows
+  20251122085004 AddDefaultPrintFlowToProducts
+  20251122085005 AddPreprintPrintFlowToOrderItems
+  20251123120000 CreatePrintMachines
+  20251123120001 CreatePrintFlowMachines
+  20251123120002 AddPrintMachineToOrderItems
+Run `bin/rails db:migrate` to update your database then try again.
+❌ Database setup failed
