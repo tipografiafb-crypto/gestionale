@@ -40,8 +40,8 @@ namespace :db do
       puts "⚠️  Missing tables after migrations: #{missing_tables.join(', ')}"
       puts "🔄 Loading consolidated schema..."
 
-      schema_file = Rails.root.join("db/init/consolidated_schema.sql")
-      if schema_file.exist?
+      schema_file = File.expand_path("db/init/consolidated_schema.sql")
+      if File.exist?(schema_file)
         begin
           sql = File.read(schema_file)
           conn.execute(sql)
