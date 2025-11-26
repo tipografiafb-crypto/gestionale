@@ -1,0 +1,62 @@
+[5/7] Setting up database...
+[FTPPoller] Starting FTP polling - Host: c72965.sgvps.net, Path: /test/, Interval: 60s
+🗄️  Starting complete database setup...
+[1/5] Creating database...
+Created database 'print_orchestrator_dev'
+✓ Database created/verified
+[2/5] Running migrations...
+== 20251124 CreateInventories: migrating ======================================
+-- create_table(:inventories)
+⚠️  Migration error: An error has occurred, this and all later migrations canceled:
+
+PG::UndefinedTable: ERROR:  relation "products" does not exist
+[3/5] Verifying tables...
+[FTPPoller] ✓ Connected to c72965.sgvps.net:21
+[FTPPoller] Changing to directory: /test/
+⚠️  Missing tables after migrations: stores, orders, order_items, assets, products, print_flows, product_categories, switch_jobs, switch_webhooks, print_machines, inventories, product_print_flows
+🔄 Loading consolidated schema...
+❌ Failed to load schema: PG::SyntaxError: ERROR:  syntax error at or near "\"
+LINE 5: \restrict ROaGTKrdyFhWdx3ArsUjeOZYiUqCPXSqs0veNHMfkoBUzP8Mbt...
+        ^
+rake aborted!
+ActiveRecord::StatementInvalid: PG::SyntaxError: ERROR:  syntax error at or near "\" (ActiveRecord::StatementInvalid)
+LINE 5: \restrict ROaGTKrdyFhWdx3ArsUjeOZYiUqCPXSqs0veNHMfkoBUzP8Mbt...
+        ^
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/postgresql/database_statements.rb:56:in `exec'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/postgresql/database_statements.rb:56:in `block (2 levels) in raw_execute'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract_adapter.rb:1024:in `block in with_raw_connection'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activesupport-7.2.3/lib/active_support/concurrency/null_lock.rb:9:in `synchronize'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract_adapter.rb:993:in `with_raw_connection'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/postgresql/database_statements.rb:55:in `block in raw_execute'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activesupport-7.2.3/lib/active_support/notifications/instrumenter.rb:58:in `instrument'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract_adapter.rb:1141:in `log'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/postgresql/database_statements.rb:54:in `raw_execute'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/database_statements.rb:538:in `internal_execute'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/database_statements.rb:137:in `execute'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/query_cache.rb:27:in `execute'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/postgresql/database_statements.rb:48:in `execute'
+/home/paolo/apps/print-orchestrator/Rakefile:47:in `block (2 levels) in <top (required)>'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/rake-13.3.1/exe/rake:27:in `<top (required)>'
+
+Caused by:
+PG::SyntaxError: ERROR:  syntax error at or near "\" (PG::SyntaxError)
+LINE 5: \restrict ROaGTKrdyFhWdx3ArsUjeOZYiUqCPXSqs0veNHMfkoBUzP8Mbt...
+        ^
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/postgresql/database_statements.rb:56:in `exec'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/postgresql/database_statements.rb:56:in `block (2 levels) in raw_execute'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract_adapter.rb:1024:in `block in with_raw_connection'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activesupport-7.2.3/lib/active_support/concurrency/null_lock.rb:9:in `synchronize'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract_adapter.rb:993:in `with_raw_connection'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/postgresql/database_statements.rb:55:in `block in raw_execute'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activesupport-7.2.3/lib/active_support/notifications/instrumenter.rb:58:in `instrument'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract_adapter.rb:1141:in `log'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/postgresql/database_statements.rb:54:in `raw_execute'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/database_statements.rb:538:in `internal_execute'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/database_statements.rb:137:in `execute'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/query_cache.rb:27:in `execute'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/postgresql/database_statements.rb:48:in `execute'
+/home/paolo/apps/print-orchestrator/Rakefile:47:in `block (2 levels) in <top (required)>'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/rake-13.3.1/exe/rake:27:in `<top (required)>'
+Tasks: TOP => db:setup_complete
+(See full trace by running task with --trace)
+❌ Database setup failed

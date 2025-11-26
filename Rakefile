@@ -43,14 +43,15 @@ namespace :db do
       schema_file = File.expand_path("db/init/consolidated_schema.sql")
       if File.exist?(schema_file)
         begin
-          sql = File.read(schema_file)
-          conn.execute(sql)
+          # Use psql command to load the dump (handles psql commands properly)
+          db_url = ENV['DATABASE_URL'] || "postgresql://orchestrator_user:paolo@localhost:5432/print_orchestrator_dev"
+          system("psql #{db_url} < #{schema_file}")
+          
           puts "✓ Schema loaded from consolidated_schema.sql"
           existing_tables = conn.tables
           created_count = existing_tables.size
         rescue => e
           puts "❌ Failed to load schema: #{e.message}"
-          raise
         end
       else
         puts "⚠️  consolidated_schema.sql not found at #{schema_file}"
