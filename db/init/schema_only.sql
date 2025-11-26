@@ -506,18 +506,6 @@ ALTER SEQUENCE public.switch_webhooks_id_seq OWNED BY public.switch_webhooks.id;
 -- Name: import_errors; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.import_errors (
-    id bigint NOT NULL,
-    store_id bigint,
-    filename character varying,
-    external_order_code character varying,
-    error_message text,
-    import_date timestamp(6) without time zone,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
-);
-
-
 --
 -- Name: import_errors_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
@@ -528,6 +516,22 @@ CREATE SEQUENCE public.import_errors_id_seq
     NO MINVALUE
     NO MAXVALUE
     CACHE 1;
+
+
+--
+-- Name: import_errors; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.import_errors (
+    id bigint NOT NULL DEFAULT nextval('public.import_errors_id_seq'::regclass),
+    store_id bigint,
+    filename character varying,
+    external_order_code character varying,
+    error_message text,
+    import_date timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
 
 
 --
