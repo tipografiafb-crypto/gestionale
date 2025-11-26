@@ -62,13 +62,17 @@ namespace :db do
       puts "✓ All required tables created!"
     end
 
-    # Step 5: Seed data if needed
+    # Step 5: Mark all migrations as executed (since we loaded schema directly)
     begin
-      puts "[5/5] Loading seed data..."
-      Rake::Task["db:seed"].invoke
-      puts "✓ Seed data loaded"
+      puts "[5/5] Marking migrations as executed..."
+      migrations_dir = File.expand_path("db/migrate")
+      Dir.glob("#{migrations_dir}/*.rb").each do |file|
+        migration_name = File.basename(file, ".rb")
+        conn.execute("INSERT INTO schema_migrations (version) VALUES ('#{migration_name}') ON CONFLICT DO NOTHING")
+      end
+      puts "✓ Migrations marked"
     rescue => e
-      puts "⚠️  Seed data: #{e.message}"
+      puts "⚠️  Marking migrations: #{e.message}"
     end
 
     puts "\n✅ Database setup complete! (#{created_count} tables)"
