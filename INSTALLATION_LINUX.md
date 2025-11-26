@@ -34,7 +34,29 @@ curl http://localhost:5000/orders
 ### Cosa fanno gli script automatici?
 
 - ✅ `quick_start_linux.sh` - Controlla prerequisiti, installa dipendenze, configura database, copia `.env`
+  - **Database setup garantito**: Esegue migrazioni + carica schema consolidato (15 tabelle garantite)
+  - Verifica che tutte le tabelle siano state create prima di proseguire
+  - Carica i dati di seed (negozi, prodotti, etc.)
+
 - ✅ `setup_service.sh` - Crea il servizio systemd per avviare automaticamente l'app al boot
+
+### ⚠️ IMPORTANTE - Prima di Installare su Ubuntu
+
+Se hai modificato il codice su Replit, **DEVI sincronizzare i file su GitHub** altrimenti Ubuntu avrà versione vecchia:
+
+```bash
+# Su Replit (oppure dalla cartella print-orchestrator):
+cd /home/paolo/apps/print-orchestrator
+git add -A
+git commit -m "Update installer and database setup"
+git push
+```
+
+Poi su Ubuntu:
+```bash
+git pull  # Scarica gli ultimi aggiornamenti da GitHub
+bash quick_start_linux.sh
+```
 
 ---
 
@@ -312,18 +334,31 @@ bundle install
 
 ## 4.9 Crea il Database
 
+### ⭐ NUOVO: Setup Automatico Completo
+
 ```bash
-bundle exec rake db:create
+DATABASE_URL=postgresql://orchestrator_user:your_secure_password@localhost:5432/print_orchestrator_dev bundle exec rake db:setup_complete
 ```
 
-Se ricevi un errore su schema migrations, carica manualmente lo schema SQL:
+Questo comando:
+- ✅ Crea il database
+- ✅ Esegue tutte le migrazioni
+- ✅ Carica automaticamente lo schema SQL consolidato come fallback
+- ✅ Verifica che tutte le 15 tabelle siano create
+- ✅ Carica i dati di seed
+
+Se tutto va bene, vedrai:
+```
+✓ Database connected (15 tables created)
+✅ Database setup complete!
+```
+
+### ✋ Alternativa Manuale (se il task non funziona)
 
 ```bash
-# Scarica lo schema dalla repo
-curl -o db/schema.sql https://raw.githubusercontent.com/tipografiafb-crypto/gestionale/main/db/init/02-schema.sql
-
-# Carica nello schema
-psql -U orchestrator_user -d print_orchestrator_dev -f db/schema.sql
+bundle exec rake db:create
+bundle exec rake db:migrate
+psql -U orchestrator_user -d print_orchestrator_dev -f db/init/consolidated_schema.sql
 ```
 
 ---
