@@ -80,7 +80,7 @@ echo -e "${GREEN}✓ Database ready${NC}"
 
 # Step 6: Health check
 echo -e "\n${YELLOW}[6/7]${NC} Testing database connection..."
-TABLE_COUNT=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';" 2>/dev/null || echo "0")
+TABLE_COUNT=$(psql "$DATABASE_URL" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';" 2>/dev/null || echo "0")
 
 if [ "$TABLE_COUNT" -gt 12 ]; then
   echo -e "${GREEN}✓ Database connected ($TABLE_COUNT tables created)${NC}"
