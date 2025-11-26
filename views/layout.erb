@@ -4,80 +4,56 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Print Order Orchestrator</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .status-badge {
-      font-size: 0.85em;
-      padding: 0.35em 0.65em;
+      @apply text-xs font-semibold px-2.5 py-1 rounded;
     }
-    .status-new { background-color: #0d6efd; }
-    .status-sent_to_switch { background-color: #6c757d; }
-    .status-processing { background-color: #ffc107; color: #000; }
-    .status-done { background-color: #198754; }
-    .status-error { background-color: #dc3545; }
+    .status-new { @apply bg-blue-600 text-white; }
+    .status-sent_to_switch { @apply bg-gray-600 text-white; }
+    .status-processing { @apply bg-yellow-500 text-black; }
+    .status-done { @apply bg-green-600 text-white; }
+    .status-error { @apply bg-red-600 text-white; }
     .asset-preview {
-      max-width: 100px;
-      max-height: 100px;
-      object-fit: cover;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      @apply max-w-24 max-h-24 object-cover border border-gray-300 rounded;
     }
     .log-box {
-      background-color: #f8f9fa;
-      border: 1px solid #dee2e6;
-      border-radius: 4px;
-      padding: 1rem;
-      font-family: monospace;
-      font-size: 0.85rem;
-      white-space: pre-wrap;
-      max-height: 300px;
-      overflow-y: auto;
+      @apply bg-gray-100 border border-gray-300 rounded p-4 font-mono text-sm whitespace-pre-wrap max-h-80 overflow-y-auto;
     }
   </style>
 </head>
-<body>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="/">🖨️ Print Order Orchestrator</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-3">
-          <li class="nav-item">
-            <a class="nav-link" href="/orders">📋 Ordini</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/line_items">🔗 Lavorazioni</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/inventory">📦 Magazzino</a>
-          </li>
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="settingsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+<body class="bg-gray-50">
+  <nav class="bg-slate-900 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex justify-between items-center h-16">
+        <a href="/" class="text-xl font-bold hover:text-gray-300 transition">🖨️ Print Order Orchestrator</a>
+        <div class="hidden md:flex gap-8">
+          <a href="/orders" class="hover:text-gray-300 transition">📋 Ordini</a>
+          <a href="/line_items" class="hover:text-gray-300 transition">🔗 Lavorazioni</a>
+          <a href="/inventory" class="hover:text-gray-300 transition">📦 Magazzino</a>
+          <div class="relative group">
+            <button class="hover:text-gray-300 transition flex items-center gap-1">
               ⚙️ Impostazioni
-            </a>
-            <ul class="dropdown-menu" aria-labelledby="settingsDropdown">
-              <li><a class="dropdown-item" href="/stores">🏪 Negozi</a></li>
-              <li><a class="dropdown-item" href="/print_flows">🔄 Flussi di Stampa</a></li>
-              <li><a class="dropdown-item" href="/admin/print_machines">🔧 Macchine da Stampa</a></li>
-              <li><a class="dropdown-item" href="/webhooks">🔗 Webhook Switch</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="/products">📦 Prodotti</a></li>
-              <li><a class="dropdown-item" href="/product_categories">📂 Categorie</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="/admin/cleanup">🧹 Storage Cleanup</a></li>
-            </ul>
-          </li>
-        </ul>
+            </button>
+            <div class="hidden group-hover:block absolute right-0 bg-white text-gray-900 rounded shadow-lg py-2 w-48 z-10">
+              <a href="/stores" class="block px-4 py-2 hover:bg-gray-100">🏪 Negozi</a>
+              <a href="/print_flows" class="block px-4 py-2 hover:bg-gray-100">🔄 Flussi di Stampa</a>
+              <a href="/admin/print_machines" class="block px-4 py-2 hover:bg-gray-100">🔧 Macchine da Stampa</a>
+              <a href="/webhooks" class="block px-4 py-2 hover:bg-gray-100">🔗 Webhook Switch</a>
+              <hr class="my-1">
+              <a href="/products" class="block px-4 py-2 hover:bg-gray-100">📦 Prodotti</a>
+              <a href="/product_categories" class="block px-4 py-2 hover:bg-gray-100">📂 Categorie</a>
+              <hr class="my-1">
+              <a href="/admin/cleanup" class="block px-4 py-2 hover:bg-gray-100">🧹 Storage Cleanup</a>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </nav>
   
-  <div class="container mt-4">
+  <div class="max-w-7xl mx-auto px-4 py-6">
     <%= yield %>
   </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
