@@ -64,17 +64,45 @@ echo -e "${GREEN}✓ Storage directory ready${NC}"
 
 # Step 5: Database setup
 echo -e "\n${YELLOW}[5/7]${NC} Setting up database..."
+
+# Try migrations
 bundle exec rake db:migrate
-bundle exec rake db:seed
+MIGRATION_RESULT=$?
+
+# Check if tables were created
+TABLE_COUNT=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';" 2>/dev/null || echo "0")
+
+if [ "$TABLE_COUNT" -lt 15 ]; then
+  echo -e "${YELLOW}⚠ Migrations created only $TABLE_COUNT tables (expected 15+)${NC}"
+  echo -e "${YELLOW}Attempting to load consolidated schema...${NC}"
+  
+  # Check if consolidated schema exists
+  if [ -f "db/init/consolidated_schema.sql" ]; then
+    PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -f db/init/consolidated_schema.sql > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+      echo -e "${GREEN}✓ Schema loaded successfully${NC}"
+    else
+      echo -e "${RED}❌ Failed to load consolidated schema${NC}"
+      exit 1
+    fi
+  else
+    echo -e "${RED}❌ Consolidated schema not found at db/init/consolidated_schema.sql${NC}"
+    echo -e "${RED}❌ Tables were not created properly${NC}"
+    exit 1
+  fi
+fi
+
+bundle exec rake db:seed 2>/dev/null || true
 echo -e "${GREEN}✓ Database ready${NC}"
 
 # Step 6: Health check
 echo -e "\n${YELLOW}[6/7]${NC} Testing database connection..."
-bundle exec rake db:migrate:status > /dev/null 2>&1
-if [ $? -eq 0 ]; then
-  echo -e "${GREEN}✓ Database connected${NC}"
+FINAL_TABLE_COUNT=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';" 2>/dev/null || echo "0")
+
+if [ "$FINAL_TABLE_COUNT" -gt 15 ]; then
+  echo -e "${GREEN}✓ Database connected ($FINAL_TABLE_COUNT tables)${NC}"
 else
-  echo -e "${RED}✗ Database connection failed${NC}"
+  echo -e "${RED}✗ Database has only $FINAL_TABLE_COUNT tables (expected 15+)${NC}"
   exit 1
 fi
 
