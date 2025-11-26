@@ -94,13 +94,19 @@
 <h3 class="text-xl font-semibold text-gray-800 mb-4">Order Items (<%= @order.order_items.count %>)</h3>
 
 <% @order.order_items.each_with_index do |item, index| %>
-  <div class="bg-white rounded-lg border border-gray-200 shadow-sm mb-4 p-6">
-    <div class="flex justify-between items-start mb-4">
-      <div>
-        <h4 class="text-lg font-semibold text-gray-800"><%= item.product&.name || item.sku %></h4>
-        <p class="text-gray-600">Quantità: <%= item.quantity %></p>
+  <div class="bg-white rounded-lg border border-gray-200 shadow-sm mb-4 overflow-hidden">
+    <!-- Header: Titolo prodotto, quantità, e pulsanti azione -->
+    <div class="p-6 border-b border-gray-200">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <h4 class="text-lg font-semibold text-gray-800"><%= item.product&.name || item.sku %></h4>
+          <p class="text-gray-600 text-sm">Quantità: <strong><%= item.quantity %></strong></p>
+        </div>
       </div>
+
+      <!-- Pulsanti azione in fila -->
       <div class="flex gap-2 flex-wrap">
+        <!-- Pre-stampa -->
         <button type="button" class="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-3 py-2 rounded text-sm font-semibold transition <%= 'opacity-50 cursor-not-allowed' unless item.can_send_to_preprint? %>" 
                 <%= 'disabled' unless item.can_send_to_preprint? %>
                 title="<%= item.can_send_to_preprint? ? 'Configura e invia a pre-stampa' : 'Immagini non ancora scaricate' %>"
@@ -113,64 +119,15 @@
           <% end %>
         </button>
 
-        <div class="modal fade" id="flowSelectModal_<%= item.id %>" tabindex="-1">
-          <div class="modal-dialog">
-            <div class="modal-content rounded-lg">
-              <div class="modal-header bg-gray-100 border-b">
-                <h5 class="font-semibold text-gray-800">🖨️ Pre-stampa - Configura Invio</h5>
-                <button type="button" class="text-gray-600 hover:text-gray-900" data-bs-dismiss="modal">✕</button>
-              </div>
-              <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_preprint" method="post">
-                <div class="modal-body">
-                  <% if item.available_print_flows.count > 0 %>
-                    <div class="mb-4">
-                      <label class="block text-sm font-semibold text-gray-700 mb-2"><strong>Flusso di Stampa</strong></label>
-                      <div class="space-y-2">
-                        <% item.available_print_flows.each do |flow| %>
-                          <div class="flex items-center gap-2">
-                            <input class="border border-gray-300 rounded" type="radio" name="print_flow_id" 
-                                   value="<%= flow.id %>" id="flow_<%= item.id %>_<%= flow.id %>"
-                                   <%= 'checked' if flow.id == item.product&.default_print_flow_id %>>
-                            <label for="flow_<%= item.id %>_<%= flow.id %>" class="text-sm">
-                              <strong><%= flow.name %></strong>
-                              <% if flow.id == item.product&.default_print_flow_id %>
-                                <span class="bg-blue-100 text-blue-700 text-xs font-semibold px-1 rounded">Default</span>
-                              <% end %>
-                            </label>
-                          </div>
-                        <% end %>
-                      </div>
-                    </div>
-                  <% else %>
-                    <div class="bg-yellow-50 border border-yellow-200 rounded p-3 text-yellow-700 text-sm">Nessun flusso di stampa disponibile</div>
-                  <% end %>
-                  
-                  <div class="mb-4">
-                    <label for="percentuale_<%= item.id %>" class="block text-sm font-semibold text-gray-700 mb-2"><strong>Percentuale (%)</strong></label>
-                    <input type="number" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" id="percentuale_<%= item.id %>" 
-                           name="percentuale" value="0" step="1" min="-999" max="999"
-                           placeholder="Inserisci percentuale (es: +10, -5)">
-                    <small class="text-gray-600">Valore positivo o negativo che verrà inviato a Switch</small>
-                  </div>
-                </div>
-                <div class="modal-footer bg-gray-100 border-t flex gap-2 justify-end">
-                  <button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded font-semibold transition" data-bs-dismiss="modal">Annulla</button>
-                  <button type="submit" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded font-semibold transition">🖨️ Invia a Pre-stampa</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
         <% if item.preprint_status == 'processing' %>
           <form action="/orders/<%= @order.id %>/items/<%= item.id %>/confirm_preprint" method="post" class="inline">
-            <button type="submit" class="bg-cyan-100 hover:bg-cyan-200 text-cyan-700 px-3 py-2 rounded text-sm font-semibold transition" 
-                    title="Conferma manualmente il completamento della pre-stampa">
+            <button type="submit" class="bg-cyan-100 hover:bg-cyan-200 text-cyan-700 px-3 py-2 rounded text-sm font-semibold transition" title="Conferma manualmente il completamento della pre-stampa">
               ✓ Conferma
             </button>
           </form>
         <% end %>
         
+        <!-- Stampa -->
         <% available_machines = item.print_flow&.print_machines || [] %>
         <% if available_machines.count > 1 %>
           <button type="button" class="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded text-sm font-semibold transition <%= 'opacity-50 cursor-not-allowed' unless item.can_send_to_print? %>" 
@@ -184,41 +141,6 @@
               </span>
             <% end %>
           </button>
-
-          <div class="modal fade" id="machineSelectModal_<%= item.id %>" tabindex="-1">
-            <div class="modal-dialog">
-              <div class="modal-content rounded-lg">
-                <div class="modal-header bg-gray-100 border-b">
-                  <h5 class="font-semibold text-gray-800">Scegli Macchina da Stampa</h5>
-                  <button type="button" class="text-gray-600 hover:text-gray-900" data-bs-dismiss="modal">✕</button>
-                </div>
-                <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_print" method="post">
-                  <div class="modal-body">
-                    <p class="text-gray-600 text-sm mb-4">Seleziona la macchina per questo lavoro:</p>
-                    <div class="space-y-2">
-                      <% available_machines.each do |machine| %>
-                        <div class="flex items-start gap-2">
-                          <input class="mt-1 border border-gray-300 rounded" type="radio" name="print_machine_id" 
-                                 value="<%= machine.id %>" id="machine_<%= item.id %>_<%= machine.id %>"
-                                 <%= 'checked' if available_machines.first.id == machine.id %>>
-                          <label for="machine_<%= item.id %>_<%= machine.id %>" class="text-sm">
-                            <strong><%= machine.name %></strong>
-                            <% if machine.description %>
-                              <br><small class="text-gray-600"><%= machine.description %></small>
-                            <% end %>
-                          </label>
-                        </div>
-                      <% end %>
-                    </div>
-                  </div>
-                  <div class="modal-footer bg-gray-100 border-t flex gap-2 justify-end">
-                    <button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded font-semibold transition" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-semibold transition">✅ Invia in Stampa</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
         <% else %>
           <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_print" method="post" class="inline">
             <% if available_machines.count == 1 %>
@@ -239,17 +161,13 @@
 
         <% if item.print_status == 'processing' %>
           <form action="/orders/<%= @order.id %>/items/<%= item.id %>/confirm_print" method="post" class="inline">
-            <button type="submit" class="bg-cyan-100 hover:bg-cyan-200 text-cyan-700 px-3 py-2 rounded text-sm font-semibold transition" 
-                    title="Conferma manualmente il completamento della stampa">
+            <button type="submit" class="bg-cyan-100 hover:bg-cyan-200 text-cyan-700 px-3 py-2 rounded text-sm font-semibold transition" title="Conferma manualmente il completamento della stampa">
               ✓ Conferma
             </button>
           </form>
         <% end %>
-        
-        <a href="/orders/<%= @order.id %>/items/<%= item.id %>/print" class="bg-cyan-100 hover:bg-cyan-200 text-cyan-700 px-3 py-2 rounded text-sm font-semibold transition inline-block" target="_blank" title="Stampa scheda lavoro">
-          🖨️ Scheda Lavoro
-        </a>
 
+        <!-- Etichetta -->
         <% if item.print_flow&.label_webhook %>
           <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_label" method="post" class="inline">
             <button type="submit" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded text-sm font-semibold transition" title="Invia a etichetta">
@@ -257,7 +175,13 @@
             </button>
           </form>
         <% end %>
-        
+
+        <!-- Scheda Lavoro -->
+        <a href="/orders/<%= @order.id %>/items/<%= item.id %>/print" class="bg-cyan-100 hover:bg-cyan-200 text-cyan-700 px-3 py-2 rounded text-sm font-semibold transition inline-block" target="_blank" title="Stampa scheda lavoro">
+          🖨️ Scheda Lavoro
+        </a>
+
+        <!-- Reset -->
         <form action="/orders/<%= @order.id %>/items/<%= item.id %>/reset" method="post" class="inline" onsubmit="return confirm('Reimpostare questo item?');">
           <button type="submit" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm font-semibold transition <%= 'opacity-50 cursor-not-allowed' if item.preprint_status == 'pending' && item.print_status == 'pending' %>" 
                   <%= 'disabled' if item.preprint_status == 'pending' && item.print_status == 'pending' %>
@@ -268,107 +192,164 @@
       </div>
     </div>
 
-    <div class="border-t pt-4 mb-4">
-      <div class="flex gap-8 flex-wrap items-center">
-        <div class="flex items-center gap-2">
-          <span class="text-2xl">🖨️</span>
-          <div>
-            <% if item.preprint_completed_at %>
-              <span class="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded">✓</span>
-              <small class="text-gray-600"><%= item.preprint_completed_at.strftime('%d-%m-%y %H:%M') %></small>
-            <% elsif item.preprint_status == 'failed' %>
-              <span class="bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded">✗</span>
-            <% else %>
-              <span class="bg-yellow-100 text-yellow-700 text-xs font-semibold px-2 py-0.5 rounded"><%= item.preprint_status&.upcase %></span>
-            <% end %>
+    <!-- Preview File e Screenshot - Piccoli thumbnails cliccabili -->
+    <div class="p-6 border-b border-gray-200">
+      <h6 class="font-semibold text-gray-700 mb-3">File & Anteprime:</h6>
+      <div class="flex gap-4 flex-wrap">
+        <!-- Assets (Print Files/Screenshots) -->
+        <% if item.assets.any? %>
+          <% item.assets.each do |asset| %>
+            <div class="flex flex-col items-center gap-1">
+              <% if asset.downloaded? && asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) %>
+                <button type="button" class="cursor-pointer border-none bg-none p-0" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="/file/<%= asset.id %>" data-file-type="image">
+                  <img src="/file/<%= asset.id %>" alt="<%= asset.asset_type %>" class="h-20 w-20 object-cover rounded border border-gray-300 hover:border-blue-500 transition">
+                </button>
+              <% else %>
+                <button type="button" class="cursor-pointer border-none bg-none p-0" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= asset.original_url %>" data-file-type="pdf">
+                  <div class="h-20 w-20 rounded border border-gray-300 hover:border-blue-500 flex items-center justify-center text-2xl bg-gray-100 hover:bg-gray-200 transition">
+                    📄
+                  </div>
+                </button>
+              <% end %>
+              <small class="text-xs text-gray-600 text-center"><%= asset.asset_type || 'File' %></small>
+            </div>
+          <% end %>
+        <% end %>
+
+        <!-- Switch Previews (Pre-stampa e Stampa) -->
+        <% if item.preprint_job&.result_preview_url %>
+          <div class="flex flex-col items-center gap-1">
+            <button type="button" class="cursor-pointer border-none bg-none p-0" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= item.preprint_job.result_preview_url %>" data-file-type="pdf">
+              <img src="<%= item.preprint_job.result_preview_url %>" alt="Preprint Preview" class="h-20 w-20 object-cover rounded border border-gray-300 hover:border-blue-500 transition">
+            </button>
+            <small class="text-xs text-gray-600">Pre-stampa</small>
           </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="text-2xl">✅</span>
-          <div>
-            <% if item.print_completed_at %>
-              <span class="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded">✓</span>
-              <small class="text-gray-600"><%= item.print_completed_at.strftime('%d-%m-%y %H:%M') %></small>
-            <% elsif item.print_status == 'failed' %>
-              <span class="bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded">✗</span>
-            <% else %>
-              <span class="bg-yellow-100 text-yellow-700 text-xs font-semibold px-2 py-0.5 rounded"><%= item.print_status&.upcase %></span>
-            <% end %>
+        <% end %>
+
+        <% if item.print_job&.result_preview_url %>
+          <div class="flex flex-col items-center gap-1">
+            <button type="button" class="cursor-pointer border-none bg-none p-0" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= item.print_job.result_preview_url %>" data-file-type="pdf">
+              <img src="<%= item.print_job.result_preview_url %>" alt="Print Preview" class="h-20 w-20 object-cover rounded border border-gray-300 hover:border-blue-500 transition">
+            </button>
+            <small class="text-xs text-gray-600">Stampa</small>
           </div>
-        </div>
+        <% end %>
+
+        <% if item.assets.empty? && !item.preprint_job&.result_preview_url && !item.print_job&.result_preview_url %>
+          <p class="text-gray-500 text-sm">Nessun file disponibile</p>
+        <% end %>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div>
-        <h6 class="font-semibold text-gray-700 mb-3">Assets (<%= item.assets.count %>):</h6>
-        <% if item.assets.any? %>
-          <div class="grid grid-cols-2 gap-3">
-            <% item.assets.each do |asset| %>
-              <div class="bg-gray-50 rounded-lg border border-gray-200 p-3 text-center">
-                <% if asset.downloaded? && asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) %>
-                  <button type="button" class="cursor-pointer border-none bg-none p-0 w-full" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="/file/<%= asset.id %>" data-file-type="image">
-                    <img src="/file/<%= asset.id %>" alt="<%= asset.asset_type %>" class="w-full h-32 object-contain rounded mb-2">
-                  </button>
-                <% else %>
-                  <div class="bg-white rounded mb-2 h-32 flex items-center justify-center border border-gray-300 cursor-pointer" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= asset.original_url %>" data-file-type="pdf">
-                    <span class="text-3xl">📄</span>
-                  </div>
-                <% end %>
-                <small class="block font-semibold text-gray-700 mb-2"><%= asset.asset_type || 'N/A' %></small>
-                <div class="flex gap-2 justify-center">
-                  <% if asset.downloaded? %>
-                    <a href="/assets/<%= asset.id %>/download" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded text-xs font-semibold transition inline-block" title="Scarica file">
-                      📥
-                    </a>
-                    <form action="/assets/<%= asset.id %>" method="post" class="inline">
-                      <input type="hidden" name="_method" value="DELETE">
-                      <button type="submit" class="bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded text-xs font-semibold transition" title="Cancella file" onclick="return confirm('Cancellare questo file?');">
-                        🗑
-                      </button>
-                    </form>
-                  <% else %>
-                    <form action="/orders/<%= @order.id %>/items/<%= item.id %>/upload_asset" method="post" enctype="multipart/form-data" class="inline">
-                      <input type="hidden" name="asset_id" value="<%= asset.id %>">
-                      <label class="bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded text-xs font-semibold transition inline-block cursor-pointer">
-                        ➕
-                        <input type="file" name="file" class="hidden" onchange="this.form.submit();">
+    <!-- Switch Processed Files -->
+    <div class="p-6">
+      <h6 class="font-semibold text-gray-700 mb-3">📊 File Processati da Switch:</h6>
+      <% if @order.switch_job %>
+        <div class="bg-gray-50 rounded-lg border border-gray-200 p-3">
+          <p class="text-sm text-gray-700 mb-2"><strong>Status Switch:</strong> <span class="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded"><%= @order.switch_job.status&.upcase %></span></p>
+          <% if @order.switch_job.result_preview_url %>
+            <a href="<%= @order.switch_job.result_preview_url %>" target="_blank" class="text-blue-600 hover:text-blue-700 font-semibold text-sm">📥 Scarica file processato</a>
+          <% end %>
+          <% if @order.switch_job.log.present? %>
+            <details class="mt-2">
+              <summary class="cursor-pointer text-sm text-gray-600 hover:text-gray-800">Log Switch</summary>
+              <div class="bg-gray-900 text-gray-100 p-2 rounded text-xs font-mono mt-2 max-h-32 overflow-y-auto"><%= @order.switch_job.log %></div>
+            </details>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-gray-500 text-sm">In attesa di elaborazione da Switch</p>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Pre-stampa Modal -->
+  <div class="modal fade" id="flowSelectModal_<%= item.id %>" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content rounded-lg">
+        <div class="modal-header bg-gray-100 border-b">
+          <h5 class="font-semibold text-gray-800">🖨️ Pre-stampa - Configura Invio</h5>
+          <button type="button" class="text-gray-600 hover:text-gray-900" data-bs-dismiss="modal">✕</button>
+        </div>
+        <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_preprint" method="post">
+          <div class="modal-body">
+            <% if item.available_print_flows.count > 0 %>
+              <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Flusso di Stampa</label>
+                <div class="space-y-2">
+                  <% item.available_print_flows.each do |flow| %>
+                    <div class="flex items-center gap-2">
+                      <input class="border border-gray-300 rounded" type="radio" name="print_flow_id" 
+                             value="<%= flow.id %>" id="flow_<%= item.id %>_<%= flow.id %>"
+                             <%= 'checked' if flow.id == item.product&.default_print_flow_id %>>
+                      <label for="flow_<%= item.id %>_<%= flow.id %>" class="text-sm">
+                        <strong><%= flow.name %></strong>
+                        <% if flow.id == item.product&.default_print_flow_id %>
+                          <span class="bg-blue-100 text-blue-700 text-xs font-semibold px-1 rounded">Default</span>
+                        <% end %>
                       </label>
-                    </form>
+                    </div>
                   <% end %>
                 </div>
               </div>
+            <% else %>
+              <div class="bg-yellow-50 border border-yellow-200 rounded p-3 text-yellow-700 text-sm">Nessun flusso di stampa disponibile</div>
             <% end %>
+            
+            <div class="mb-4">
+              <label for="percentuale_<%= item.id %>" class="block text-sm font-semibold text-gray-700 mb-2">Percentuale (%)</label>
+              <input type="number" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" id="percentuale_<%= item.id %>" 
+                     name="percentuale" value="0" step="1" min="-999" max="999"
+                     placeholder="Inserisci percentuale (es: +10, -5)">
+              <small class="text-gray-600">Valore positivo o negativo che verrà inviato a Switch</small>
+            </div>
           </div>
-        <% else %>
-          <p class="text-gray-500">No assets for this item.</p>
-        <% end %>
-      </div>
-
-      <div>
-        <h6 class="font-semibold text-gray-700 mb-3">📊 Anteprima Switch:</h6>
-        <% if item.preprint_job&.result_preview_url %>
-          <div class="bg-gray-50 rounded-lg border border-gray-200 p-3 mb-3">
-            <h6 class="text-sm font-semibold text-gray-700 mb-2">Pre-stampa</h6>
-            <button type="button" class="cursor-pointer border-none bg-none p-0 w-full" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= item.preprint_job.result_preview_url %>" data-file-type="pdf">
-              <img src="<%= item.preprint_job.result_preview_url %>" alt="Preprint Preview" class="max-w-sm max-h-48 rounded cursor-pointer">
-            </button>
+          <div class="modal-footer bg-gray-100 border-t flex gap-2 justify-end">
+            <button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded font-semibold transition" data-bs-dismiss="modal">Annulla</button>
+            <button type="submit" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded font-semibold transition">🖨️ Invia a Pre-stampa</button>
           </div>
-        <% end %>
-        <% if item.print_job&.result_preview_url %>
-          <div class="bg-gray-50 rounded-lg border border-gray-200 p-3 mb-3">
-            <h6 class="text-sm font-semibold text-gray-700 mb-2">Stampa</h6>
-            <button type="button" class="cursor-pointer border-none bg-none p-0 w-full" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= item.print_job.result_preview_url %>" data-file-type="pdf">
-              <img src="<%= item.print_job.result_preview_url %>" alt="Print Preview" class="max-w-sm max-h-48 rounded cursor-pointer">
-            </button>
-          </div>
-        <% end %>
-        <% if !item.preprint_job&.result_preview_url && !item.print_job&.result_preview_url %>
-          <p class="text-gray-500">Nessuna anteprima disponibile.</p>
-        <% end %>
+        </form>
       </div>
     </div>
   </div>
+
+  <!-- Stampa Modal (se multiple machine) -->
+  <% if available_machines.count > 1 %>
+    <div class="modal fade" id="machineSelectModal_<%= item.id %>" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content rounded-lg">
+          <div class="modal-header bg-gray-100 border-b">
+            <h5 class="font-semibold text-gray-800">Scegli Macchina da Stampa</h5>
+            <button type="button" class="text-gray-600 hover:text-gray-900" data-bs-dismiss="modal">✕</button>
+          </div>
+          <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_print" method="post">
+            <div class="modal-body">
+              <p class="text-gray-600 text-sm mb-4">Seleziona la macchina per questo lavoro:</p>
+              <div class="space-y-2">
+                <% available_machines.each do |machine| %>
+                  <div class="flex items-start gap-2">
+                    <input class="mt-1 border border-gray-300 rounded" type="radio" name="print_machine_id" 
+                           value="<%= machine.id %>" id="machine_<%= item.id %>_<%= machine.id %>"
+                           <%= 'checked' if available_machines.first.id == machine.id %>>
+                    <label for="machine_<%= item.id %>_<%= machine.id %>" class="text-sm">
+                      <strong><%= machine.name %></strong>
+                      <% if machine.description %>
+                        <br><small class="text-gray-600"><%= machine.description %></small>
+                      <% end %>
+                    </label>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+            <div class="modal-footer bg-gray-100 border-t flex gap-2 justify-end">
+              <button type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded font-semibold transition" data-bs-dismiss="modal">Annulla</button>
+              <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-semibold transition">✅ Invia in Stampa</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  <% end %>
 <% end %>
 
 <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
