@@ -1,63 +1,55 @@
-<div class="container mt-4">
-  <div class="row">
-    <div class="col-md-8">
-      <h1><%= @webhook ? '✎ Modifica Webhook' : '➕ Nuovo Webhook' %></h1>
-    </div>
-    <div class="col-md-4 text-end">
-      <a href="/webhooks" class="btn btn-secondary">← Indietro</a>
-    </div>
+<div class="max-w-3xl mx-auto">
+  <div class="flex justify-between items-start mb-6">
+    <h1 class="text-3xl font-bold"><%= @webhook ? '✎ Modifica Webhook' : '➕ Nuovo Webhook' %></h1>
+    <a href="/webhooks" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-semibold transition inline-block">← Indietro</a>
   </div>
 
   <% if @error %>
-    <div class="alert alert-danger mt-3">
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 mb-4">
       <strong>⚠ Errore:</strong> <%= @error %>
     </div>
   <% end %>
 
-  <form method="POST" action="<%= @webhook ? "/webhooks/#{@webhook.id}" : '/webhooks' %>" class="mt-4">
+  <form method="POST" action="<%= @webhook ? "/webhooks/#{@webhook.id}" : '/webhooks' %>" class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 space-y-4">
     <% if @webhook %>
       <input type="hidden" name="_method" value="PUT">
     <% end %>
-    <div class="card">
-      <div class="card-body">
-        <div class="mb-3">
-          <label for="name" class="form-label">Nome Webhook <span class="text-danger">*</span></label>
-          <input type="text" id="name" name="name" class="form-control" 
-                 value="<%= @webhook&.name %>" placeholder="es. Main Switch, Backup Switch" required>
-          <small class="text-muted">Nome descrittivo per identificare questo webhook</small>
-        </div>
+    
+    <div>
+      <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">Nome Webhook *</label>
+      <input type="text" id="name" name="name" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" 
+             value="<%= @webhook&.name %>" placeholder="es. Main Switch, Backup Switch" required>
+      <small class="text-gray-600">Nome descrittivo per identificare questo webhook</small>
+    </div>
 
-        <div class="mb-3">
-          <label for="hook_path" class="form-label">Hook Path <span class="text-danger">*</span></label>
-          <input type="text" id="hook_path" name="hook_path" class="form-control" 
-                 value="<%= @webhook&.hook_path %>" placeholder="/api/jobs" required>
-          <small class="text-muted">Inserisci solo il path (es. /api/jobs o /webhook/switch)</small>
-        </div>
+    <div>
+      <label for="hook_path" class="block text-sm font-semibold text-gray-700 mb-2">Hook Path *</label>
+      <input type="text" id="hook_path" name="hook_path" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" 
+             value="<%= @webhook&.hook_path %>" placeholder="/api/jobs" required>
+      <small class="text-gray-600">Inserisci solo il path (es. /api/jobs o /webhook/switch)</small>
+    </div>
 
-        <div class="mb-3">
-          <label for="store_id" class="form-label">Negozio (Opzionale)</label>
-          <select id="store_id" name="store_id" class="form-select">
-            <option value="">-- Globale (tutti i negozi) --</option>
-            <% @stores.each do |store| %>
-              <option value="<%= store.id %>" <%= 'selected' if @webhook&.store_id == store.id %>>
-                <%= store.name %> (<%= store.code %>)
-              </option>
-            <% end %>
-          </select>
-          <small class="text-muted">Se non specificato, questo webhook sarà usato per tutti i negozi</small>
-        </div>
-
-      </div>
-
-      <div class="card-footer bg-light">
-        <button type="submit" class="btn btn-primary">
-          <%= @webhook ? '💾 Salva Modifiche' : '➕ Crea Webhook' %>
-        </button>
-        <a href="/webhooks" class="btn btn-outline-secondary">Annulla</a>
-        <% if @webhook %>
-          <button type="button" class="btn btn-outline-danger float-end" onclick="deleteWebhookForm()">🗑 Elimina</button>
+    <div>
+      <label for="store_id" class="block text-sm font-semibold text-gray-700 mb-2">Negozio (Opzionale)</label>
+      <select id="store_id" name="store_id" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+        <option value="">-- Globale (tutti i negozi) --</option>
+        <% @stores.each do |store| %>
+          <option value="<%= store.id %>" <%= 'selected' if @webhook&.store_id == store.id %>>
+            <%= store.name %> (<%= store.code %>)
+          </option>
         <% end %>
-      </div>
+      </select>
+      <small class="text-gray-600">Se non specificato, questo webhook sarà usato per tutti i negozi</small>
+    </div>
+
+    <div class="flex gap-3 pt-4">
+      <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition">
+        <%= @webhook ? '💾 Salva Modifiche' : '➕ Crea Webhook' %>
+      </button>
+      <a href="/webhooks" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-semibold transition inline-block">Annulla</a>
+      <% if @webhook %>
+        <button type="button" class="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg font-semibold transition ml-auto" onclick="deleteWebhookForm()">🗑 Elimina</button>
+      <% end %>
     </div>
   </form>
 </div>

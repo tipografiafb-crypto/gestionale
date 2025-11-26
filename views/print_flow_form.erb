@@ -1,24 +1,24 @@
-<div class="container mt-5" style="max-width: 600px;">
-  <h1><%= @flow&.id ? "Modifica Flusso di Stampa" : "Nuovo Flusso di Stampa" %></h1>
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-3xl font-bold mb-6"><%= @flow&.id ? "Modifica Flusso di Stampa" : "Nuovo Flusso di Stampa" %></h1>
 
   <% if @error %>
-    <div class="alert alert-danger"><%= @error %></div>
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 mb-4"><%= @error %></div>
   <% end %>
 
-  <form action="<%= @flow&.id ? "/print_flows/#{@flow.id}" : "/print_flows" %>" method="post">
+  <form action="<%= @flow&.id ? "/print_flows/#{@flow.id}" : "/print_flows" %>" method="post" class="space-y-4">
     <% if @flow&.id %>
       <input type="hidden" name="_method" value="PUT">
     <% end %>
 
-    <div class="mb-3">
-      <label for="name" class="form-label">Nome Flusso *</label>
-      <input type="text" class="form-control" id="name" name="name" value="<%= @flow&.name %>" required>
-      <small class="text-muted">Es: "Pre-press → Print Color", "B&W Production"</small>
+    <div>
+      <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">Nome Flusso *</label>
+      <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" id="name" name="name" value="<%= @flow&.name %>" required>
+      <small class="text-gray-600">Es: "Pre-press → Print Color", "B&W Production"</small>
     </div>
 
-    <div class="mb-3">
-      <label for="preprint_webhook_id" class="form-label">Webhook Pre-Stampa *</label>
-      <select class="form-select" id="preprint_webhook_id" name="preprint_webhook_id" required>
+    <div>
+      <label for="preprint_webhook_id" class="block text-sm font-semibold text-gray-700 mb-2">Webhook Pre-Stampa *</label>
+      <select class="w-full border border-gray-300 rounded px-3 py-2 text-sm" id="preprint_webhook_id" name="preprint_webhook_id" required>
         <option value="">-- Seleziona webhook pre-stampa --</option>
         <% @webhooks.each do |webhook| %>
           <option value="<%= webhook.id %>" <%= 'selected' if @flow&.preprint_webhook_id == webhook.id %>>
@@ -26,12 +26,12 @@
           </option>
         <% end %>
       </select>
-      <small class="text-muted">Webhook per la fase di preparazione e validazione dei file</small>
+      <small class="text-gray-600">Webhook per la fase di preparazione e validazione dei file</small>
     </div>
 
-    <div class="mb-3">
-      <label for="print_webhook_id" class="form-label">Webhook Stampa *</label>
-      <select class="form-select" id="print_webhook_id" name="print_webhook_id" required>
+    <div>
+      <label for="print_webhook_id" class="block text-sm font-semibold text-gray-700 mb-2">Webhook Stampa *</label>
+      <select class="w-full border border-gray-300 rounded px-3 py-2 text-sm" id="print_webhook_id" name="print_webhook_id" required>
         <option value="">-- Seleziona webhook stampa --</option>
         <% @webhooks.each do |webhook| %>
           <option value="<%= webhook.id %>" <%= 'selected' if @flow&.print_webhook_id == webhook.id %>>
@@ -39,38 +39,40 @@
           </option>
         <% end %>
       </select>
-      <small class="text-muted">Webhook per l'invio dei file alle macchine di stampa</small>
+      <small class="text-gray-600">Webhook per l'invio dei file alle macchine di stampa</small>
     </div>
 
     <% if @flow&.id %>
-    <div class="mb-3 p-3 bg-light border rounded">
-      <label class="form-label fw-bold">🔧 Macchine da Stampa Disponibili</label>
-      <p class="text-muted small mb-2">Seleziona le macchine disponibili per questo flusso</p>
+    <div class="p-3 bg-gray-100 border border-gray-200 rounded">
+      <label class="block text-sm font-semibold text-gray-700 mb-2">🔧 Macchine da Stampa Disponibili</label>
+      <p class="text-gray-600 text-xs mb-3">Seleziona le macchine disponibili per questo flusso</p>
       
       <% if @machines.any? %>
-        <div class="list-group" style="max-height: 300px; overflow-y: auto;">
+        <div class="space-y-2 max-h-64 overflow-y-auto">
           <% @machines.each do |machine| %>
-            <label class="list-group-item">
+            <label class="flex items-start gap-2 p-2 bg-white rounded border border-gray-200 hover:bg-gray-50 cursor-pointer">
               <input type="checkbox" name="machine_ids[]" value="<%= machine.id %>" 
-                     <%= 'checked' if @flow.print_machines.include?(machine) %>>
-              <strong><%= machine.name %></strong>
-              <% if machine.description %>
-                <br><small class="text-muted"><%= machine.description %></small>
-              <% end %>
+                     <%= 'checked' if @flow.print_machines.include?(machine) %> class="mt-1">
+              <div>
+                <strong class="text-sm"><%= machine.name %></strong>
+                <% if machine.description %>
+                  <br><small class="text-gray-600"><%= machine.description %></small>
+                <% end %>
+              </div>
             </label>
           <% end %>
         </div>
       <% else %>
-        <div class="alert alert-info small mb-0">
-          Nessuna macchina configurata. <a href="/admin/print_machines">Crea una macchina</a>
+        <div class="bg-blue-50 border border-blue-200 rounded p-2 text-blue-700 text-sm">
+          Nessuna macchina configurata. <a href="/admin/print_machines" class="font-semibold hover:underline">Crea una macchina</a>
         </div>
       <% end %>
     </div>
     <% end %>
 
-    <div class="mb-3">
-      <label for="label_webhook_id" class="form-label">Webhook Etichetta (opzionale)</label>
-      <select class="form-select" id="label_webhook_id" name="label_webhook_id">
+    <div>
+      <label for="label_webhook_id" class="block text-sm font-semibold text-gray-700 mb-2">Webhook Etichetta (opzionale)</label>
+      <select class="w-full border border-gray-300 rounded px-3 py-2 text-sm" id="label_webhook_id" name="label_webhook_id">
         <option value="">-- Nessun webhook etichetta --</option>
         <% @webhooks.each do |webhook| %>
           <option value="<%= webhook.id %>" <%= 'selected' if @flow&.label_webhook_id == webhook.id %>>
@@ -78,17 +80,17 @@
           </option>
         <% end %>
       </select>
-      <small class="text-muted">Webhook opzionale per l'invio delle etichette</small>
+      <small class="text-gray-600">Webhook opzionale per l'invio delle etichette</small>
     </div>
 
-    <div class="mb-3">
-      <label for="notes" class="form-label">Note</label>
-      <textarea class="form-control" id="notes" name="notes" rows="2"><%= @flow&.notes %></textarea>
+    <div>
+      <label for="notes" class="block text-sm font-semibold text-gray-700 mb-2">Note</label>
+      <textarea class="w-full border border-gray-300 rounded px-3 py-2 text-sm" id="notes" name="notes" rows="2"><%= @flow&.notes %></textarea>
     </div>
 
-    <div class="d-flex gap-2">
-      <button type="submit" class="btn btn-primary">💾 Salva Flusso</button>
-      <a href="/print_flows" class="btn btn-secondary">Annulla</a>
+    <div class="flex gap-3 pt-4">
+      <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition">💾 Salva Flusso</button>
+      <a href="/print_flows" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-semibold transition inline-block">Annulla</a>
     </div>
   </form>
 </div>
