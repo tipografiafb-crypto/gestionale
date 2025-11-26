@@ -141,6 +141,13 @@
       }
     }
     
+    function toggleDetails(idx) {
+      const row = document.getElementById('details-' + idx);
+      if (row) {
+        row.classList.toggle('hidden');
+      }
+    }
+    
     toggleBtn?.addEventListener('click', toggleDrawer);
     closeBtn?.addEventListener('click', closeDrawer);
     overlay?.addEventListener('click', closeDrawer);

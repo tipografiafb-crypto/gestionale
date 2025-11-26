@@ -116,7 +116,7 @@
         </tr>
       </thead>
       <tbody>
-        <% @order.order_items.each do |item| %>
+        <% @order.order_items.each_with_index do |item, idx| %>
           <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
             <td class="px-4 py-3 font-mono text-xs text-gray-700"><%= item.sku %></td>
             <td class="px-4 py-3 text-gray-900"><%= item.product_name %></td>
@@ -127,7 +127,17 @@
               </span>
             </td>
             <td class="px-4 py-3">
-              <!-- Dettagli item -->
+              <button onclick="toggleDetails(<%= idx %>)" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Dettagli ▼</button>
+            </td>
+          </tr>
+          <tr id="details-<%= idx %>" class="hidden">
+            <td colspan="5" class="px-4 py-4 bg-gray-50">
+              <div class="text-sm text-gray-700">
+                <p><strong>Stato Pre-Stampa:</strong> <%= item.preprint_status %></p>
+                <p><strong>Stato Stampa:</strong> <%= item.print_status %></p>
+                <% if item.scala %><p><strong>Scala:</strong> <%= item.scala %></p><% end %>
+                <% if item.materiale %><p><strong>Materiale:</strong> <%= item.materiale %></p><% end %>
+              </div>
             </td>
           </tr>
         <% end %>
