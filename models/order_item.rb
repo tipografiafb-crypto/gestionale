@@ -37,6 +37,11 @@ class OrderItem < ActiveRecord::Base
   rescue JSON::ParserError
     {}
   end
+  
+  # Get product_name from json_data or from product
+  def product_name
+    json_data['product_name'] || product&.name || 'Sconosciuto'
+  end
 
   # Check if can send to preprint
   def can_send_to_preprint?
