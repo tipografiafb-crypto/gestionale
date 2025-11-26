@@ -1,0 +1,123 @@
+== 1 CreateAllTables: migrating ===============================================
+-- create_table(:stores)
+   -> 0.0180s
+-- create_table(:orders)
+   -> 0.0215s
+-- add_index(:orders, [:store_id, :external_order_code], {:unique=>true})
+   -> 0.0052s
+-- create_table(:import_errors)
+   -> 0.0126s
+-- add_index(:import_errors, :created_at)
+   -> 0.0056s
+-- create_table(:order_items)
+rake aborted!
+StandardError: An error has occurred, this and all later migrations canceled: (StandardError)
+
+Unknown key: :optional. Valid keys are: :limit, :precision, :scale, :default, :null, :collation, :comment, :primary_key, :if_exists, :if_not_exists, :array, :using, :cast_as, :as, :type, :enum_type, :stored
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activesupport-7.2.3/lib/active_support/core_ext/hash/keys.rb:52:in `block in assert_valid_keys'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activesupport-7.2.3/lib/active_support/core_ext/hash/keys.rb:50:in `each_key'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activesupport-7.2.3/lib/active_support/core_ext/hash/keys.rb:50:in `assert_valid_keys'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:596:in `create_column_definition'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:573:in `new_column_definition'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/postgresql/schema_definitions.rb:277:in `new_column_definition'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:498:in `column'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:236:in `block in add_to'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:235:in `each'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:235:in `add_to'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:554:in `block in references'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:553:in `each'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:553:in `references'
+/home/paolo/apps/print-orchestrator/db/migrate/001_create_all_tables.rb:54:in `block in change'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:585:in `block in create_table'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_statements.rb:340:in `build_create_table_definition'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_statements.rb:304:in `create_table'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration/default_strategy.rb:10:in `method_missing'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1059:in `block in method_missing'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1025:in `block in say_with_time'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/benchmark-0.5.0/lib/benchmark.rb:305:in `measure'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1025:in `say_with_time'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1048:in `method_missing'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:585:in `create_table'
+/home/paolo/apps/print-orchestrator/db/migrate/001_create_all_tables.rb:30:in `change'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:994:in `exec_migration'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:978:in `block (2 levels) in migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/benchmark-0.5.0/lib/benchmark.rb:305:in `measure'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:977:in `block in migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/connection_pool.rb:425:in `with_connection'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:976:in `migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1190:in `migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1539:in `block in execute_migration_in_transaction'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/transaction.rb:616:in `block in within_new_transaction'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activesupport-7.2.3/lib/active_support/concurrency/null_lock.rb:9:in `synchronize'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/transaction.rb:613:in `within_new_transaction'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/database_statements.rb:361:in `transaction'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1590:in `ddl_transaction'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1538:in `execute_migration_in_transaction'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1512:in `each'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1512:in `migrate_without_lock'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1457:in `block in migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1610:in `with_advisory_lock'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1457:in `migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1264:in `up'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1239:in `migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/tasks/database_tasks.rb:262:in `migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/railties/databases.rake:93:in `block (2 levels) in <top (required)>'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/rake-13.3.1/exe/rake:27:in `<top (required)>'
+
+Caused by:
+ArgumentError: Unknown key: :optional. Valid keys are: :limit, :precision, :scale, :default, :null, :collation, :comment, :primary_key, :if_exists, :if_not_exists, :array, :using, :cast_as, :as, :type, :enum_type, :stored (ArgumentError)
+
+        raise ArgumentError.new("Unknown key: #{k.inspect}. Valid keys are: #{valid_keys.map(&:inspect).join(', ')}")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activesupport-7.2.3/lib/active_support/core_ext/hash/keys.rb:52:in `block in assert_valid_keys'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activesupport-7.2.3/lib/active_support/core_ext/hash/keys.rb:50:in `each_key'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activesupport-7.2.3/lib/active_support/core_ext/hash/keys.rb:50:in `assert_valid_keys'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:596:in `create_column_definition'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:573:in `new_column_definition'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/postgresql/schema_definitions.rb:277:in `new_column_definition'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:498:in `column'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:236:in `block in add_to'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:235:in `each'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:235:in `add_to'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:554:in `block in references'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:553:in `each'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_definitions.rb:553:in `references'
+/home/paolo/apps/print-orchestrator/db/migrate/001_create_all_tables.rb:54:in `block in change'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:585:in `block in create_table'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_statements.rb:340:in `build_create_table_definition'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/schema_statements.rb:304:in `create_table'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration/default_strategy.rb:10:in `method_missing'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1059:in `block in method_missing'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1025:in `block in say_with_time'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/benchmark-0.5.0/lib/benchmark.rb:305:in `measure'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1025:in `say_with_time'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1048:in `method_missing'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:585:in `create_table'
+/home/paolo/apps/print-orchestrator/db/migrate/001_create_all_tables.rb:30:in `change'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:994:in `exec_migration'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:978:in `block (2 levels) in migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/benchmark-0.5.0/lib/benchmark.rb:305:in `measure'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:977:in `block in migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/connection_pool.rb:425:in `with_connection'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:976:in `migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1190:in `migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1539:in `block in execute_migration_in_transaction'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/transaction.rb:616:in `block in within_new_transaction'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activesupport-7.2.3/lib/active_support/concurrency/null_lock.rb:9:in `synchronize'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/transaction.rb:613:in `within_new_transaction'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/abstract/database_statements.rb:361:in `transaction'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1590:in `ddl_transaction'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1538:in `execute_migration_in_transaction'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1512:in `each'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1512:in `migrate_without_lock'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1457:in `block in migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1610:in `with_advisory_lock'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1457:in `migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1264:in `up'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/migration.rb:1239:in `migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/tasks/database_tasks.rb:262:in `migrate'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/railties/databases.rake:93:in `block (2 levels) in <top (required)>'
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/rake-13.3.1/exe/rake:27:in `<top (required)>'
+Tasks: TOP => db:migrate
+(See full trace by running task with --trace)
+paolo@test:~/apps/print-orchestrator$ 
