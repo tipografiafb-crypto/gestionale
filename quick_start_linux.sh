@@ -64,7 +64,7 @@ echo -e "${GREEN}✓ Storage directory ready${NC}"
 
 # Step 5: Database setup
 echo -e "\n${YELLOW}[5/7]${NC} Setting up database..."
-export DATABASE_URL="postgresql://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
+source .env  # Carica variabili dal .env
 bundle exec rake db:setup_complete
 if [ $? -ne 0 ]; then
   echo -e "${RED}❌ Database setup failed${NC}"
