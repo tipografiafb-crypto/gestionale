@@ -85,9 +85,24 @@ bundle exec rake db:create
 echo -e "${GREEN}✓ Database created${NC}"
 
 echo ""
-echo -e "${YELLOW}Step 5: Running migrations (CONSOLIDATED)...${NC}"
-bundle exec rake db:migrate
-echo -e "${GREEN}✓ All tables created from single consolidated migration${NC}"
+echo -e "${YELLOW}Step 5: Running migrations...${NC}"
+DATABASE_URL="$DATABASE_URL" bundle exec rake db:migrate
+if [ $? -ne 0 ]; then
+  echo -e "${RED}❌ Migrations failed${NC}"
+  exit 1
+fi
+echo -e "${GREEN}✓ All migrations executed${NC}"
+
+echo ""
+echo -e "${YELLOW}Step 5.5: Verifying tables were created...${NC}"
+TABLE_COUNT=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';")
+if [ "$TABLE_COUNT" -lt 15 ]; then
+  echo -e "${RED}❌ Tables not created! Only found $TABLE_COUNT tables (expected at least 15)${NC}"
+  echo "Listing available tables:"
+  PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "\dt"
+  exit 1
+fi
+echo -e "${GREEN}✓ All tables created successfully ($TABLE_COUNT tables)${NC}"
 
 echo ""
 echo -e "${YELLOW}Step 6: Adding missing columns...${NC}"
