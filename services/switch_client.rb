@@ -95,6 +95,7 @@ class SwitchClient
       full_url = "#{switch_base}#{webhook_path_str}"
       
       puts "[SWITCH_CLIENT_DEBUG] Full URL: #{full_url}"
+      puts "[SWITCH_CLIENT_DEBUG] Payload: #{job_data.to_json}"
       
       response = HTTP
         .timeout(30)
