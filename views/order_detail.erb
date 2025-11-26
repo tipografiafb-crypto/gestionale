@@ -131,12 +131,57 @@
             </td>
           </tr>
           <tr id="details-<%= idx %>" class="hidden">
-            <td colspan="5" class="px-4 py-4 bg-gray-50">
-              <div class="text-sm text-gray-700">
-                <p><strong>Stato Pre-Stampa:</strong> <%= item.preprint_status %></p>
-                <p><strong>Stato Stampa:</strong> <%= item.print_status %></p>
-                <% if item.scala %><p><strong>Scala:</strong> <%= item.scala %></p><% end %>
-                <% if item.materiale %><p><strong>Materiale:</strong> <%= item.materiale %></p><% end %>
+            <td colspan="5" class="px-4 py-4 bg-gray-50 space-y-4">
+              <div class="space-y-3">
+                <div>
+                  <p class="text-sm font-semibold text-gray-900 mb-2">Info Item</p>
+                  <div class="text-xs text-gray-700 space-y-1">
+                    <p><strong>Pre-Stampa:</strong> <span class="px-2 py-1 rounded bg-gray-200 text-gray-800"><%= item.preprint_status %></span></p>
+                    <p><strong>Stampa:</strong> <span class="px-2 py-1 rounded bg-gray-200 text-gray-800"><%= item.print_status %></span></p>
+                    <% if item.scala %><p><strong>Scala:</strong> <%= item.scala %></p><% end %>
+                    <% if item.materiale %><p><strong>Materiale:</strong> <%= item.materiale %></p><% end %>
+                  </div>
+                </div>
+
+                <div class="border-t border-gray-300 pt-3">
+                  <p class="text-sm font-semibold text-gray-900 mb-2">Azioni</p>
+                  <div class="flex flex-wrap gap-2">
+                    <% if item.can_send_to_preprint? %>
+                      <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_preprint" method="post" class="inline">
+                        <select name="print_flow_id" class="border border-gray-300 rounded px-2 py-1 text-xs mr-2">
+                          <% item.available_print_flows.each do |flow| %>
+                            <option value="<%= flow.id %>"><%= flow.name %></option>
+                          <% end %>
+                        </select>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium">📤 Invia Pre-Stampa</button>
+                      </form>
+                    <% end %>
+
+                    <% if item.preprint_status == 'processing' %>
+                      <form action="/orders/<%= @order.id %>/items/<%= item.id %>/confirm_preprint" method="post" class="inline">
+                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium">✓ Conferma Pre-Stampa</button>
+                      </form>
+                    <% end %>
+
+                    <% if item.can_send_to_print? %>
+                      <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_print" method="post" class="inline">
+                        <select name="print_machine_id" class="border border-gray-300 rounded px-2 py-1 text-xs mr-2">
+                          <option value="">Seleziona macchina...</option>
+                          <% PrintMachine.active.each do |machine| %>
+                            <option value="<%= machine.id %>"><%= machine.name %></option>
+                          <% end %>
+                        </select>
+                        <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-medium">🖨️ Invia Stampa</button>
+                      </form>
+                    <% end %>
+
+                    <% if item.print_status == 'processing' %>
+                      <form action="/orders/<%= @order.id %>/items/<%= item.id %>/confirm_print" method="post" class="inline">
+                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium">✓ Conferma Stampa</button>
+                      </form>
+                    <% end %>
+                  </div>
+                </div>
               </div>
             </td>
           </tr>
