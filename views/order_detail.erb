@@ -60,6 +60,19 @@
         </table>
       </div>
     </div>
+
+    <div class="card mb-4">
+      <div class="card-header">
+        <strong>Notes</strong>
+      </div>
+      <div class="card-body">
+        <% if @order.notes.present? %>
+          <p><%= simple_format(@order.notes) %></p>
+        <% else %>
+          <p class="text-muted"><em>No notes</em></p>
+        <% end %>
+      </div>
+    </div>
   </div>
 
   <div class="col-md-6">

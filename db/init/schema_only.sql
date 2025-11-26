@@ -162,7 +162,8 @@ CREATE TABLE public.orders (
     updated_at timestamp(6) without time zone NOT NULL,
     source character varying DEFAULT 'api'::character varying,
     customer_name character varying,
-    customer_note text
+    customer_note text,
+    notes text
 );
 
 
