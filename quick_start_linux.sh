@@ -31,15 +31,28 @@ echo -e "${GREEN}✓ Dependencies installed${NC}"
 # Step 3: Create .env if not exists
 echo -e "\n${YELLOW}[3/7]${NC} Checking environment configuration..."
 if [ ! -f ".env" ]; then
-  echo -e "${YELLOW}⚠ .env not found. Creating template...${NC}"
-  cat > .env << 'ENVEOF'
-DATABASE_URL=postgresql://orchestrator:password@localhost:5432/print_orchestrator_development
-SWITCH_WEBHOOK_URL=http://192.168.1.162/webhook/
-SERVER_BASE_URL=http://localhost:5000
+  if [ -f ".env.example" ]; then
+    echo -e "${GREEN}✓ Copying .env from .env.example${NC}"
+    cp .env.example .env
+    echo -e "${YELLOW}⚠ IMPORTANTE: Modifica il file .env e aggiorna la password PostgreSQL!${NC}"
+  else
+    echo -e "${YELLOW}⚠ .env not found. Creating template...${NC}"
+    cat > .env << 'ENVEOF'
+DATABASE_URL=postgresql://orchestrator_user:paolo@localhost:5432/print_orchestrator_dev
+RACK_ENV=production
 PORT=5000
-RACK_ENV=development
+SERVER_BASE_URL=http://192.168.1.100:5000
+SWITCH_WEBHOOK_URL=http://192.168.1.162:5000/switch/
+SWITCH_API_KEY=
+SWITCH_SIMULATION=false
+FTP_HOST=c72965.sgvps.net
+FTP_USER=widegest@thepickshouse.com
+FTP_PASS=WidegestImport24
+FTP_PATH=/test/
+FTP_POLL_INTERVAL=60
 ENVEOF
-  echo -e "${YELLOW}⚠ Edit .env with your values!${NC}"
+    echo -e "${YELLOW}⚠ Edit .env with your values!${NC}"
+  fi
 fi
 echo -e "${GREEN}✓ Environment configuration ready${NC}"
 
