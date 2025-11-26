@@ -33,14 +33,14 @@ Wants=postgresql.service
 Type=simple
 User=$REAL_USER
 WorkingDirectory=$WORK_DIR
-Environment="PATH=/home/$REAL_USER/.gem/ruby/3.2.0/bin:/home/$REAL_USER/.local/bin:\$PATH"
+Environment="PATH=/nix/store/l8k1zfxjixk6f5sya5x86sdyxffz6bcf-ruby-3.2.2/bin:/nix/store/imrrszwv22cg025hbgx3198959yx6gc0-bundle/bin:/home/$REAL_USER/.gem/ruby/3.2.0/bin:/home/$REAL_USER/.local/bin:\$PATH"
 Environment="RACK_ENV=production"
 
 # Load .env file if it exists
 EnvironmentFile=$WORK_DIR/.env
 
 # Start command
-ExecStart=$BUNDLE_PATH exec puma -b tcp://0.0.0.0:5000 config.ru
+ExecStart=/bin/bash -c 'cd $WORK_DIR && /nix/store/imrrszwv22cg025hbgx3198959yx6gc0-bundle/bin/bundle exec puma -b tcp://0.0.0.0:5000 config.ru'
 
 # Restart policy
 Restart=on-failure
