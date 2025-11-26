@@ -1,77 +1,67 @@
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1>📦 Gestione Magazzino</h1>
+<div class="flex justify-between items-center mb-6">
+  <h1 class="text-3xl font-bold">📦 Gestione Magazzino</h1>
 </div>
 
-<div class="card mb-4">
-  <div class="card-body">
-    <form method="get" action="/inventory">
-      <div class="row mb-3">
-        <div class="col-md-8">
-          <div class="d-flex gap-2">
-            <input type="text" class="form-control" name="search" placeholder="Cerca per SKU o nome prodotto..." value="<%= @search_term %>">
-            <button type="submit" class="btn btn-primary">Cerca</button>
-            <% if @search_term.present? || @status_filter.present? %>
-              <a href="/inventory" class="btn btn-outline-secondary">Azzera</a>
-            <% end %>
-          </div>
-        </div>
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4">
+  <form method="get" action="/inventory">
+    <div class="mb-4">
+      <div class="flex gap-2">
+        <input type="text" class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" name="search" placeholder="Cerca per SKU o nome prodotto..." value="<%= @search_term %>">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-semibold transition">Cerca</button>
+        <% if @search_term.present? || @status_filter.present? %>
+          <a href="/inventory" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded font-semibold transition">Azzera</a>
+        <% end %>
       </div>
+    </div>
 
-      <div class="row">
-        <div class="col-md-12">
-          <div class="btn-group" role="group">
-            <a href="/inventory<%= @search_term ? "?search=#{@search_term}" : "" %>" class="btn <%= !@status_filter ? 'btn-primary' : 'btn-outline-primary' %>">
-              📦 Tutti
-            </a>
-            <button type="submit" name="status" value="disponibili" class="btn <%= @status_filter == 'disponibili' ? 'btn-success' : 'btn-outline-success' %>">
-              ✓ Disponibili
-            </button>
-            <button type="submit" name="status" value="sottoscorta" class="btn <%= @status_filter == 'sottoscorta' ? 'btn-warning' : 'btn-outline-warning' %>">
-              ⚠️ Sottoscorta
-            </button>
-            <button type="submit" name="status" value="finiti" class="btn <%= @status_filter == 'finiti' ? 'btn-danger' : 'btn-outline-danger' %>">
-              ✕ Finiti
-            </button>
-          </div>
-        </div>
-      </div>
-    </form>
-  </div>
+    <div class="flex gap-1 flex-wrap">
+      <a href="/inventory<%= @search_term ? "?search=#{@search_term}" : "" %>" class="<%= !@status_filter ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' %> px-3 py-2 rounded font-semibold transition">
+        📦 Tutti
+      </a>
+      <button type="submit" name="status" value="disponibili" class="<%= @status_filter == 'disponibili' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' %> px-3 py-2 rounded font-semibold transition">
+        ✓ Disponibili
+      </button>
+      <button type="submit" name="status" value="sottoscorta" class="<%= @status_filter == 'sottoscorta' ? 'bg-yellow-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' %> px-3 py-2 rounded font-semibold transition">
+        ⚠️ Sottoscorta
+      </button>
+      <button type="submit" name="status" value="finiti" class="<%= @status_filter == 'finiti' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300' %> px-3 py-2 rounded font-semibold transition">
+        ✕ Finiti
+      </button>
+    </div>
+  </form>
 </div>
 
 <% if @inventory_items.empty? %>
-  <div class="alert alert-info">
+  <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700">
     Nessun prodotto in magazzino
   </div>
 <% else %>
-  <div class="table-responsive">
-    <table class="table table-hover">
+  <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+    <table class="w-full">
       <thead>
-        <tr>
-          <th>SKU</th>
-          <th>Nome Prodotto</th>
-          <th>Quantità</th>
-          <th>Sottoscorta</th>
-          <th>Azioni</th>
+        <tr class="bg-gray-100 border-b border-gray-200">
+          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">SKU</th>
+          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Nome Prodotto</th>
+          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Quantità</th>
+          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Sottoscorta</th>
+          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Azioni</th>
         </tr>
       </thead>
       <tbody>
         <% @inventory_items.each do |inv| %>
-          <% row_bg = inv.quantity_in_stock == 0 ? 'bg-danger bg-opacity-25' : (inv.quantity_in_stock < inv.product.min_stock_level ? 'bg-warning bg-opacity-25' : '') %>
-          <tr class="<%= row_bg %>">
-            <td><code><%= inv.product.sku %></code></td>
-            <td><strong><%= inv.product.name %></strong></td>
-            <td>
-              <span class="badge <%= inv.quantity_in_stock == 0 ? 'bg-danger' : (inv.quantity_in_stock < inv.product.min_stock_level ? 'bg-warning text-dark' : 'bg-success') %>">
+          <% row_bg = inv.quantity_in_stock == 0 ? 'bg-red-50' : (inv.quantity_in_stock < inv.product.min_stock_level ? 'bg-yellow-50' : '') %>
+          <tr class="<%= row_bg %> border-b border-gray-200 hover:bg-gray-50 transition">
+            <td class="px-4 py-3"><code class="text-xs bg-gray-100 px-2 py-1 rounded"><%= inv.product.sku %></code></td>
+            <td class="px-4 py-3"><strong><%= inv.product.name %></strong></td>
+            <td class="px-4 py-3">
+              <span class="<%= inv.quantity_in_stock == 0 ? 'bg-red-100 text-red-700' : (inv.quantity_in_stock < inv.product.min_stock_level ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700') %> text-xs font-semibold px-2 py-0.5 rounded-full">
                 <%= inv.quantity_in_stock %>
               </span>
             </td>
-            <td><%= inv.product.min_stock_level %></td>
-            <td>
-              <div style="display: flex; gap: 4px;">
-                <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalCarico<%= inv.id %>" title="Carico">⬆️</button>
-                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalScarico<%= inv.id %>" title="Scarico">⬇️</button>
-              </div>
+            <td class="px-4 py-3"><%= inv.product.min_stock_level %></td>
+            <td class="px-4 py-3 flex gap-2">
+              <button class="bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded text-sm font-semibold transition" data-bs-toggle="modal" data-bs-target="#modalCarico<%= inv.id %>" title="Carico">⬆️</button>
+              <button class="bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded text-sm font-semibold transition" data-bs-toggle="modal" data-bs-target="#modalScarico<%= inv.id %>" title="Scarico">⬇️</button>
             </td>
           </tr>
 
