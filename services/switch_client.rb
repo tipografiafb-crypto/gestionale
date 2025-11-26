@@ -89,6 +89,9 @@ class SwitchClient
       switch_base = switch_base.chomp('/')
       webhook_path_str = "/#{webhook_path_str}" unless webhook_path_str.start_with?('/')
       
+      # Add /switch-webhook prefix if not already present
+      webhook_path_str = "/switch-webhook#{webhook_path_str}" unless webhook_path_str.start_with?('/switch-webhook')
+      
       full_url = "#{switch_base}#{webhook_path_str}"
       
       puts "[SWITCH_CLIENT_DEBUG] Full URL: #{full_url}"
