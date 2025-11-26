@@ -44,6 +44,7 @@ CREATE TABLE public.assets (
     original_url character varying NOT NULL,
     local_path character varying,
     asset_type character varying,
+    deleted_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
 );
