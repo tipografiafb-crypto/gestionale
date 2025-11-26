@@ -1,68 +1,72 @@
-<div class="flex justify-between items-center mb-6">
-  <h1 class="text-3xl font-bold">📋 Ordini</h1>
-  <div class="flex items-center gap-6">
-    <div class="text-gray-600 text-sm">
-      <span class="font-semibold"><%= @orders.count %></span> ordini totali
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1>📋 Ordini</h1>
+  <div class="d-flex align-items-center gap-3">
+    <div class="text-muted">
+      Total: <%= @orders.count %> orders
       <% if @filter_order_code.present? || @filter_store.present? || @filter_order_date.present? %>
-        | <a href="/orders" class="text-blue-600 hover:text-blue-700 ml-2">✕ Azzera filtri</a>
+        | <a href="/orders" class="text-reset">✕ Azzera filtri</a>
       <% end %>
     </div>
-    <a href="/orders/new" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2">
+    <a href="/orders/new" class="btn btn-primary">
       ➕ Aggiungi Ordine
     </a>
   </div>
 </div>
 
 <% if @orders.empty? %>
-  <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700">
-    <h4 class="font-bold mb-2">Nessun ordine</h4>
-    <p class="text-sm">Gli ordini appariranno qui quando importati via endpoint API:</p>
-    <code class="bg-blue-100 px-2 py-1 rounded text-xs">POST /api/orders/import</code>
+  <div class="alert alert-info">
+    <h4>No orders yet</h4>
+    <p>Orders will appear here when imported via the API endpoint:</p>
+    <code>POST /api/orders/import</code>
   </div>
 <% else %>
   <% in_progress = @orders.select { |o| %w[new sent_to_switch processing].include?(o.status) } %>
   <% completed = @orders.select { |o| %w[done error].include?(o.status) } %>
   
-  <div class="border-b border-gray-200 mb-6">
-    <div class="flex gap-8" role="tablist">
-      <button class="tab-btn active border-b-2 border-blue-600 pb-3 font-semibold text-gray-800 hover:text-blue-600 transition" data-tab="in-progress" role="tab">
-        ⏳ In Lavorazione <span class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full ml-2"><%= in_progress.count %></span>
+  <ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="in-progress-tab" data-bs-toggle="tab" data-bs-target="#in-progress" type="button" role="tab" aria-controls="in-progress" aria-selected="true">
+        ⏳ In Lavorazione <span class="badge bg-primary"><%= in_progress.count %></span>
       </button>
-      <button class="tab-btn border-b-2 border-transparent pb-3 font-semibold text-gray-600 hover:text-blue-600 transition" data-tab="completed" role="tab">
-        ✅ Completati <span class="bg-green-600 text-white text-xs px-2 py-0.5 rounded-full ml-2"><%= completed.count %></span>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab" aria-controls="completed" aria-selected="false">
+        ✅ Completati <span class="badge bg-success"><%= completed.count %></span>
       </button>
-      <button class="tab-btn border-b-2 border-transparent pb-3 font-semibold text-gray-600 hover:text-blue-600 transition" data-tab="errors" role="tab">
-        ⚠️ Errori <span class="bg-red-600 text-white text-xs px-2 py-0.5 rounded-full ml-2"><%= @import_errors.count %></span>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="errors-tab" data-bs-toggle="tab" data-bs-target="#errors" type="button" role="tab" aria-controls="errors" aria-selected="false">
+        ⚠️ Errori <span class="badge bg-danger"><%= @import_errors.count %></span>
       </button>
-    </div>
-  </div>
+    </li>
+  </ul>
 
-  <div class="tab-content">
+  <div class="tab-content mt-3">
     <!-- In Progress Tab -->
-    <div class="tab-pane active" id="in-progress" role="tabpanel">
+    <div class="tab-pane fade show active" id="in-progress" role="tabpanel" aria-labelledby="in-progress-tab">
       <% if in_progress.empty? %>
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700">Nessun ordine in lavorazione</div>
+        <div class="alert alert-info">Nessun ordine in lavorazione</div>
       <% else %>
-        <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-          <table class="w-full">
+        <div class="table-responsive">
+          <table class="table table-hover">
             <thead>
-              <tr class="bg-gray-100 border-b border-gray-200">
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Data</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Negozio</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Codice Ordine</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Stato</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Item</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Asset</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Azioni</th>
+              <tr>
+                <th>Data</th>
+                <th>Negozio</th>
+                <th>Codice Ordine</th>
+                <th>Stato</th>
+                <th>Item</th>
+                <th>Asset</th>
+                <th>Azioni</th>
               </tr>
               <!-- Filter Row -->
-              <tr class="bg-gray-50 border-b border-gray-200">
-                <td class="px-4 py-3">
-                  <form method="get" action="/orders" class="contents">
-                    <input type="date" class="border border-gray-300 rounded px-2 py-1 text-sm w-full" name="order_date" value="<%= @filter_order_date %>" onchange="this.form.submit()">
+              <tr style="background-color: #f8f9fa;">
+                <td>
+                  <form method="get" action="/orders" class="d-inline" style="display: contents;">
+                    <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>" onchange="this.form.submit()">
                 </td>
-                <td class="px-4 py-3">
-                    <select class="border border-gray-300 rounded px-2 py-1 text-sm w-full" name="store_id" onchange="this.form.submit()">
+                <td>
+                    <select class="form-select form-select-sm" name="store_id" onchange="this.form.submit()">
                       <option value="">Tutti</option>
                       <% @stores.each do |store| %>
                         <option value="<%= store.id %>" <%= 'selected' if @filter_store == store.id.to_s %>>
@@ -71,8 +75,8 @@
                       <% end %>
                     </select>
                 </td>
-                <td class="px-4 py-3">
-                    <input type="text" class="border border-gray-300 rounded px-2 py-1 text-sm w-full" name="order_code" placeholder="Codice..." value="<%= @filter_order_code %>" onchange="this.form.submit()">
+                <td>
+                    <input type="text" class="form-control form-control-sm" name="order_code" placeholder="Codice..." value="<%= @filter_order_code %>" onchange="this.form.submit()">
                 </td>
                 <td></td>
                 <td></td>
@@ -83,33 +87,33 @@
             </thead>
             <tbody>
               <% in_progress.each do |order| %>
-                <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
-                  <td class="px-4 py-3 text-sm"><%= order.created_at.strftime('%d-%m-%y') %></td>
-                  <td class="px-4 py-3 text-sm"><%= order.store.name %></td>
-                  <td class="px-4 py-3 text-sm"><a href="/orders/<%= order.id %>" class="text-blue-600 hover:text-blue-700 font-semibold"><%= order.external_order_code %></a></td>
-                  <td class="px-4 py-3">
-                    <span class="status-badge status-<%= order.status %>">
+                <tr>
+                  <td><%= order.created_at.strftime('%d-%m-%y') %></td>
+                  <td><%= order.store.name %></td>
+                  <td><a href="/orders/<%= order.id %>"><%= order.external_order_code %></a></td>
+                  <td>
+                    <span class="badge status-badge status-<%= order.status %>">
                       <%= order.status.gsub('_', ' ').upcase %>
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-sm"><%= order.order_items.count %></td>
-                  <td class="px-4 py-3 text-sm">
-                    <%= order.assets.count %> tot
+                  <td><%= order.order_items.count %></td>
+                  <td>
+                    <%= order.assets.count %> total
                     <% if order.assets_downloaded? %>
-                      <span class="inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-semibold">✓</span>
+                      <span class="badge bg-success">✓</span>
                     <% else %>
-                      <span class="inline-block bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-semibold">pending</span>
+                      <span class="badge bg-warning text-dark">pending</span>
                     <% end %>
                   </td>
-                  <td class="px-4 py-3">
-                    <div class="flex gap-2">
-                      <a href="/orders/<%= order.id %>" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded text-sm font-semibold transition" title="Visualizza">👁️</a>
-                      <form action="/orders/<%= order.id %>/duplicate" method="post" class="inline">
-                        <button type="submit" class="bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded text-sm font-semibold transition" title="Duplica">📋</button>
+                  <td>
+                    <div style="display: flex; gap: 4px;">
+                      <a href="/orders/<%= order.id %>" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 14px;" title="Visualizza">👁️</a>
+                      <form action="/orders/<%= order.id %>/duplicate" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-success" style="padding: 2px 6px; font-size: 14px;" title="Duplica">📋</button>
                       </form>
-                      <form action="/orders/<%= order.id %>" method="post" class="inline" onsubmit="return confirm('Cancellare questo ordine?');">
+                      <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
                         <input type="hidden" name="_method" value="DELETE">
-                        <button type="submit" class="bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded text-sm font-semibold transition" title="Cancella">🗑</button>
+                        <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella">🗑</button>
                       </form>
                     </div>
                   </td>
@@ -122,30 +126,30 @@
     </div>
 
     <!-- Completed Tab -->
-    <div class="tab-pane hidden" id="completed" role="tabpanel">
+    <div class="tab-pane fade" id="completed" role="tabpanel" aria-labelledby="completed-tab">
       <% if completed.empty? %>
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700">Nessun ordine completato</div>
+        <div class="alert alert-info">Nessun ordine completato</div>
       <% else %>
-        <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-          <table class="w-full">
+        <div class="table-responsive">
+          <table class="table table-hover">
             <thead>
-              <tr class="bg-gray-100 border-b border-gray-200">
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Data</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Negozio</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Codice Ordine</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Stato</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Item</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Asset</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Azioni</th>
+              <tr>
+                <th>Data</th>
+                <th>Negozio</th>
+                <th>Codice Ordine</th>
+                <th>Stato</th>
+                <th>Item</th>
+                <th>Asset</th>
+                <th>Azioni</th>
               </tr>
               <!-- Filter Row -->
-              <tr class="bg-gray-50 border-b border-gray-200">
-                <td class="px-4 py-3">
-                  <form method="get" action="/orders" class="contents">
-                    <input type="date" class="border border-gray-300 rounded px-2 py-1 text-sm w-full" name="order_date" value="<%= @filter_order_date %>" onchange="this.form.submit()">
+              <tr style="background-color: #f8f9fa;">
+                <td>
+                  <form method="get" action="/orders" class="d-inline" style="display: contents;">
+                    <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>" onchange="this.form.submit()">
                 </td>
-                <td class="px-4 py-3">
-                    <select class="border border-gray-300 rounded px-2 py-1 text-sm w-full" name="store_id" onchange="this.form.submit()">
+                <td>
+                    <select class="form-select form-select-sm" name="store_id" onchange="this.form.submit()">
                       <option value="">Tutti</option>
                       <% @stores.each do |store| %>
                         <option value="<%= store.id %>" <%= 'selected' if @filter_store == store.id.to_s %>>
@@ -154,8 +158,8 @@
                       <% end %>
                     </select>
                 </td>
-                <td class="px-4 py-3">
-                    <input type="text" class="border border-gray-300 rounded px-2 py-1 text-sm w-full" name="order_code" placeholder="Codice..." value="<%= @filter_order_code %>" onchange="this.form.submit()">
+                <td>
+                    <input type="text" class="form-control form-control-sm" name="order_code" placeholder="Codice..." value="<%= @filter_order_code %>" onchange="this.form.submit()">
                 </td>
                 <td></td>
                 <td></td>
@@ -166,33 +170,33 @@
             </thead>
             <tbody>
               <% completed.each do |order| %>
-                <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
-                  <td class="px-4 py-3 text-sm"><%= order.created_at.strftime('%d-%m-%y') %></td>
-                  <td class="px-4 py-3 text-sm"><%= order.store.name %></td>
-                  <td class="px-4 py-3 text-sm"><a href="/orders/<%= order.id %>" class="text-blue-600 hover:text-blue-700 font-semibold"><%= order.external_order_code %></a></td>
-                  <td class="px-4 py-3">
-                    <span class="status-badge status-<%= order.status %>">
+                <tr>
+                  <td><%= order.created_at.strftime('%d-%m-%y') %></td>
+                  <td><%= order.store.name %></td>
+                  <td><a href="/orders/<%= order.id %>"><%= order.external_order_code %></a></td>
+                  <td>
+                    <span class="badge status-badge status-<%= order.status %>">
                       <%= order.status.gsub('_', ' ').upcase %>
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-sm"><%= order.order_items.count %></td>
-                  <td class="px-4 py-3 text-sm">
-                    <%= order.assets.count %> tot
+                  <td><%= order.order_items.count %></td>
+                  <td>
+                    <%= order.assets.count %> total
                     <% if order.assets_downloaded? %>
-                      <span class="inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-semibold">✓</span>
+                      <span class="badge bg-success">✓</span>
                     <% else %>
-                      <span class="inline-block bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-semibold">pending</span>
+                      <span class="badge bg-warning text-dark">pending</span>
                     <% end %>
                   </td>
-                  <td class="px-4 py-3">
-                    <div class="flex gap-2">
-                      <a href="/orders/<%= order.id %>" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded text-sm font-semibold transition" title="Visualizza">👁️</a>
-                      <form action="/orders/<%= order.id %>/duplicate" method="post" class="inline">
-                        <button type="submit" class="bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded text-sm font-semibold transition" title="Duplica">📋</button>
+                  <td>
+                    <div style="display: flex; gap: 4px;">
+                      <a href="/orders/<%= order.id %>" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 14px;" title="Visualizza">👁️</a>
+                      <form action="/orders/<%= order.id %>/duplicate" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-success" style="padding: 2px 6px; font-size: 14px;" title="Duplica">📋</button>
                       </form>
-                      <form action="/orders/<%= order.id %>" method="post" class="inline" onsubmit="return confirm('Cancellare questo ordine?');">
+                      <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
                         <input type="hidden" name="_method" value="DELETE">
-                        <button type="submit" class="bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded text-sm font-semibold transition" title="Cancella">🗑</button>
+                        <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella">🗑</button>
                       </form>
                     </div>
                   </td>
@@ -205,56 +209,57 @@
     </div>
 
     <!-- Errors Tab -->
-    <div class="tab-pane hidden" id="errors" role="tabpanel">
+    <div class="tab-pane fade" id="errors" role="tabpanel" aria-labelledby="errors-tab">
       <% if @import_errors.empty? %>
-        <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-green-700">✓ Nessun errore di importazione</div>
+        <div class="alert alert-success">✓ Nessun errore di importazione</div>
       <% else %>
-        <div class="flex justify-end mb-4">
-          <form action="/import_errors/clear_all" method="post" class="inline" onsubmit="return confirm('Cancellare TUTTI gli errori? Questa azione non può essere annullata.');">
-            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div></div>
+          <form action="/import_errors/clear_all" method="post" class="d-inline" onsubmit="return confirm('Cancellare TUTTI gli errori? Questa azione non può essere annullata.');">
+            <button type="submit" class="btn btn-sm btn-danger" style="padding: 4px 12px;">
               🗑️ Cancella tutti gli errori
             </button>
           </form>
         </div>
-        <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-          <table class="w-full">
+        <div class="table-responsive">
+          <table class="table table-hover">
             <thead>
-              <tr class="bg-gray-100 border-b border-gray-200">
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Data</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Codice Ordine</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">File</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Errore</th>
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700 w-20">Azioni</th>
+              <tr>
+                <th>Data</th>
+                <th>Codice Ordine</th>
+                <th>File</th>
+                <th>Errore</th>
+                <th style="width: 80px;">Azioni</th>
               </tr>
               <!-- Filter Row -->
-              <tr class="bg-gray-50 border-b border-gray-200">
-                <td class="px-4 py-3">
-                  <form method="get" action="/orders" class="contents">
-                    <input type="date" class="border border-gray-300 rounded px-2 py-1 text-sm w-full" name="error_date" value="<%= @filter_error_date %>" onchange="this.form.submit()">
+              <tr style="background-color: #f8f9fa;">
+                <td>
+                  <form method="get" action="/orders" class="d-inline" style="display: contents;">
+                    <input type="date" class="form-control form-control-sm" name="error_date" value="<%= @filter_error_date %>" onchange="this.form.submit()">
                 </td>
-                <td class="px-4 py-3">
-                    <input type="text" class="border border-gray-300 rounded px-2 py-1 text-sm w-full" name="error_order_code" placeholder="Codice..." value="<%= @filter_error_order_code %>" onchange="this.form.submit()">
+                <td>
+                    <input type="text" class="form-control form-control-sm" name="error_order_code" placeholder="Codice ordine..." value="<%= @filter_error_order_code %>" onchange="this.form.submit()">
                 </td>
                 <td></td>
                 <td></td>
-                <td class="px-4 py-3">
-                    <a href="/orders" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-2 py-1 rounded text-xs font-semibold transition inline-block">✕ Reset</a>
+                <td>
+                    <a href="/orders" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 12px;">✕ Reset</a>
                   </form>
                 </td>
               </tr>
             </thead>
             <tbody>
               <% @import_errors.each do |error| %>
-                <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
-                  <td class="px-4 py-3 text-sm"><%= error.created_at.strftime('%d-%m-%y %H:%M') %></td>
-                  <td class="px-4 py-3 text-sm font-semibold"><%= error.external_order_code %></td>
-                  <td class="px-4 py-3 text-sm"><code class="bg-gray-100 px-2 py-1 rounded text-xs"><%= error.filename %></code></td>
-                  <td class="px-4 py-3 text-sm text-red-700">
+                <tr>
+                  <td><%= error.created_at.strftime('%d-%m-%y %H:%M') %></td>
+                  <td><strong><%= error.external_order_code %></strong></td>
+                  <td><code><%= error.filename %></code></td>
+                  <td style="color: #dc3545;">
                     <%= error.error_message %>
                   </td>
-                  <td class="px-4 py-3">
-                    <form action="/import_errors/<%= error.id %>/delete" method="post" class="inline" onsubmit="return confirm('Cancellare questo errore?');">
-                      <button type="submit" class="bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded text-sm font-semibold transition" title="Cancella">🗑</button>
+                  <td>
+                    <form action="/import_errors/<%= error.id %>/delete" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo errore?');">
+                      <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella">🗑</button>
                     </form>
                   </td>
                 </tr>
@@ -266,22 +271,3 @@
     </div>
   </div>
 <% end %>
-
-<script>
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      // Hide all tabs
-      document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.add('hidden'));
-      // Show selected tab
-      document.getElementById(btn.dataset.tab).classList.remove('hidden');
-      
-      // Update button styles
-      document.querySelectorAll('.tab-btn').forEach(b => {
-        b.classList.remove('border-blue-600', 'text-gray-800');
-        b.classList.add('border-transparent', 'text-gray-600');
-      });
-      btn.classList.remove('border-transparent', 'text-gray-600');
-      btn.classList.add('border-blue-600', 'text-gray-800');
-    });
-  });
-</script>

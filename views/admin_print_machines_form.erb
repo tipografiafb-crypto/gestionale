@@ -1,33 +1,39 @@
-<div class="max-w-2xl mx-auto">
-  <h2 class="text-3xl font-bold mb-6"><%= @machine.new_record? ? '➕ Nuova Macchina' : '✏️ Modifica Macchina' %></h2>
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <h2><%= @machine.new_record? ? '➕ Nuova Macchina' : '✏️ Modifica Macchina' %></h2>
 
-  <% if @error_message %>
-    <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 mb-4"><%= @error_message %></div>
-  <% end %>
+      <% if @error_message %>
+        <div class="alert alert-danger"><%= @error_message %></div>
+      <% end %>
 
-  <form action="<%= @machine.new_record? ? '/admin/print_machines' : "/admin/print_machines/#{@machine.id}" %>" method="post" class="bg-white rounded-lg border border-gray-200 shadow-sm p-6 space-y-4">
-    <% if !@machine.new_record? %>
-      <input type="hidden" name="_method" value="PUT">
-    <% end %>
+      <form action="<%= @machine.new_record? ? '/admin/print_machines' : "/admin/print_machines/#{@machine.id}" %>" method="post" class="card p-4">
+        <% if !@machine.new_record? %>
+          <input type="hidden" name="_method" value="PUT">
+        <% end %>
 
-    <div>
-      <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">Nome Macchina *</label>
-      <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" id="name" name="name" value="<%= @machine.name %>" required placeholder="es: Stampante UV 01">
+        <div class="mb-3">
+          <label for="name" class="form-label">Nome Macchina *</label>
+          <input type="text" class="form-control" id="name" name="name" value="<%= @machine.name %>" required placeholder="es: Stampante UV 01">
+        </div>
+
+        <div class="mb-3">
+          <label for="description" class="form-label">Descrizione</label>
+          <textarea class="form-control" id="description" name="description" rows="3" placeholder="Descrizione opzionale della macchina"><%= @machine.description %></textarea>
+        </div>
+
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="active" name="active" <%= 'checked' if @machine.active != false %>>
+          <label class="form-check-label" for="active">
+            Attiva
+          </label>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">💾 Salva</button>
+          <a href="/admin/print_machines" class="btn btn-secondary">Annulla</a>
+        </div>
+      </form>
     </div>
-
-    <div>
-      <label for="description" class="block text-sm font-semibold text-gray-700 mb-2">Descrizione</label>
-      <textarea class="w-full border border-gray-300 rounded px-3 py-2 text-sm" id="description" name="description" rows="3" placeholder="Descrizione opzionale della macchina"><%= @machine.description %></textarea>
-    </div>
-
-    <div class="flex items-center gap-2">
-      <input class="border border-gray-300 rounded" type="checkbox" id="active" name="active" <%= 'checked' if @machine.active != false %>>
-      <label for="active" class="text-sm font-semibold text-gray-700">Attiva</label>
-    </div>
-
-    <div class="flex gap-3 pt-4">
-      <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition">💾 Salva</button>
-      <a href="/admin/print_machines" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-semibold transition inline-block">Annulla</a>
-    </div>
-  </form>
+  </div>
 </div>

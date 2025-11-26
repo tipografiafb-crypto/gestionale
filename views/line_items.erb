@@ -1,19 +1,21 @@
-<div class="flex justify-between items-center mb-6">
-  <h1 class="text-3xl font-bold">🔗 Article da Fare</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1>🔗 Article da Fare</h1>
 </div>
 
-<div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4">
-  <form method="get" action="/line_items" class="flex gap-2">
-    <input type="text" class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" name="search" placeholder="Cerca per nome prodotto..." value="<%= @search_term %>">
-    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-semibold transition">Cerca</button>
-    <% if @search_term.present? %>
-      <a href="/line_items" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded font-semibold transition">Azzera</a>
-    <% end %>
-  </form>
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" action="/line_items" class="d-flex gap-2">
+      <input type="text" class="form-control" name="search" placeholder="Cerca per nome prodotto..." value="<%= @search_term %>">
+      <button type="submit" class="btn btn-primary">Cerca</button>
+      <% if @search_term.present? %>
+        <a href="/line_items" class="btn btn-outline-secondary">Azzera</a>
+      <% end %>
+    </form>
+  </div>
 </div>
 
 <% if @line_items.empty? %>
-  <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700">
+  <div class="alert alert-info">
     <% if @search_term.present? %>
       Nessun article trovato con il nome "<%= @search_term %>"
     <% else %>
@@ -21,36 +23,38 @@
     <% end %>
   </div>
 <% else %>
-  <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-    <table class="w-full">
+  <div class="table-responsive">
+    <table class="table table-hover">
       <thead>
-        <tr class="bg-gray-100 border-b border-gray-200">
-          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Data Ordine</th>
-          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Codice Ordine</th>
-          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Negozio</th>
-          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Nome Prodotto</th>
-          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">SKU</th>
-          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Quantità</th>
-          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Stato Ordine</th>
-          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Azioni</th>
+        <tr>
+          <th>Data Ordine</th>
+          <th>Codice Ordine</th>
+          <th>Negozio</th>
+          <th>Nome Prodotto</th>
+          <th>SKU</th>
+          <th>Quantità</th>
+          <th>Stato Ordine</th>
+          <th>Azioni</th>
         </tr>
       </thead>
       <tbody>
         <% @line_items.each do |li| %>
-          <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
-            <td class="px-4 py-3 text-sm"><%= li[:order].created_at.strftime('%d-%m-%y') %></td>
-            <td class="px-4 py-3 text-sm"><a href="/orders/<%= li[:order].id %>" class="text-blue-600 hover:text-blue-700 font-semibold"><%= li[:order].external_order_code %></a></td>
-            <td class="px-4 py-3 text-sm"><%= li[:order].store.name %></td>
-            <td class="px-4 py-3 text-sm"><strong><%= li[:product_name] %></strong></td>
-            <td class="px-4 py-3 text-sm"><code class="bg-gray-100 px-2 py-1 rounded text-xs"><%= li[:item].sku %></code></td>
-            <td class="px-4 py-3 text-sm"><%= li[:item].quantity %></td>
-            <td class="px-4 py-3">
-              <span class="status-badge status-<%= li[:order].status %>">
+          <tr>
+            <td><%= li[:order].created_at.strftime('%d-%m-%y') %></td>
+            <td><a href="/orders/<%= li[:order].id %>"><%= li[:order].external_order_code %></a></td>
+            <td><%= li[:order].store.name %></td>
+            <td><strong><%= li[:product_name] %></strong></td>
+            <td><code><%= li[:item].sku %></code></td>
+            <td><%= li[:item].quantity %></td>
+            <td>
+              <span class="badge status-badge status-<%= li[:order].status %>">
                 <%= li[:order].status.gsub('_', ' ').upcase %>
               </span>
             </td>
-            <td class="px-4 py-3">
-              <a href="/orders/<%= li[:order].id %>" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded text-sm font-semibold transition inline-block" title="Visualizza ordine">👁️</a>
+            <td>
+              <div style="display: flex; gap: 4px;">
+                <a href="/orders/<%= li[:order].id %>" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 14px;" title="Visualizza ordine">👁️</a>
+              </div>
             </td>
           </tr>
         <% end %>
@@ -58,7 +62,7 @@
     </table>
   </div>
   
-  <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700 mt-4">
+  <div class="alert alert-info mt-4">
     <strong>Totale:</strong> <%= @line_items.count %> article da elaborare
   </div>
 <% end %>

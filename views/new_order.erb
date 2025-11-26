@@ -1,17 +1,18 @@
 <% if params[:error].present? %>
-  <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 mb-4">
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
     <%= params[:error] %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 <% end %>
 
-<div class="max-w-4xl">
-  <h1 class="text-3xl font-bold mb-6">Crea Ordine Manuale</h1>
+<div class="container mt-4">
+  <h1>Crea Ordine Manuale</h1>
   
-  <form method="post" action="/orders" enctype="multipart/form-data" class="space-y-6">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <label for="store_id" class="block text-sm font-semibold text-gray-700 mb-2">Negozio *</label>
-        <select class="w-full border border-gray-300 rounded px-3 py-2 text-sm" id="store_id" name="store_id" required>
+  <form method="post" action="/orders" class="needs-validation" novalidate enctype="multipart/form-data">
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <label for="store_id" class="form-label">Negozio *</label>
+        <select class="form-select" id="store_id" name="store_id" required>
           <option value="">-- Seleziona negozio --</option>
           <% @stores.each do |store| %>
             <option value="<%= store.id %>"><%= store.name %></option>
@@ -19,61 +20,65 @@
         </select>
       </div>
       
-      <div>
-        <label for="order_code" class="block text-sm font-semibold text-gray-700 mb-2">Codice Ordine *</label>
-        <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" id="order_code" name="order_code" required placeholder="es. ORD-123456">
+      <div class="col-md-6">
+        <label for="order_code" class="form-label">Codice Ordine *</label>
+        <input type="text" class="form-control" id="order_code" name="order_code" required placeholder="es. ORD-123456">
       </div>
     </div>
 
-    <div class="border-t pt-6">
-      <h4 class="text-lg font-semibold text-gray-800 mb-4">Item Ordine</h4>
-      <div id="items-container">
-        <div class="item-row mb-3 p-4 border border-gray-300 rounded-lg bg-gray-50">
-          <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
-            <div class="md:col-span-2">
-              <label class="block text-sm font-semibold text-gray-700 mb-1">Prodotto (SKU) *</label>
-              <select class="w-full border border-gray-300 rounded px-3 py-2 text-sm product-select" name="items[][sku]" required>
-                <option value="">-- Seleziona prodotto --</option>
-                <% @products.each do |product| %>
-                  <option value="<%= product.sku %>" title="<%= product.name %>">
-                    <%= product.sku %> - <%= product.name %>
-                  </option>
-                <% end %>
-              </select>
-            </div>
-            
-            <div class="md:col-span-1">
-              <label class="block text-sm font-semibold text-gray-700 mb-1">Quantità *</label>
-              <input type="number" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" name="items[][quantity]" min="1" value="1" required>
-            </div>
-            
-            <div class="md:col-span-2">
-              <label class="block text-sm font-semibold text-gray-700 mb-1">&nbsp;</label>
-              <button type="button" class="w-full bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded font-semibold text-sm transition remove-item-btn hidden">
-                🗑 Rimuovi
-              </button>
-            </div>
+    <hr class="my-4">
+    
+    <h4>Item Ordine</h4>
+    <div id="items-container">
+      <div class="item-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
+        <div class="row mb-2">
+          <div class="col-md-5">
+            <label class="form-label">Prodotto (SKU) *</label>
+            <select class="form-select product-select" name="items[][sku]" required>
+              <option value="">-- Seleziona prodotto --</option>
+              <% @products.each do |product| %>
+                <option value="<%= product.sku %>" title="<%= product.name %>">
+                  <%= product.sku %> - <%= product.name %>
+                </option>
+              <% end %>
+            </select>
           </div>
-          <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-1">📎 File (immagine/PDF)</label>
-            <input type="file" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" name="items[][file]" accept=".png,.jpg,.jpeg,.pdf">
-            <small class="text-gray-600">Opzionale - PNG, JPG, JPEG, PDF</small>
+          
+          <div class="col-md-3">
+            <label class="form-label">Quantità *</label>
+            <input type="number" class="form-control" name="items[][quantity]" min="1" value="1" required>
+          </div>
+          
+          <div class="col-md-4">
+            <label class="form-label">&nbsp;</label>
+            <button type="button" class="btn btn-outline-danger w-100 remove-item-btn" style="display: none;">
+              🗑 Rimuovi
+            </button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12">
+            <label class="form-label">📎 File (immagine/PDF)</label>
+            <input type="file" class="form-control" name="items[][file]" accept=".png,.jpg,.jpeg,.pdf">
+            <small class="text-muted">Opzionale - PNG, JPG, JPEG, PDF</small>
           </div>
         </div>
       </div>
-
-      <div class="mt-4">
-        <button type="button" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded font-semibold transition text-sm" id="add-item-btn">
-          ➕ Aggiungi Item
-        </button>
-      </div>
     </div>
 
-    <div class="border-t pt-6 flex gap-3">
-      <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition">
+    <div class="mb-4">
+      <button type="button" class="btn btn-outline-primary" id="add-item-btn">
+        ➕ Aggiungi Item
+      </button>
+    </div>
+
+    <hr class="my-4">
+    
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary">
         ✅ Crea Ordine
       </button>
-      <a href="/orders" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-lg font-semibold transition inline-block">
+      <a href="/orders" class="btn btn-secondary">
         ← Annulla
       </a>
     </div>

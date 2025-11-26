@@ -1,36 +1,38 @@
-<div class="max-w-2xl mx-auto">
-  <h1 class="text-3xl font-bold mb-6"><%= @store&.id ? "Modifica Negozio" : "Nuovo Negozio" %></h1>
+<div class="container mt-5" style="max-width: 600px;">
+  <h1><%= @store&.id ? "Modifica Negozio" : "Nuovo Negozio" %></h1>
 
   <% if @error %>
-    <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 mb-4"><%= @error %></div>
+    <div class="alert alert-danger"><%= @error %></div>
   <% end %>
 
-  <form action="<%= @store&.id ? "/stores/#{@store.id}" : "/stores" %>" method="post" class="space-y-4">
+  <form action="<%= @store&.id ? "/stores/#{@store.id}" : "/stores" %>" method="post">
     <% if @store&.id %>
       <input type="hidden" name="_method" value="PUT">
     <% end %>
 
-    <div>
-      <label for="code" class="block text-sm font-semibold text-gray-700 mb-2">Codice Negozio *</label>
-      <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 text-sm uppercase" id="code" name="code" value="<%= @store&.code %>" placeholder="es. TPH_IT, TPH_DE, TPH_EU" required>
-      <small class="text-gray-600">Codice univoco del negozio (es: TPH_IT per Italia). Gli ordini con codici non riconosciuti verranno rifiutati.</small>
+    <div class="mb-3">
+      <label for="code" class="form-label">Codice Negozio *</label>
+      <input type="text" class="form-control text-uppercase" id="code" name="code" value="<%= @store&.code %>" placeholder="es. TPH_IT, TPH_DE, TPH_EU" required>
+      <small class="text-muted">Codice univoco del negozio (es: TPH_IT per Italia). Gli ordini con codici non riconosciuti verranno rifiutati.</small>
     </div>
 
-    <div>
-      <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">Nome Negozio *</label>
-      <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" id="name" name="name" value="<%= @store&.name %>" placeholder="es. The Pickers - Italia" required>
-      <small class="text-gray-600">Nome descrittivo del negozio</small>
+    <div class="mb-3">
+      <label for="name" class="form-label">Nome Negozio *</label>
+      <input type="text" class="form-control" id="name" name="name" value="<%= @store&.name %>" placeholder="es. The Pickers - Italia" required>
+      <small class="text-muted">Nome descrittivo del negozio</small>
     </div>
 
-    <div class="flex items-center gap-2">
-      <input type="checkbox" class="border border-gray-300 rounded" id="active" name="active" value="true" <%= @store&.active? ? 'checked' : '' %>>
-      <label for="active" class="text-sm font-semibold text-gray-700">Attivo</label>
-      <small class="text-gray-600 block">Disabilita temporaneamente questo negozio senza eliminare i dati</small>
+    <div class="mb-3">
+      <div class="form-check">
+        <input type="checkbox" class="form-check-input" id="active" name="active" value="true" <%= @store&.active? ? 'checked' : '' %>>
+        <label class="form-check-label" for="active">Attivo</label>
+      </div>
+      <small class="text-muted">Disabilita temporaneamente questo negozio senza eliminare i dati</small>
     </div>
 
-    <div class="flex gap-3 pt-4">
-      <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition">💾 Salva Negozio</button>
-      <a href="/stores" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-semibold transition inline-block">Annulla</a>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary">💾 Salva Negozio</button>
+      <a href="/stores" class="btn btn-secondary">Annulla</a>
     </div>
   </form>
 </div>
