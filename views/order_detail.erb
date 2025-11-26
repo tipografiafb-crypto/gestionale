@@ -1,524 +1,169 @@
-<div class="mb-4">
-  <nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-      <li class="breadcrumb-item"><a href="/orders">Orders</a></li>
-      <li class="breadcrumb-item active"><%= @order.external_order_code %></li>
-    </ol>
+<div class="mb-6">
+  <nav class="flex gap-2 text-sm text-gray-600">
+    <a href="/orders" class="text-blue-600 hover:text-blue-800">Ordini</a>
+    <span>/</span>
+    <span class="text-gray-900 font-semibold"><%= @order.external_order_code %></span>
   </nav>
 </div>
 
-<div class="row mb-4">
-  <div class="col-md-8">
-    <h1>Order: <%= @order.external_order_code %></h1>
+<div class="mb-6 flex justify-between items-start">
+  <div>
+    <h1 class="text-3xl font-bold text-gray-900">Ordine: <%= @order.external_order_code %></h1>
+    <p class="text-gray-600 mt-1">Dettagli e gestione ordine di stampa</p>
   </div>
-  <div class="col-md-4 text-end">
-    <form action="/orders/<%= @order.id %>" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro? Eliminerai completamente questo ordine.');">
-      <input type="hidden" name="_method" value="DELETE">
-      <button type="submit" class="btn btn-danger">
-        🗑 Delete
-      </button>
-    </form>
-  </div>
+  <form action="/orders/<%= @order.id %>" method="post" class="inline" onsubmit="return confirm('Sei sicuro? Eliminerai completamente questo ordine.');">
+    <input type="hidden" name="_method" value="DELETE">
+    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+      🗑 Elimina Ordine
+    </button>
+  </form>
 </div>
 
-<div class="row">
-  <div class="col-md-6">
-    <div class="card mb-4">
-      <div class="card-header">
-        <strong>Order Information</strong>
-      </div>
-      <div class="card-body">
-        <table class="table table-sm table-borderless">
-          <tr>
-            <th>ID:</th>
-            <td><%= @order.id %></td>
-          </tr>
-          <tr>
-            <th>External Code:</th>
-            <td><strong><%= @order.external_order_code %></strong></td>
-          </tr>
-          <tr>
-            <th>Store:</th>
-            <td><%= @order.store.code %> (<%= @order.store.name %>)</td>
-          </tr>
-          <tr>
-            <th>Status:</th>
-            <td>
-              <span class="badge status-badge status-<%= @order.status %>">
-                <%= @order.status.gsub('_', ' ').upcase %>
-              </span>
-            </td>
-          </tr>
-          <tr>
-            <th>Created:</th>
-            <td><%= @order.created_at.strftime('%Y-%m-%d %H:%M:%S') %></td>
-          </tr>
-          <tr>
-            <th>Updated:</th>
-            <td><%= @order.updated_at.strftime('%Y-%m-%d %H:%M:%S') %></td>
-          </tr>
-        </table>
+<div class="grid grid-cols-3 gap-6 mb-6">
+  <!-- Left Column - Order Info -->
+  <div class="col-span-2">
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">📋 Informazioni Ordine</h2>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <p class="text-sm text-gray-600">ID</p>
+          <p class="font-mono text-sm text-gray-900"><%= @order.id %></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-600">Codice Esterno</p>
+          <p class="font-semibold text-gray-900"><%= @order.external_order_code %></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-600">Negozio</p>
+          <p class="text-gray-900"><%= @order.store.code %> - <%= @order.store.name %></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-600">Stato</p>
+          <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold status-<%= @order.status %>">
+            <%= @order.status.gsub('_', ' ').upcase %>
+          </span>
+        </div>
+        <div>
+          <p class="text-sm text-gray-600">Creato</p>
+          <p class="text-gray-900"><%= @order.created_at.strftime('%d-%m-%Y %H:%M:%S') %></p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-600">Modificato</p>
+          <p class="text-gray-900"><%= @order.updated_at.strftime('%d-%m-%Y %H:%M:%S') %></p>
+        </div>
       </div>
     </div>
 
-    <div class="card mb-4">
-      <div class="card-header">
-        <strong>Notes</strong>
-      </div>
-      <div class="card-body">
-        <% if @order.notes.present? %>
-          <p><%= simple_format(@order.notes) %></p>
-        <% else %>
-          <p class="text-muted"><em>No notes</em></p>
-        <% end %>
-      </div>
+    <div class="bg-white rounded-lg shadow-sm p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">📝 Note</h2>
+      <% if @order.notes.present? %>
+        <div class="text-gray-700 whitespace-pre-wrap"><%= @order.notes %></div>
+      <% else %>
+        <p class="text-gray-500 italic">Nessuna nota</p>
+      <% end %>
     </div>
   </div>
 
-  <div class="col-md-6">
+  <!-- Right Column - Switch Job -->
+  <div>
     <% if @order.switch_job %>
-      <div class="card mb-4">
-        <div class="card-header">
-          <strong>Switch Job</strong>
-        </div>
-        <div class="card-body">
-          <table class="table table-sm table-borderless">
-            <tr>
-              <th>Job ID:</th>
-              <td><%= @order.switch_job.switch_job_id || 'N/A' %></td>
-            </tr>
-            <tr>
-              <th>Status:</th>
-              <td><span class="badge bg-secondary"><%= @order.switch_job.status&.upcase %></span></td>
-            </tr>
-            <% if @order.switch_job.result_preview_url %>
-              <tr>
-                <th>Preview:</th>
-                <td><a href="<%= @order.switch_job.result_preview_url %>" target="_blank">View Preview</a></td>
-              </tr>
-            <% end %>
-          </table>
+      <div class="bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">⚙️ Switch Job</h2>
+        <div class="space-y-3">
+          <div>
+            <p class="text-sm text-gray-600">Job ID</p>
+            <p class="font-mono text-sm text-gray-900"><%= @order.switch_job.switch_job_id || 'N/A' %></p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-600">Status</p>
+            <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
+              <%= @order.switch_job.status&.upcase || 'UNKNOWN' %>
+            </span>
+          </div>
+          <% if @order.switch_job.result_preview_url %>
+            <div>
+              <a href="<%= @order.switch_job.result_preview_url %>" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View Preview →</a>
+            </div>
+          <% end %>
           <% if @order.switch_job.log.present? %>
-            <h6>Log:</h6>
-            <div class="log-box"><%= @order.switch_job.log %></div>
+            <div class="mt-4">
+              <p class="text-sm text-gray-600 mb-2">Log</p>
+              <div class="log-box"><%= @order.switch_job.log %></div>
+            </div>
           <% end %>
         </div>
+      </div>
+    <% else %>
+      <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+        <p class="text-blue-800 font-semibold text-sm">Non ancora inviato a Switch</p>
       </div>
     <% end %>
   </div>
 </div>
 
-<% if params[:msg] %>
-  <div class="alert alert-<%= params[:msg] == 'success' ? 'success' : 'danger' %> alert-dismissible fade show" role="alert">
-    <%= params[:text]&.gsub('+', ' ') %>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-<% end %>
-
-<h3>Order Items (<%= @order.order_items.count %>)</h3>
-
-<% @order.order_items.each_with_index do |item, index| %>
-  <div class="card mb-3">
-    <div class="card-header">
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <strong><%= item.product&.name || item.sku %></strong> - Quantità: <%= item.quantity %>
-        </div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <!-- Always show modal for preprint options -->
-          <button type="button" class="btn btn-sm btn-outline-warning" 
-                  <%= 'disabled' unless item.can_send_to_preprint? %>
-                  title="<%= item.can_send_to_preprint? ? 'Configura e invia a pre-stampa' : 'Immagini non ancora scaricate' %>"
-                  data-bs-toggle="modal" data-bs-target="#flowSelectModal_<%= item.id %>">
-            🖨️ Pre-stampa
-            <% if item.preprint_status != 'pending' %>
-              <span class="badge <%= item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
-                <%= item.preprint_status&.upcase %>
+<!-- Items Section -->
+<div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+  <h2 class="text-lg font-semibold text-gray-900 mb-4">📦 Articoli Ordine (<%= @order.order_items.count %>)</h2>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="px-4 py-3 text-left font-semibold text-gray-700">SKU</th>
+          <th class="px-4 py-3 text-left font-semibold text-gray-700">Prodotto</th>
+          <th class="px-4 py-3 text-left font-semibold text-gray-700">Quantità</th>
+          <th class="px-4 py-3 text-left font-semibold text-gray-700">Asset</th>
+          <th class="px-4 py-3 text-left font-semibold text-gray-700">Azioni</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @order.order_items.each do |item| %>
+          <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
+            <td class="px-4 py-3 font-mono text-xs text-gray-700"><%= item.product_sku %></td>
+            <td class="px-4 py-3 text-gray-900"><%= item.product_name %></td>
+            <td class="px-4 py-3 text-gray-900"><%= item.quantity %></td>
+            <td class="px-4 py-3">
+              <span class="inline-block px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-800">
+                <%= item.assets.count %>
               </span>
-            <% end %>
-          </button>
-          
-          <!-- Modal per selezionare flusso e opzioni -->
-          <div class="modal fade" id="flowSelectModal_<%= item.id %>" tabindex="-1">
-            <div class="modal-dialog">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h5 class="modal-title">🖨️ Pre-stampa - Configura Invio</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_preprint" method="post">
-                  <div class="modal-body">
-                    <% if item.available_print_flows.count > 0 %>
-                      <div class="mb-3">
-                        <label class="form-label"><strong>Flusso di Stampa</strong></label>
-                        <% item.available_print_flows.each do |flow| %>
-                          <div class="form-check mb-2">
-                            <input class="form-check-input" type="radio" name="print_flow_id" 
-                                   value="<%= flow.id %>" id="flow_<%= item.id %>_<%= flow.id %>"
-                                   <%= 'checked' if flow.id == item.product&.default_print_flow_id %>>
-                            <label class="form-check-label" for="flow_<%= item.id %>_<%= flow.id %>">
-                              <strong><%= flow.name %></strong>
-                              <% if flow.id == item.product&.default_print_flow_id %>
-                                <span class="badge bg-info">Default</span>
-                              <% end %>
-                            </label>
-                          </div>
-                        <% end %>
-                      </div>
-                    <% else %>
-                      <div class="alert alert-warning">Nessun flusso di stampa disponibile</div>
-                    <% end %>
-                    
-                    <div class="mb-3">
-                      <label for="percentuale_<%= item.id %>" class="form-label"><strong>Percentuale (%)</strong></label>
-                      <input type="number" class="form-control" id="percentuale_<%= item.id %>" 
-                             name="percentuale" value="0" step="1" min="-999" max="999"
-                             placeholder="Inserisci percentuale (es: +10, -5)">
-                      <small class="text-muted">Valore positivo o negativo che verrà inviato a Switch</small>
-                    </div>
-                  </div>
-                  <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-warning">🖨️ Invia a Pre-stampa</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-
-          <% if item.preprint_status == 'processing' %>
-            <form action="/orders/<%= @order.id %>/items/<%= item.id %>/confirm_preprint" method="post" class="d-inline">
-              <button type="submit" class="btn btn-sm btn-outline-info" 
-                      title="Conferma manualmente il completamento della pre-stampa">
-                ✓ Conferma
-              </button>
-            </form>
-          <% end %>
-          
-          <% available_machines = item.print_flow&.print_machines || [] %>
-          <% if available_machines.count > 1 %>
-            <button type="button" class="btn btn-sm btn-outline-success" 
-                    <%= 'disabled' unless item.can_send_to_print? %>
-                    title="<%= item.can_send_to_print? ? 'Scegli macchina e invia in stampa' : 'Completare prima la pre-stampa' %>"
-                    data-bs-toggle="modal" data-bs-target="#machineSelectModal_<%= item.id %>">
-              ✅ Stampa
-              <% if item.print_status != 'pending' %>
-                <span class="badge <%= item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
-                  <%= item.print_status&.upcase %>
-                </span>
-              <% end %>
-            </button>
-
-            <!-- Modal per selezionare macchina -->
-            <div class="modal fade" id="machineSelectModal_<%= item.id %>" tabindex="-1">
-              <div class="modal-dialog">
-                <div class="modal-content">
-                  <div class="modal-header">
-                    <h5 class="modal-title">Scegli Macchina da Stampa</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                  </div>
-                  <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_print" method="post">
-                    <div class="modal-body">
-                      <p class="text-muted mb-3">Seleziona la macchina per questo lavoro:</p>
-                      <% available_machines.each do |machine| %>
-                        <div class="form-check mb-2">
-                          <input class="form-check-input" type="radio" name="print_machine_id" 
-                                 value="<%= machine.id %>" id="machine_<%= item.id %>_<%= machine.id %>"
-                                 <%= 'checked' if available_machines.first.id == machine.id %>>
-                          <label class="form-check-label" for="machine_<%= item.id %>_<%= machine.id %>">
-                            <strong><%= machine.name %></strong>
-                            <% if machine.description %>
-                              <br><small class="text-muted"><%= machine.description %></small>
-                            <% end %>
-                          </label>
-                        </div>
-                      <% end %>
-                    </div>
-                    <div class="modal-footer">
-                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                      <button type="submit" class="btn btn-success">✅ Invia in Stampa</button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-          <% else %>
-            <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_print" method="post" class="d-inline">
-              <% if available_machines.count == 1 %>
-                <input type="hidden" name="print_machine_id" value="<%= available_machines.first.id %>">
-              <% end %>
-              <button type="submit" class="btn btn-sm btn-outline-success" 
-                      <%= 'disabled' unless item.can_send_to_print? %>
-                      title="<%= item.can_send_to_print? ? 'Invia in stampa' : 'Completare prima la pre-stampa' %>">
-                ✅ Stampa
-                <% if item.print_status != 'pending' %>
-                  <span class="badge <%= item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
-                    <%= item.print_status&.upcase %>
-                  </span>
-                <% end %>
-              </button>
-            </form>
-          <% end %>
-
-          <% if item.print_status == 'processing' %>
-            <form action="/orders/<%= @order.id %>/items/<%= item.id %>/confirm_print" method="post" class="d-inline">
-              <button type="submit" class="btn btn-sm btn-outline-info" 
-                      title="Conferma manualmente il completamento della stampa">
-                ✓ Conferma
-              </button>
-            </form>
-          <% end %>
-          
-          <a href="/orders/<%= @order.id %>/items/<%= item.id %>/print" class="btn btn-sm btn-outline-info" target="_blank" title="Stampa scheda lavoro">
-            🖨️ Scheda Lavoro
-          </a>
-
-          <% if item.print_flow&.label_webhook %>
-            <form action="/orders/<%= @order.id %>/items/<%= item.id %>/send_label" method="post" class="d-inline">
-              <button type="submit" class="btn btn-sm btn-outline-primary" title="Invia a etichetta">
-                🏷️ Etichetta
-              </button>
-            </form>
-          <% end %>
-          
-          <form action="/orders/<%= @order.id %>/items/<%= item.id %>/reset" method="post" class="d-inline" onsubmit="return confirm('Reimpostare questo item?');">
-            <button type="submit" class="btn btn-sm btn-outline-secondary" 
-                    <%= 'disabled' if item.preprint_status == 'pending' && item.print_status == 'pending' %>
-                    title="Reimposta a inizio workflow">
-              🔄 Reset
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-    <div class="card-body">
-      <!-- Timeline/Resoconto -->
-      <div class="mb-3" style="display: flex; gap: 40px; align-items: center; flex-wrap: wrap;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 18px;">🖨️</span>
-          <div>
-            <% if item.preprint_completed_at %>
-              <span class="badge bg-success">✓</span>
-              <small class="text-muted"><%= item.preprint_completed_at.strftime('%d-%m-%y %H:%M') %></small>
-            <% elsif item.preprint_status == 'failed' %>
-              <span class="badge bg-danger">✗</span>
-            <% else %>
-              <span class="badge bg-warning text-dark"><%= item.preprint_status&.upcase %></span>
-            <% end %>
-          </div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 18px;">✅</span>
-          <div>
-            <% if item.print_completed_at %>
-              <span class="badge bg-success">✓</span>
-              <small class="text-muted"><%= item.print_completed_at.strftime('%d-%m-%y %H:%M') %></small>
-            <% elsif item.print_status == 'failed' %>
-              <span class="badge bg-danger">✗</span>
-            <% else %>
-              <span class="badge bg-warning text-dark"><%= item.print_status&.upcase %></span>
-            <% end %>
-          </div>
-        </div>
-      </div>
-
-      <div class="row">
-        <!-- Original Assets -->
-        <div class="col-md-6">
-          <h6>Assets (<%= item.assets.count %>):</h6>
-          <% if item.assets.any? %>
-            <div class="row">
-              <% item.assets.each do |asset| %>
-                <div class="col-md-6 mb-3">
-                  <div class="card">
-                    <div class="card-body text-center">
-                      <% if asset.downloaded? && asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) %>
-                        <button type="button" class="btn-preview-image" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="/file/<%= asset.id %>" data-file-type="image" style="border: none; background: none; padding: 0; cursor: pointer;">
-                          <img src="/file/<%= asset.id %>" alt="<%= asset.asset_type %>" class="asset-preview mb-2" style="cursor: pointer;">
-                        </button>
-                      <% else %>
-                        <div class="asset-preview mb-2 d-flex align-items-center justify-content-center" style="background-color: #f0f0f0; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= asset.original_url %>" data-file-type="pdf">
-                          <span>📄</span>
-                        </div>
-                      <% end %>
-                      <small class="d-block"><strong><%= asset.asset_type || 'N/A' %></strong></small>
-                      <div class="btn-group btn-group-sm mt-2" role="group">
-                        <% if asset.downloaded? %>
-                          <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Scarica file">
-                            📥
-                          </a>
-                          <form action="/assets/<%= asset.id %>" method="post" class="d-inline">
-                            <input type="hidden" name="_method" value="DELETE">
-                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Cancella file" onclick="return confirm('Cancellare questo file?');">
-                              🗑
-                            </button>
-                          </form>
-                        <% else %>
-                          <form action="/orders/<%= @order.id %>/items/<%= item.id %>/upload_asset" method="post" enctype="multipart/form-data" class="d-inline">
-                            <input type="hidden" name="asset_id" value="<%= asset.id %>">
-                            <label class="btn btn-sm btn-outline-success" style="margin: 0; cursor: pointer;">
-                              ➕
-                              <input type="file" name="file" style="display: none;" onchange="this.form.submit();">
-                            </label>
-                          </form>
-                        <% end %>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              <% end %>
-            </div>
-          <% else %>
-            <p class="text-muted">No assets for this item.</p>
-          <% end %>
-        </div>
-
-        <!-- Switch Preview -->
-        <div class="col-md-6">
-          <h6>📊 Anteprima Switch:</h6>
-          <% if item.preprint_job&.result_preview_url %>
-            <div class="card mb-3">
-              <div class="card-body">
-                <h6 class="card-subtitle mb-2 text-muted">Pre-stampa</h6>
-                <button type="button" class="btn-preview-switch" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= item.preprint_job.result_preview_url %>" data-file-type="pdf" style="border: none; background: none; padding: 0; cursor: pointer;">
-                  <img src="<%= item.preprint_job.result_preview_url %>" alt="Preprint Preview" class="img-fluid mb-2" style="cursor: pointer; max-width: 200px;">
-                </button>
-              </div>
-            </div>
-          <% end %>
-          <% if item.print_job&.result_preview_url %>
-            <div class="card mb-3">
-              <div class="card-body">
-                <h6 class="card-subtitle mb-2 text-muted">Stampa</h6>
-                <button type="button" class="btn-preview-switch" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= item.print_job.result_preview_url %>" data-file-type="pdf" style="border: none; background: none; padding: 0; cursor: pointer;">
-                  <img src="<%= item.print_job.result_preview_url %>" alt="Print Preview" class="img-fluid mb-2" style="cursor: pointer; max-width: 200px;">
-                </button>
-              </div>
-            </div>
-          <% end %>
-          <% if !item.preprint_job&.result_preview_url && !item.print_job&.result_preview_url %>
-            <p class="text-muted">Nessuna anteprima disponibile.</p>
-          <% end %>
-        </div>
-      </div>
-    </div>
-  </div>
-<% end %>
-
-<!-- Preview Modal -->
-<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Anteprima File</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
-        <!-- Immagine -->
-        <div id="imageContainer" style="display: none; text-align: center;">
-          <img id="previewImage" class="img-fluid" alt="Preview">
-        </div>
-        
-        <!-- PDF -->
-        <div id="pdfContainer" style="display: none;">
-          <div id="pdf-viewer" style="margin-bottom: 20px;"></div>
-          <div style="display: flex; justify-content: center; gap: 10px; margin-top: 15px;">
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="prevPage" style="display: none;">← Precedente</button>
-            <span id="pageInfo" style="align-self: center;"></span>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="nextPage" style="display: none;">Prossima →</button>
-          </div>
-        </div>
-      </div>
-    </div>
+            </td>
+            <td class="px-4 py-3">
+              <a href="/line_items/<%= item.id %>" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Dettagli →</a>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script>
-  // Impostare worker di PDF.js
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-  let currentPdf = null;
-  let currentPageNum = 1;
-  let currentTotalPages = 0;
-
-  const previewModal = document.getElementById('previewModal');
-  const imageContainer = document.getElementById('imageContainer');
-  const pdfContainer = document.getElementById('pdfContainer');
-  const previewImage = document.getElementById('previewImage');
-  const pdfViewer = document.getElementById('pdf-viewer');
-  const pageInfo = document.getElementById('pageInfo');
-  const prevPageBtn = document.getElementById('prevPage');
-  const nextPageBtn = document.getElementById('nextPage');
-
-  // Evento quando il modal si apre
-  previewModal.addEventListener('show.bs.modal', async function(e) {
-    const button = e.relatedTarget;
-    const fileUrl = button.getAttribute('data-file-url');
-    const fileType = button.getAttribute('data-file-type');
-
-    imageContainer.style.display = 'none';
-    pdfContainer.style.display = 'none';
-    pdfViewer.innerHTML = '';
-
-    if (fileType === 'image') {
-      previewImage.src = fileUrl;
-      imageContainer.style.display = 'block';
-    } else if (fileType === 'pdf') {
-      try {
-        const pdf = await pdfjsLib.getDocument(fileUrl).promise;
-        currentPdf = pdf;
-        currentPageNum = 1;
-        currentTotalPages = pdf.numPages;
-        pdfContainer.style.display = 'block';
-        
-        prevPageBtn.style.display = currentTotalPages > 1 ? 'block' : 'none';
-        nextPageBtn.style.display = currentTotalPages > 1 ? 'block' : 'none';
-        
-        renderPage(1);
-      } catch (error) {
-        pdfContainer.style.display = 'block';
-        pdfViewer.innerHTML = '<p class="text-danger">Errore nel caricamento del PDF</p>';
-      }
-    }
-  });
-
-  async function renderPage(pageNum) {
-    if (!currentPdf) return;
-    
-    try {
-      const page = await currentPdf.getPage(pageNum);
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      const viewport = page.getViewport({ scale: 2 });
-      
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      
-      await page.render({ canvasContext: context, viewport }).promise;
-      
-      pdfViewer.innerHTML = '';
-      pdfViewer.appendChild(canvas);
-      
-      pageInfo.textContent = 'Pagina ' + pageNum + ' di ' + currentTotalPages;
-      currentPageNum = pageNum;
-      
-      prevPageBtn.disabled = pageNum === 1;
-      nextPageBtn.disabled = pageNum === currentTotalPages;
-    } catch (error) {
-      pdfViewer.innerHTML = '<p class="text-danger">Errore nel rendering della pagina</p>';
-    }
-  }
-
-  prevPageBtn.addEventListener('click', function() {
-    if (currentPageNum > 1) {
-      renderPage(currentPageNum - 1);
-    }
-  });
-
-  nextPageBtn.addEventListener('click', function() {
-    if (currentPageNum < currentTotalPages) {
-      renderPage(currentPageNum + 1);
-    }
-  });
-</script>
+<!-- Assets Section -->
+<% if @order.assets.present? %>
+  <div class="bg-white rounded-lg shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-gray-900 mb-4">🖼️ Asset (<%= @order.assets.count %>)</h2>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <% @order.assets.each do |asset| %>
+        <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition">
+          <% if asset.downloaded? && File.exist?(asset.local_path_full) %>
+            <a href="/file/<%= asset.id %>" target="_blank" class="block">
+              <img src="/file/<%= asset.id %>" alt="<%= asset.filename %>" class="w-full h-32 object-cover">
+            </a>
+          <% else %>
+            <div class="w-full h-32 bg-gray-100 flex items-center justify-center">
+              <span class="text-gray-400 text-2xl">📁</span>
+            </div>
+          <% end %>
+          <div class="p-3 bg-gray-50">
+            <p class="text-xs font-mono text-gray-700 truncate"><%= asset.filename %></p>
+            <p class="text-xs text-gray-500 mt-1">
+              <% if asset.downloaded? %>
+                <span class="text-green-600">✓ Downloaded</span>
+              <% else %>
+                <span class="text-yellow-600">⏳ Pending</span>
+              <% end %>
+            </p>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>
