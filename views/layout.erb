@@ -27,6 +27,17 @@
     .drawer {
       transform: translateX(-100%);
       transition: transform 0.3s ease;
+    }
+    .drawer.open {
+      transform: translateX(0);
+    }
+    
+    /* Layout state based on drawer */
+    .layout-wrapper {
+      display: flex;
+      height: 100vh;
+    }
+    .drawer-fixed {
       position: fixed;
       left: 0;
       top: 0;
@@ -34,35 +45,28 @@
       width: 16rem;
       z-index: 40;
     }
-    .drawer.open {
-      transform: translateX(0);
-    }
-    .drawer.lg-visible {
-      position: fixed;
-      transform: translateX(0);
-    }
     .main-content {
-      transition: margin-left 0.3s ease;
-    }
-    .main-content.drawer-open {
-      margin-left: 16rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
     }
   </style>
 </head>
 <body class="bg-gray-50">
-  <div class="flex h-screen">
-    <!-- Drawer Overlay -->
-    <div id="drawer-overlay" class="drawer-overlay fixed inset-0 bg-black/50 z-30"></div>
+  <div class="layout-wrapper">
+    <!-- Drawer Overlay (Mobile only) -->
+    <div id="drawer-overlay" class="drawer-overlay fixed inset-0 bg-black/50 z-30 lg:hidden"></div>
 
     <!-- Sidebar Drawer -->
-    <div id="drawer" class="drawer bg-white shadow-lg border-r border-gray-200 overflow-y-auto lg-visible">
+    <div id="drawer" class="drawer drawer-fixed bg-white shadow-lg border-r border-gray-200 overflow-y-auto hidden lg:block">
       <div class="p-6 border-b border-gray-200 sticky top-0 bg-white">
         <div class="flex items-center justify-between">
           <h1 class="text-2xl font-bold text-blue-600 flex items-center gap-2">
             <span>🖨️</span>
             <span class="text-lg">Orchestrator</span>
           </h1>
-          <button id="close-drawer" class="text-gray-400 hover:text-gray-600">
+          <button id="close-drawer" class="lg:hidden text-gray-400 hover:text-gray-600">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
         </div>
@@ -87,17 +91,17 @@
     </div>
 
     <!-- Main Content -->
-    <div id="main-content" class="main-content flex-1 flex flex-col w-full lg-visible">
+    <div class="main-content">
       <!-- Top Header -->
       <div class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-10">
         <div class="px-8 py-4 flex items-center justify-between">
-          <div>
+          <button id="toggle-drawer" class="p-2 hover:bg-gray-100 rounded-lg mr-4">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+          </button>
+          <div class="flex-1">
             <h2 class="text-xl font-semibold text-gray-900">Print Order Orchestrator</h2>
             <p class="text-sm text-gray-500">Gestione ordini e flussi di stampa</p>
           </div>
-          <button id="toggle-drawer" class="p-2 hover:bg-gray-100 rounded-lg">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-          </button>
         </div>
       </div>
 
@@ -115,46 +119,31 @@
     const overlay = document.getElementById('drawer-overlay');
     const toggleBtn = document.getElementById('toggle-drawer');
     const closeBtn = document.getElementById('close-drawer');
-    const mainContent = document.getElementById('main-content');
-    let isDrawerOpen = window.innerWidth >= 1024;
+    let isDrawerOpen = false;
     
-    function updateDrawerState() {
-      if (window.innerWidth >= 1024) {
-        // Desktop
-        drawer.classList.add('open', 'lg-visible');
-        overlay.classList.remove('open');
-        mainContent.classList.add('drawer-open');
-        isDrawerOpen = true;
-      } else {
-        // Mobile
-        drawer.classList.remove('lg-visible');
-        if (isDrawerOpen) {
-          drawer.classList.add('open');
-          overlay.classList.add('open');
-        } else {
-          drawer.classList.remove('open');
-          overlay.classList.remove('open');
-        }
-      }
-    }
-    
-    function toggleDrawer() {
-      isDrawerOpen = !isDrawerOpen;
-      updateDrawerState();
+    function openDrawer() {
+      isDrawerOpen = true;
+      drawer.classList.add('open');
+      overlay.classList.add('open');
     }
     
     function closeDrawer() {
       isDrawerOpen = false;
-      updateDrawerState();
+      drawer.classList.remove('open');
+      overlay.classList.remove('open');
+    }
+    
+    function toggleDrawer() {
+      if (isDrawerOpen) {
+        closeDrawer();
+      } else {
+        openDrawer();
+      }
     }
     
     toggleBtn?.addEventListener('click', toggleDrawer);
     closeBtn?.addEventListener('click', closeDrawer);
     overlay?.addEventListener('click', closeDrawer);
-    window.addEventListener('resize', updateDrawerState);
-    
-    // Inizializza lo stato
-    updateDrawerState();
   </script>
 </body>
 </html>
