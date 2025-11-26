@@ -2,6 +2,46 @@
 
 Guida completa per installare il Print Order Orchestrator su **un server Linux dedicato** in locale. Questa è la soluzione **più semplice e stabile** per produzione.
 
+## ⚡ SCELTA RAPIDA: Installazione Automatica (Consigliato!)
+
+Se vuoi **saltare tutta la configurazione manuale**, usa gli script automatici:
+
+```bash
+# 1. Clona il repository
+mkdir -p /home/paolo/apps
+cd /home/paolo/apps
+git clone https://github.com/tipografiafb-crypto/gestionale.git print-orchestrator
+cd print-orchestrator
+
+# 2. Esegui l'installazione automatica
+bash quick_start_linux.sh
+
+# 3. Configura il servizio systemd
+sudo bash setup_service.sh
+
+# 4. Abilita e avvia
+sudo systemctl enable print-orchestrator.service
+sudo systemctl start print-orchestrator.service
+
+# 5. Verifica
+curl http://localhost:5000/orders
+```
+
+**Fatto!** L'app è pronta e avviata automaticamente. 🚀
+
+---
+
+### Cosa fanno gli script automatici?
+
+- ✅ `quick_start_linux.sh` - Controlla prerequisiti, installa dipendenze, configura database, copia `.env`
+- ✅ `setup_service.sh` - Crea il servizio systemd per avviare automaticamente l'app al boot
+
+---
+
+## 📖 INSTALLAZIONE MANUALE (Alternativa)
+
+Se preferisci configurare tutto manualmente, continua sotto:
+
 ---
 
 # PARTE 1: Preparazione del Server Linux
@@ -228,6 +268,14 @@ Sostituisci `your_secure_password` con una password sicura!
 
 ## 4.7 Crea il File `.env`
 
+### Opzione A: Copia da template (Automatico)
+```bash
+cp .env.example .env
+nano .env
+# Modifica solo la password PostgreSQL se necessario
+```
+
+### Opzione B: Crea manualmente
 ```bash
 nano .env
 ```
@@ -238,16 +286,21 @@ Incolla:
 DATABASE_URL=postgresql://orchestrator_user:your_secure_password@localhost:5432/print_orchestrator_dev
 RACK_ENV=production
 PORT=5000
-SWITCH_WEBHOOK_URL=http://192.168.1.100:5000/api/switch/callback
+SERVER_BASE_URL=http://192.168.1.100:5000
+SWITCH_WEBHOOK_URL=http://192.168.1.162:5000/switch/
 SWITCH_API_KEY=your_switch_api_key
 SWITCH_SIMULATION=false
 
+# Storage Cleanup (giorni di retention)
+DAYS_TO_KEEP=45
+
 # FTP (opzionale)
 FTP_HOST=c72965.sgvps.net
-FTP_USER=tuo_utente
-FTP_PASS=tua_password
+FTP_USER=widegest@thepickshouse.com
+FTP_PASS=WidegestImport24
 FTP_PATH=/test/
 FTP_POLL_INTERVAL=60
+FTP_DELETE_AFTER_IMPORT=false
 ```
 
 ## 4.8 Installa le Dipendenze Ruby
@@ -297,29 +350,42 @@ http://192.168.1.100:5000
 
 ## 5.2 Avvio Automatico (con Systemd)
 
-Per far partire l'app al riavvio del server:
+### Opzione A: Automatico (Consigliato)
+```bash
+sudo bash setup_service.sh
+sudo systemctl enable print-orchestrator.service
+sudo systemctl start print-orchestrator.service
+sudo systemctl status print-orchestrator.service
+```
+
+### Opzione B: Manuale
+
+Crea un file di servizio:
 
 ```bash
-# Crea un file di servizio
 sudo nano /etc/systemd/system/print-orchestrator.service
 ```
 
-Incolla:
+Incolla (sostituisci `paolo` con il tuo username):
 
 ```ini
 [Unit]
 Description=Print Order Orchestrator
 After=network.target postgresql.service
+Wants=postgresql.service
 
 [Service]
 Type=simple
-User=orchestrator
-WorkingDirectory=/home/orchestrator/apps/print-orchestrator
-Environment="PATH=/home/orchestrator/.local/share/gem/ruby/3.2.0/bin:/usr/local/bin:/usr/bin"
+User=paolo
+WorkingDirectory=/home/paolo/apps/print-orchestrator
+Environment="PATH=/home/paolo/.gem/ruby/3.2.0/bin:/home/paolo/.local/bin:$PATH"
 Environment="RACK_ENV=production"
-ExecStart=/usr/bin/bundle exec puma -b tcp://0.0.0.0:5000 config.ru
-Restart=always
-RestartSec=10
+EnvironmentFile=/home/paolo/apps/print-orchestrator/.env
+ExecStart=/usr/local/bin/bundle exec puma -b tcp://0.0.0.0:5000 config.ru
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -328,20 +394,13 @@ WantedBy=multi-user.target
 Salva e abilita:
 
 ```bash
-# Ricarica systemd
 sudo systemctl daemon-reload
-
-# Abilita il servizio
-sudo systemctl enable print-orchestrator
-
-# Avvia il servizio
-sudo systemctl start print-orchestrator
-
-# Verifica lo stato
-sudo systemctl status print-orchestrator
+sudo systemctl enable print-orchestrator.service
+sudo systemctl start print-orchestrator.service
+sudo systemctl status print-orchestrator.service
 ```
 
-Perfetto! Adesso l'app parte **automaticamente all'avvio del server**! 🚀
+Perfetto! L'app parte **automaticamente all'avvio del server**! 🚀
 
 ---
 
@@ -501,6 +560,16 @@ sudo ufw enable
 
 # CHECKLIST Finale
 
+### Se hai usato l'Installazione Automatica:
+- ✅ Ubuntu Server installato
+- ✅ Repository clonato
+- ✅ `quick_start_linux.sh` eseguito
+- ✅ `setup_service.sh` eseguito
+- ✅ Servizio abilitato con `sudo systemctl enable print-orchestrator.service`
+- ✅ Servizio avviato con `sudo systemctl start print-orchestrator.service`
+- ✅ Accessibile da `http://192.168.1.100:5000`
+
+### Se hai usato l'Installazione Manuale:
 - ✅ Ubuntu Server installato
 - ✅ IP statico configurato (192.168.1.100)
 - ✅ SSH abilitato
