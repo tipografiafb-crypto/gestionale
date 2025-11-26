@@ -1,103 +1,89 @@
-<div class="container mt-4">
-  <div class="row mb-4">
-    <div class="col-md-8">
-      <h1>📦 Prodotti (SKU)</h1>
-      <p class="text-muted">Configura il routing dei prodotti verso i flussi di stampa</p>
-    </div>
-    <div class="col-md-4 text-end">
-      <a href="/products/new" class="btn btn-primary">➕ Nuovo Prodotto</a>
-    </div>
+<div class="flex justify-between items-start mb-6">
+  <div>
+    <h1 class="text-3xl font-bold">📦 Prodotti (SKU)</h1>
+    <p class="text-gray-600 text-sm mt-1">Configura il routing dei prodotti verso i flussi di stampa</p>
   </div>
-
-  <% if params[:success] %>
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-      ✓ Prodotto <%= params[:success] %> con successo!
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-  <% end %>
-
-  <!-- Search Form -->
-  <div class="row mb-3">
-    <div class="col-md-12">
-      <form method="get" action="/products" class="d-flex gap-2">
-        <input type="text" name="search" class="form-control" placeholder="Cerca per SKU, nome prodotto o categoria..." value="<%= @search_term %>">
-        <button type="submit" class="btn btn-outline-secondary">🔍 Cerca</button>
-        <% if @search_term.present? %>
-          <a href="/products" class="btn btn-outline-secondary">✕ Azzera</a>
-        <% end %>
-      </form>
-    </div>
-  </div>
-
-  <% if @search_term.present? %>
-    <div class="alert alert-info alert-sm">
-      Risultati per: <strong><%= @search_term %></strong> (<%= @products.count %> prodotto<%= @products.count != 1 ? 'i' : '' %>)
-    </div>
-  <% end %>
-
-  <% if @products.any? %>
-    <div class="table-responsive">
-      <table class="table table-striped table-hover">
-        <thead class="table-dark">
-          <tr>
-            <th>SKU</th>
-            <th>Nome Prodotto</th>
-            <th>Categoria</th>
-            <th>Flusso</th>
-            <th>Note</th>
-            <th>Stato</th>
-            <th>Azioni</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% @products.each do |product| %>
-            <tr>
-              <td>
-                <strong><code><%= product.sku %></code></strong>
-              </td>
-              <td>
-                <%= product.name %>
-              </td>
-              <td>
-                <% if product.product_category %>
-                  <span class="badge bg-secondary"><%= product.product_category.name %></span>
-                <% else %>
-                  <span class="text-muted">—</span>
-                <% end %>
-              </td>
-              <td>
-                <% if product.default_print_flow %>
-                  <span class="badge bg-info"><%= product.default_print_flow.name %></span>
-                <% else %>
-                  <span class="badge bg-warning">Non assegnato</span>
-                <% end %>
-              </td>
-              <td>
-                <small><%= product.notes.present? ? product.notes : '—' %></small>
-              </td>
-              <td>
-                <% if product.active %>
-                  <span class="badge bg-success">✓ Attivo</span>
-                <% else %>
-                  <span class="badge bg-danger">✗ Inattivo</span>
-                <% end %>
-              </td>
-              <td>
-                <a href="/products/<%= product.id %>/edit" class="btn btn-sm btn-outline-primary">✎ Modifica</a>
-                <button class="btn btn-sm btn-outline-info" onclick="duplicateProduct(<%= product.id %>)">📋 Duplica</button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(<%= product.id %>)">🗑 Elimina</button>
-              </td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-  <% else %>
-    <div class="alert alert-info">
-      📭 Nessun prodotto registrato. <a href="/products/new">Crea il primo prodotto</a>
-    </div>
-  <% end %>
+  <a href="/products/new" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition">➕ Nuovo Prodotto</a>
 </div>
+
+<% if params[:success] %>
+  <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-green-700 mb-4">
+    ✓ Prodotto <%= params[:success] %> con successo!
+  </div>
+<% end %>
+
+<div class="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4">
+  <form method="get" action="/products" class="flex gap-2">
+    <input type="text" name="search" class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" placeholder="Cerca per SKU, nome prodotto o categoria..." value="<%= @search_term %>">
+    <button type="submit" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded font-semibold transition">🔍 Cerca</button>
+    <% if @search_term.present? %>
+      <a href="/products" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded font-semibold transition">✕ Azzera</a>
+    <% end %>
+  </form>
+</div>
+
+<% if @search_term.present? %>
+  <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700 mb-4 text-sm">
+    Risultati per: <strong><%= @search_term %></strong> (<%= @products.count %> prodotto<%= @products.count != 1 ? 'i' : '' %>)
+  </div>
+<% end %>
+
+<% if @products.any? %>
+  <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+    <table class="w-full">
+      <thead>
+        <tr class="bg-gray-800 text-white border-b">
+          <th class="px-4 py-3 text-left text-sm font-semibold">SKU</th>
+          <th class="px-4 py-3 text-left text-sm font-semibold">Nome Prodotto</th>
+          <th class="px-4 py-3 text-left text-sm font-semibold">Categoria</th>
+          <th class="px-4 py-3 text-left text-sm font-semibold">Flusso</th>
+          <th class="px-4 py-3 text-left text-sm font-semibold">Note</th>
+          <th class="px-4 py-3 text-left text-sm font-semibold">Stato</th>
+          <th class="px-4 py-3 text-left text-sm font-semibold">Azioni</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @products.each do |product| %>
+          <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
+            <td class="px-4 py-3"><strong><code class="text-xs bg-gray-100 px-2 py-1 rounded"><%= product.sku %></code></strong></td>
+            <td class="px-4 py-3"><%= product.name %></td>
+            <td class="px-4 py-3">
+              <% if product.product_category %>
+                <span class="bg-gray-200 text-gray-800 text-xs font-semibold px-2 py-0.5 rounded"><%= product.product_category.name %></span>
+              <% else %>
+                <span class="text-gray-400">—</span>
+              <% end %>
+            </td>
+            <td class="px-4 py-3">
+              <% if product.default_print_flow %>
+                <span class="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full"><%= product.default_print_flow.name %></span>
+              <% else %>
+                <span class="bg-yellow-100 text-yellow-700 text-xs font-semibold px-2 py-0.5 rounded">Non assegnato</span>
+              <% end %>
+            </td>
+            <td class="px-4 py-3"><small class="text-gray-600"><%= product.notes.present? ? product.notes : '—' %></small></td>
+            <td class="px-4 py-3">
+              <% if product.active %>
+                <span class="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded">✓ Attivo</span>
+              <% else %>
+                <span class="bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded">✗ Inattivo</span>
+              <% end %>
+            </td>
+            <td class="px-4 py-3 flex gap-2">
+              <a href="/products/<%= product.id %>/edit" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded text-xs font-semibold transition">✎ Modifica</a>
+              <button class="bg-cyan-100 hover:bg-cyan-200 text-cyan-700 px-2 py-1 rounded text-xs font-semibold transition" onclick="duplicateProduct(<%= product.id %>)">📋 Duplica</button>
+              <button class="bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded text-xs font-semibold transition" onclick="deleteProduct(<%= product.id %>)">🗑 Elimina</button>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% else %>
+  <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700">
+    📭 Nessun prodotto registrato. <a href="/products/new" class="font-semibold hover:underline">Crea il primo prodotto</a>
+  </div>
+<% end %>
 
 <script>
 function duplicateProduct(id) {

@@ -1,65 +1,60 @@
-<div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>🔧 Macchine da Stampa</h2>
-    <a href="/admin/print_machines/new" class="btn btn-primary">➕ Nuova Macchina</a>
+<div class="flex justify-between items-center mb-6">
+  <h2 class="text-3xl font-bold">🔧 Macchine da Stampa</h2>
+  <a href="/admin/print_machines/new" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition">➕ Nuova Macchina</a>
+</div>
+
+<% if params[:msg] == 'success' %>
+  <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-green-700 mb-4">
+    <%= params[:text] %>
   </div>
+<% elsif params[:msg] == 'error' %>
+  <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 mb-4">
+    <%= params[:text] %>
+  </div>
+<% end %>
 
-  <% if params[:msg] == 'success' %>
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-      <%= params[:text] %>
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-  <% elsif params[:msg] == 'error' %>
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-      <%= params[:text] %>
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-  <% end %>
-
-  <% if @machines.any? %>
-    <div class="table-responsive">
-      <table class="table table-striped">
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Descrizione</th>
-            <th>Stato</th>
-            <th>Flussi Collegati</th>
-            <th>Azioni</th>
+<% if @machines.any? %>
+  <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+    <table class="w-full">
+      <thead>
+        <tr class="bg-gray-100 border-b border-gray-200">
+          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Nome</th>
+          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Descrizione</th>
+          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Stato</th>
+          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Flussi Collegati</th>
+          <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Azioni</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @machines.each do |machine| %>
+          <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
+            <td class="px-4 py-3"><strong><%= machine.name %></strong></td>
+            <td class="px-4 py-3 text-gray-600"><%= machine.description || '-' %></td>
+            <td class="px-4 py-3">
+              <% if machine.active %>
+                <span class="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded">Attiva</span>
+              <% else %>
+                <span class="bg-gray-200 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded">Inattiva</span>
+              <% end %>
+            </td>
+            <td class="px-4 py-3"><span class="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full"><%= machine.print_flows.count %></span></td>
+            <td class="px-4 py-3 flex gap-2">
+              <a href="/admin/print_machines/<%= machine.id %>/edit" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded text-sm font-semibold transition" title="Modifica">✏️</a>
+              <a href="/admin/print_machines/<%= machine.id %>/link_flows" class="bg-cyan-100 hover:bg-cyan-200 text-cyan-700 px-2 py-1 rounded text-sm font-semibold transition" title="Collega flussi">🔗</a>
+              <form action="/admin/print_machines/<%= machine.id %>" method="post" class="inline">
+                <input type="hidden" name="_method" value="DELETE">
+                <button type="submit" class="bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded text-sm font-semibold transition" onclick="return confirm('Eliminare questa macchina?');">🗑</button>
+              </form>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          <% @machines.each do |machine| %>
-            <tr>
-              <td><strong><%= machine.name %></strong></td>
-              <td><%= machine.description || '-' %></td>
-              <td>
-                <% if machine.active %>
-                  <span class="badge bg-success">Attiva</span>
-                <% else %>
-                  <span class="badge bg-secondary">Inattiva</span>
-                <% end %>
-              </td>
-              <td><%= machine.print_flows.count %></td>
-              <td>
-                <div class="btn-group btn-group-sm" role="group">
-                  <a href="/admin/print_machines/<%= machine.id %>/edit" class="btn btn-outline-primary">✏️</a>
-                  <a href="/admin/print_machines/<%= machine.id %>/link_flows" class="btn btn-outline-info">🔗</a>
-                  <form action="/admin/print_machines/<%= machine.id %>" method="post" class="d-inline">
-                    <input type="hidden" name="_method" value="DELETE">
-                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Eliminare questa macchina?');">🗑</button>
-                  </form>
-                </div>
-              </td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-  <% else %>
-    <div class="alert alert-info">Nessuna macchina configurata. <a href="/admin/print_machines/new">Crea la prima</a></div>
-  <% end %>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% else %>
+  <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700">Nessuna macchina configurata. <a href="/admin/print_machines/new" class="font-semibold hover:underline">Crea la prima</a></div>
+<% end %>
 
-  <hr>
-  <a href="/orders" class="btn btn-secondary">← Torna agli Ordini</a>
+<div class="mt-4">
+  <a href="/orders" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-semibold transition inline-block">← Torna agli Ordini</a>
 </div>
