@@ -509,7 +509,8 @@ ALTER SEQUENCE public.switch_webhooks_id_seq OWNED BY public.switch_webhooks.id;
 CREATE TABLE public.import_errors (
     id bigint NOT NULL,
     store_id bigint,
-    file_name character varying,
+    filename character varying,
+    external_order_code character varying,
     error_message text,
     import_date timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
