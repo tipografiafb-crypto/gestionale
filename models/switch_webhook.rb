@@ -18,7 +18,7 @@ class SwitchWebhook < ActiveRecord::Base
 
   # Compute full webhook URL from hook_path
   def webhook_url
-    base_url = ENV['SWITCH_WEBHOOK_BASE_URL'] || 'http://localhost:9000'
+    base_url = ENV['SWITCH_WEBHOOK_BASE_URL'] || 'http://192.168.1.162:51080'
     "#{base_url}#{hook_path}"
   end
 
