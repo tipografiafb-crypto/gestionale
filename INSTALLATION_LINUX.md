@@ -309,7 +309,7 @@ DATABASE_URL=postgresql://orchestrator_user:your_secure_password@localhost:5432/
 RACK_ENV=production
 PORT=5000
 SERVER_BASE_URL=http://192.168.1.100:5000
-SWITCH_WEBHOOK_URL=http://192.168.1.162:5000/switch/
+SWITCH_WEBHOOK_URL=http://192.168.1.162:51080/webhook
 SWITCH_API_KEY=your_switch_api_key
 SWITCH_SIMULATION=false
 
