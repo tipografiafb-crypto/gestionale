@@ -1,55 +1,50 @@
-<div class="container mt-4">
-  <div class="row mb-4">
-    <div class="col-md-8">
-      <h1>🔗 Switch Webhooks</h1>
-      <p class="text-muted">Registra i tuoi endpoint Switch qui</p>
-    </div>
-    <div class="col-md-4 text-end">
-      <a href="/webhooks/new" class="btn btn-primary">➕ Nuovo Webhook</a>
-    </div>
+<div class="mb-6 flex justify-between items-center">
+  <div>
+    <h1 class="text-3xl font-bold text-gray-900">🔗 Switch Webhooks</h1>
+    <p class="text-gray-600 mt-2">Registra i tuoi endpoint Switch qui</p>
   </div>
+  <a href="/webhooks/new" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition">
+    ➕ Nuovo Webhook
+  </a>
+</div>
 
-  <% if params[:success] %>
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-      ✓ Webhook <%= params[:success] %> con successo!
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-  <% end %>
+<% if params[:success] %>
+  <div class="mb-4 bg-green-50 border-l-4 border-green-500 p-4 rounded">
+    <p class="text-green-800">✓ Webhook <%= params[:success] %> con successo!</p>
+  </div>
+<% end %>
 
+<div class="bg-white rounded-lg shadow-sm overflow-hidden">
   <% if @webhooks.any? %>
-    <div class="table-responsive">
-      <table class="table table-striped table-hover">
-        <thead class="table-dark">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-100 border-b border-gray-200">
           <tr>
-            <th>Nome</th>
-            <th>Hook Path</th>
-            <th>URL Completo</th>
-            <th>Negozio</th>
-            <th>Azioni</th>
+            <th class="px-6 py-3 text-left font-semibold text-gray-700">Nome</th>
+            <th class="px-6 py-3 text-left font-semibold text-gray-700">Hook Path</th>
+            <th class="px-6 py-3 text-left font-semibold text-gray-700">URL Completo</th>
+            <th class="px-6 py-3 text-left font-semibold text-gray-700">Negozio</th>
+            <th class="px-6 py-3 text-left font-semibold text-gray-700">Azioni</th>
           </tr>
         </thead>
         <tbody>
           <% @webhooks.each do |webhook| %>
-            <tr>
-              <td>
-                <strong><%= webhook.name %></strong>
-              </td>
-              <td>
-                <code style="font-size: 0.85rem;"><%= webhook.hook_path %></code>
-              </td>
-              <td>
-                <code style="font-size: 0.80rem;"><%= webhook.webhook_url %></code>
-              </td>
-              <td>
+            <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
+              <td class="px-6 py-4 font-semibold text-gray-900"><%= webhook.name %></td>
+              <td class="px-6 py-4"><code class="bg-gray-100 px-2 py-1 rounded text-xs font-mono"><%= webhook.hook_path %></code></td>
+              <td class="px-6 py-4"><code class="bg-gray-100 px-2 py-1 rounded text-xs font-mono truncate"><%= webhook.webhook_url %></code></td>
+              <td class="px-6 py-4">
                 <% if webhook.store %>
-                  <span class="badge bg-info"><%= webhook.store.name %></span>
+                  <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-semibold"><%= webhook.store.name %></span>
                 <% else %>
-                  <span class="badge bg-secondary">Globale</span>
+                  <span class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-semibold">Globale</span>
                 <% end %>
               </td>
-              <td>
-                <a href="/webhooks/<%= webhook.id %>/edit" class="btn btn-sm btn-outline-primary">✎ Modifica</a>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteWebhook(<%= webhook.id %>)">🗑 Elimina</button>
+              <td class="px-6 py-4">
+                <div class="flex gap-2">
+                  <a href="/webhooks/<%= webhook.id %>/edit" class="text-blue-600 hover:text-blue-800 font-medium text-sm">✎ Modifica</a>
+                  <button onclick="deleteWebhook(<%= webhook.id %>)" class="text-red-600 hover:text-red-800 font-medium text-sm">🗑 Elimina</button>
+                </div>
               </td>
             </tr>
           <% end %>
@@ -57,8 +52,9 @@
       </table>
     </div>
   <% else %>
-    <div class="alert alert-info">
-      📭 Nessun webhook registrato. <a href="/webhooks/new">Crea il primo webhook</a>
+    <div class="p-8 text-center">
+      <p class="text-gray-500">📭 Nessun webhook registrato.</p>
+      <a href="/webhooks/new" class="text-blue-600 hover:text-blue-800 font-medium mt-2 inline-block">Crea il primo webhook →</a>
     </div>
   <% end %>
 </div>

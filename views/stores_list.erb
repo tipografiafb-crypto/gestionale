@@ -1,62 +1,63 @@
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1>🏪 Negozi</h1>
-  <a href="/stores/new" class="btn btn-primary">+ Nuovo Negozio</a>
+<div class="mb-6 flex justify-between items-center">
+  <div>
+    <h1 class="text-3xl font-bold text-gray-900">🏪 Negozi</h1>
+    <p class="text-gray-600 mt-2">Gestione negozi e store configurati</p>
+  </div>
+  <a href="/stores/new" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition">
+    ➕ Nuovo Negozio
+  </a>
 </div>
 
 <% if params[:success] %>
-  <div class="alert alert-success alert-dismissible fade show" role="alert">
-    Negozio <strong><%= params[:success].upcase %></strong> con successo!
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  <div class="mb-4 bg-green-50 border-l-4 border-green-500 p-4 rounded flex justify-between items-center">
+    <p class="text-green-800"><strong><%= params[:success].upcase %></strong> con successo!</p>
   </div>
 <% end %>
 
 <% if params[:msg] %>
-  <div class="alert alert-<%= params[:msg] == 'success' ? 'success' : 'danger' %> alert-dismissible fade show" role="alert">
-    <%= params[:text]&.gsub('+', ' ') %>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  <div class="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded">
+    <p class="text-red-800"><%= params[:text]&.gsub('+', ' ') %></p>
   </div>
 <% end %>
 
-<div class="card">
-  <div class="card-body">
-    <% if @stores.empty? %>
-      <p class="text-muted mb-0">Nessun negozio configurato. <a href="/stores/new">Creane uno nuovo</a></p>
-    <% else %>
-      <div class="table-responsive">
-        <table class="table table-hover">
-          <thead class="table-light">
-            <tr>
-              <th>Codice</th>
-              <th>Nome</th>
-              <th>Ordini</th>
-              <th>Stato</th>
-              <th>Azioni</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% @stores.each do |store| %>
-              <tr>
-                <td><strong><code><%= store.code %></code></strong></td>
-                <td><%= store.name %></td>
-                <td><span class="badge bg-info"><%= store.orders.count %></span></td>
-                <td><%= store.active.nil? || store.active? ? '✅ Attivo' : '⏸️ Inattivo' %></td>
-                <td>
-                  <a href="/stores/<%= store.id %>/edit" class="btn btn-sm btn-warning">✏️ Modifica</a>
-                  <% if store.orders.empty? %>
-                    <form action="/stores/<%= store.id %>" method="post" style="display:inline;">
-                      <input type="hidden" name="_method" value="DELETE">
-                      <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Cancellare questo negozio?')">🗑️ Cancella</button>
-                    </form>
-                  <% end %>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    <% end %>
-  </div>
+<div class="bg-white rounded-lg shadow-sm overflow-hidden">
+  <% if @stores.empty? %>
+    <div class="p-8 text-center">
+      <p class="text-gray-500">Nessun negozio configurato.</p>
+      <a href="/stores/new" class="text-blue-600 hover:text-blue-800 font-medium mt-2 inline-block">Crea il primo negozio →</a>
+    </div>
+  <% else %>
+    <table class="w-full">
+      <thead class="bg-gray-100 border-b border-gray-200">
+        <tr>
+          <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Codice</th>
+          <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Nome</th>
+          <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Ordini</th>
+          <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Stato</th>
+          <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Azioni</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @stores.each do |store| %>
+          <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
+            <td class="px-6 py-4"><code class="bg-gray-100 px-2 py-1 rounded text-sm font-mono"><%= store.code %></code></td>
+            <td class="px-6 py-4 font-medium text-gray-900"><%= store.name %></td>
+            <td class="px-6 py-4"><span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold"><%= store.orders.count %></span></td>
+            <td class="px-6 py-4"><%= store.active.nil? || store.active? ? '✅ Attivo' : '⏸️ Inattivo' %></td>
+            <td class="px-6 py-4">
+              <div class="flex gap-2">
+                <a href="/stores/<%= store.id %>/edit" class="text-blue-600 hover:text-blue-800 font-medium text-sm">✏️ Modifica</a>
+                <% if store.orders.empty? %>
+                  <form action="/stores/<%= store.id %>" method="post" class="inline" onsubmit="return confirm('Cancellare questo negozio?');">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium text-sm">🗑️ Cancella</button>
+                  </form>
+                <% end %>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
 </div>
-
-<hr>
-<a href="/" class="btn btn-secondary">← Torna alla Home</a>

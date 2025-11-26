@@ -1,38 +1,49 @@
-<div class="container mt-5" style="max-width: 600px;">
-  <h1><%= @store&.id ? "Modifica Negozio" : "Nuovo Negozio" %></h1>
+<div class="max-w-2xl">
+  <h1 class="text-3xl font-bold text-gray-900 mb-2">
+    <% if @store&.id %>
+      Modifica Negozio
+    <% else %>
+      ➕ Nuovo Negozio
+    <% end %>
+  </h1>
+  <p class="text-gray-600 mb-6">Configura un nuovo negozio o modifica uno esistente</p>
 
   <% if @error %>
-    <div class="alert alert-danger"><%= @error %></div>
+    <div class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
+      <p class="text-red-800"><%= @error %></p>
+    </div>
   <% end %>
 
-  <form action="<%= @store&.id ? "/stores/#{@store.id}" : "/stores" %>" method="post">
+  <form action="<%= @store&.id ? "/stores/#{@store.id}" : "/stores" %>" method="post" class="bg-white rounded-lg shadow-sm p-8 space-y-6">
     <% if @store&.id %>
       <input type="hidden" name="_method" value="PUT">
     <% end %>
 
-    <div class="mb-3">
-      <label for="code" class="form-label">Codice Negozio *</label>
-      <input type="text" class="form-control text-uppercase" id="code" name="code" value="<%= @store&.code %>" placeholder="es. TPH_IT, TPH_DE, TPH_EU" required>
-      <small class="text-muted">Codice univoco del negozio (es: TPH_IT per Italia). Gli ordini con codici non riconosciuti verranno rifiutati.</small>
+    <div>
+      <label for="code" class="block text-sm font-semibold text-gray-900 mb-2">Codice Negozio *</label>
+      <input type="text" class="w-full uppercase border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" id="code" name="code" value="<%= @store&.code %>" placeholder="es. TPH_IT, TPH_DE, TPH_EU" required>
+      <p class="text-xs text-gray-500 mt-2">Codice univoco del negozio (es: TPH_IT per Italia). Gli ordini con codici non riconosciuti verranno rifiutati.</p>
     </div>
 
-    <div class="mb-3">
-      <label for="name" class="form-label">Nome Negozio *</label>
-      <input type="text" class="form-control" id="name" name="name" value="<%= @store&.name %>" placeholder="es. The Pickers - Italia" required>
-      <small class="text-muted">Nome descrittivo del negozio</small>
+    <div>
+      <label for="name" class="block text-sm font-semibold text-gray-900 mb-2">Nome Negozio *</label>
+      <input type="text" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" id="name" name="name" value="<%= @store&.name %>" placeholder="es. The Pickers - Italia" required>
+      <p class="text-xs text-gray-500 mt-2">Nome descrittivo del negozio</p>
     </div>
 
-    <div class="mb-3">
-      <div class="form-check">
-        <input type="checkbox" class="form-check-input" id="active" name="active" value="true" <%= @store&.active? ? 'checked' : '' %>>
-        <label class="form-check-label" for="active">Attivo</label>
-      </div>
-      <small class="text-muted">Disabilita temporaneamente questo negozio senza eliminare i dati</small>
+    <div class="bg-gray-50 rounded-lg p-4">
+      <label class="flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" class="w-4 h-4 border-gray-300 rounded" id="active" name="active" value="true" <%= @store&.active? ? 'checked' : '' %>>
+        <span class="text-sm font-semibold text-gray-900">Attivo</span>
+      </label>
+      <p class="text-xs text-gray-500 mt-2 ml-7">Disabilita temporaneamente questo negozio senza eliminare i dati</p>
     </div>
 
-    <div class="d-flex gap-2">
-      <button type="submit" class="btn btn-primary">💾 Salva Negozio</button>
-      <a href="/stores" class="btn btn-secondary">Annulla</a>
+    <div class="flex gap-3 pt-4 border-t border-gray-200">
+      <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition">
+        💾 Salva Negozio
+      </button>
+      <a href="/stores" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-6 rounded-lg transition">Annulla</a>
     </div>
   </form>
 </div>

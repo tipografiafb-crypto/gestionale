@@ -1,45 +1,60 @@
-<div class="container mt-5">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>🔄 Flussi di Stampa</h1>
-    <a href="/print_flows/new" class="btn btn-primary">+ Nuovo Flusso</a>
+<div class="mb-6 flex justify-between items-center">
+  <div>
+    <h1 class="text-3xl font-bold text-gray-900">🔄 Flussi di Stampa</h1>
+    <p class="text-gray-600 mt-2">Gestione flussi di pre-stampa e stampa</p>
   </div>
+  <a href="/print_flows/new" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition">
+    ➕ Nuovo Flusso
+  </a>
+</div>
 
-  <% if params[:success] %>
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-      Flusso <strong><%= params[:success].upcase %></strong> con successo!
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-  <% end %>
+<% if params[:success] %>
+  <div class="mb-4 bg-green-50 border-l-4 border-green-500 p-4 rounded">
+    <p class="text-green-800">Flusso <strong><%= params[:success].upcase %></strong> con successo!</p>
+  </div>
+<% end %>
 
+<div class="bg-white rounded-lg shadow-sm overflow-hidden">
   <% if @flows.empty? %>
-    <div class="alert alert-info">Nessun flusso di stampa configurato. <a href="/print_flows/new">Creane uno nuovo</a></div>
+    <div class="p-8 text-center">
+      <p class="text-gray-500">Nessun flusso di stampa configurato.</p>
+      <a href="/print_flows/new" class="text-blue-600 hover:text-blue-800 font-medium mt-2 inline-block">Crea il primo flusso →</a>
+    </div>
   <% else %>
-    <div class="table-responsive">
-      <table class="table table-hover">
-        <thead class="table-light">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-100 border-b border-gray-200">
           <tr>
-            <th>Nome</th>
-            <th>Pre-Stampa</th>
-            <th>Stampa</th>
-            <th>Prodotti</th>
-            <th>Status</th>
-            <th>Azioni</th>
+            <th class="px-6 py-3 text-left font-semibold text-gray-700">Nome</th>
+            <th class="px-6 py-3 text-left font-semibold text-gray-700">Pre-Stampa</th>
+            <th class="px-6 py-3 text-left font-semibold text-gray-700">Stampa</th>
+            <th class="px-6 py-3 text-left font-semibold text-gray-700">Prodotti</th>
+            <th class="px-6 py-3 text-left font-semibold text-gray-700">Status</th>
+            <th class="px-6 py-3 text-left font-semibold text-gray-700">Azioni</th>
           </tr>
         </thead>
         <tbody>
           <% @flows.each do |flow| %>
-            <tr>
-              <td><strong><%= flow.name %></strong></td>
-              <td><%= flow.preprint_webhook&.name %><br><code><%= flow.preprint_webhook&.hook_path %></code></td>
-              <td><%= flow.print_webhook&.name %><br><code><%= flow.print_webhook&.hook_path %></code></td>
-              <td><span class="badge bg-info"><%= flow.products.count %></span></td>
-              <td><%= flow.active? ? '✅ Attivo' : '⏸️ Inattivo' %></td>
-              <td>
-                <a href="/print_flows/<%= flow.id %>/edit" class="btn btn-sm btn-warning">✏️ Modifica</a>
-                <form action="/print_flows/<%= flow.id %>" method="post" style="display:inline;">
-                  <input type="hidden" name="_method" value="DELETE">
-                  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Cancellare questo flusso?')">🗑️ Cancella</button>
-                </form>
+            <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
+              <td class="px-6 py-4 font-semibold text-gray-900"><%= flow.name %></td>
+              <td class="px-6 py-4">
+                <p class="text-gray-700"><%= flow.preprint_webhook&.name %></p>
+                <code class="bg-gray-100 px-2 py-1 rounded text-xs"><%= flow.preprint_webhook&.hook_path %></code>
+              </td>
+              <td class="px-6 py-4">
+                <p class="text-gray-700"><%= flow.print_webhook&.name %></p>
+                <code class="bg-gray-100 px-2 py-1 rounded text-xs"><%= flow.print_webhook&.hook_path %></code>
+              </td>
+              <td class="px-6 py-4"><span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-semibold"><%= flow.products.count %></span></td>
+              <td class="px-6 py-4"><%= flow.active? ? '✅ Attivo' : '⏸️ Inattivo' %></td>
+              <td class="px-6 py-4">
+                <div class="flex gap-2">
+                  <a href="/print_flows/<%= flow.id %>/edit" class="text-blue-600 hover:text-blue-800 font-medium text-sm">✏️ Modifica</a>
+                  <form action="/print_flows/<%= flow.id %>" method="post" class="inline" onsubmit="return confirm('Cancellare questo flusso?');">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium text-sm">🗑️ Cancella</button>
+                  </form>
+                </div>
               </td>
             </tr>
           <% end %>
@@ -47,7 +62,4 @@
       </table>
     </div>
   <% end %>
-
-  <hr>
-  <a href="/" class="btn btn-secondary">← Torna alla Home</a>
 </div>
