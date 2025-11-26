@@ -1,0 +1,111 @@
+[DEBUG_PREPRINT_START] Order: 1, Item: 3
+D, [2025-11-26T17:19:05.930732 #12776] DEBUG -- :   Order Load (1.7ms)  SELECT "orders".* FROM "orders" WHERE "orders"."id" = $1 LIMIT $2  [["id", 1], ["LIMIT", 1]]
+D, [2025-11-26T17:19:05.990058 #12776] DEBUG -- :   OrderItem Load (2.0ms)  SELECT "order_items".* FROM "order_items" WHERE "order_items"."order_id" = $1 AND "order_items"."id" = $2 LIMIT $3  [["order_id", 1], ["id", 3], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.042005 #12776] DEBUG -- :   Asset Exists? (1.6ms)  SELECT 1 AS one FROM "assets" WHERE "assets"."order_item_id" = $1 LIMIT $2  [["order_item_id", 3], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.044860 #12776] DEBUG -- :   Asset Load (0.8ms)  SELECT "assets".* FROM "assets" WHERE "assets"."order_item_id" = $1  [["order_item_id", 3]]
+[DEBUG_PREPRINT] print_flow_id: "1"
+D, [2025-11-26T17:19:06.067342 #12776] DEBUG -- :   PrintFlow Load (1.9ms)  SELECT "print_flows".* FROM "print_flows" WHERE "print_flows"."id" = $1 LIMIT $2  [["id", 1], ["LIMIT", 1]]
+[DEBUG_PREPRINT] print_flow found: true
+D, [2025-11-26T17:19:06.107027 #12776] DEBUG -- :   SwitchWebhook Load (1.6ms)  SELECT "switch_webhooks".* FROM "switch_webhooks" WHERE "switch_webhooks"."id" = $1 LIMIT $2  [["id", 1], ["LIMIT", 1]]
+[DEBUG_PREPRINT] preprint_webhook: #<SwitchWebhook id: 1, name: "plettri", hook_path: "/op", store_id: nil, active: true, created_at: "2025-11-26 17:15:05.550361000 +0000", updated_at: "2025-11-26 17:15:05.550361000 +0000">
+[DEBUG_PREPRINT] webhook_hook_path: "/op"
+D, [2025-11-26T17:19:06.119282 #12776] DEBUG -- :   TRANSACTION (0.6ms)  BEGIN
+D, [2025-11-26T17:19:06.122329 #12776] DEBUG -- :   OrderItem Update (3.6ms)  UPDATE "order_items" SET "updated_at" = $1, "preprint_status" = $2, "preprint_print_flow_id" = $3, "campi_webhook" = $4 WHERE "order_items"."id" = $5  [["updated_at", "2025-11-26 17:19:06.116917"], ["preprint_status", "processing"], ["preprint_print_flow_id", 1], ["campi_webhook", "{\"percentuale\":\"0\"}"], ["id", 3]]
+D, [2025-11-26T17:19:06.124832 #12776] DEBUG -- :   TRANSACTION (1.7ms)  COMMIT
+D, [2025-11-26T17:19:06.129011 #12776] DEBUG -- :   Asset Exists? (2.1ms)  SELECT 1 AS one FROM "assets" WHERE "assets"."order_item_id" = $1 AND (asset_type LIKE $2 OR asset_type = $3) LIMIT $4  [["order_item_id", 3], [nil, "print_file%"], [nil, "print"], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.141867 #12776] DEBUG -- :   Product Load (2.0ms)  SELECT "products".* FROM "products" WHERE "products"."sku" = $1 LIMIT $2  [["sku", "TPH001-71"], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.164961 #12776] DEBUG -- :   Asset Load (1.3ms)  SELECT "assets".* FROM "assets" WHERE "assets"."order_item_id" = $1 AND (asset_type LIKE $2 OR asset_type = $3) ORDER BY "assets"."id" ASC  [["order_item_id", 3], [nil, "print_file%"], [nil, "print"]]
+[DEBUG_PREPRINT] Processing asset: 5
+D, [2025-11-26T17:19:06.169002 #12776] DEBUG -- :   OrderItem Count (1.8ms)  SELECT COUNT(*) FROM "order_items" WHERE "order_items"."order_id" = $1 AND (id <= $2)  [["order_id", 1], [nil, 3]]
+D, [2025-11-26T17:19:06.171967 #12776] DEBUG -- :   Asset Exists? (1.3ms)  SELECT 1 AS one FROM "assets" WHERE "assets"."order_item_id" = $1 AND (asset_type LIKE $2 OR asset_type = $3) AND "assets"."id" = $4 LIMIT $5  [["order_item_id", 3], [nil, "print_file%"], [nil, "print"], ["id", 5], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.174382 #12776] DEBUG -- :   Asset Count (1.3ms)  SELECT COUNT(*) FROM "assets" WHERE "assets"."order_item_id" = $1 AND (asset_type LIKE $2 OR asset_type = $3)  [["order_item_id", 3], [nil, "print_file%"], [nil, "print"]]
+D, [2025-11-26T17:19:06.177082 #12776] DEBUG -- :   OrderItem Count (1.4ms)  SELECT COUNT(*) FROM "order_items" WHERE "order_items"."order_id" = $1 AND (id <= $2)  [["order_id", 1], [nil, 3]]
+D, [2025-11-26T17:19:06.180804 #12776] DEBUG -- :   TRANSACTION (0.7ms)  BEGIN
+D, [2025-11-26T17:19:06.182516 #12776] DEBUG -- :   OrderItem Update (2.4ms)  UPDATE "order_items" SET "preprint_status" = $1, "updated_at" = $2 WHERE "order_items"."id" = $3  [["preprint_status", "failed"], ["updated_at", "2025-11-26 17:19:06.179067"], ["id", 3]]
+D, [2025-11-26T17:19:06.185003 #12776] DEBUG -- :   TRANSACTION (1.9ms)  COMMIT
+[PREPRINT_ERROR] NoMethodError: undefined method `description' for #<Product id: 1, sku: "TPH001-71", notes: "", active: true, created_at: "2025-11-26 17:16:49.161244000 +0000", updated_at: "2025-11-26 17:16:49.161244000 +0000", name: "plettri", product_category_id: nil, default_print_flow_id: 1, min_stock_level: 0>
+[PREPRINT_ERROR_INSPECT] #<NoMethodError: undefined method `description' for #<Product id: 1, sku: "TPH001-71", notes: "", active: true, created_at: "2025-11-26 17:16:49.161244000 +0000", updated_at: "2025-11-26 17:16:49.161244000 +0000", name: "plettri", product_category_id: nil, default_print_flow_id: 1, min_stock_level: 0>>
+[PREPRINT_BACKTRACE]
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activemodel-7.2.3/lib/active_model/attribute_methods.rb:512:in `method_missing'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/attribute_methods.rb:495:in `method_missing'
+  /home/paolo/apps/print-orchestrator/routes/order_items_switch.rb:77:in `block (2 levels) in <class:PrintOrchestrator>'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/relation/delegation.rb:98:in `each'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/relation/delegation.rb:98:in `each'
+  /home/paolo/apps/print-orchestrator/routes/order_items_switch.rb:64:in `block in <class:PrintOrchestrator>'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1811:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1811:in `block in compile!'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1074:in `block (3 levels) in route!'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1092:in `route_eval'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1074:in `block (2 levels) in route!'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1123:in `block in process_route'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1121:in `catch'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1121:in `process_route'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1072:in `block in route!'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1069:in `each'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1069:in `route!'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1197:in `block in dispatch!'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1168:in `catch'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1168:in `invoke'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1192:in `dispatch!'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1004:in `block in call!'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1168:in `catch'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1168:in `invoke'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1004:in `call!'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:993:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/rack-3.2.4/lib/rack/method_override.rb:28:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/rack-protection-4.2.1/lib/rack/protection/base.rb:53:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/rack-protection-4.2.1/lib/rack/protection/xss_header.rb:20:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/rack-protection-4.2.1/lib/rack/protection/path_traversal.rb:18:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/rack-protection-4.2.1/lib/rack/protection/json_csrf.rb:28:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/rack-protection-4.2.1/lib/rack/protection/base.rb:53:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/rack-protection-4.2.1/lib/rack/protection/base.rb:53:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/rack-protection-4.2.1/lib/rack/protection/frame_options.rb:33:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/middleware/logger.rb:17:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/rack-3.2.4/lib/rack/head.rb:15:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/show_exceptions.rb:23:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:227:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:2144:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1681:in `block in call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1902:in `synchronize'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/sinatra-4.2.1/lib/sinatra/base.rb:1681:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/rack-3.2.4/lib/rack/method_override.rb:28:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/puma-6.6.1/lib/puma/configuration.rb:279:in `call'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/puma-6.6.1/lib/puma/request.rb:99:in `block in handle_request'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/puma-6.6.1/lib/puma/thread_pool.rb:390:in `with_force_shutdown'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/puma-6.6.1/lib/puma/request.rb:98:in `handle_request'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/puma-6.6.1/lib/puma/server.rb:472:in `process_client'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/puma-6.6.1/lib/puma/server.rb:254:in `block in run'
+  /home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/puma-6.6.1/lib/puma/thread_pool.rb:167:in `block in spawn_thread'
+D, [2025-11-26T17:19:06.202816 #12776] DEBUG -- :   Order Load (1.2ms)  SELECT "orders".* FROM "orders" WHERE "orders"."id" = $1 LIMIT $2  [["id", 1], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.235013 #12776] DEBUG -- :   Store Load (1.6ms)  SELECT "stores".* FROM "stores" WHERE "stores"."id" = $1  [["id", 1]]
+D, [2025-11-26T17:19:06.246796 #12776] DEBUG -- :   OrderItem Load (1.2ms)  SELECT "order_items".* FROM "order_items" WHERE "order_items"."order_id" = $1  [["order_id", 1]]
+D, [2025-11-26T17:19:06.251300 #12776] DEBUG -- :   Asset Load (1.8ms)  SELECT "assets".* FROM "assets" WHERE "assets"."order_item_id" IN ($1, $2, $3)  [["order_item_id", 1], ["order_item_id", 2], ["order_item_id", 3]]
+D, [2025-11-26T17:19:06.273502 #12776] DEBUG -- :   SwitchJob Load (1.4ms)  SELECT "switch_jobs".* FROM "switch_jobs" WHERE "switch_jobs"."order_id" = $1  [["order_id", 1]]
+D, [2025-11-26T17:19:06.314919 #12776] DEBUG -- :   OrderItem Count (1.4ms)  SELECT COUNT(*) FROM "order_items" WHERE "order_items"."order_id" = $1  [["order_id", 1]]
+D, [2025-11-26T17:19:06.316495 #12776] DEBUG -- :   Product Load (0.9ms)  SELECT "products".* FROM "products" WHERE "products"."sku" = $1 LIMIT $2  [["sku", "TPH001-71"], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.337449 #12776] DEBUG -- :   PrintFlow Count (2.8ms)  SELECT COUNT(*) FROM "print_flows" INNER JOIN "product_print_flows" ON "print_flows"."id" = "product_print_flows"."print_flow_id" WHERE "product_print_flows"."product_id" = $1  [["product_id", 1]]
+D, [2025-11-26T17:19:06.341873 #12776] DEBUG -- :   PrintFlow Load (1.4ms)  SELECT "print_flows".* FROM "print_flows" INNER JOIN "product_print_flows" ON "print_flows"."id" = "product_print_flows"."print_flow_id" WHERE "product_print_flows"."product_id" = $1  [["product_id", 1]]
+D, [2025-11-26T17:19:06.345037 #12776] DEBUG -- :   PrintFlow Load (1.1ms)  SELECT "print_flows".* FROM "print_flows" WHERE "print_flows"."id" = $1 LIMIT $2  [["id", 1], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.370108 #12776] DEBUG -- :   PrintMachine Count (2.6ms)  SELECT COUNT(*) FROM "print_machines" INNER JOIN "print_flow_machines" ON "print_machines"."id" = "print_flow_machines"."print_machine_id" WHERE "print_flow_machines"."print_flow_id" = $1  [["print_flow_id", 1]]
+D, [2025-11-26T17:19:06.372653 #12776] DEBUG -- :   PrintMachine Count (1.6ms)  SELECT COUNT(*) FROM "print_machines" INNER JOIN "print_flow_machines" ON "print_machines"."id" = "print_flow_machines"."print_machine_id" WHERE "print_flow_machines"."print_flow_id" = $1  [["print_flow_id", 1]]
+D, [2025-11-26T17:19:06.375559 #12776] DEBUG -- :   Asset Count (1.2ms)  SELECT COUNT(*) FROM "assets" WHERE "assets"."order_item_id" = $1  [["order_item_id", 1]]
+D, [2025-11-26T17:19:06.378491 #12776] DEBUG -- :   Product Load (1.2ms)  SELECT "products".* FROM "products" WHERE "products"."sku" = $1 LIMIT $2  [["sku", "TPH001-71"], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.382524 #12776] DEBUG -- :   PrintFlow Count (1.7ms)  SELECT COUNT(*) FROM "print_flows" INNER JOIN "product_print_flows" ON "print_flows"."id" = "product_print_flows"."print_flow_id" WHERE "product_print_flows"."product_id" = $1  [["product_id", 1]]
+D, [2025-11-26T17:19:06.385211 #12776] DEBUG -- :   PrintFlow Load (1.5ms)  SELECT "print_flows".* FROM "print_flows" INNER JOIN "product_print_flows" ON "print_flows"."id" = "product_print_flows"."print_flow_id" WHERE "product_print_flows"."product_id" = $1  [["product_id", 1]]
+D, [2025-11-26T17:19:06.387847 #12776] DEBUG -- :   PrintFlow Load (1.1ms)  SELECT "print_flows".* FROM "print_flows" WHERE "print_flows"."id" = $1 LIMIT $2  [["id", 1], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.391572 #12776] DEBUG -- :   PrintMachine Count (1.6ms)  SELECT COUNT(*) FROM "print_machines" INNER JOIN "print_flow_machines" ON "print_machines"."id" = "print_flow_machines"."print_machine_id" WHERE "print_flow_machines"."print_flow_id" = $1  [["print_flow_id", 1]]
+D, [2025-11-26T17:19:06.394261 #12776] DEBUG -- :   PrintMachine Count (1.7ms)  SELECT COUNT(*) FROM "print_machines" INNER JOIN "print_flow_machines" ON "print_machines"."id" = "print_flow_machines"."print_machine_id" WHERE "print_flow_machines"."print_flow_id" = $1  [["print_flow_id", 1]]
+D, [2025-11-26T17:19:06.397271 #12776] DEBUG -- :   Asset Count (1.3ms)  SELECT COUNT(*) FROM "assets" WHERE "assets"."order_item_id" = $1  [["order_item_id", 2]]
+D, [2025-11-26T17:19:06.399508 #12776] DEBUG -- :   Product Load (1.0ms)  SELECT "products".* FROM "products" WHERE "products"."sku" = $1 LIMIT $2  [["sku", "TPH001-71"], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.403573 #12776] DEBUG -- :   PrintFlow Count (1.7ms)  SELECT COUNT(*) FROM "print_flows" INNER JOIN "product_print_flows" ON "print_flows"."id" = "product_print_flows"."print_flow_id" WHERE "product_print_flows"."product_id" = $1  [["product_id", 1]]
+D, [2025-11-26T17:19:06.406318 #12776] DEBUG -- :   PrintFlow Load (1.5ms)  SELECT "print_flows".* FROM "print_flows" INNER JOIN "product_print_flows" ON "print_flows"."id" = "product_print_flows"."print_flow_id" WHERE "product_print_flows"."product_id" = $1  [["product_id", 1]]
+D, [2025-11-26T17:19:06.409120 #12776] DEBUG -- :   PrintFlow Load (1.2ms)  SELECT "print_flows".* FROM "print_flows" WHERE "print_flows"."id" = $1 LIMIT $2  [["id", 1], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.413570 #12776] DEBUG -- :   PrintMachine Count (1.8ms)  SELECT COUNT(*) FROM "print_machines" INNER JOIN "print_flow_machines" ON "print_machines"."id" = "print_flow_machines"."print_machine_id" WHERE "print_flow_machines"."print_flow_id" = $1  [["print_flow_id", 1]]
+D, [2025-11-26T17:19:06.416344 #12776] DEBUG -- :   PrintMachine Count (1.7ms)  SELECT COUNT(*) FROM "print_machines" INNER JOIN "print_flow_machines" ON "print_machines"."id" = "print_flow_machines"."print_machine_id" WHERE "print_flow_machines"."print_flow_id" = $1  [["print_flow_id", 1]]
+D, [2025-11-26T17:19:06.419443 #12776] DEBUG -- :   Asset Count (1.3ms)  SELECT COUNT(*) FROM "assets" WHERE "assets"."order_item_id" = $1  [["order_item_id", 3]]
+D, [2025-11-26T17:19:06.471542 #12776] DEBUG -- :   Asset Load (3.3ms)  SELECT "assets".* FROM "assets" WHERE "assets"."id" = $1 LIMIT $2  [["id", 1], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.487342 #12776] DEBUG -- :   Asset Load (0.5ms)  SELECT "assets".* FROM "assets" WHERE "assets"."id" = $1 LIMIT $2  [["id", 3], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.494342 #12776] DEBUG -- :   Asset Load (0.6ms)  SELECT "assets".* FROM "assets" WHERE "assets"."id" = $1 LIMIT $2  [["id", 4], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.499649 #12776] DEBUG -- :   Asset Load (0.9ms)  SELECT "assets".* FROM "assets" WHERE "assets"."id" = $1 LIMIT $2  [["id", 5], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.508960 #12776] DEBUG -- :   Asset Load (1.2ms)  SELECT "assets".* FROM "assets" WHERE "assets"."id" = $1 LIMIT $2  [["id", 6], ["LIMIT", 1]]
+D, [2025-11-26T17:19:06.557774 #12776] DEBUG -- :   Asset Load (0.7ms)  SELECT "assets".* FROM "assets" WHERE "assets"."id" = $1 LIMIT $2  [["id", 2], ["LIMIT", 1]]

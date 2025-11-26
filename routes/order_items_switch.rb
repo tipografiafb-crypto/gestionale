@@ -74,7 +74,7 @@ class PrintOrchestrator < Sinatra::Base
           widegest_url: "#{server_url}/api/v1/reports_create",
           filename: item.switch_filename_for_asset(print_asset) || "eu#{order.id}-#{item.item_number}.png",
           quantita: item.quantity,
-          materiale: product&.description || 'N/A',
+          materiale: product&.notes || 'N/A',
           campi_custom: {},
           opzioni_stampa: {},
           campi_webhook: campi_webhook
@@ -202,7 +202,7 @@ class PrintOrchestrator < Sinatra::Base
           widegest_url: "#{server_url}/api/v1/reports_create",
           filename: item.switch_filename_for_asset(print_asset) || "eu#{order.id}-#{item.item_number}.png",
           quantita: item.quantity,
-          materiale: product&.description || 'N/A',
+          materiale: product&.notes || 'N/A',
           campi_custom: {},
           opzioni_stampa: {},
           campi_webhook: item.campi_webhook || {}
@@ -286,7 +286,7 @@ class PrintOrchestrator < Sinatra::Base
           widegest_url: "#{server_url}/api/v1/reports_create",
           filename: item.switch_filename_for_asset(print_asset) || "eu#{order.id}-#{item.item_number}.png",
           quantita: item.quantity,
-          materiale: product&.description || 'N/A',
+          materiale: product&.notes || 'N/A',
           campi_custom: {},
           opzioni_stampa: {},
           campi_webhook: item.campi_webhook || {}
