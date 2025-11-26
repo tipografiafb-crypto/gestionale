@@ -26,11 +26,6 @@ class Asset < ActiveRecord::Base
   rescue URI::InvalidURIError
     'unknown.png'
   end
-  
-  # Simple filename accessor
-  def filename
-    filename_from_url
-  end
 
   # Generate local storage path
   def generate_local_path(store_code, order_code, sku)
