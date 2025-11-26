@@ -13,13 +13,11 @@ fi
 REAL_USER=$(who am i | awk '{print $1}')
 WORK_DIR=$(pwd)
 
-# Get Ruby path
-RUBY_PATH=$(which ruby)
-BUNDLE_PATH=$(which bundle)
+# Make start_app.sh executable
+chmod +x $WORK_DIR/start_app.sh
 
 echo "User: $REAL_USER"
 echo "Directory: $WORK_DIR"
-echo "Ruby: $RUBY_PATH"
 echo ""
 
 # Create systemd service file
@@ -33,14 +31,10 @@ Wants=postgresql.service
 Type=simple
 User=$REAL_USER
 WorkingDirectory=$WORK_DIR
-Environment="PATH=/nix/store/l8k1zfxjixk6f5sya5x86sdyxffz6bcf-ruby-3.2.2/bin:/nix/store/imrrszwv22cg025hbgx3198959yx6gc0-bundle/bin:/home/$REAL_USER/.gem/ruby/3.2.0/bin:/home/$REAL_USER/.local/bin:\$PATH"
 Environment="RACK_ENV=production"
 
-# Load .env file if it exists
-EnvironmentFile=$WORK_DIR/.env
-
-# Start command
-ExecStart=/bin/bash -c 'cd $WORK_DIR && /nix/store/imrrszwv22cg025hbgx3198959yx6gc0-bundle/bin/bundle exec puma -b tcp://0.0.0.0:5000 config.ru'
+# Start command - uses wrapper script
+ExecStart=$WORK_DIR/start_app.sh
 
 # Restart policy
 Restart=on-failure
