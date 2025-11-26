@@ -29,12 +29,9 @@
 
         <div class="mb-3">
           <label for="hook_path" class="form-label">Hook Path <span class="text-danger">*</span></label>
-          <div class="input-group">
-            <span class="input-group-text"><%= ENV['SWITCH_WEBHOOK_BASE_URL'] || 'http://localhost:9000' %></span>
-            <input type="text" id="hook_path" name="hook_path" class="form-control" 
-                   value="<%= @webhook&.hook_path %>" placeholder="/api/jobs" required>
-          </div>
-          <small class="text-muted">Inserisci solo il path (es. /api/jobs o /webhook/switch). L'URL base è configurato a livello di sistema.</small>
+          <input type="text" id="hook_path" name="hook_path" class="form-control" 
+                 value="<%= @webhook&.hook_path %>" placeholder="/api/jobs" required>
+          <small class="text-muted">Inserisci solo il path (es. /api/jobs o /webhook/switch)</small>
         </div>
 
         <div class="mb-3">
