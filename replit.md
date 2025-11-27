@@ -198,6 +198,34 @@ Planned improvements:
 - Create admin panel for configuration
 - Add monitoring and alerting
 
+## Critical: Print Workflow File Paths
+
+### File per la Stampa (IMPORTANTE)
+Quando Switch restituisce un file processato, viene salvato e reso disponibile per la stampa:
+
+| Dato | Valore | Uso |
+|------|--------|-----|
+| **URL Frontend** | `/file/{asset.id}` | Preview nel browser e invio alla stampante |
+| **Percorso Locale** | `storage/{store_code}/{order_code}/{sku}/{filename}` | File fisico su disco |
+| **Campo DB** | `assets.local_path` | Recupera il percorso del file |
+| **Esempio** | `storage/TPH_EU/EU12351/TPH001-71/eu12351-2.pdf` | File PDF pronto per stampa |
+
+### Come Recuperare il File per la Stampa
+```ruby
+# Dato un OrderItem, ottieni il file da stampare:
+asset = item.assets.find_by(asset_type: 'print_output')
+file_path = asset.local_path_full  # Percorso completo su disco
+# Oppure serve via HTTP:
+url = "/file/#{asset.id}"
+```
+
+### Flusso File Switch → Stampa
+1. Switch processa il file e chiama callback `/api/switch/report`
+2. Il file viene salvato in `storage/{store}/{order}/{sku}/`
+3. Viene creato un Asset con `local_path` = percorso del file
+4. Frontend mostra preview via `/file/{asset.id}`
+5. **Per stampare**: usa `asset.local_path_full` per inviare alla stampante
+
 ## Notes
 
 - The workflow system (`System_program/`) enables AI agents to work surgically on specific features
