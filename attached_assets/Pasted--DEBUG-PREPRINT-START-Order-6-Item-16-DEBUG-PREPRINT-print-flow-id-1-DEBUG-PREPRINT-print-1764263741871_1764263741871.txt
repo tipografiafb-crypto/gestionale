@@ -1,0 +1,29 @@
+[DEBUG_PREPRINT_START] Order: 6, Item: 16
+[DEBUG_PREPRINT] print_flow_id: "1"
+[DEBUG_PREPRINT] print_flow found: true
+[DEBUG_PREPRINT] preprint_webhook: #<SwitchWebhook id: 1, name: "plettri", hook_path: "/plettro_automatico", store_id: nil, active: true, created_at: "2025-11-26 17:15:05.550361000 +0000", updated_at: "2025-11-27 10:56:26.065885000 +0000">
+[DEBUG_PREPRINT] webhook_hook_path: "/plettro_automatico"
+[DEBUG_PREPRINT] Processing asset: 38
+[DEBUG_PREPRINT] Calling SwitchClient.send_to_switch with webhook_path: "/plettro_automatico"
+[SWITCH_CLIENT_DEBUG] ENV['SWITCH_WEBHOOK_BASE_URL']: nil
+[SWITCH_CLIENT_DEBUG] ENV['SWITCH_WEBHOOK_PREFIX']: nil
+[SWITCH_CLIENT_DEBUG] switch_base (after processing): http://192.168.1.162:51088
+[SWITCH_CLIENT_DEBUG] webhook_prefix (after processing): "/scripting"
+[SWITCH_CLIENT_DEBUG] Full URL: http://192.168.1.162:51088/scripting/plettro_automatico
+[SWITCH_CLIENT_DEBUG] Payload: {"id_riga":1,"codice_ordine":"EU12351","product":"TPH001-71 - plettri flow","operation_id":1,"job_operation_id":"16","url":"http://192.168.1.55:5000/api/assets/38/download","widegest_url":"http://192.168.1.55:5000/api/v1/reports_create","filename":"eu12351-1.png","quantita":1,"materiale":"","campi_custom":{},"opzioni_stampa":{},"campi_webhook":{"percentuale":"0"}}
+[SWITCH_CLIENT_DEBUG] Response Status: 200 OK
+[SWITCH_CLIENT_DEBUG] Response Body: {"status":true}
+[DEBUG_PREPRINT] Result: {:success=>true, :job_id=>"PREPRINT-EU12351-1-1764263697", :message=>"Sent to Switch"}
+[SWITCH_REPORT_DEBUG] Received request
+[SWITCH_REPORT_DEBUG] kind: "controllo-file"
+[SWITCH_REPORT_DEBUG] filename: "eu12351-1.pdf"
+[SWITCH_REPORT_DEBUG] job-operation-id: "16"
+[SWITCH_REPORT_DEBUG] file size: 1542456 bytes
+[SWITCH_REPORT_DEBUG] Parsed OLD format job_id (item_id 16)
+[SWITCH_REPORT_DEBUG] Attempting to extract order code from filename: eu12351-1.pdf
+[SWITCH_REPORT_DEBUG] Extracted order code 'eu12351' and item_id 1 from filename
+[SWITCH_REPORT_WARN] OrderItem id=1 not found, will save to pending
+[SWITCH_REPORT_DEBUG] Found order by code 'eu12351' for pending storage
+[SWITCH_REPORT_DEBUG] Order/item not in DB, saving to pending directory: storage/pending/eu12351/eu12351-1.pdf
+[SWITCH_REPORT] PDF decoded and saved: storage/pending/eu12351/eu12351-1.pdf
+[SWITCH_REPORT_ERROR] File decode error: undefined local variable or method `external_id_riga' for #<PrintOrchestrator:0x00007f8ec948d7a8 @default_layout=:layout, @preferred_extension=nil, @app=nil, @template_cache=#<Sinatra::TemplateCache:0x00007f8eca72f960 @cache={[:erb, :order_detail, {:outvar=>"@_out_buf", :default_encoding=>"utf-8"}, "/home/paolo/apps/print-orchestrator/views"]=>#<Tilt::ERBTemplate:0x00007f8eca9764f8 @options={:outvar=>"@_out_buf"}, @line=1, @file="/home/paolo/apps/print-orchestrator/views/order_detail.erb", @scope_class=nil, @default_encoding="utf-8", @skip_compiled_encoding_detection=nil, @data="<div class=\"mb-4\">\n  <nav aria-label=\"breadcrumb\">\n    <ol class=\"breadcrumb\">\n      <li class=\"breadcrumb-item\"><a href=\"/orders\">Orders</a
