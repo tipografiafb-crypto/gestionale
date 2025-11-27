@@ -20,9 +20,18 @@ class PrintOrchestrator < Sinatra::Base
       switch_filename = asset.order_item.switch_filename_for_asset(asset)
       download_filename = switch_filename || asset.filename
       
+      # Determine content type based on file extension and asset type
+      file_ext = File.extname(download_filename).downcase
+      if file_ext == '.pdf' || asset.asset_type == 'print_output'
+        content_type 'application/pdf'
+        disposition = 'inline'  # Allow browser preview
+      else
+        content_type 'application/octet-stream'
+        disposition = 'attachment'  # Force download
+      end
+      
       # Set download headers
-      content_type 'application/octet-stream'
-      headers['Content-Disposition'] = "attachment; filename='#{download_filename}'"
+      headers['Content-Disposition'] = "#{disposition}; filename='#{download_filename}'"
       headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
       
       # Stream the file
