@@ -69,44 +69,44 @@ class PrintOrchestrator < Sinatra::Base
           return { success: false, error: "OrderItem at position #{item_position} not found in order #{order_id}" }.to_json
         end
       else
-        # Fall back to OLD format: just a number (operation position)
-        # Extract order context from filename pattern: "{order_code}-{position}.ext"
-        item_position = job_id_str.to_i
+        # Fall back to OLD format: just a number (the OrderItem database ID)
+        # Extract order context from filename pattern: "{order_code}-{item_id}.ext"
+        item_id = job_id_str.to_i
         
-        if item_position > 0 && filename
-          puts "[SWITCH_REPORT_DEBUG] Parsed OLD format job_id (position #{item_position})"
+        if item_id > 0 && filename
+          puts "[SWITCH_REPORT_DEBUG] Parsed OLD format job_id (item_id #{item_id})"
           puts "[SWITCH_REPORT_DEBUG] Attempting to extract order code from filename: #{filename}"
           
-          # Filename pattern: "code-id_riga.ext" e.g., "eu12345-3.pdf"
-          # Where: code = codice_ordine, id_riga = external line item ID from gestionale
+          # Filename pattern: "code-item_id.ext" e.g., "eu12345-36.pdf"
+          # Where: code = codice_ordine (external), item_id = OrderItem database ID
           filename_match = filename.match(/^([a-zA-Z0-9]+)-(\d+)/)
           unless filename_match
             status 400
             puts "[SWITCH_REPORT_ERROR] Cannot extract order info from filename: #{filename.inspect}"
-            puts "[SWITCH_REPORT_ERROR] Expected filename format: {order_code}-{id_riga}.ext"
-            return { success: false, error: "Invalid filename format. Expected: {order_code}-{id_riga}.ext" }.to_json
+            puts "[SWITCH_REPORT_ERROR] Expected filename format: {order_code}-{item_id}.ext"
+            return { success: false, error: "Invalid filename format. Expected: {order_code}-{item_id}.ext" }.to_json
           end
           
           order_code = filename_match[1]
-          external_id_riga = filename_match[2].to_i
+          item_id_from_filename = filename_match[2].to_i
           
-          puts "[SWITCH_REPORT_DEBUG] Extracted order code '#{order_code}' and external_id_riga #{external_id_riga} from filename"
+          puts "[SWITCH_REPORT_DEBUG] Extracted order code '#{order_code}' and item_id #{item_id_from_filename} from filename"
           
-          # Find order by external code (case-insensitive) - but don't fail if not found
-          order = Order.where('LOWER(external_order_code) = LOWER(?)', order_code).first
-          item = nil
+          # Find the OrderItem directly by database ID
+          item = OrderItem.find_by(id: item_id_from_filename)
           
-          if order
-            # Look for OrderItem that matches the external_id_riga
-            item = order.order_items.find_by(id: external_id_riga)
-            if item
-              puts "[SWITCH_REPORT_DEBUG] Successfully mapped to order #{order.id}, item #{external_id_riga}"
-            else
-              puts "[SWITCH_REPORT_WARN] OrderItem id=#{external_id_riga} not found in order #{order_code}, will save to pending"
-              item = nil
-            end
+          if item
+            order = item.order
+            puts "[SWITCH_REPORT_DEBUG] Successfully found OrderItem #{item.id} (order #{order.id})"
           else
-            puts "[SWITCH_REPORT_WARN] Order with code '#{order_code}' not in database, will save to pending"
+            puts "[SWITCH_REPORT_WARN] OrderItem id=#{item_id_from_filename} not found, will save to pending"
+            # Try to find order by code for pending storage
+            order = Order.where('LOWER(external_order_code) = LOWER(?)', order_code).first
+            if order
+              puts "[SWITCH_REPORT_DEBUG] Found order by code '#{order_code}' for pending storage"
+            else
+              puts "[SWITCH_REPORT_WARN] Order with code '#{order_code}' not in database either"
+            end
           end
         else
           status 400
