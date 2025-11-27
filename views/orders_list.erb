@@ -1,73 +1,165 @@
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1>📋 Ordini</h1>
-  <div class="d-flex align-items-center gap-3">
-    <div class="text-muted">
-      Total: <%= @orders.count %> orders
+<style>
+  .page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .page-header h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 700;
+  }
+  .page-header-subtitle {
+    font-size: 0.95rem;
+    opacity: 0.95;
+    margin-top: 0.5rem;
+  }
+  .stats-card {
+    background: white;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border-left: 4px solid #667eea;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .tab-content {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  .table thead th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #dee2e6;
+    padding: 1rem 0.75rem;
+  }
+  .table tbody td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+  }
+  .table tbody tr:hover {
+    background-color: #f8f9fa;
+  }
+  .action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .btn-action {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.875rem;
+    border-radius: 0.3rem;
+    white-space: nowrap;
+  }
+  .badge-status {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.3rem;
+    font-weight: 500;
+  }
+  .nav-tabs .nav-link {
+    color: #666;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  }
+  .nav-tabs .nav-link:hover {
+    color: #667eea;
+    border-bottom-color: #667eea;
+  }
+  .nav-tabs .nav-link.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+    background: none;
+  }
+  .filter-row {
+    background-color: #f8f9fa;
+    padding: 1rem 0.75rem;
+  }
+  .filter-row input,
+  .filter-row select {
+    font-size: 0.875rem;
+  }
+</style>
+
+<div class="page-header d-flex justify-content-between align-items-start">
+  <div>
+    <h1>📋 Ordini</h1>
+    <div class="page-header-subtitle">
+      Gestione ordini di stampa - <%= @orders.count %> ordini totali
       <% if @filter_order_code.present? || @filter_store.present? || @filter_order_date.present? %>
-        | <a href="/orders" class="text-reset">✕ Azzera filtri</a>
+        | <a href="/orders" class="text-white text-decoration-none" style="opacity: 0.9; hover: opacity: 1;">✕ Azzera filtri</a>
       <% end %>
     </div>
-    <a href="/orders/new" class="btn btn-primary">
-      ➕ Aggiungi Ordine
-    </a>
   </div>
+  <a href="/orders/new" class="btn btn-light btn-lg" style="font-weight: 600;">
+    ➕ Nuovo Ordine
+  </a>
 </div>
 
 <% if @orders.empty? %>
-  <div class="alert alert-info">
-    <h4>No orders yet</h4>
-    <p>Orders will appear here when imported via the API endpoint:</p>
-    <code>POST /api/orders/import</code>
+  <div class="alert alert-info" style="padding: 1.5rem; border-radius: 0.5rem;">
+    <h5 style="margin-bottom: 0.5rem;">ℹ️ Nessun ordine</h5>
+    <p style="margin: 0;">Gli ordini appariranno qui quando importati via API o caricati manualmente.</p>
   </div>
 <% else %>
   <% in_progress = @orders.select { |o| %w[new sent_to_switch processing].include?(o.status) } %>
   <% completed = @orders.select { |o| %w[done error].include?(o.status) } %>
   
-  <ul class="nav nav-tabs" role="tablist">
+  <ul class="nav nav-tabs mb-0" role="tablist" style="border: none; gap: 1rem;">
     <li class="nav-item" role="presentation">
       <button class="nav-link active" id="in-progress-tab" data-bs-toggle="tab" data-bs-target="#in-progress" type="button" role="tab" aria-controls="in-progress" aria-selected="true">
-        ⏳ In Lavorazione <span class="badge bg-primary"><%= in_progress.count %></span>
+        ⏳ In Lavorazione 
+        <span class="badge bg-info badge-status" style="margin-left: 0.5rem;"><%= in_progress.count %></span>
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab" aria-controls="completed" aria-selected="false">
-        ✅ Completati <span class="badge bg-success"><%= completed.count %></span>
+        ✅ Completati 
+        <span class="badge bg-success badge-status" style="margin-left: 0.5rem;"><%= completed.count %></span>
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" id="errors-tab" data-bs-toggle="tab" data-bs-target="#errors" type="button" role="tab" aria-controls="errors" aria-selected="false">
-        ⚠️ Errori <span class="badge bg-danger"><%= @import_errors.count %></span>
+        ⚠️ Errori 
+        <span class="badge bg-danger badge-status" style="margin-left: 0.5rem;"><%= @import_errors.count %></span>
       </button>
     </li>
   </ul>
 
-  <div class="tab-content mt-3">
+  <div class="tab-content">
     <!-- In Progress Tab -->
     <div class="tab-pane fade show active" id="in-progress" role="tabpanel" aria-labelledby="in-progress-tab">
       <% if in_progress.empty? %>
-        <div class="alert alert-info">Nessun ordine in lavorazione</div>
+        <div class="alert alert-info" style="margin: 0;">Nessun ordine in lavorazione</div>
       <% else %>
         <div class="table-responsive">
           <table class="table table-hover">
             <thead>
               <tr>
-                <th>Data</th>
-                <th>Negozio</th>
-                <th>Codice Ordine</th>
-                <th>Stato</th>
-                <th>Item</th>
-                <th>Asset</th>
-                <th>Azioni</th>
+                <th style="width: 10%;">Data</th>
+                <th style="width: 15%;">Negozio</th>
+                <th style="width: 15%;">Codice Ordine</th>
+                <th style="width: 12%;">Stato</th>
+                <th style="width: 8%;">Item</th>
+                <th style="width: 15%;">Asset</th>
+                <th style="width: 15%;">Azioni</th>
               </tr>
               <!-- Filter Row -->
-              <tr style="background-color: #f8f9fa;">
+              <tr class="filter-row">
                 <td>
                   <form method="get" action="/orders" class="d-inline" style="display: contents;">
-                    <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>" onchange="this.form.submit()">
+                    <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>" onchange="this.form.submit()" title="Filtra per data">
                 </td>
                 <td>
-                    <select class="form-select form-select-sm" name="store_id" onchange="this.form.submit()">
-                      <option value="">Tutti</option>
+                    <select class="form-select form-select-sm" name="store_id" onchange="this.form.submit()" title="Filtra per negozio">
+                      <option value="">Tutti i negozi</option>
                       <% @stores.each do |store| %>
                         <option value="<%= store.id %>" <%= 'selected' if @filter_store == store.id.to_s %>>
                           <%= store.name %>
@@ -76,44 +168,54 @@
                     </select>
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm" name="order_code" placeholder="Codice..." value="<%= @filter_order_code %>" onchange="this.form.submit()">
+                    <input type="text" class="form-control form-control-sm" name="order_code" placeholder="Codice..." value="<%= @filter_order_code %>" onchange="this.form.submit()" title="Filtra per codice ordine">
                 </td>
                 <td></td>
                 <td></td>
                 <td></td>
-                <td></td>
+                <td style="text-align: right;">
+                    <a href="/orders" class="btn btn-sm btn-outline-secondary" style="padding: 0.35rem 0.7rem; font-size: 0.85rem;">Azzera</a>
                   </form>
+                </td>
               </tr>
             </thead>
             <tbody>
               <% in_progress.each do |order| %>
                 <tr>
-                  <td><%= order.created_at.strftime('%d-%m-%y') %></td>
+                  <td><strong><%= order.created_at.strftime('%d-%m-%y') %></strong></td>
                   <td><%= order.store.name %></td>
-                  <td><a href="/orders/<%= order.id %>"><%= order.external_order_code %></a></td>
                   <td>
-                    <span class="badge status-badge status-<%= order.status %>">
+                    <a href="/orders/<%= order.id %>" style="text-decoration: none; color: #667eea; font-weight: 500;">
+                      <%= order.external_order_code %>
+                    </a>
+                  </td>
+                  <td>
+                    <span class="badge badge-status status-<%= order.status %>">
                       <%= order.status.gsub('_', ' ').upcase %>
                     </span>
                   </td>
-                  <td><%= order.order_items.count %></td>
                   <td>
-                    <%= order.assets.count %> total
+                    <span style="background: #f0f0f0; padding: 0.3rem 0.6rem; border-radius: 0.3rem; font-weight: 500;">
+                      <%= order.order_items.count %>
+                    </span>
+                  </td>
+                  <td>
+                    <%= order.assets.count %> file
                     <% if order.assets_downloaded? %>
-                      <span class="badge bg-success">✓</span>
+                      <span class="badge bg-success" style="margin-left: 0.3rem;">✓</span>
                     <% else %>
-                      <span class="badge bg-warning text-dark">pending</span>
+                      <span class="badge bg-warning text-dark" style="margin-left: 0.3rem;">pending</span>
                     <% end %>
                   </td>
                   <td>
-                    <div style="display: flex; gap: 4px;">
-                      <a href="/orders/<%= order.id %>" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 14px;" title="Visualizza">👁️</a>
-                      <form action="/orders/<%= order.id %>/duplicate" method="post" class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-outline-success" style="padding: 2px 6px; font-size: 14px;" title="Duplica">📋</button>
+                    <div class="action-buttons">
+                      <a href="/orders/<%= order.id %>" class="btn btn-sm btn-outline-primary btn-action" title="Visualizza">👁️ Apri</a>
+                      <form action="/orders/<%= order.id %>/duplicate" method="post" class="d-inline" title="Duplica ordine">
+                        <button type="submit" class="btn btn-sm btn-outline-success btn-action">📋 Copia</button>
                       </form>
-                      <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
+                      <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');" title="Cancella ordine">
                         <input type="hidden" name="_method" value="DELETE">
-                        <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella">🗑</button>
+                        <button type="submit" class="btn btn-sm btn-outline-danger btn-action">🗑 Canc.</button>
                       </form>
                     </div>
                   </td>
@@ -128,29 +230,29 @@
     <!-- Completed Tab -->
     <div class="tab-pane fade" id="completed" role="tabpanel" aria-labelledby="completed-tab">
       <% if completed.empty? %>
-        <div class="alert alert-info">Nessun ordine completato</div>
+        <div class="alert alert-info" style="margin: 0;">Nessun ordine completato</div>
       <% else %>
         <div class="table-responsive">
           <table class="table table-hover">
             <thead>
               <tr>
-                <th>Data</th>
-                <th>Negozio</th>
-                <th>Codice Ordine</th>
-                <th>Stato</th>
-                <th>Item</th>
-                <th>Asset</th>
-                <th>Azioni</th>
+                <th style="width: 10%;">Data</th>
+                <th style="width: 15%;">Negozio</th>
+                <th style="width: 15%;">Codice Ordine</th>
+                <th style="width: 12%;">Stato</th>
+                <th style="width: 8%;">Item</th>
+                <th style="width: 15%;">Asset</th>
+                <th style="width: 15%;">Azioni</th>
               </tr>
               <!-- Filter Row -->
-              <tr style="background-color: #f8f9fa;">
+              <tr class="filter-row">
                 <td>
                   <form method="get" action="/orders" class="d-inline" style="display: contents;">
-                    <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>" onchange="this.form.submit()">
+                    <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>" onchange="this.form.submit()" title="Filtra per data">
                 </td>
                 <td>
-                    <select class="form-select form-select-sm" name="store_id" onchange="this.form.submit()">
-                      <option value="">Tutti</option>
+                    <select class="form-select form-select-sm" name="store_id" onchange="this.form.submit()" title="Filtra per negozio">
+                      <option value="">Tutti i negozi</option>
                       <% @stores.each do |store| %>
                         <option value="<%= store.id %>" <%= 'selected' if @filter_store == store.id.to_s %>>
                           <%= store.name %>
@@ -159,44 +261,54 @@
                     </select>
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm" name="order_code" placeholder="Codice..." value="<%= @filter_order_code %>" onchange="this.form.submit()">
+                    <input type="text" class="form-control form-control-sm" name="order_code" placeholder="Codice..." value="<%= @filter_order_code %>" onchange="this.form.submit()" title="Filtra per codice ordine">
                 </td>
                 <td></td>
                 <td></td>
                 <td></td>
-                <td></td>
+                <td style="text-align: right;">
+                    <a href="/orders" class="btn btn-sm btn-outline-secondary" style="padding: 0.35rem 0.7rem; font-size: 0.85rem;">Azzera</a>
                   </form>
+                </td>
               </tr>
             </thead>
             <tbody>
               <% completed.each do |order| %>
                 <tr>
-                  <td><%= order.created_at.strftime('%d-%m-%y') %></td>
+                  <td><strong><%= order.created_at.strftime('%d-%m-%y') %></strong></td>
                   <td><%= order.store.name %></td>
-                  <td><a href="/orders/<%= order.id %>"><%= order.external_order_code %></a></td>
                   <td>
-                    <span class="badge status-badge status-<%= order.status %>">
+                    <a href="/orders/<%= order.id %>" style="text-decoration: none; color: #667eea; font-weight: 500;">
+                      <%= order.external_order_code %>
+                    </a>
+                  </td>
+                  <td>
+                    <span class="badge badge-status status-<%= order.status %>">
                       <%= order.status.gsub('_', ' ').upcase %>
                     </span>
                   </td>
-                  <td><%= order.order_items.count %></td>
                   <td>
-                    <%= order.assets.count %> total
+                    <span style="background: #f0f0f0; padding: 0.3rem 0.6rem; border-radius: 0.3rem; font-weight: 500;">
+                      <%= order.order_items.count %>
+                    </span>
+                  </td>
+                  <td>
+                    <%= order.assets.count %> file
                     <% if order.assets_downloaded? %>
-                      <span class="badge bg-success">✓</span>
+                      <span class="badge bg-success" style="margin-left: 0.3rem;">✓</span>
                     <% else %>
-                      <span class="badge bg-warning text-dark">pending</span>
+                      <span class="badge bg-warning text-dark" style="margin-left: 0.3rem;">pending</span>
                     <% end %>
                   </td>
                   <td>
-                    <div style="display: flex; gap: 4px;">
-                      <a href="/orders/<%= order.id %>" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 14px;" title="Visualizza">👁️</a>
-                      <form action="/orders/<%= order.id %>/duplicate" method="post" class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-outline-success" style="padding: 2px 6px; font-size: 14px;" title="Duplica">📋</button>
+                    <div class="action-buttons">
+                      <a href="/orders/<%= order.id %>" class="btn btn-sm btn-outline-primary btn-action" title="Visualizza">👁️ Apri</a>
+                      <form action="/orders/<%= order.id %>/duplicate" method="post" class="d-inline" title="Duplica ordine">
+                        <button type="submit" class="btn btn-sm btn-outline-success btn-action">📋 Copia</button>
                       </form>
-                      <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
+                      <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');" title="Cancella ordine">
                         <input type="hidden" name="_method" value="DELETE">
-                        <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella">🗑</button>
+                        <button type="submit" class="btn btn-sm btn-outline-danger btn-action">🗑 Canc.</button>
                       </form>
                     </div>
                   </td>
@@ -211,13 +323,15 @@
     <!-- Errors Tab -->
     <div class="tab-pane fade" id="errors" role="tabpanel" aria-labelledby="errors-tab">
       <% if @import_errors.empty? %>
-        <div class="alert alert-success">✓ Nessun errore di importazione</div>
+        <div class="alert alert-success" style="margin: 0;">✓ Nessun errore di importazione</div>
       <% else %>
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <div></div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <strong><%= @import_errors.count %> errori</strong>
+          </div>
           <form action="/import_errors/clear_all" method="post" class="d-inline" onsubmit="return confirm('Cancellare TUTTI gli errori? Questa azione non può essere annullata.');">
-            <button type="submit" class="btn btn-sm btn-danger" style="padding: 4px 12px;">
-              🗑️ Cancella tutti gli errori
+            <button type="submit" class="btn btn-sm btn-danger">
+              🗑️ Cancella tutti
             </button>
           </form>
         </div>
@@ -225,25 +339,25 @@
           <table class="table table-hover">
             <thead>
               <tr>
-                <th>Data</th>
-                <th>Codice Ordine</th>
-                <th>File</th>
-                <th>Errore</th>
-                <th style="width: 80px;">Azioni</th>
+                <th style="width: 12%;">Data</th>
+                <th style="width: 15%;">Codice Ordine</th>
+                <th style="width: 20%;">File</th>
+                <th style="width: 38%;">Errore</th>
+                <th style="width: 15%;">Azioni</th>
               </tr>
               <!-- Filter Row -->
-              <tr style="background-color: #f8f9fa;">
+              <tr class="filter-row">
                 <td>
                   <form method="get" action="/orders" class="d-inline" style="display: contents;">
-                    <input type="date" class="form-control form-control-sm" name="error_date" value="<%= @filter_error_date %>" onchange="this.form.submit()">
+                    <input type="date" class="form-control form-control-sm" name="error_date" value="<%= @filter_error_date %>" onchange="this.form.submit()" title="Filtra per data">
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm" name="error_order_code" placeholder="Codice ordine..." value="<%= @filter_error_order_code %>" onchange="this.form.submit()">
+                    <input type="text" class="form-control form-control-sm" name="error_order_code" placeholder="Codice..." value="<%= @filter_error_order_code %>" onchange="this.form.submit()" title="Filtra per codice ordine">
                 </td>
                 <td></td>
                 <td></td>
-                <td>
-                    <a href="/orders" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 12px;">✕ Reset</a>
+                <td style="text-align: right;">
+                    <a href="/orders" class="btn btn-sm btn-outline-secondary" style="padding: 0.35rem 0.7rem; font-size: 0.85rem;">Azzera</a>
                   </form>
                 </td>
               </tr>
@@ -251,15 +365,19 @@
             <tbody>
               <% @import_errors.each do |error| %>
                 <tr>
-                  <td><%= error.created_at.strftime('%d-%m-%y %H:%M') %></td>
-                  <td><strong><%= error.external_order_code %></strong></td>
-                  <td><code><%= error.filename %></code></td>
-                  <td style="color: #dc3545;">
+                  <td><strong><%= error.created_at.strftime('%d-%m-%y %H:%M') %></strong></td>
+                  <td>
+                    <a href="/orders" style="text-decoration: none; color: #667eea; font-weight: 500;">
+                      <%= error.external_order_code %>
+                    </a>
+                  </td>
+                  <td><code style="background: #f0f0f0; padding: 0.3rem 0.6rem; border-radius: 0.3rem; font-size: 0.85rem;"><%= error.filename %></code></td>
+                  <td style="color: #dc3545; font-size: 0.9rem;">
                     <%= error.error_message %>
                   </td>
                   <td>
                     <form action="/import_errors/<%= error.id %>/delete" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo errore?');">
-                      <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella">🗑</button>
+                      <button type="submit" class="btn btn-sm btn-outline-danger btn-action">🗑 Cancella</button>
                     </form>
                   </td>
                 </tr>
