@@ -1,7 +1,7 @@
-# PDF Proxy - Serve output PDFs to external systems expecting /orders/ path
+# PDF Proxy - Serve output PDFs from storage directly
 class PrintOrchestrator < Sinatra::Base
   # GET /orders/:filename
-  # Serve print output PDFs for external system access
+  # Serve print output PDFs directly from storage for external system access
   get '/orders/:filename' do
     begin
       # Format: eu{codice_ordine}-{id_riga}.pdf
@@ -10,7 +10,7 @@ class PrintOrchestrator < Sinatra::Base
       
       unless match
         status 404
-        return "File not found"
+        return "Invalid filename format"
       end
       
       codice_ordine = "EU#{match[1]}".upcase
@@ -29,21 +29,34 @@ class PrintOrchestrator < Sinatra::Base
         return "Item not found"
       end
       
-      # Find the print_output asset for this item
+      # Look for print_output asset
       asset = item.assets.find_by(asset_type: 'print_output')
-      unless asset && asset.local_path_full && File.exist?(asset.local_path_full)
+      unless asset
+        puts "[PDF_PROXY] No print_output asset found for order #{codice_ordine}, item #{id_riga}"
+        puts "[PDF_PROXY] Available assets: #{item.assets.map { |a| "#{a.asset_type}: #{a.local_path}" }.join(', ')}"
         status 404
-        return "PDF not found"
+        return "Print output not ready"
+      end
+      
+      # Check if file exists
+      file_path = asset.local_path_full
+      unless file_path && File.exist?(file_path)
+        puts "[PDF_PROXY] File not found at: #{file_path}"
+        status 404
+        return "File not found on disk"
       end
       
       # Serve the PDF
+      puts "[PDF_PROXY] Serving PDF: #{file_path}"
       content_type 'application/pdf'
       headers['Content-Disposition'] = "inline; filename='#{filename}'"
       headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
       
-      File.read(asset.local_path_full)
+      File.read(file_path)
       
     rescue => e
+      puts "[PDF_PROXY_ERROR] #{e.class}: #{e.message}"
+      puts "[PDF_PROXY_BACKTRACE] #{e.backtrace.first(5).join("\n")}"
       status 500
       "Error: #{e.message}"
     end
