@@ -109,7 +109,7 @@
     </thead>
     <tbody>
       <% @order.order_items.each do |item| %>
-        <tr>
+        <tr onclick="window.location.href='/orders/<%= @order.id %>/items/<%= item.id %>';" style="cursor: pointer;">
           <td>
             <strong><%= item.product&.name || item.sku %></strong><br>
             <small class="text-muted"><%= item.sku %></small>
@@ -127,7 +127,7 @@
             <% end %>
           </td>
           <td>
-            <a href="/orders/<%= @order.id %>/items/<%= item.id %>" class="btn btn-sm btn-outline-primary">
+            <a href="/orders/<%= @order.id %>/items/<%= item.id %>" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();">
               📋 Open Job
             </a>
           </td>
