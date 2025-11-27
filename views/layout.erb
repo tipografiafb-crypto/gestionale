@@ -1,31 +1,64 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Print Order Orchestrator</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
   <style>
+    :root {
+      --form-element-spacing-vertical: 0.5rem;
+      --form-element-spacing-horizontal: 1rem;
+    }
+    body {
+      margin: 0;
+    }
+    nav {
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--muted-border-color);
+      margin-bottom: 2rem;
+    }
+    nav ul {
+      margin: 0;
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+      padding: 0;
+    }
+    nav a {
+      text-decoration: none;
+    }
+    nav .brand {
+      font-weight: bold;
+      font-size: 1.2rem;
+      margin-right: 2rem;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
     .status-badge {
       font-size: 0.85em;
       padding: 0.35em 0.65em;
+      border-radius: 0.3rem;
     }
-    .status-new { background-color: #0d6efd; }
-    .status-sent_to_switch { background-color: #6c757d; }
+    .status-new { background-color: #0d6efd; color: white; }
+    .status-sent_to_switch { background-color: #6c757d; color: white; }
     .status-processing { background-color: #ffc107; color: #000; }
-    .status-done { background-color: #198754; }
-    .status-error { background-color: #dc3545; }
+    .status-done { background-color: #198754; color: white; }
+    .status-error { background-color: #dc3545; color: white; }
     .asset-preview {
       max-width: 100px;
       max-height: 100px;
       object-fit: cover;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      border: 1px solid var(--muted-border-color);
+      border-radius: 0.5rem;
     }
     .log-box {
-      background-color: #f8f9fa;
-      border: 1px solid #dee2e6;
-      border-radius: 4px;
+      background-color: var(--form-element-background-color);
+      border: 1px solid var(--muted-border-color);
+      border-radius: 0.5rem;
       padding: 1rem;
       font-family: monospace;
       font-size: 0.85rem;
@@ -33,51 +66,64 @@
       max-height: 300px;
       overflow-y: auto;
     }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    table thead th {
+      background-color: var(--muted-background-color);
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+    }
+    table tbody td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--muted-border-color);
+    }
+    table tbody tr:hover {
+      background-color: var(--muted-background-color);
+    }
+    .btn-group {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .btn-small {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="/">🖨️ Print Order Orchestrator</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-3">
-          <li class="nav-item">
-            <a class="nav-link" href="/orders">📋 Ordini</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/line_items">🔗 Lavorazioni</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/inventory">📦 Magazzino</a>
-          </li>
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="settingsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              ⚙️ Impostazioni
-            </a>
-            <ul class="dropdown-menu" aria-labelledby="settingsDropdown">
-              <li><a class="dropdown-item" href="/stores">🏪 Negozi</a></li>
-              <li><a class="dropdown-item" href="/print_flows">🔄 Flussi di Stampa</a></li>
-              <li><a class="dropdown-item" href="/admin/print_machines">🔧 Macchine da Stampa</a></li>
-              <li><a class="dropdown-item" href="/webhooks">🔗 Webhook Switch</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="/products">📦 Prodotti</a></li>
-              <li><a class="dropdown-item" href="/product_categories">📂 Categorie</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="/admin/cleanup">🧹 Storage Cleanup</a></li>
-            </ul>
-          </li>
-        </ul>
-      </div>
+  <nav>
+    <div class="container">
+      <ul>
+        <li><a href="/" class="brand">🖨️ Print Orchestrator</a></li>
+        <li><a href="/orders">📋 Ordini</a></li>
+        <li><a href="/line_items">🔗 Lavorazioni</a></li>
+        <li><a href="/inventory">📦 Magazzino</a></li>
+        <li><details style="margin: 0;">
+          <summary>⚙️ Impostazioni</summary>
+          <ul style="position: absolute; top: 100%; left: 0; background: white; border: 1px solid var(--muted-border-color); border-radius: 0.5rem; padding: 0.5rem; min-width: 200px;">
+            <li><a href="/stores">🏪 Negozi</a></li>
+            <li><a href="/print_flows">🔄 Flussi di Stampa</a></li>
+            <li><a href="/admin/print_machines">🔧 Macchine da Stampa</a></li>
+            <li><a href="/webhooks">🔗 Webhook Switch</a></li>
+            <li style="border-top: 1px solid var(--muted-border-color); margin: 0.5rem 0;"></li>
+            <li><a href="/products">📦 Prodotti</a></li>
+            <li><a href="/product_categories">📂 Categorie</a></li>
+            <li style="border-top: 1px solid var(--muted-border-color); margin: 0.5rem 0;"></li>
+            <li><a href="/admin/cleanup">🧹 Storage Cleanup</a></li>
+          </ul>
+        </details></li>
+      </ul>
     </div>
   </nav>
   
-  <div class="container mt-4">
+  <div class="container">
     <%= yield %>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@picocss/pico@2/js/pico.min.js"></script>
 </body>
 </html>
