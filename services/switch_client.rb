@@ -79,7 +79,7 @@ class SwitchClient
 
     begin
       # Build full Switch webhook URL using same logic as SwitchWebhook model
-      switch_base = ENV['SWITCH_WEBHOOK_BASE_URL'].to_s.strip.presence || 'http://192.168.1.162:51080'
+      switch_base = ENV['SWITCH_WEBHOOK_BASE_URL'].to_s.strip.presence || 'http://192.168.1.162:51088'
       webhook_prefix = ENV['SWITCH_WEBHOOK_PREFIX'].to_s.strip
       
       puts "[SWITCH_CLIENT_DEBUG] ENV['SWITCH_WEBHOOK_BASE_URL']: #{ENV['SWITCH_WEBHOOK_BASE_URL'].inspect}"
@@ -164,7 +164,7 @@ class SwitchClient
   private
 
   def switch_webhook_url
-    ENV['SWITCH_WEBHOOK_BASE_URL'] || 'http://192.168.1.162:51080'
+    ENV['SWITCH_WEBHOOK_BASE_URL'] || 'http://192.168.1.162:51088'
   end
 
   def server_base_url
