@@ -125,10 +125,14 @@ class PrintOrchestrator < Sinatra::Base
               File.open(full_path, 'wb') { |f| f.write(content) }
               
               # Create Asset record (manual orders only have print assets)
+              # Tag with print_file_1, print_file_2, etc. to match FTPPoller convention
+              existing_print_files = order_item.assets.select { |a| a.asset_type&.start_with?('print_file') }.count
+              asset_index = existing_print_files + 1
+              
               asset = order_item.assets.build(
                 original_url: filename,
                 local_path: local_path,
-                asset_type: 'print',
+                asset_type: "print_file_#{asset_index}",
                 imported_at: Time.current
               )
               asset.save!
