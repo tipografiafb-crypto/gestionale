@@ -80,6 +80,12 @@ class SwitchClient
     begin
       # Build full Switch webhook URL using same logic as SwitchWebhook model
       switch_base = ENV['SWITCH_WEBHOOK_BASE_URL'].to_s.strip.presence || 'http://192.168.1.162:51080'
+      webhook_prefix = ENV['SWITCH_WEBHOOK_PREFIX'].to_s.strip
+      
+      puts "[SWITCH_CLIENT_DEBUG] ENV['SWITCH_WEBHOOK_BASE_URL']: #{ENV['SWITCH_WEBHOOK_BASE_URL'].inspect}"
+      puts "[SWITCH_CLIENT_DEBUG] ENV['SWITCH_WEBHOOK_PREFIX']: #{ENV['SWITCH_WEBHOOK_PREFIX'].inspect}"
+      puts "[SWITCH_CLIENT_DEBUG] switch_base (after processing): #{switch_base}"
+      puts "[SWITCH_CLIENT_DEBUG] webhook_prefix (after processing): #{webhook_prefix.inspect}"
       
       # Safely build URL with webhook_path validation
       webhook_path_str = webhook_path.to_s.strip
@@ -90,7 +96,6 @@ class SwitchClient
       webhook_path_str = "/#{webhook_path_str}" unless webhook_path_str.start_with?('/')
       
       # Add webhook prefix if configured (e.g., "/scripting" for v7, "" for v6)
-      webhook_prefix = ENV['SWITCH_WEBHOOK_PREFIX'].to_s.strip
       webhook_path_str = "#{webhook_prefix}#{webhook_path_str}" unless webhook_path_str.start_with?(webhook_prefix) && webhook_prefix.present?
       
       full_url = "#{switch_base}#{webhook_path_str}"
