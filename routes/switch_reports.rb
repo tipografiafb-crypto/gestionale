@@ -87,22 +87,24 @@ class PrintOrchestrator < Sinatra::Base
             
             # Find order by external code
             order = Order.find_by(external_order_code: order_code)
-            unless order
-              status 404
-              puts "[SWITCH_REPORT_ERROR] Order with code '#{order_code}' not found!"
-              return { success: false, error: "Order '#{order_code}' not found" }.to_json
-            end
+            item = nil
             
-            # Use filename position as the item position (more reliable than job-operation-id)
-            item = order.order_items.order(:id)[filename_position - 1]
-            unless item
-              status 404
-              puts "[SWITCH_REPORT_ERROR] Item position #{filename_position} not found in order #{order_code}!"
-              puts "[SWITCH_REPORT_ERROR] Order has #{order.order_items.count} items"
-              return { success: false, error: "OrderItem at position #{filename_position} not found in order #{order_code}" }.to_json
+            if order
+              # Use filename position as the item position (more reliable than job-operation-id)
+              item = order.order_items.order(:id)[filename_position - 1]
+              unless item
+                status 404
+                puts "[SWITCH_REPORT_ERROR] Item position #{filename_position} not found in order #{order_code}!"
+                puts "[SWITCH_REPORT_ERROR] Order has #{order.order_items.count} items"
+                return { success: false, error: "OrderItem at position #{filename_position} not found in order #{order_code}" }.to_json
+              end
+              puts "[SWITCH_REPORT_DEBUG] Successfully mapped to order #{order.id}, item position #{filename_position}"
+            else
+              # Order not found - but file still needs to be saved!
+              # This can happen when Switch sends files before order is imported
+              puts "[SWITCH_REPORT_WARN] Order with code '#{order_code}' not in database yet - saving file anyway"
+              puts "[SWITCH_REPORT_WARN] File will be saved to pending directory for later linking"
             end
-            
-            puts "[SWITCH_REPORT_DEBUG] Successfully mapped to order #{order.id}, item position #{filename_position}"
           else
             status 400
             puts "[SWITCH_REPORT_ERROR] Cannot extract order info from filename: #{filename.inspect}"
