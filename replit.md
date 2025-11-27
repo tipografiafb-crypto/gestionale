@@ -16,6 +16,14 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 
 ## Recent Work
 
+### November 27, 2025 (Switch v7 Webhook Configuration Fix)
+- Fixed Switch webhook URL to use port 51088 (v7) instead of 51080
+- Added mandatory `/scripting/` prefix required by Switch Webhook v7 app
+- Made webhook prefix configurable via SWITCH_WEBHOOK_PREFIX environment variable
+- Corrected webhook path construction: base_url + `/scripting` + webhook_path
+- System now sends to correct URL format: http://192.168.1.162:51088/scripting/prestampa_adesivi
+- Added debug logging to show complete URL and response from Switch
+
 ### November 25, 2025 (Switch Webhook Payload Standardization)
 - Fixed Switch webhook payload format for all three operations (preprint, stampa, etichetta)
 - Implemented proper payload structure per SWITCH_WORKFLOW.md with: id_riga, codice_ordine, product, operation_id, url, widegest_url, filename, quantita, materiale, campi_custom, opzioni_stampa, campi_webhook
@@ -125,8 +133,9 @@ bundle exec rake db:migrate
 - `PORT` - Server port (default: 5000)
 - `RACK_ENV` - Environment mode (production/development)
 
-**Switch Integration:**
-- `SWITCH_WEBHOOK_URL` - Webhook callback URL for pre-stampa/stampa completion
+**Switch Integration (v7 Webhook):**
+- `SWITCH_WEBHOOK_BASE_URL` - Switch server base URL (e.g., http://192.168.1.162:51088)
+- `SWITCH_WEBHOOK_PREFIX` - Webhook prefix for v7 (use `/scripting` for v7, empty for v6)
 - `SWITCH_API_KEY` - Switch API authentication (optional)
 - `SWITCH_SIMULATION` - Test mode without real Switch (true/false)
 
