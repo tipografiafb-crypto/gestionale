@@ -151,10 +151,20 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
-  # GET /orders/:id - Order detail
+  # GET /orders/:id - Order detail (list of jobs)
   get '/orders/:id' do
     @order = Order.includes(:store, { order_items: :assets }, :switch_job).find(params[:id])
     erb :order_detail
+  rescue ActiveRecord::RecordNotFound
+    status 404
+    erb :not_found
+  end
+
+  # GET /orders/:order_id/items/:item_id - Order item detail (job detail)
+  get '/orders/:order_id/items/:item_id' do
+    @order = Order.includes(:store).find(params[:order_id])
+    @item = @order.order_items.includes(:assets, :preprint_job, :print_job, :print_flow).find(params[:item_id])
+    erb :order_item_detail
   rescue ActiveRecord::RecordNotFound
     status 404
     erb :not_found

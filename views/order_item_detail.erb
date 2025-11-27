@@ -1,0 +1,451 @@
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/orders">Orders</a></li>
+      <li class="breadcrumb-item"><a href="/orders/<%= @order.id %>"><%= @order.external_order_code %></a></li>
+      <li class="breadcrumb-item active">Job</li>
+    </ol>
+  </nav>
+</div>
+
+<!-- INTESTAZIONE 2 COLONNE -->
+<div class="row mb-4">
+  <!-- Sinistra: Info -->
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <strong>Job Information</strong>
+      </div>
+      <div class="card-body">
+        <table class="table table-sm table-borderless">
+          <tr>
+            <th>Order Code:</th>
+            <td><strong><%= @order.external_order_code %></strong></td>
+          </tr>
+          <tr>
+            <th>Product:</th>
+            <td><strong><%= @item.product&.name || @item.sku %></strong></td>
+          </tr>
+          <tr>
+            <th>SKU:</th>
+            <td><%= @item.sku %></td>
+          </tr>
+          <tr>
+            <th>Quantity:</th>
+            <td><strong><%= @item.quantity %></strong></td>
+          </tr>
+          <tr>
+            <th>Store:</th>
+            <td><%= @order.store.code %></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Destra: Screenshot Preview -->
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <strong>Product Images</strong>
+      </div>
+      <div class="card-body text-center">
+        <% screenshots = @item.assets.select { |a| a.downloaded? && a.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) } %>
+        <% if screenshots.any? %>
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+            <% screenshots.each do |asset| %>
+              <button type="button" class="btn-preview-image" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="/file/<%= asset.id %>" data-file-type="image" style="border: none; background: none; padding: 0; cursor: pointer;">
+                <img src="/file/<%= asset.id %>" alt="<%= asset.asset_type %>" style="width: 100%; height: auto; cursor: pointer; border-radius: 4px;">
+              </button>
+            <% end %>
+          </div>
+        <% else %>
+          <p class="text-muted">No product images available</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BLOCCO PRINCIPALE: PRINT WORKFLOW -->
+<div class="card mb-4">
+  <div class="card-header">
+    <strong>Print Workflow</strong>
+  </div>
+  <div class="card-body">
+    <!-- Timeline Status -->
+    <div class="mb-4" style="display: flex; gap: 40px; align-items: center; flex-wrap: wrap;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 18px;">🖨️</span>
+        <div>
+          <% if @item.preprint_completed_at %>
+            <span class="badge bg-success">✓</span>
+            <small class="text-muted"><%= @item.preprint_completed_at.strftime('%d-%m-%y %H:%M') %></small>
+          <% elsif @item.preprint_status == 'failed' %>
+            <span class="badge bg-danger">✗</span>
+          <% else %>
+            <span class="badge bg-warning text-dark"><%= @item.preprint_status&.upcase %></span>
+          <% end %>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 18px;">✅</span>
+        <div>
+          <% if @item.print_completed_at %>
+            <span class="badge bg-success">✓</span>
+            <small class="text-muted"><%= @item.print_completed_at.strftime('%d-%m-%y %H:%M') %></small>
+          <% elsif @item.print_status == 'failed' %>
+            <span class="badge bg-danger">✗</span>
+          <% else %>
+            <span class="badge bg-warning text-dark"><%= @item.print_status&.upcase %></span>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Print Images & Action Buttons -->
+    <div class="row">
+      <div class="col-md-12">
+        <h6>Assets & Actions:</h6>
+        
+        <% if @item.assets.any? %>
+          <div class="row mb-3">
+            <% @item.assets.each do |asset| %>
+              <div class="col-md-3 mb-3">
+                <div class="card">
+                  <div class="card-body text-center">
+                    <% if asset.downloaded? && asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) %>
+                      <button type="button" class="btn-preview-image" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="/file/<%= asset.id %>" data-file-type="image" style="border: none; background: none; padding: 0; cursor: pointer;">
+                        <img src="/file/<%= asset.id %>" alt="<%= asset.asset_type %>" style="width: 100%; height: auto; cursor: pointer; border-radius: 4px; margin-bottom: 8px;">
+                      </button>
+                    <% else %>
+                      <div style="background-color: #f0f0f0; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 4px; margin-bottom: 8px; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="/file/<%= asset.id %>" data-file-type="pdf">
+                        <span style="font-size: 32px;">📄</span>
+                      </div>
+                    <% end %>
+                    <small class="d-block"><strong><%= asset.asset_type || 'N/A' %></strong></small>
+                    <div class="btn-group btn-group-sm mt-2" role="group">
+                      <% if asset.downloaded? %>
+                        <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Download">📥</a>
+                        <form action="/assets/<%= asset.id %>" method="post" class="d-inline">
+                          <input type="hidden" name="_method" value="DELETE">
+                          <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Delete this file?');">🗑</button>
+                        </form>
+                      <% else %>
+                        <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/upload_asset" method="post" enctype="multipart/form-data" class="d-inline">
+                          <input type="hidden" name="asset_id" value="<%= asset.id %>">
+                          <label class="btn btn-sm btn-outline-success" style="margin: 0; cursor: pointer;">
+                            ➕
+                            <input type="file" name="file" style="display: none;" onchange="this.form.submit();">
+                          </label>
+                        </form>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px;">
+          <!-- Pre-stampa -->
+          <button type="button" class="btn btn-outline-warning" 
+                  <%= 'disabled' unless @item.can_send_to_preprint? %>
+                  title="<%= @item.can_send_to_preprint? ? 'Configure and send to preprint' : 'Download images first' %>"
+                  data-bs-toggle="modal" data-bs-target="#flowSelectModal">
+            🖨️ Pre-stampa
+            <% if @item.preprint_status != 'pending' %>
+              <span class="badge <%= @item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
+                <%= @item.preprint_status&.upcase %>
+              </span>
+            <% end %>
+          </button>
+
+          <!-- Stampa -->
+          <% available_machines = @item.print_flow&.print_machines || [] %>
+          <% if available_machines.count > 1 %>
+            <button type="button" class="btn btn-outline-success" 
+                    <%= 'disabled' unless @item.can_send_to_print? %>
+                    data-bs-toggle="modal" data-bs-target="#machineSelectModal">
+              ✅ Stampa
+              <% if @item.print_status != 'pending' %>
+                <span class="badge <%= @item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
+                  <%= @item.print_status&.upcase %>
+                </span>
+              <% end %>
+            </button>
+          <% else %>
+            <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/send_print" method="post" class="d-inline">
+              <% if available_machines.count == 1 %>
+                <input type="hidden" name="print_machine_id" value="<%= available_machines.first.id %>">
+              <% end %>
+              <button type="submit" class="btn btn-outline-success" 
+                      <%= 'disabled' unless @item.can_send_to_print? %>>
+                ✅ Stampa
+                <% if @item.print_status != 'pending' %>
+                  <span class="badge <%= @item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
+                    <%= @item.print_status&.upcase %>
+                  </span>
+                <% end %>
+              </button>
+            </form>
+          <% end %>
+
+          <!-- Etichetta -->
+          <% if @item.print_flow&.label_webhook %>
+            <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/send_label" method="post" class="d-inline">
+              <button type="submit" class="btn btn-outline-primary">
+                🏷️ Etichetta
+              </button>
+            </form>
+          <% end %>
+
+          <!-- Reset -->
+          <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/reset" method="post" class="d-inline" onsubmit="return confirm('Reset this job?');">
+            <button type="submit" class="btn btn-outline-secondary" 
+                    <%= 'disabled' if @item.preprint_status == 'pending' && @item.print_status == 'pending' %>>
+              🔄 Reset
+            </button>
+          </form>
+
+          <!-- Print Card -->
+          <a href="/orders/<%= @order.id %>/items/<%= @item.id %>/print" class="btn btn-outline-info" target="_blank">
+            🖨️ Print Card
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BLOCCO PDF RISULTATO SWITCH -->
+<div class="card mb-4">
+  <div class="card-header">
+    <strong>Switch Output Files</strong>
+  </div>
+  <div class="card-body">
+    <% has_preview = @item.preprint_job&.result_preview_url.present? || @item.print_job&.result_preview_url.present? %>
+    
+    <% if @item.preprint_job&.result_preview_url %>
+      <div class="mb-4">
+        <h6>Pre-stampa Output:</h6>
+        <button type="button" class="btn-preview-switch" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= @item.preprint_job.result_preview_url %>" data-file-type="pdf" style="border: none; background: none; padding: 0; cursor: pointer;">
+          <img src="<%= @item.preprint_job.result_preview_url %>" alt="Preprint Preview" class="img-fluid" style="cursor: pointer; max-width: 400px; border: 1px solid #ddd; border-radius: 4px;">
+        </button>
+      </div>
+    <% end %>
+
+    <% if @item.print_job&.result_preview_url %>
+      <div class="mb-4">
+        <h6>Stampa Output:</h6>
+        <button type="button" class="btn-preview-switch" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= @item.print_job.result_preview_url %>" data-file-type="pdf" style="border: none; background: none; padding: 0; cursor: pointer;">
+          <img src="<%= @item.print_job.result_preview_url %>" alt="Print Preview" class="img-fluid" style="cursor: pointer; max-width: 400px; border: 1px solid #ddd; border-radius: 4px;">
+        </button>
+      </div>
+    <% end %>
+
+    <% unless has_preview %>
+      <p class="text-muted">No Switch output files available yet. Complete pre-stampa or stampa to generate files.</p>
+    <% end %>
+  </div>
+</div>
+
+<!-- MODALS -->
+
+<!-- Modal: Select Print Flow -->
+<div class="modal fade" id="flowSelectModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">🖨️ Pre-stampa - Configure</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/send_preprint" method="post">
+        <div class="modal-body">
+          <% if @item.available_print_flows.count > 0 %>
+            <div class="mb-3">
+              <label class="form-label"><strong>Print Flow</strong></label>
+              <% @item.available_print_flows.each do |flow| %>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="radio" name="print_flow_id" 
+                         value="<%= flow.id %>" id="flow_<%= flow.id %>"
+                         <%= 'checked' if flow.id == @item.product&.default_print_flow_id %>>
+                  <label class="form-check-label" for="flow_<%= flow.id %>">
+                    <strong><%= flow.name %></strong>
+                    <% if flow.id == @item.product&.default_print_flow_id %>
+                      <span class="badge bg-info">Default</span>
+                    <% end %>
+                  </label>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="alert alert-warning">No print flows available</div>
+          <% end %>
+          
+          <div class="mb-3">
+            <label for="percentuale" class="form-label"><strong>Percentage (%)</strong></label>
+            <input type="number" class="form-control" id="percentuale" 
+                   name="percentuale" value="0" step="1" min="-999" max="999"
+                   placeholder="Enter percentage (e.g. +10, -5)">
+            <small class="text-muted">Positive or negative value to send to Switch</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-warning">🖨️ Send to Pre-stampa</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Select Machine -->
+<div class="modal fade" id="machineSelectModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Choose Print Machine</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/send_print" method="post">
+        <div class="modal-body">
+          <p class="text-muted mb-3">Select machine for this job:</p>
+          <% available_machines.each do |machine| %>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="print_machine_id" 
+                     value="<%= machine.id %>" id="machine_<%= machine.id %>"
+                     <%= 'checked' if available_machines.first.id == machine.id %>>
+              <label class="form-check-label" for="machine_<%= machine.id %>">
+                <strong><%= machine.name %></strong>
+                <% if machine.description %>
+                  <br><small class="text-muted"><%= machine.description %></small>
+                <% end %>
+              </label>
+            </div>
+          <% end %>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">✅ Send to Print</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Preview Modal (same as before) -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">File Preview</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
+        <div id="imageContainer" style="display: none; text-align: center;">
+          <img id="previewImage" class="img-fluid" alt="Preview">
+        </div>
+        
+        <div id="pdfContainer" style="display: none;">
+          <div id="pdf-viewer" style="margin-bottom: 20px;"></div>
+          <div style="display: flex; justify-content: center; gap: 10px; margin-top: 15px;">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="prevPage" style="display: none;">← Previous</button>
+            <span id="pageInfo" style="align-self: center;"></span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="nextPage" style="display: none;">Next →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  let currentPdf = null;
+  let currentPageNum = 1;
+  let currentTotalPages = 0;
+
+  const previewModal = document.getElementById('previewModal');
+  const imageContainer = document.getElementById('imageContainer');
+  const pdfContainer = document.getElementById('pdfContainer');
+  const previewImage = document.getElementById('previewImage');
+  const pdfViewer = document.getElementById('pdf-viewer');
+  const pageInfo = document.getElementById('pageInfo');
+  const prevPageBtn = document.getElementById('prevPage');
+  const nextPageBtn = document.getElementById('nextPage');
+
+  previewModal.addEventListener('show.bs.modal', async function(e) {
+    const button = e.relatedTarget;
+    const fileUrl = button.getAttribute('data-file-url');
+    const fileType = button.getAttribute('data-file-type');
+
+    imageContainer.style.display = 'none';
+    pdfContainer.style.display = 'none';
+    pdfViewer.innerHTML = '';
+
+    if (fileType === 'image') {
+      previewImage.src = fileUrl;
+      imageContainer.style.display = 'block';
+    } else if (fileType === 'pdf') {
+      try {
+        const pdf = await pdfjsLib.getDocument(fileUrl).promise;
+        currentPdf = pdf;
+        currentPageNum = 1;
+        currentTotalPages = pdf.numPages;
+        pdfContainer.style.display = 'block';
+        
+        prevPageBtn.style.display = currentTotalPages > 1 ? 'block' : 'none';
+        nextPageBtn.style.display = currentTotalPages > 1 ? 'block' : 'none';
+        
+        renderPage(1);
+      } catch (error) {
+        pdfContainer.style.display = 'block';
+        pdfViewer.innerHTML = '<p class="text-danger">Error loading PDF</p>';
+      }
+    }
+  });
+
+  async function renderPage(pageNum) {
+    if (!currentPdf) return;
+    
+    try {
+      const page = await currentPdf.getPage(pageNum);
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      const viewport = page.getViewport({ scale: 2 });
+      
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      
+      await page.render({ canvasContext: context, viewport }).promise;
+      
+      pdfViewer.innerHTML = '';
+      pdfViewer.appendChild(canvas);
+      
+      pageInfo.textContent = 'Page ' + pageNum + ' of ' + currentTotalPages;
+      currentPageNum = pageNum;
+      
+      prevPageBtn.disabled = pageNum === 1;
+      nextPageBtn.disabled = pageNum === currentTotalPages;
+    } catch (error) {
+      pdfViewer.innerHTML = '<p class="text-danger">Error rendering page</p>';
+    }
+  }
+
+  prevPageBtn.addEventListener('click', function() {
+    if (currentPageNum > 1) {
+      renderPage(currentPageNum - 1);
+    }
+  });
+
+  nextPageBtn.addEventListener('click', function() {
+    if (currentPageNum < currentTotalPages) {
+      renderPage(currentPageNum + 1);
+    }
+  });
+</script>
