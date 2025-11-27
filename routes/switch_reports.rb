@@ -77,30 +77,32 @@ class PrintOrchestrator < Sinatra::Base
           puts "[SWITCH_REPORT_DEBUG] Parsed OLD format job_id (position #{item_position})"
           puts "[SWITCH_REPORT_DEBUG] Attempting to extract order code from filename: #{filename}"
           
-          # Filename pattern: "code-position.ext" e.g., "eu12345-1.pdf"
+          # Filename pattern: "code-id_riga.ext" e.g., "eu12345-3.pdf"
+          # Where: code = codice_ordine, id_riga = external line item ID from gestionale
           filename_match = filename.match(/^([a-zA-Z0-9]+)-(\d+)/)
           unless filename_match
             status 400
             puts "[SWITCH_REPORT_ERROR] Cannot extract order info from filename: #{filename.inspect}"
-            puts "[SWITCH_REPORT_ERROR] Expected filename format: {order_code}-{position}.ext"
-            return { success: false, error: "Invalid filename format. Expected: {order_code}-{position}.ext" }.to_json
+            puts "[SWITCH_REPORT_ERROR] Expected filename format: {order_code}-{id_riga}.ext"
+            return { success: false, error: "Invalid filename format. Expected: {order_code}-{id_riga}.ext" }.to_json
           end
           
           order_code = filename_match[1]
-          filename_position = filename_match[2].to_i
+          external_id_riga = filename_match[2].to_i
           
-          puts "[SWITCH_REPORT_DEBUG] Extracted order code '#{order_code}' and position #{filename_position} from filename"
+          puts "[SWITCH_REPORT_DEBUG] Extracted order code '#{order_code}' and external_id_riga #{external_id_riga} from filename"
           
           # Find order by external code - but don't fail if not found
           order = Order.find_by(external_order_code: order_code)
           item = nil
           
           if order
-            item = order.order_items.order(:id)[filename_position - 1]
+            # Look for OrderItem that matches the external_id_riga
+            item = order.order_items.find_by(id: external_id_riga)
             if item
-              puts "[SWITCH_REPORT_DEBUG] Successfully mapped to order #{order.id}, item position #{filename_position}"
+              puts "[SWITCH_REPORT_DEBUG] Successfully mapped to order #{order.id}, item #{external_id_riga}"
             else
-              puts "[SWITCH_REPORT_WARN] Item position #{filename_position} not found in order #{order_code}, will save to pending"
+              puts "[SWITCH_REPORT_WARN] OrderItem id=#{external_id_riga} not found in order #{order_code}, will save to pending"
               item = nil
             end
           else
@@ -133,11 +135,9 @@ class PrintOrchestrator < Sinatra::Base
             puts "[SWITCH_REPORT_DEBUG] Saving to order directory: #{saved_file_path}"
           else
             # Save to pending directory (order doesn't exist yet or item not found)
-            order_code = filename_match[1] if filename_match
-            position_num = filename_match[2] if filename_match
-            
-            upload_dir = File.join(Dir.pwd, 'storage', 'pending', order_code.to_s, position_num.to_s)
-            saved_file_path = "storage/pending/#{order_code}/#{position_num}/#{filename}"
+            # Use external_id_riga to ensure we can link to correct item later
+            upload_dir = File.join(Dir.pwd, 'storage', 'pending', order_code.to_s)
+            saved_file_path = "storage/pending/#{order_code}/#{filename}"
             
             puts "[SWITCH_REPORT_DEBUG] Order/item not in DB, saving to pending directory: #{saved_file_path}"
           end
@@ -165,6 +165,19 @@ class PrintOrchestrator < Sinatra::Base
             # Log the update
             if order.switch_job
               order.switch_job.add_log("[#{Time.now.iso8601}] Report received for item (#{filename}). Job Op: #{job_operation_id}")
+            end
+          else
+            # Save PendingFile record for later linking when order is imported
+            if order_code && external_id_riga
+              PendingFile.create(
+                external_order_code: order_code,
+                external_id_riga: external_id_riga,
+                filename: filename,
+                file_path: saved_file_path,
+                kind: kind,
+                status: 'pending'
+              )
+              puts "[SWITCH_REPORT_DEBUG] Created PendingFile record: order=#{order_code}, id_riga=#{external_id_riga}"
             end
           end
           
