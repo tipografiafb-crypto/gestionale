@@ -50,7 +50,7 @@
         <strong>Product Images</strong>
       </div>
       <div class="card-body text-center">
-        <% product_images = @item.assets.select { |a| a.downloaded? && a.asset_type == 'screenshot' && a.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) } %>
+        <% product_images = @item.assets.select { |a| a.downloaded? && a.asset_type&.start_with?('screenshot') && a.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) } %>
         <% if product_images.any? %>
           <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
             <% product_images.each do |asset| %>
@@ -108,7 +108,7 @@
       <div class="col-md-12">
         <h6>Print Files & Actions:</h6>
         
-        <% print_files = @item.assets.select { |a| a.asset_type == 'print' } %>
+        <% print_files = @item.assets.select { |a| a.asset_type&.start_with?('print_file') } %>
         <% if print_files.any? %>
           <div class="row mb-3">
             <% print_files.each do |asset| %>
