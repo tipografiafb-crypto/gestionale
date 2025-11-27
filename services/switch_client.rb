@@ -187,7 +187,7 @@ class SwitchClient
         codice_ordine: @order.external_order_code,
         product: product ? "#{product.sku} - #{product.name}" : item.sku,
         operation_id: idx + 1,
-        job_operation_id: "order-#{@order.id}-item-#{idx + 1}",  # Format: order-{order_id}-item-{position}
+        job_operation_id: item.id.to_s,  # Use order item ID as job operation ID
         url: "#{gestionale_base_url}/api/assets/#{primary_asset&.id}/download",
         widegest_url: "#{server_base_url}/api/v1/reports_create",  # ← Switch callback endpoint
         filename: primary_asset&.filename || "#{@order.external_order_code}_#{idx + 1}.png",
