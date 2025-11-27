@@ -79,37 +79,32 @@ class PrintOrchestrator < Sinatra::Base
           
           # Filename pattern: "code-position.ext" e.g., "eu12345-1.pdf"
           filename_match = filename.match(/^([a-zA-Z0-9]+)-(\d+)/)
-          if filename_match
-            order_code = filename_match[1]
-            filename_position = filename_match[2].to_i
-            
-            puts "[SWITCH_REPORT_DEBUG] Extracted order code '#{order_code}' and position #{filename_position} from filename"
-            
-            # Find order by external code
-            order = Order.find_by(external_order_code: order_code)
-            item = nil
-            
-            if order
-              # Use filename position as the item position (more reliable than job-operation-id)
-              item = order.order_items.order(:id)[filename_position - 1]
-              unless item
-                status 404
-                puts "[SWITCH_REPORT_ERROR] Item position #{filename_position} not found in order #{order_code}!"
-                puts "[SWITCH_REPORT_ERROR] Order has #{order.order_items.count} items"
-                return { success: false, error: "OrderItem at position #{filename_position} not found in order #{order_code}" }.to_json
-              end
-              puts "[SWITCH_REPORT_DEBUG] Successfully mapped to order #{order.id}, item position #{filename_position}"
-            else
-              # Order not found - but file still needs to be saved!
-              # This can happen when Switch sends files before order is imported
-              puts "[SWITCH_REPORT_WARN] Order with code '#{order_code}' not in database yet - saving file anyway"
-              puts "[SWITCH_REPORT_WARN] File will be saved to pending directory for later linking"
-            end
-          else
+          unless filename_match
             status 400
             puts "[SWITCH_REPORT_ERROR] Cannot extract order info from filename: #{filename.inspect}"
             puts "[SWITCH_REPORT_ERROR] Expected filename format: {order_code}-{position}.ext"
             return { success: false, error: "Invalid filename format. Expected: {order_code}-{position}.ext" }.to_json
+          end
+          
+          order_code = filename_match[1]
+          filename_position = filename_match[2].to_i
+          
+          puts "[SWITCH_REPORT_DEBUG] Extracted order code '#{order_code}' and position #{filename_position} from filename"
+          
+          # Find order by external code - but don't fail if not found
+          order = Order.find_by(external_order_code: order_code)
+          item = nil
+          
+          if order
+            item = order.order_items.order(:id)[filename_position - 1]
+            if item
+              puts "[SWITCH_REPORT_DEBUG] Successfully mapped to order #{order.id}, item position #{filename_position}"
+            else
+              puts "[SWITCH_REPORT_WARN] Item position #{filename_position} not found in order #{order_code}, will save to pending"
+              item = nil
+            end
+          else
+            puts "[SWITCH_REPORT_WARN] Order with code '#{order_code}' not in database, will save to pending"
           end
         else
           status 400
@@ -119,35 +114,60 @@ class PrintOrchestrator < Sinatra::Base
       end
       
       # Decode base64 PDF and save to storage
+      saved_file_path = nil
+      
       if file_base64.present?
         begin
           # Decode base64 to binary PDF data
           pdf_data = Base64.decode64(file_base64)
           
-          store_code = order.store.code || order.store.id.to_s
-          order_code_str = order.external_order_code
-          sku = item.sku
+          if order && item
+            # Save to order-specific directory
+            store_code = order.store.code || order.store.id.to_s
+            order_code_str = order.external_order_code
+            sku = item.sku
+            
+            upload_dir = File.join(Dir.pwd, 'storage', store_code, order_code_str, sku)
+            saved_file_path = "storage/#{store_code}/#{order_code_str}/#{sku}/#{filename}"
+            
+            puts "[SWITCH_REPORT_DEBUG] Saving to order directory: #{saved_file_path}"
+          else
+            # Save to pending directory (order doesn't exist yet or item not found)
+            order_code = filename_match[1] if filename_match
+            position_num = filename_match[2] if filename_match
+            
+            upload_dir = File.join(Dir.pwd, 'storage', 'pending', order_code.to_s, position_num.to_s)
+            saved_file_path = "storage/pending/#{order_code}/#{position_num}/#{filename}"
+            
+            puts "[SWITCH_REPORT_DEBUG] Order/item not in DB, saving to pending directory: #{saved_file_path}"
+          end
           
           # Create storage directory if needed
-          upload_dir = File.join(Dir.pwd, 'storage', store_code, order_code_str, sku)
           FileUtils.mkdir_p(upload_dir) unless Dir.exist?(upload_dir)
           
-          # Save file with exact filename from Switch (no prefix)
-          local_path = "storage/#{store_code}/#{order_code_str}/#{sku}/#{filename}"
-          full_path = File.join(Dir.pwd, local_path)
-          
-          # Write decoded PDF content
+          # Save file
+          full_path = File.join(Dir.pwd, saved_file_path)
           File.open(full_path, 'wb') { |f| f.write(pdf_data) }
+          puts "[SWITCH_REPORT] PDF decoded and saved: #{saved_file_path}"
           
-          # Create Asset record for the print output
-          asset = item.assets.build(
-            original_url: filename,
-            local_path: local_path,
-            asset_type: 'print_output'
-          )
-          asset.save!
+          # Create Asset record only if item exists
+          if item
+            asset = item.assets.build(
+              original_url: filename,
+              local_path: saved_file_path,
+              asset_type: 'print_output'
+            )
+            asset.save!
+            
+            # Update item with Switch results
+            item.update(print_status: 'completed')
+            
+            # Log the update
+            if order.switch_job
+              order.switch_job.add_log("[#{Time.now.iso8601}] Report received for item (#{filename}). Job Op: #{job_operation_id}")
+            end
+          end
           
-          puts "[SWITCH_REPORT] PDF decoded and saved for order #{order_code_str}, item #{id_riga}: #{local_path}"
         rescue => e
           puts "[SWITCH_REPORT_ERROR] File decode error: #{e.message}"
           status 500
@@ -155,23 +175,27 @@ class PrintOrchestrator < Sinatra::Base
         end
       end
       
-      # Update item with Switch results
-      item.update(print_status: 'completed')
+      # Return success to Switch with file location
+      status 200
       
-      # Log the update
-      if order.switch_job
-        order.switch_job.add_log("[#{Time.now.iso8601}] Report received for item #{id_riga} (#{filename}). Job Op: #{job_operation_id}")
+      # Build response with file path info
+      response_data = {
+        success: true,
+        message: 'Report received and processed',
+        filename: filename,
+        file_path: saved_file_path,
+        timestamp: Time.now.iso8601
+      }
+      
+      # Add order info if available
+      if order
+        response_data[:codice_ordine] = order.external_order_code
+      end
+      if filename_match
+        response_data[:codice_ordine] ||= filename_match[1]
       end
       
-      # Return success to Switch
-      status 200
-      {
-        success: true,
-        codice_ordine: order.external_order_code,
-        id_riga: id_riga,
-        message: 'Report received and processed',
-        timestamp: Time.now.iso8601
-      }.to_json
+      response_data.to_json
       
     rescue JSON::ParserError => e
       status 400
