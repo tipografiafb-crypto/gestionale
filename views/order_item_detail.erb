@@ -3,7 +3,7 @@
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a href="/orders">Orders</a></li>
       <li class="breadcrumb-item"><a href="/orders/<%= @order.id %>"><%= @order.external_order_code %></a></li>
-      <li class="breadcrumb-item active">Job</li>
+      <li class="breadcrumb-item active"><a href="/orders/<%= @order.id %>/items/<%= @item.id %>">Job <%= @item.id %></a></li>
     </ol>
   </nav>
 </div>
