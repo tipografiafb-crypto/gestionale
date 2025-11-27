@@ -89,8 +89,9 @@ class SwitchClient
       switch_base = switch_base.chomp('/')
       webhook_path_str = "/#{webhook_path_str}" unless webhook_path_str.start_with?('/')
       
-      # Add /scripting prefix if not already present (required by Switch Webhook app)
-      webhook_path_str = "/scripting#{webhook_path_str}" unless webhook_path_str.start_with?('/scripting')
+      # Add webhook prefix if configured (e.g., "/scripting" for v7, "" for v6)
+      webhook_prefix = ENV['SWITCH_WEBHOOK_PREFIX'].to_s.strip
+      webhook_path_str = "#{webhook_prefix}#{webhook_path_str}" unless webhook_path_str.start_with?(webhook_prefix) && webhook_prefix.present?
       
       full_url = "#{switch_base}#{webhook_path_str}"
       
