@@ -58,6 +58,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'models/print_flow_machine'
   require_relative 'models/inventory'
   require_relative 'models/import_error'
+  require_relative 'models/pending_file'
 
   # Load services
   require_relative 'services/asset_downloader'

@@ -92,8 +92,8 @@ class PrintOrchestrator < Sinatra::Base
           
           puts "[SWITCH_REPORT_DEBUG] Extracted order code '#{order_code}' and external_id_riga #{external_id_riga} from filename"
           
-          # Find order by external code - but don't fail if not found
-          order = Order.find_by(external_order_code: order_code)
+          # Find order by external code (case-insensitive) - but don't fail if not found
+          order = Order.where('LOWER(external_order_code) = LOWER(?)', order_code).first
           item = nil
           
           if order
