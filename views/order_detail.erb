@@ -109,31 +109,29 @@
     </thead>
     <tbody>
       <% @order.order_items.each do |item| %>
-        <a href="/orders/<%= @order.id %>/items/<%= item.id %>" style="text-decoration: none; color: inherit;">
-          <tr style="cursor: pointer;">
-            <td>
-              <strong><%= item.product&.name || item.sku %></strong><br>
-              <small class="text-muted"><%= item.sku %></small>
-            </td>
-            <td><%= item.quantity %></td>
-            <td>
-              <% if item.preprint_completed_at && item.print_completed_at %>
-                <span class="badge bg-success">✓ Completed</span>
-              <% elsif item.preprint_status == 'failed' || item.print_status == 'failed' %>
-                <span class="badge bg-danger">✗ Failed</span>
-              <% elsif item.preprint_status == 'processing' || item.print_status == 'processing' %>
-                <span class="badge bg-warning text-dark">⏳ Processing</span>
-              <% else %>
-                <span class="badge bg-secondary">Pending</span>
-              <% end %>
-            </td>
-            <td>
-              <span class="btn btn-sm btn-outline-primary">
-                📋 Open Job
-              </span>
-            </td>
-          </tr>
-        </a>
+        <tr onclick="window.location.href='/orders/<%= @order.id %>/items/<%= item.id %>';" style="cursor: pointer;">
+          <td>
+            <strong><%= item.product&.name || item.sku %></strong><br>
+            <small class="text-muted"><%= item.sku %></small>
+          </td>
+          <td><%= item.quantity %></td>
+          <td>
+            <% if item.preprint_completed_at && item.print_completed_at %>
+              <span class="badge bg-success">✓ Completed</span>
+            <% elsif item.preprint_status == 'failed' || item.print_status == 'failed' %>
+              <span class="badge bg-danger">✗ Failed</span>
+            <% elsif item.preprint_status == 'processing' || item.print_status == 'processing' %>
+              <span class="badge bg-warning text-dark">⏳ Processing</span>
+            <% else %>
+              <span class="badge bg-secondary">Pending</span>
+            <% end %>
+          </td>
+          <td>
+            <a href="/orders/<%= @order.id %>/items/<%= item.id %>" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();">
+              📋 Open Job
+            </a>
+          </td>
+        </tr>
       <% end %>
     </tbody>
   </table>
