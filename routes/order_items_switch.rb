@@ -69,7 +69,7 @@ class PrintOrchestrator < Sinatra::Base
           codice_ordine: order.external_order_code,
           product: "#{product&.sku} - #{product&.name}",
           operation_id: 1,  # 1=prepress, 2=stampa, 3=etichetta
-          job_operation_id: nil,
+          job_operation_id: item.item_number.to_s,
           url: "#{server_url}/api/assets/#{print_asset.id}/download",
           widegest_url: "#{server_url}/api/v1/reports_create",
           filename: item.switch_filename_for_asset(print_asset) || "eu#{order.id}-#{item.item_number}.png",
@@ -197,7 +197,7 @@ class PrintOrchestrator < Sinatra::Base
           codice_ordine: order.external_order_code,
           product: "#{product&.sku} - #{product&.name}",
           operation_id: 2,  # 1=prepress, 2=stampa, 3=etichetta
-          job_operation_id: nil,
+          job_operation_id: item.item_number.to_s,
           url: "#{server_url}/api/assets/#{print_asset.id}/download",
           widegest_url: "#{server_url}/api/v1/reports_create",
           filename: item.switch_filename_for_asset(print_asset) || "eu#{order.id}-#{item.item_number}.png",
@@ -281,7 +281,7 @@ class PrintOrchestrator < Sinatra::Base
           codice_ordine: order.external_order_code,
           product: "#{product&.sku} - #{product&.name}",
           operation_id: 3,  # 1=prepress, 2=stampa, 3=etichetta
-          job_operation_id: nil,
+          job_operation_id: item.item_number.to_s,
           url: "#{server_url}/api/assets/#{print_asset.id}/download",
           widegest_url: "#{server_url}/api/v1/reports_create",
           filename: item.switch_filename_for_asset(print_asset) || "eu#{order.id}-#{item.item_number}.png",
