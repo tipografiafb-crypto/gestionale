@@ -17,7 +17,8 @@ class PrintOrchestrator < Sinatra::Base
     begin
       # Parse JSON from Switch Base64 module
       request.body.rewind
-      data = JSON.parse(request.body.read) rescue {}
+      raw_body = request.body.read
+      data = JSON.parse(raw_body) rescue {}
       
       # Extract from Switch JSON
       file_base64 = data['file']
@@ -25,8 +26,16 @@ class PrintOrchestrator < Sinatra::Base
       filename = data['filename']
       job_operation_id = data['job-operation-id']
       
+      # DEBUG LOGGING
+      puts "[SWITCH_REPORT_DEBUG] Received request"
+      puts "[SWITCH_REPORT_DEBUG] kind: #{kind.inspect}"
+      puts "[SWITCH_REPORT_DEBUG] filename: #{filename.inspect}"
+      puts "[SWITCH_REPORT_DEBUG] job-operation-id: #{job_operation_id.inspect}"
+      puts "[SWITCH_REPORT_DEBUG] file size: #{file_base64&.length} bytes"
+      
       unless filename && file_base64
         status 400
+        puts "[SWITCH_REPORT_ERROR] Missing filename or file data"
         return { success: false, error: 'Missing filename or file data' }.to_json
       end
       
@@ -35,6 +44,7 @@ class PrintOrchestrator < Sinatra::Base
       
       unless id_riga > 0
         status 400
+        puts "[SWITCH_REPORT_ERROR] Invalid job-operation-id: #{job_operation_id.inspect}"
         return { success: false, error: 'Missing or invalid job-operation-id' }.to_json
       end
       
@@ -42,7 +52,12 @@ class PrintOrchestrator < Sinatra::Base
       item = OrderItem.find_by(id: id_riga)
       unless item
         status 404
-        return { success: false, error: "OrderItem #{id_riga} not found" }.to_json
+        # DEBUG: List available OrderItems for diagnostics
+        all_items = OrderItem.pluck(:id).sort
+        puts "[SWITCH_REPORT_ERROR] OrderItem #{id_riga} not found!"
+        puts "[SWITCH_REPORT_ERROR] Available OrderItem IDs: #{all_items.inspect}"
+        puts "[SWITCH_REPORT_ERROR] Total OrderItems in DB: #{OrderItem.count}"
+        return { success: false, error: "OrderItem #{id_riga} not found. Available IDs: #{all_items.first(10).join(', ')}" }.to_json
       end
       
       # Get the order from the item
