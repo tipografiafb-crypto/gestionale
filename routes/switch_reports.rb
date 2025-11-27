@@ -92,10 +92,7 @@ class PrintOrchestrator < Sinatra::Base
       end
       
       # Update item with Switch results
-      item.update(
-        switch_job_operation_id: job_operation_id,
-        print_status: 'completed'  # Mark as completed once Switch is done
-      )
+      item.update(print_status: 'completed')
       
       # Log the update
       if order.switch_job
@@ -106,7 +103,7 @@ class PrintOrchestrator < Sinatra::Base
       status 200
       {
         success: true,
-        codice_ordine: order_code,
+        codice_ordine: codice_ordine,
         id_riga: id_riga,
         message: 'Report received and processed',
         timestamp: Time.now.iso8601
