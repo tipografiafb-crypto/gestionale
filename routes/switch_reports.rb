@@ -97,7 +97,7 @@ class PrintOrchestrator < Sinatra::Base
       status 200
       {
         success: true,
-        codice_ordine: codice_ordine,
+        codice_ordine: order.external_order_code,
         id_riga: id_riga,
         message: 'Report received and processed',
         timestamp: Time.now.iso8601
