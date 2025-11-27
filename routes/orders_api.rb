@@ -32,6 +32,18 @@ class PrintOrchestrator < Sinatra::Base
         return { success: false, error: "Products not found: #{products_not_found.join(', ')}" }.to_json
       end
       
+      # Build lookup maps for print files and screenshots by cart_id
+      print_files_map = {}
+      screenshots_map = {}
+      
+      (data['print_files_with_cart_id'] || []).each do |entry|
+        print_files_map[entry['cart_id']] = entry['print_files'] || []
+      end
+      
+      (data['screenshots_with_cart_id'] || []).each do |entry|
+        screenshots_map[entry['cart_id']] = entry['screenshots'] || []
+      end
+      
       # Wrap all database operations in a transaction for data integrity
       result = ActiveRecord::Base.transaction do
         # Create order
@@ -58,11 +70,28 @@ class PrintOrchestrator < Sinatra::Base
             product.inventory.remove_stock(item_data['quantity'])
           end
           
-          # Create assets from image URLs
-          item_data['image_urls'].each_with_index do |url, index|
-            # Try to determine asset type from URL or position
+          # Get cart_id from meta_data for file mapping
+          cart_id = extract_cart_id(item_data)
+          
+          # Create print file assets
+          (print_files_map[cart_id] || []).each do |url|
+            order_item.assets.create!(
+              original_url: url,
+              asset_type: 'print'
+            )
+          end
+          
+          # Create screenshot assets
+          (screenshots_map[cart_id] || []).each do |url|
+            order_item.assets.create!(
+              original_url: url,
+              asset_type: 'screenshot'
+            )
+          end
+          
+          # Create assets from legacy image_urls if present
+          (item_data['image_urls'] || []).each_with_index do |url, index|
             asset_type = determine_asset_type(url, index)
-            
             order_item.assets.create!(
               original_url: url,
               asset_type: asset_type
@@ -146,6 +175,23 @@ class PrintOrchestrator < Sinatra::Base
   end
 
   private
+
+  def extract_cart_id(item_data)
+    # Try to extract cart_id from various metadata locations
+    if item_data['meta_data']&.is_a?(Hash)
+      # Check Lumise data
+      if item_data['meta_data']['lumise_data']&.is_a?(Hash)
+        return item_data['meta_data']['lumise_data']['cart_id']
+      end
+      
+      # Check AI customization data
+      if item_data['meta_data']['_wc_ai_customization']&.is_a?(Hash)
+        return item_data['meta_data']['_wc_ai_customization']['artwork_id']
+      end
+    end
+    
+    nil
+  end
 
   def determine_asset_type(url, index)
     # Try to determine from filename
