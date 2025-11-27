@@ -10,35 +10,42 @@ class PrintOrchestrator < Sinatra::Base
   # POST /api/v1/reports_create
   # Receive completed job results from Switch via widegest_url callback
   # This is where Switch sends the output files and processing results
-  # Can receive either multipart form data with file or JSON payload
+  # Receives JSON from Switch Base64 module with base64-encoded PDF
   post '/api/v1/reports_create' do
     content_type :json
     
     begin
-      # Try to parse as multipart form data first (Switch sends file)
-      order_code = params['codice_ordine']
-      id_riga = params['id_riga']&.to_i
-      job_operation_id = params['job_operation_id']
-      file_upload = params['file']
+      # Parse JSON from Switch Base64 module
+      request.body.rewind
+      data = JSON.parse(request.body.read) rescue {}
       
-      # Fallback to JSON if form data not present
-      if order_code.nil?
-        data = JSON.parse(request.body.read) rescue {}
-        order_code = data['codice_ordine']
-        id_riga = data['id_riga']&.to_i
-        job_operation_id = data['job_operation_id']
-      end
+      # Extract from Switch JSON
+      file_base64 = data['file']
+      kind = data['kind']
+      filename = data['filename']
+      job_operation_id = data['job-operation-id']
       
-      unless order_code && id_riga
+      unless filename && file_base64
         status 400
-        return { success: false, error: 'Missing codice_ordine or id_riga' }.to_json
+        return { success: false, error: 'Missing filename or file data' }.to_json
       end
+      
+      # Extract order code and id_riga from filename
+      # Format: eu{codice_ordine}-{id_riga}.pdf (e.g., eu12345-3.pdf)
+      match = filename.to_s.match(/^eu(\d+)-(\d+)\.pdf$/i)
+      unless match
+        status 400
+        return { success: false, error: 'Invalid filename format. Expected: eu{codice_ordine}-{id_riga}.pdf' }.to_json
+      end
+      
+      codice_ordine = "EU#{match[1]}".upcase
+      id_riga = match[2].to_i
       
       # Find the order and item
-      order = Order.find_by(external_order_code: order_code)
+      order = Order.find_by(external_order_code: codice_ordine)
       unless order
         status 404
-        return { success: false, error: "Order #{order_code} not found" }.to_json
+        return { success: false, error: "Order #{codice_ordine} not found" }.to_json
       end
       
       item = order.order_items.find_by(id: id_riga)
@@ -47,9 +54,12 @@ class PrintOrchestrator < Sinatra::Base
         return { success: false, error: "OrderItem #{id_riga} not found" }.to_json
       end
       
-      # Handle file upload from Switch (PDF output)
-      if file_upload.present? && file_upload.is_a?(Hash) && file_upload[:filename].present?
+      # Decode base64 PDF and save to storage
+      if file_base64.present?
         begin
+          # Decode base64 to binary PDF data
+          pdf_data = Base64.decode64(file_base64)
+          
           store_code = order.store.code || order.store.id.to_s
           order_code_str = order.external_order_code
           sku = item.sku
@@ -59,26 +69,25 @@ class PrintOrchestrator < Sinatra::Base
           FileUtils.mkdir_p(upload_dir) unless Dir.exist?(upload_dir)
           
           # Save file with print_output prefix
-          filename = File.basename(file_upload[:filename])
           local_path = "storage/#{store_code}/#{order_code_str}/#{sku}/print_output_#{filename}"
           full_path = File.join(Dir.pwd, local_path)
           
-          # Read and write file content
-          content = file_upload[:tempfile].read
-          File.open(full_path, 'wb') { |f| f.write(content) }
+          # Write decoded PDF content
+          File.open(full_path, 'wb') { |f| f.write(pdf_data) }
           
           # Create Asset record for the print output
           asset = item.assets.build(
-            original_url: file_upload[:filename],
+            original_url: filename,
             local_path: local_path,
             asset_type: 'print_output'
           )
           asset.save!
           
-          warn "[Switch Report] File saved for order #{order_code}, item #{id_riga}: #{local_path}"
+          puts "[SWITCH_REPORT] PDF decoded and saved for order #{codice_ordine}, item #{id_riga}: #{local_path}"
         rescue => e
-          warn "[Switch Report] File upload error: #{e.message}"
-          # Continue anyway - file save is not critical for status update
+          puts "[SWITCH_REPORT_ERROR] File decode error: #{e.message}"
+          status 500
+          return { success: false, error: "File decode error: #{e.message}" }.to_json
         end
       end
       
