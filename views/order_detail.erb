@@ -337,7 +337,7 @@
                           <img src="/file/<%= asset.id %>" alt="<%= asset.asset_type %>" class="asset-preview mb-2" style="cursor: pointer;">
                         </button>
                       <% else %>
-                        <div class="asset-preview mb-2 d-flex align-items-center justify-content-center" style="background-color: #f0f0f0; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="<%= asset.original_url %>" data-file-type="pdf">
+                        <div class="asset-preview mb-2 d-flex align-items-center justify-content-center" style="background-color: #f0f0f0; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="/file/<%= asset.id %>" data-file-type="pdf">
                           <span>📄</span>
                         </div>
                       <% end %>
