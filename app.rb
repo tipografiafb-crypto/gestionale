@@ -1,9 +1,12 @@
 require 'sinatra/base'
 require 'sinatra/activerecord'
 require 'sinatra/contrib'
-require 'dotenv/load'
+require 'dotenv'
 require 'json'
 require 'time'
+
+# Load environment variables from .env file
+Dotenv.load(File.expand_path('.env', __dir__))
 
 class PrintOrchestrator < Sinatra::Base
   register Sinatra::ActiveRecordExtension
