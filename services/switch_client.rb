@@ -102,6 +102,9 @@ class SwitchClient
         .headers('Content-Type' => 'application/json')
         .post(full_url, json: job_data)
 
+      puts "[SWITCH_CLIENT_DEBUG] Response Status: #{response.status}"
+      puts "[SWITCH_CLIENT_DEBUG] Response Body: #{response.body}"
+
       if response.status.success?
         { success: true, job_id: generated_job_id, message: 'Sent to Switch' }
       else
