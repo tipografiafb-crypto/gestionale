@@ -39,29 +39,56 @@ class PrintOrchestrator < Sinatra::Base
         return { success: false, error: 'Missing filename or file data' }.to_json
       end
       
-      # job_operation_id tells us which item this is for
-      id_riga = job_operation_id.to_i
+      # Parse job_operation_id - supports TWO formats:
+      # NEW FORMAT: "order-{order_id}-item-{position}"
+      # OLD FORMAT: just the operation position number (1, 2, 3...)
       
-      unless id_riga > 0
-        status 400
-        puts "[SWITCH_REPORT_ERROR] Invalid job-operation-id: #{job_operation_id.inspect}"
-        return { success: false, error: 'Missing or invalid job-operation-id' }.to_json
+      job_id_str = job_operation_id.to_s.strip
+      item = nil
+      order = nil
+      
+      # Try NEW format first
+      job_id_match = job_id_str.match(/^order-(\d+)-item-(\d+)$/)
+      if job_id_match
+        puts "[SWITCH_REPORT_DEBUG] Parsed NEW format job_id"
+        order_id = job_id_match[1].to_i
+        item_position = job_id_match[2].to_i
+        
+        order = Order.find_by(id: order_id)
+        unless order
+          status 404
+          puts "[SWITCH_REPORT_ERROR] Order #{order_id} not found!"
+          return { success: false, error: "Order #{order_id} not found" }.to_json
+        end
+        
+        item = order.order_items.order(:id)[item_position - 1]
+        unless item
+          status 404
+          puts "[SWITCH_REPORT_ERROR] Item position #{item_position} not found in order #{order_id}!"
+          puts "[SWITCH_REPORT_ERROR] Order has #{order.order_items.count} items"
+          return { success: false, error: "OrderItem at position #{item_position} not found in order #{order_id}" }.to_json
+        end
+      else
+        # Fall back to OLD format: just a number (operation position)
+        # This format requires us to infer the order from context (filename or other fields)
+        item_position = job_id_str.to_i
+        
+        if item_position > 0
+          puts "[SWITCH_REPORT_DEBUG] Parsed OLD format job_id (position #{item_position})"
+          puts "[SWITCH_REPORT_WARN] OLD format detected - Switch should be updated to send order context!"
+          
+          # Try to find by filename pattern or assume first recent order with this position
+          # For now, reject this format since we can't reliably map it without order context
+          status 400
+          puts "[SWITCH_REPORT_ERROR] OLD job_id format requires order context. Please update Switch configuration."
+          puts "[SWITCH_REPORT_ERROR] Expected format: order-{order_id}-item-{position}"
+          return { success: false, error: 'Invalid job_id format - missing order context. Expected: order-{id}-item-{pos}' }.to_json
+        else
+          status 400
+          puts "[SWITCH_REPORT_ERROR] Invalid job-operation-id: #{job_operation_id.inspect}"
+          return { success: false, error: 'Invalid job-operation-id format' }.to_json
+        end
       end
-      
-      # Find the item by ID
-      item = OrderItem.find_by(id: id_riga)
-      unless item
-        status 404
-        # DEBUG: List available OrderItems for diagnostics
-        all_items = OrderItem.pluck(:id).sort
-        puts "[SWITCH_REPORT_ERROR] OrderItem #{id_riga} not found!"
-        puts "[SWITCH_REPORT_ERROR] Available OrderItem IDs: #{all_items.inspect}"
-        puts "[SWITCH_REPORT_ERROR] Total OrderItems in DB: #{OrderItem.count}"
-        return { success: false, error: "OrderItem #{id_riga} not found. Available IDs: #{all_items.first(10).join(', ')}" }.to_json
-      end
-      
-      # Get the order from the item
-      order = item.order
       
       # Decode base64 PDF and save to storage
       if file_base64.present?
