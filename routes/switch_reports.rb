@@ -69,44 +69,22 @@ class PrintOrchestrator < Sinatra::Base
           return { success: false, error: "OrderItem at position #{item_position} not found in order #{order_id}" }.to_json
         end
       else
-        # Fall back to OLD format: just a number (the OrderItem database ID)
-        # Extract order context from filename pattern: "{order_code}-{item_id}.ext"
+        # Fall back to CURRENT format: just the OrderItem database ID
         item_id = job_id_str.to_i
         
-        if item_id > 0 && filename
-          puts "[SWITCH_REPORT_DEBUG] Parsed OLD format job_id (item_id #{item_id})"
-          puts "[SWITCH_REPORT_DEBUG] Attempting to extract order code from filename: #{filename}"
+        if item_id > 0
+          puts "[SWITCH_REPORT_DEBUG] Parsed CURRENT format job_id (item_id #{item_id})"
           
-          # Filename pattern: "code-item_id.ext" e.g., "eu12345-36.pdf"
-          # Where: code = codice_ordine (external), item_id = OrderItem database ID
-          filename_match = filename.match(/^([a-zA-Z0-9]+)-(\d+)/)
-          unless filename_match
-            status 400
-            puts "[SWITCH_REPORT_ERROR] Cannot extract order info from filename: #{filename.inspect}"
-            puts "[SWITCH_REPORT_ERROR] Expected filename format: {order_code}-{item_id}.ext"
-            return { success: false, error: "Invalid filename format. Expected: {order_code}-{item_id}.ext" }.to_json
-          end
-          
-          order_code = filename_match[1]
-          item_id_from_filename = filename_match[2].to_i
-          
-          puts "[SWITCH_REPORT_DEBUG] Extracted order code '#{order_code}' and item_id #{item_id_from_filename} from filename"
-          
-          # Find the OrderItem directly by database ID
-          item = OrderItem.find_by(id: item_id_from_filename)
+          # Find the OrderItem directly by database ID from job_operation_id
+          item = OrderItem.find_by(id: item_id)
           
           if item
             order = item.order
             puts "[SWITCH_REPORT_DEBUG] Successfully found OrderItem #{item.id} (order #{order.id})"
           else
-            puts "[SWITCH_REPORT_WARN] OrderItem id=#{item_id_from_filename} not found, will save to pending"
-            # Try to find order by code for pending storage
-            order = Order.where('LOWER(external_order_code) = LOWER(?)', order_code).first
-            if order
-              puts "[SWITCH_REPORT_DEBUG] Found order by code '#{order_code}' for pending storage"
-            else
-              puts "[SWITCH_REPORT_WARN] Order with code '#{order_code}' not in database either"
-            end
+            puts "[SWITCH_REPORT_WARN] OrderItem id=#{item_id} not found"
+            item = nil
+            order = nil
           end
         else
           status 400
@@ -167,18 +145,9 @@ class PrintOrchestrator < Sinatra::Base
               order.switch_job.add_log("[#{Time.now.iso8601}] Report received for item (#{filename}). Job Op: #{job_operation_id}")
             end
           else
-            # Save PendingFile record for later linking when order is imported
-            if order_code && external_id_riga
-              PendingFile.create(
-                external_order_code: order_code,
-                external_id_riga: external_id_riga,
-                filename: filename,
-                file_path: saved_file_path,
-                kind: kind,
-                status: 'pending'
-              )
-              puts "[SWITCH_REPORT_DEBUG] Created PendingFile record: order=#{order_code}, id_riga=#{external_id_riga}"
-            end
+            # Item not found - this shouldn't happen in normal operation
+            # since job_operation_id always comes from an OrderItem we created
+            puts "[SWITCH_REPORT_WARN] Could not save asset to item or order"
           end
           
         rescue => e
