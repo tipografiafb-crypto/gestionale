@@ -70,19 +70,45 @@ class PrintOrchestrator < Sinatra::Base
         end
       else
         # Fall back to OLD format: just a number (operation position)
-        # This format requires us to infer the order from context (filename or other fields)
+        # Extract order context from filename pattern: "{order_code}-{position}.ext"
         item_position = job_id_str.to_i
         
-        if item_position > 0
+        if item_position > 0 && filename
           puts "[SWITCH_REPORT_DEBUG] Parsed OLD format job_id (position #{item_position})"
-          puts "[SWITCH_REPORT_WARN] OLD format detected - Switch should be updated to send order context!"
+          puts "[SWITCH_REPORT_DEBUG] Attempting to extract order code from filename: #{filename}"
           
-          # Try to find by filename pattern or assume first recent order with this position
-          # For now, reject this format since we can't reliably map it without order context
-          status 400
-          puts "[SWITCH_REPORT_ERROR] OLD job_id format requires order context. Please update Switch configuration."
-          puts "[SWITCH_REPORT_ERROR] Expected format: order-{order_id}-item-{position}"
-          return { success: false, error: 'Invalid job_id format - missing order context. Expected: order-{id}-item-{pos}' }.to_json
+          # Filename pattern: "code-position.ext" e.g., "eu12345-1.pdf"
+          filename_match = filename.match(/^([a-zA-Z0-9]+)-(\d+)/)
+          if filename_match
+            order_code = filename_match[1]
+            filename_position = filename_match[2].to_i
+            
+            puts "[SWITCH_REPORT_DEBUG] Extracted order code '#{order_code}' and position #{filename_position} from filename"
+            
+            # Find order by external code
+            order = Order.find_by(external_order_code: order_code)
+            unless order
+              status 404
+              puts "[SWITCH_REPORT_ERROR] Order with code '#{order_code}' not found!"
+              return { success: false, error: "Order '#{order_code}' not found" }.to_json
+            end
+            
+            # Use filename position as the item position (more reliable than job-operation-id)
+            item = order.order_items.order(:id)[filename_position - 1]
+            unless item
+              status 404
+              puts "[SWITCH_REPORT_ERROR] Item position #{filename_position} not found in order #{order_code}!"
+              puts "[SWITCH_REPORT_ERROR] Order has #{order.order_items.count} items"
+              return { success: false, error: "OrderItem at position #{filename_position} not found in order #{order_code}" }.to_json
+            end
+            
+            puts "[SWITCH_REPORT_DEBUG] Successfully mapped to order #{order.id}, item position #{filename_position}"
+          else
+            status 400
+            puts "[SWITCH_REPORT_ERROR] Cannot extract order info from filename: #{filename.inspect}"
+            puts "[SWITCH_REPORT_ERROR] Expected filename format: {order_code}-{position}.ext"
+            return { success: false, error: "Invalid filename format. Expected: {order_code}-{position}.ext" }.to_json
+          end
         else
           status 400
           puts "[SWITCH_REPORT_ERROR] Invalid job-operation-id: #{job_operation_id.inspect}"
