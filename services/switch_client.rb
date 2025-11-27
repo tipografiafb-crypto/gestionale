@@ -171,6 +171,11 @@ class SwitchClient
     ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
   end
 
+  def gestionale_base_url
+    # URL for downloading assets from Gestionale (external management system)
+    ENV['GESTIONALE_BASE_URL'] || 'http://192.168.1.55:5000'
+  end
+
   def build_payload
     # Build payload in Switch format for each item
     @order.order_items.map.with_index do |item, idx|
@@ -183,7 +188,7 @@ class SwitchClient
         product: product ? "#{product.sku} - #{product.name}" : item.sku,
         operation_id: idx + 1,
         job_operation_id: nil,  # Filled by Switch
-        url: "#{server_base_url}/api/assets/#{primary_asset&.id}/download",
+        url: "#{gestionale_base_url}/api/assets/#{primary_asset&.id}/download",
         widegest_url: "#{server_base_url}/api/v1/reports_create",  # ← Switch callback endpoint
         filename: primary_asset&.filename || "#{@order.external_order_code}_#{idx + 1}.png",
         quantita: item.quantity,
