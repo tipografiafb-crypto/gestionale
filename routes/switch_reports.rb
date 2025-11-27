@@ -30,29 +30,23 @@ class PrintOrchestrator < Sinatra::Base
         return { success: false, error: 'Missing filename or file data' }.to_json
       end
       
-      # Extract order code and id_riga from filename
-      # Format: eu{codice_ordine}-{id_riga}.pdf (e.g., eu12345-3.pdf)
-      match = filename.to_s.match(/^eu(\d+)-(\d+)\.pdf$/i)
-      unless match
+      # job_operation_id tells us which item this is for
+      id_riga = job_operation_id.to_i
+      
+      unless id_riga > 0
         status 400
-        return { success: false, error: 'Invalid filename format. Expected: eu{codice_ordine}-{id_riga}.pdf' }.to_json
+        return { success: false, error: 'Missing or invalid job-operation-id' }.to_json
       end
       
-      codice_ordine = "EU#{match[1]}".upcase
-      id_riga = match[2].to_i
-      
-      # Find the order and item
-      order = Order.find_by(external_order_code: codice_ordine)
-      unless order
-        status 404
-        return { success: false, error: "Order #{codice_ordine} not found" }.to_json
-      end
-      
-      item = order.order_items.find_by(id: id_riga)
+      # Find the item by ID
+      item = OrderItem.find_by(id: id_riga)
       unless item
         status 404
         return { success: false, error: "OrderItem #{id_riga} not found" }.to_json
       end
+      
+      # Get the order from the item
+      order = item.order
       
       # Decode base64 PDF and save to storage
       if file_base64.present?
@@ -68,8 +62,8 @@ class PrintOrchestrator < Sinatra::Base
           upload_dir = File.join(Dir.pwd, 'storage', store_code, order_code_str, sku)
           FileUtils.mkdir_p(upload_dir) unless Dir.exist?(upload_dir)
           
-          # Save file with print_output prefix
-          local_path = "storage/#{store_code}/#{order_code_str}/#{sku}/print_output_#{filename}"
+          # Save file with exact filename from Switch (no prefix)
+          local_path = "storage/#{store_code}/#{order_code_str}/#{sku}/#{filename}"
           full_path = File.join(Dir.pwd, local_path)
           
           # Write decoded PDF content
@@ -83,7 +77,7 @@ class PrintOrchestrator < Sinatra::Base
           )
           asset.save!
           
-          puts "[SWITCH_REPORT] PDF decoded and saved for order #{codice_ordine}, item #{id_riga}: #{local_path}"
+          puts "[SWITCH_REPORT] PDF decoded and saved for order #{order_code_str}, item #{id_riga}: #{local_path}"
         rescue => e
           puts "[SWITCH_REPORT_ERROR] File decode error: #{e.message}"
           status 500
@@ -96,14 +90,14 @@ class PrintOrchestrator < Sinatra::Base
       
       # Log the update
       if order.switch_job
-        order.switch_job.add_log("[#{Time.now.iso8601}] Report received for item #{id_riga}. Job Op: #{job_operation_id}")
+        order.switch_job.add_log("[#{Time.now.iso8601}] Report received for item #{id_riga} (#{filename}). Job Op: #{job_operation_id}")
       end
       
       # Return success to Switch
       status 200
       {
         success: true,
-        codice_ordine: codice_ordine,
+        codice_ordine: order.external_order_code,
         id_riga: id_riga,
         message: 'Report received and processed',
         timestamp: Time.now.iso8601
