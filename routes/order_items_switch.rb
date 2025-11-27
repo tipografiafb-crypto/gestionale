@@ -11,7 +11,7 @@ class PrintOrchestrator < Sinatra::Base
     item = order.order_items.find(params[:item_id])
 
     unless item.can_send_to_preprint?
-      redirect "/orders/#{order.id}?msg=error&text=Non+puoi+inviare+questo+item+a+pre-stampa"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Non+puoi+inviare+questo+item+a+pre-stampa"
     end
 
     # Get selected print flow or use default
@@ -21,18 +21,18 @@ class PrintOrchestrator < Sinatra::Base
     puts "[DEBUG_PREPRINT] print_flow found: #{print_flow.present?}"
     
     unless print_flow
-      redirect "/orders/#{order.id}?msg=error&text=Flusso+di+stampa+non+trovato"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Flusso+di+stampa+non+trovato"
     end
     
     puts "[DEBUG_PREPRINT] preprint_webhook: #{print_flow.preprint_webhook.inspect}"
     unless print_flow.preprint_webhook
-      redirect "/orders/#{order.id}?msg=error&text=Webhook+pre-stampa+non+configurato"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Webhook+pre-stampa+non+configurato"
     end
     
     webhook_hook_path = print_flow.preprint_webhook&.hook_path
     puts "[DEBUG_PREPRINT] webhook_hook_path: #{webhook_hook_path.inspect}"
     unless webhook_hook_path.present?
-      redirect "/orders/#{order.id}?msg=error&text=Path+webhook+pre-stampa+vuoto"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Path+webhook+pre-stampa+vuoto"
     end
 
     # Get percentuale from form and build campi_webhook
@@ -50,7 +50,7 @@ class PrintOrchestrator < Sinatra::Base
     print_assets = item.switch_print_assets
     unless print_assets.any?
       item.update(preprint_status: 'failed')
-      redirect "/orders/#{order.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
     end
 
     product = item.product
@@ -96,10 +96,10 @@ class PrintOrchestrator < Sinatra::Base
       
       if errors.any?
         item.update(preprint_status: 'failed')
-        redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + errors.join(', '))}"
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + errors.join(', '))}"
       else
         item.update(preprint_status: 'processing', preprint_job_id: successful_assets.join(','))
-        redirect "/orders/#{order.id}?msg=success&text=#{successful_assets.length}+asset+inviati+a+pre-stampa"
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=#{successful_assets.length}+asset+inviati+a+pre-stampa"
       end
     rescue => e
       item.update(preprint_status: 'failed')
@@ -115,7 +115,7 @@ class PrintOrchestrator < Sinatra::Base
         "Errore sconosciuto: #{e.class}"
       end
       
-      redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + error_msg)}"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + error_msg)}"
     end
   end
 
@@ -125,13 +125,13 @@ class PrintOrchestrator < Sinatra::Base
     item = order.order_items.find(params[:item_id])
 
     unless item.preprint_status == 'processing'
-      redirect "/orders/#{order.id}?msg=error&text=Questo+item+non+è+in+fase+di+pre-stampa"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Questo+item+non+è+in+fase+di+pre-stampa"
     end
 
     item.update(preprint_status: 'completed', preprint_completed_at: Time.now)
-    redirect "/orders/#{order.id}?msg=success&text=Pre-stampa+confermata+manualmente"
+    redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=Pre-stampa+confermata+manualmente"
   rescue => e
-    redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore conferma: ' + e.message)}"
+    redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore conferma: ' + e.message)}"
   end
 
   # POST /orders/:order_id/items/:item_id/reset - Reset item to initial state
@@ -147,9 +147,9 @@ class PrintOrchestrator < Sinatra::Base
       print_job_id: nil
     )
 
-    redirect "/orders/#{order.id}?msg=success&text=Item+reset+completato"
+    redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=Item+reset+completato"
   rescue => e
-    redirect "/orders/#{order.id}?msg=error&text=Errore+reset:+#{URI.encode_www_form_component(e.message)}"
+    redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Errore+reset:+#{URI.encode_www_form_component(e.message)}"
   end
 
   # POST /orders/:order_id/items/:item_id/send_print - Send item to print phase
@@ -158,7 +158,7 @@ class PrintOrchestrator < Sinatra::Base
     item = order.order_items.find(params[:item_id])
 
     unless item.can_send_to_print?
-      redirect "/orders/#{order.id}?msg=error&text=Non+puoi+inviare+questo+item+in+stampa"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Non+puoi+inviare+questo+item+in+stampa"
     end
 
     # Get selected print machine
@@ -172,14 +172,14 @@ class PrintOrchestrator < Sinatra::Base
     print_flow = item.print_flow
     unless print_flow&.print_webhook
       item.update(print_status: 'failed')
-      redirect "/orders/#{order.id}?msg=error&text=Flusso+di+stampa+non+configurato"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Flusso+di+stampa+non+configurato"
     end
 
     # Get all print assets (assets are auto-downloaded during import)
     print_assets = item.switch_print_assets
     unless print_assets.any?
       item.update(print_status: 'failed')
-      redirect "/orders/#{order.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
     end
 
     product = item.product
@@ -222,15 +222,15 @@ class PrintOrchestrator < Sinatra::Base
       
       if errors.any?
         item.update(print_status: 'failed')
-        redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + errors.join(', '))}"
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + errors.join(', '))}"
       else
         item.update(print_status: 'processing', print_started_at: Time.now)
-        redirect "/orders/#{order.id}?msg=success&text=#{successful_assets.length}+asset+inviati+in+stampa"
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=#{successful_assets.length}+asset+inviati+in+stampa"
       end
     rescue => e
       item.update(print_status: 'failed')
       error_msg = e.message.length > 50 ? e.message[0..50] + "..." : e.message
-      redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + error_msg)}"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + error_msg)}"
     end
   end
 
@@ -240,13 +240,13 @@ class PrintOrchestrator < Sinatra::Base
     item = order.order_items.find(params[:item_id])
 
     unless item.print_status == 'processing'
-      redirect "/orders/#{order.id}?msg=error&text=Questo+item+non+è+in+fase+di+stampa"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Questo+item+non+è+in+fase+di+stampa"
     end
 
     item.update(print_status: 'completed', print_completed_at: Time.now)
-    redirect "/orders/#{order.id}?msg=success&text=Stampa+confermata,+item+completato"
+    redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=Stampa+confermata,+item+completato"
   rescue => e
-    redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore conferma: ' + e.message)}"
+    redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore conferma: ' + e.message)}"
   end
 
   # POST /orders/:order_id/items/:item_id/send_label - Send item to label webhook
@@ -257,13 +257,13 @@ class PrintOrchestrator < Sinatra::Base
     # Get print flow and label webhook
     print_flow = item.print_flow
     unless print_flow&.label_webhook
-      redirect "/orders/#{order.id}?msg=error&text=Webhook+etichetta+non+configurato"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Webhook+etichetta+non+configurato"
     end
 
     # Get all print assets (assets are auto-downloaded during import)
     print_assets = item.switch_print_assets
     unless print_assets.any?
-      redirect "/orders/#{order.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
     end
 
     product = item.product
@@ -305,13 +305,13 @@ class PrintOrchestrator < Sinatra::Base
       end
       
       if errors.any?
-        redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + errors.join(', '))}"
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + errors.join(', '))}"
       else
-        redirect "/orders/#{order.id}?msg=success&text=#{successful_assets.length}+etichetta+inviate+con+successo"
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=#{successful_assets.length}+etichetta+inviate+con+successo"
       end
     rescue => e
       error_msg = e.message.length > 50 ? e.message[0..50] + "..." : e.message
-      redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + error_msg)}"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + error_msg)}"
     end
   end
 end
