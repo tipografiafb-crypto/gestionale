@@ -188,12 +188,27 @@ class PrintOrchestrator < Sinatra::Base
     @order = Order.find(params[:order_id])
     @item = @order.order_items.includes(:assets).find(params[:item_id])
     
-    # Return only the preprint result section HTML
-    # Only show if Switch has actually sent the file (Asset exists)
+    # Get the Switch output file (created when Switch returns the file)
     print_output_asset = @item.assets.where(asset_type: 'print_output').first
     
     html = ""
-    if print_output_asset
+    
+    # If preprint is processing but no file yet, show processing bar
+    if @item.preprint_status == 'processing' && !print_output_asset
+      html = <<~HTML
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 14px; font-weight: bold;">🔄 Elaborando in Switch...</span>
+              <div style="flex: 1; height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden;">
+                <div style="height: 100%; background: linear-gradient(90deg, #0d6efd, #0dcaf0); animation: progress 1.5s infinite; width: 30%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      HTML
+    # If file exists (from Switch), show result button and confirm button
+    elsif print_output_asset && @item.preprint_status == 'processing'
       html = <<~HTML
         <div style="display: flex; gap: 10px; align-items: center;">
           <a href="/file/#{print_output_asset.id}" class="btn btn-outline-secondary" target="_blank" title="Switch result file: #{print_output_asset.original_url}">
@@ -204,6 +219,16 @@ class PrintOrchestrator < Sinatra::Base
               ✓ Conferma Pre-stampa
             </button>
           </form>
+        </div>
+      HTML
+    # If preprint is completed and file exists, show only result button (user can still view file)
+    elsif print_output_asset && @item.preprint_status == 'completed'
+      html = <<~HTML
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <a href="/file/#{print_output_asset.id}" class="btn btn-outline-secondary" target="_blank" title="Switch result file: #{print_output_asset.original_url}">
+            📄 Result
+          </a>
+          <span style="font-size: 12px; color: #6c757d;">✓ Pre-stampa confermata</span>
         </div>
       HTML
     end

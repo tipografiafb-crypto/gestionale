@@ -211,9 +211,9 @@
           </a>
         </div>
 
-        <!-- Pre-stampa Result Section (will be populated by polling) -->
+        <!-- Pre-stampa Result Section -->
         <div id="preprint-result-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
-          <!-- Initially empty, populated by polling when Switch sends file -->
+          <!-- Populated by polling: shows processing bar until Switch sends file, then shows result button -->
         </div>
       </div>
     </div>
@@ -418,8 +418,22 @@
   });
 </script>
 
+<!-- Animation for processing bar -->
+<style>
+  @keyframes progress {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(400%);
+    }
+  }
+</style>
+
 <!-- Auto-refresh preprint result section -->
 <script>
+  let pollingInterval = null;
+  
   function pollPreprintResult() {
     const orderId = '<%= @order.id %>';
     const itemId = '<%= @item.id %>';
@@ -431,6 +445,10 @@
     
     // Only poll if preprint is in processing state
     if (currentStatus !== 'processing') {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
       return;
     }
     
@@ -438,22 +456,27 @@
     fetch(`/orders/${orderId}/items/${itemId}/preprint_result_section`)
       .then(response => response.text())
       .then(html => {
-        if (html.trim() === '') {
-          // File not yet available from Switch, continue polling
-          setTimeout(pollPreprintResult, 3000);
-        } else {
-          // Switch has sent the file! Update the section
-          preprintResultSection.innerHTML = html;
-          console.log('[POLLING] Switch file received and displayed!');
+        preprintResultSection.innerHTML = html;
+        
+        // Check if file has arrived (result button is visible)
+        const resultLink = preprintResultSection.querySelector('a[target="_blank"][title*="Switch result"]');
+        if (resultLink) {
+          console.log('[POLLING] Switch file received!');
+          // File arrived, can stop polling after a few more checks
         }
       })
       .catch(error => {
         console.error('[POLLING] Error fetching preprint result:', error);
-        // Continue polling even on error
-        setTimeout(pollPreprintResult, 3000);
       });
   }
   
   // Start polling on page load
-  document.addEventListener('DOMContentLoaded', pollPreprintResult);
+  document.addEventListener('DOMContentLoaded', function() {
+    pollPreprintResult(); // Initial call
+    
+    const currentStatus = '<%= @item.preprint_status %>';
+    if (currentStatus === 'processing') {
+      pollingInterval = setInterval(pollPreprintResult, 3000);
+    }
+  });
 </script>
