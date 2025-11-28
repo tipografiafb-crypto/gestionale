@@ -140,6 +140,7 @@ class PrintOrchestrator < Sinatra::Base
     item = order.order_items.find(params[:item_id])
     
     reset_target = params[:reset_target]  # 'preprint' or 'print'
+    puts "[RESET_DEBUG] reset_target received: #{reset_target.inspect}, params: #{params.inspect}"
 
     case reset_target
     when 'preprint'

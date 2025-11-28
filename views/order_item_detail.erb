@@ -303,7 +303,7 @@
         <p class="text-muted mb-3">Scegli quale azione vuoi resettare:</p>
         <div style="display: flex; gap: 10px; flex-direction: column;">
           <% if @item.preprint_status != 'pending' %>
-            <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/reset" method="post" class="d-inline" onsubmit="return confirm('Resettare Pre-stampa?');">
+            <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/reset" method="post" onsubmit="return confirm('Resettare Pre-stampa?');">
               <input type="hidden" name="reset_target" value="preprint">
               <button type="submit" class="btn btn-outline-warning w-100">
                 🖨️ Reset Pre-stampa
@@ -314,7 +314,7 @@
           <% end %>
           
           <% if @item.print_status != 'pending' %>
-            <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/reset" method="post" class="d-inline" onsubmit="return confirm('Resettare Stampa?');">
+            <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/reset" method="post" onsubmit="return confirm('Resettare Stampa?');">
               <input type="hidden" name="reset_target" value="print">
               <button type="submit" class="btn btn-outline-success w-100">
                 ✅ Reset Stampa
