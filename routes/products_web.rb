@@ -49,13 +49,6 @@ class PrintOrchestrator < Sinatra::Base
             next
           end
 
-          # Check if SKU already exists
-          if Product.find_by(sku: sku)
-            error_details << "Riga #{line_num} (#{sku}): SKU già esiste"
-            results[:skipped] += 1
-            next
-          end
-
           # Find category if provided
           category = nil
           if category_name.present?
@@ -92,9 +85,11 @@ class PrintOrchestrator < Sinatra::Base
             end
           end
 
-          # Create product
-          product = Product.new(
-            sku: sku,
+          # Find existing product or create new
+          product = Product.find_by(sku: sku) || Product.new(sku: sku)
+          
+          # Update product attributes
+          product.assign_attributes(
             name: name,
             notes: notes,
             product_category_id: category&.id,
@@ -103,7 +98,9 @@ class PrintOrchestrator < Sinatra::Base
           )
 
           if product.save
-            # Associate print flows if provided
+            # Update print flows association (remove old ones first)
+            product.product_print_flows.destroy_all
+            # Associate new print flows if provided
             if print_flows.any?
               print_flows.each do |flow|
                 ProductPrintFlow.create(product_id: product.id, print_flow_id: flow.id)
