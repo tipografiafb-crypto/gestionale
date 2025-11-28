@@ -58,9 +58,16 @@
         </div>
         <div class="row">
           <div class="col-md-12">
-            <label class="form-label">📎 File (immagine/PDF)</label>
-            <input type="file" class="form-control" name="items[][file]" accept=".png,.jpg,.jpeg,.pdf">
-            <small class="text-muted">Opzionale - PNG, JPG, JPEG, PDF</small>
+            <label class="form-label"><i class="fas fa-paperclip"></i> File (immagine/PDF) - Multipli</label>
+            <div class="files-container">
+              <div class="file-input-group mb-2">
+                <input type="file" class="form-control" name="items[][files][]" accept=".png,.jpg,.jpeg,.pdf">
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary add-file-btn">
+              <i class="fas fa-plus"></i> Aggiungi File
+            </button>
+            <small class="text-muted d-block mt-2">Opzionale - PNG, JPG, JPEG, PDF - Puoi caricare più file</small>
           </div>
         </div>
       </div>
@@ -126,9 +133,16 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       <div class="row">
         <div class="col-md-12">
-          <label class="form-label">📎 File (immagine/PDF)</label>
-          <input type="file" class="form-control" name="items[][file]" accept=".png,.jpg,.jpeg,.pdf">
-          <small class="text-muted">Opzionale - PNG, JPG, JPEG, PDF</small>
+          <label class="form-label"><i class="fas fa-paperclip"></i> File (immagine/PDF) - Multipli</label>
+          <div class="files-container">
+            <div class="file-input-group mb-2">
+              <input type="file" class="form-control" name="items[][files][]" accept=".png,.jpg,.jpeg,.pdf">
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-secondary add-file-btn">
+            <i class="fas fa-plus"></i> Aggiungi File
+          </button>
+          <small class="text-muted d-block mt-2">Opzionale - PNG, JPG, JPEG, PDF - Puoi caricare più file</small>
         </div>
       </div>
     `;
@@ -154,6 +168,29 @@ document.addEventListener('DOMContentLoaded', function() {
   addBtn.addEventListener('click', function(e) {
     e.preventDefault();
     createItemRow();
+  });
+  
+  // File adding functionality
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('add-file-btn')) {
+      e.preventDefault();
+      const filesContainer = e.target.previousElementSibling;
+      const fileGroup = document.createElement('div');
+      fileGroup.className = 'file-input-group mb-2';
+      fileGroup.innerHTML = `
+        <div class="input-group">
+          <input type="file" class="form-control" name="items[][files][]" accept=".png,.jpg,.jpeg,.pdf">
+          <button type="button" class="btn btn-outline-danger remove-file-btn">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      `;
+      filesContainer.appendChild(fileGroup);
+    }
+    if (e.target.classList.contains('remove-file-btn')) {
+      e.preventDefault();
+      e.target.closest('.file-input-group').remove();
+    }
   });
   
   updateRemoveButtons();

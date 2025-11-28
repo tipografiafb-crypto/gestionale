@@ -98,9 +98,11 @@ class PrintOrchestrator < Sinatra::Base
             product.inventory.remove_stock(quantity)
           end
 
-          # Handle file upload
-          file = item_params[:file]
-          if file.present? && file.is_a?(Hash) && file[:filename].present?
+          # Handle multiple file uploads
+          files = item_params[:files] || []
+          files.each_with_index do |file, file_index|
+            next if file.blank? || !file.is_a?(Hash) || file[:filename].blank?
+            
             begin
               # Validate file extension
               unless valid_file_extension?(file[:filename])
