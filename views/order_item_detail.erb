@@ -127,10 +127,10 @@
                     <small class="d-block"><strong>Print File</strong></small>
                     <div class="btn-group btn-group-sm mt-2" role="group">
                       <% if asset.downloaded? %>
-                        <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Download"><%== svg_icon('copy', 'sm') %></a>
+                        <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Download">📥</a>
                         <form action="/assets/<%= asset.id %>" method="post" class="d-inline">
                           <input type="hidden" name="_method" value="DELETE">
-                          <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Delete this file?');"><%== svg_icon('trash', 'sm') %></button>
+                          <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Delete this file?');">🗑</button>
                         </form>
                       <% end %>
                     </div>
@@ -151,7 +151,7 @@
                   title="Configure and send to preprint"
                   data-bs-toggle="modal" data-bs-target="#flowSelectModal"
                   <%= 'disabled' if @item.preprint_completed_at %>>
-            <%== svg_icon('settings', 'sm') %> Pre-stampa
+            🖨️ Pre-stampa
             <% if @item.preprint_status != 'pending' %>
               <span class="badge <%= @item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
                 <%= @item.preprint_status&.upcase %>
@@ -163,7 +163,7 @@
           <button type="button" class="btn btn-outline-success" 
                   data-bs-toggle="modal" data-bs-target="#machineSelectModal"
                   <%= 'disabled' if @item.print_completed_at %>>
-            <%== svg_icon('copy', 'sm') %> Stampa
+            ✅ Stampa
             <% if @item.print_status != 'pending' %>
               <span class="badge <%= @item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
                 <%= @item.print_status&.upcase %>
@@ -175,7 +175,7 @@
           <% if @item.print_flow&.label_webhook %>
             <button type="button" class="btn btn-outline-primary" 
                     data-bs-toggle="modal" data-bs-target="#labelMachineSelectModal">
-              <%== svg_icon('warehouse', 'sm') %> Etichetta
+              🏷️ Etichetta
             </button>
           <% end %>
 
@@ -183,13 +183,13 @@
           <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/reset" method="post" class="d-inline" onsubmit="return confirm('Reset this job?');">
             <button type="submit" class="btn btn-outline-secondary" 
                     <%= 'disabled' if @item.preprint_status == 'pending' && @item.print_status == 'pending' %>>
-              <%== svg_icon('copy', 'sm') %> Reset
+              🔄 Reset
             </button>
           </form>
 
           <!-- Print Card -->
           <a href="/orders/<%= @order.id %>/items/<%= @item.id %>/print" class="btn btn-outline-info" target="_blank">
-            <%== svg_icon('copy', 'sm') %> Print Card
+            🖨️ Print Card
           </a>
         </div>
 
