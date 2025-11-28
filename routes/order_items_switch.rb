@@ -134,16 +134,25 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore conferma: ' + e.message)}"
   end
 
-  # POST /orders/:order_id/items/:item_id/reset - Reset active action only (smart reset)
+  # POST /orders/:order_id/items/:item_id/reset - Reset specific action (preprint or print)
   post '/orders/:order_id/items/:item_id/reset' do
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
-
-    # Smart reset logic: Reset only the active action
-    # Priority: if print is active, reset print; otherwise reset preprint
     
-    if item.print_status != 'pending'
-      # Print is active (processing/completed/failed) - reset only print
+    reset_target = params[:reset_target]  # 'preprint' or 'print'
+
+    case reset_target
+    when 'preprint'
+      puts "[RESET_PREPRINT] Resetting preprint for item #{item.id}"
+      item.assets.where(asset_type: 'print_output').destroy_all
+      item.update(
+        preprint_status: 'pending',
+        preprint_job_id: nil,
+        preprint_preview_url: nil
+      )
+      message = "Pre-stampa+resettata"
+      
+    when 'print'
       puts "[RESET_PRINT] Resetting print for item #{item.id}"
       item.assets.where(asset_type: 'print_output').order(:created_at).last&.destroy
       item.update(
@@ -154,19 +163,9 @@ class PrintOrchestrator < Sinatra::Base
         print_completed_at: nil
       )
       message = "Stampa+resettata"
-    elsif item.preprint_status != 'pending'
-      # Preprint is active (processing/completed/failed) - reset only preprint
-      puts "[RESET_PREPRINT] Resetting preprint for item #{item.id}"
-      item.assets.where(asset_type: 'print_output').destroy_all
-      item.update(
-        preprint_status: 'pending',
-        preprint_job_id: nil,
-        preprint_preview_url: nil
-      )
-      message = "Pre-stampa+resettata"
+      
     else
-      # Both pending - nothing to reset
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Niente+da+resettare"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Target+reset+non+valido"
       return
     end
 
