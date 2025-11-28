@@ -183,6 +183,36 @@ class PrintOrchestrator < Sinatra::Base
     'Item not found'
   end
 
+  # GET /orders/:order_id/items/:item_id/preprint_result_section - Preprint result section (for polling)
+  get '/orders/:order_id/items/:item_id/preprint_result_section' do
+    @order = Order.find(params[:order_id])
+    @item = @order.order_items.includes(:assets).find(params[:item_id])
+    
+    # Return only the preprint result section HTML
+    print_output_asset = @item.assets.where(asset_type: 'print_output').first
+    
+    html = ""
+    if print_output_asset && @item.preprint_status == 'processing'
+      html = <<~HTML
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <a href="/file/#{print_output_asset.id}" class="btn btn-outline-secondary" target="_blank" title="Switch result file: #{print_output_asset.original_url}">
+            📄 Result
+          </a>
+          <form action="/orders/#{@order.id}/items/#{@item.id}/confirm_preprint" method="post" class="d-inline">
+            <button type="submit" class="btn btn-success">
+              ✓ Conferma Pre-stampa
+            </button>
+          </form>
+        </div>
+      HTML
+    end
+    
+    html
+  rescue ActiveRecord::RecordNotFound
+    status 404
+    ''
+  end
+
   # POST /orders/:id/download - Trigger asset download (web form)
   post '/orders/:id/download' do
     order = Order.find(params[:id])

@@ -429,3 +429,46 @@
     }
   });
 </script>
+
+<!-- Auto-refresh preprint result section -->
+<script>
+  function pollPreprintResult() {
+    const orderId = '<%= @order.id %>';
+    const itemId = '<%= @item.id %>';
+    const preprintResultSection = document.getElementById('preprint-result-section');
+    
+    if (!preprintResultSection) return; // Section doesn't exist
+    
+    const currentStatus = '<%= @item.preprint_status %>';
+    
+    // Only poll if preprint is in processing state
+    if (currentStatus !== 'processing') {
+      return;
+    }
+    
+    // Fetch updated HTML for the section
+    fetch(`/orders/${orderId}/items/${itemId}/preprint_result_section`)
+      .then(response => response.text())
+      .then(html => {
+        // Update the section with new HTML
+        preprintResultSection.innerHTML = html;
+        
+        // Check if file appeared by looking for the result link
+        const resultLink = preprintResultSection.querySelector('a[target="_blank"]');
+        if (resultLink) {
+          console.log('[POLLING] Preprint result file found!');
+        } else {
+          // File not yet available, continue polling
+          setTimeout(pollPreprintResult, 3000);
+        }
+      })
+      .catch(error => {
+        console.error('[POLLING] Error fetching preprint result:', error);
+        // Continue polling even on error
+        setTimeout(pollPreprintResult, 3000);
+      });
+  }
+  
+  // Start polling on page load
+  document.addEventListener('DOMContentLoaded', pollPreprintResult);
+</script>
