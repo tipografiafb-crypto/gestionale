@@ -1,14 +1,14 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1>📋 Ordini</h1>
+  <h1><i class="fas fa-list"></i> Ordini</h1>
   <div class="d-flex align-items-center gap-3">
     <div class="text-muted">
       Total: <%= @orders.count %> orders
       <% if @filter_order_code.present? || @filter_store.present? || @filter_order_date.present? %>
-        | <a href="/orders" class="text-reset">✕ Azzera filtri</a>
+        | <a href="/orders" class="text-reset"><i class="fas fa-times"></i> Azzera filtri</a>
       <% end %>
     </div>
     <a href="/orders/new" class="btn btn-primary">
-      ➕ Aggiungi Ordine
+      <i class="fas fa-plus"></i> Aggiungi Ordine
     </a>
   </div>
 </div>
@@ -26,17 +26,17 @@
   <ul class="nav nav-tabs" role="tablist">
     <li class="nav-item" role="presentation">
       <button class="nav-link active" id="in-progress-tab" data-bs-toggle="tab" data-bs-target="#in-progress" type="button" role="tab" aria-controls="in-progress" aria-selected="true">
-        ⏳ In Lavorazione <span class="badge bg-primary"><%= in_progress.count %></span>
+        <i class="fas fa-hourglass-half"></i> In Lavorazione <span class="badge bg-primary"><%= in_progress.count %></span>
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab" aria-controls="completed" aria-selected="false">
-        ✅ Completati <span class="badge bg-success"><%= completed.count %></span>
+        <i class="fas fa-check-circle"></i> Completati <span class="badge bg-success"><%= completed.count %></span>
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" id="errors-tab" data-bs-toggle="tab" data-bs-target="#errors" type="button" role="tab" aria-controls="errors" aria-selected="false">
-        ⚠️ Errori <span class="badge bg-danger"><%= @import_errors.count %></span>
+        <i class="fas fa-exclamation-triangle"></i> Errori <span class="badge bg-danger"><%= @import_errors.count %></span>
       </button>
     </li>
   </ul>
@@ -100,20 +100,20 @@
                   <td>
                     <%= order.assets.count %> total
                     <% if order.assets_downloaded? %>
-                      <span class="badge bg-success">✓</span>
+                      <span class="badge bg-success"><i class="fas fa-check"></i></span>
                     <% else %>
                       <span class="badge bg-warning text-dark">pending</span>
                     <% end %>
                   </td>
                   <td>
                     <div style="display: flex; gap: 4px;">
-                      <a href="/orders/<%= order.id %>" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 14px;" title="Visualizza">👁️</a>
+                      <a href="/orders/<%= order.id %>" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 14px;" title="Visualizza"><i class="fas fa-eye"></i></a>
                       <form action="/orders/<%= order.id %>/duplicate" method="post" class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-outline-success" style="padding: 2px 6px; font-size: 14px;" title="Duplica">📋</button>
+                        <button type="submit" class="btn btn-sm btn-outline-success" style="padding: 2px 6px; font-size: 14px;" title="Duplica"><i class="fas fa-copy"></i></button>
                       </form>
                       <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
                         <input type="hidden" name="_method" value="DELETE">
-                        <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella">🗑</button>
+                        <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella"><i class="fas fa-trash"></i></button>
                       </form>
                     </div>
                   </td>
@@ -183,20 +183,20 @@
                   <td>
                     <%= order.assets.count %> total
                     <% if order.assets_downloaded? %>
-                      <span class="badge bg-success">✓</span>
+                      <span class="badge bg-success"><i class="fas fa-check"></i></span>
                     <% else %>
                       <span class="badge bg-warning text-dark">pending</span>
                     <% end %>
                   </td>
                   <td>
                     <div style="display: flex; gap: 4px;">
-                      <a href="/orders/<%= order.id %>" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 14px;" title="Visualizza">👁️</a>
+                      <a href="/orders/<%= order.id %>" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 14px;" title="Visualizza"><i class="fas fa-eye"></i></a>
                       <form action="/orders/<%= order.id %>/duplicate" method="post" class="d-inline">
-                        <button type="submit" class="btn btn-sm btn-outline-success" style="padding: 2px 6px; font-size: 14px;" title="Duplica">📋</button>
+                        <button type="submit" class="btn btn-sm btn-outline-success" style="padding: 2px 6px; font-size: 14px;" title="Duplica"><i class="fas fa-copy"></i></button>
                       </form>
                       <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
                         <input type="hidden" name="_method" value="DELETE">
-                        <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella">🗑</button>
+                        <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella"><i class="fas fa-trash"></i></button>
                       </form>
                     </div>
                   </td>
@@ -211,13 +211,13 @@
     <!-- Errors Tab -->
     <div class="tab-pane fade" id="errors" role="tabpanel" aria-labelledby="errors-tab">
       <% if @import_errors.empty? %>
-        <div class="alert alert-success">✓ Nessun errore di importazione</div>
+        <div class="alert alert-success"><i class="fas fa-check"></i> Nessun errore di importazione</div>
       <% else %>
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div></div>
           <form action="/import_errors/clear_all" method="post" class="d-inline" onsubmit="return confirm('Cancellare TUTTI gli errori? Questa azione non può essere annullata.');">
             <button type="submit" class="btn btn-sm btn-danger" style="padding: 4px 12px;">
-              🗑️ Cancella tutti gli errori
+              <i class="fas fa-trash"></i> Cancella tutti gli errori
             </button>
           </form>
         </div>
@@ -243,7 +243,7 @@
                 <td></td>
                 <td></td>
                 <td>
-                    <a href="/orders" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 12px;">✕ Reset</a>
+                    <a href="/orders" class="btn btn-sm btn-outline-secondary" style="padding: 2px 6px; font-size: 12px;"><i class="fas fa-times"></i> Reset</a>
                   </form>
                 </td>
               </tr>
@@ -259,7 +259,7 @@
                   </td>
                   <td>
                     <form action="/import_errors/<%= error.id %>/delete" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo errore?');">
-                      <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella">🗑</button>
+                      <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 6px; font-size: 14px;" title="Cancella"><i class="fas fa-trash"></i></button>
                     </form>
                   </td>
                 </tr>

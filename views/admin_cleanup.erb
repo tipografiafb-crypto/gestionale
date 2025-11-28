@@ -10,7 +10,7 @@
 
 <div class="row mb-4">
   <div class="col-md-8">
-    <h1>🧹 Pulizia File di Stampa</h1>
+    <h1><i class="fas fa-broom"></i> Pulizia File di Stampa</h1>
   </div>
 </div>
 
@@ -26,7 +26,7 @@
   <div class="col-md-6 mb-4">
     <div class="card">
       <div class="card-header">
-        <strong>📊 Statistiche Storage</strong>
+        <strong><i class="fas fa-chart-bar"></i> Statistiche Storage</strong>
       </div>
       <div class="card-body">
         <table class="table table-sm table-borderless">
@@ -59,13 +59,13 @@
   <div class="col-md-6 mb-4">
     <div class="card">
       <div class="card-header">
-        <strong>⏰ Pulizia Automatica</strong>
+        <strong><i class="fas fa-clock"></i> Pulizia Automatica</strong>
       </div>
       <div class="card-body">
         <p class="text-muted">File cancellati automaticamente ogni notte dopo <%= @retention_days %> giorni.</p>
         <form action="/admin/cleanup/auto" method="post">
           <button type="submit" class="btn btn-primary w-100" onclick="return confirm('Esegui pulizia automatica ORA (file > <%= @retention_days %> giorni)?')">
-            ▶️ Esegui Pulizia ORA
+            <i class="fas fa-play"></i> Esegui Pulizia ORA
           </button>
         </form>
         <small class="text-muted d-block mt-2">
@@ -79,7 +79,7 @@
 <!-- Pulizia Manuale per Mese -->
 <div class="card mb-4">
   <div class="card-header">
-    <strong>📅 Pulizia Manuale per Mese</strong>
+    <strong><i class="fas fa-calendar"></i> Pulizia Manuale per Mese</strong>
   </div>
   <div class="card-body">
     <p class="text-muted mb-3">Seleziona un mese per visualizzare i file e decidere se eliminarli.</p>
@@ -103,7 +103,7 @@
       </div>
       <div class="col-md-6">
         <label class="form-label">&nbsp;</label>
-        <button type="submit" class="btn btn-outline-primary w-100">🔍 Anteprima</button>
+        <button type="submit" class="btn btn-outline-primary w-100"><i class="fas fa-search"></i> Anteprima</button>
       </div>
     </form>
 
@@ -113,7 +113,7 @@
       
       <% if @preview_assets.count > 0 %>
         <div class="alert alert-warning">
-          ⚠️ Trovati <strong><%= @preview_assets.count %></strong> file da eliminare
+          <i class="fas fa-exclamation-circle"></i> Trovati <strong><%= @preview_assets.count %></strong> file da eliminare
           (<strong><%= @preview_space %></strong> di spazio liberato)
         </div>
 
@@ -154,12 +154,12 @@
           <input type="hidden" name="year" value="<%= params[:year] %>">
           <input type="hidden" name="month" value="<%= params[:month] %>">
           <button type="submit" class="btn btn-danger">
-            🗑️ Elimina <%= @preview_assets.count %> File
+            <i class="fas fa-trash"></i> Elimina <%= @preview_assets.count %> File
           </button>
           <a href="/admin/cleanup" class="btn btn-secondary">Annulla</a>
         </form>
       <% elsif params[:month].present? %>
-        <div class="alert alert-info">ℹ️ Nessun file trovato per questo mese</div>
+        <div class="alert alert-info"><i class="fas fa-info-circle"></i> Nessun file trovato per questo mese</div>
       <% end %>
     <% end %>
   </div>
