@@ -189,10 +189,11 @@ class PrintOrchestrator < Sinatra::Base
     @item = @order.order_items.includes(:assets).find(params[:item_id])
     
     # Return only the preprint result section HTML
+    # Only show if Switch has actually sent the file (Asset exists)
     print_output_asset = @item.assets.where(asset_type: 'print_output').first
     
     html = ""
-    if print_output_asset && @item.preprint_status == 'processing'
+    if print_output_asset
       html = <<~HTML
         <div style="display: flex; gap: 10px; align-items: center;">
           <a href="/file/#{print_output_asset.id}" class="btn btn-outline-secondary" target="_blank" title="Switch result file: #{print_output_asset.original_url}">

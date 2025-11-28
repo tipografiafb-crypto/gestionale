@@ -211,21 +211,9 @@
           </a>
         </div>
 
-        <!-- Pre-stampa Result Section (NEW LINE) -->
+        <!-- Pre-stampa Result Section (will be populated by polling) -->
         <div id="preprint-result-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
-          <% print_output_asset = @item.assets.where(asset_type: 'print_output').first %>
-          <% if print_output_asset && @item.preprint_status == 'processing' %>
-            <div style="display: flex; gap: 10px; align-items: center;">
-              <a href="/file/<%= print_output_asset.id %>" class="btn btn-outline-secondary" target="_blank" title="Switch result file: <%= print_output_asset.original_url %>">
-                📄 Result
-              </a>
-              <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/confirm_preprint" method="post" class="d-inline">
-                <button type="submit" class="btn btn-success">
-                  ✓ Conferma Pre-stampa
-                </button>
-              </form>
-            </div>
-          <% end %>
+          <!-- Initially empty, populated by polling when Switch sends file -->
         </div>
       </div>
     </div>
@@ -450,16 +438,13 @@
     fetch(`/orders/${orderId}/items/${itemId}/preprint_result_section`)
       .then(response => response.text())
       .then(html => {
-        // Update the section with new HTML
-        preprintResultSection.innerHTML = html;
-        
-        // Check if file appeared by looking for the result link
-        const resultLink = preprintResultSection.querySelector('a[target="_blank"]');
-        if (resultLink) {
-          console.log('[POLLING] Preprint result file found!');
-        } else {
-          // File not yet available, continue polling
+        if (html.trim() === '') {
+          // File not yet available from Switch, continue polling
           setTimeout(pollPreprintResult, 3000);
+        } else {
+          // Switch has sent the file! Update the section
+          preprintResultSection.innerHTML = html;
+          console.log('[POLLING] Switch file received and displayed!');
         }
       })
       .catch(error => {
