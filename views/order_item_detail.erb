@@ -224,6 +224,8 @@
                 <div class="form-check mb-2">
                   <input class="form-check-input" type="radio" name="print_flow_id" 
                          value="<%= flow.id %>" id="flow_<%= flow.id %>"
+                         data-flow-id="<%= flow.id %>"
+                         onchange="updateAzionPhotoshopOptions(this)"
                          <%= 'checked' if flow.id == @item.product&.default_print_flow_id %>>
                   <label class="form-check-label" for="flow_<%= flow.id %>">
                     <strong><%= flow.name %></strong>
@@ -246,22 +248,58 @@
             <small class="text-muted">Positive or negative value to send to Switch</small>
           </div>
 
-          <% selected_flow = @item.available_print_flows.first %>
-          <% if selected_flow&.azione_photoshop_enabled && selected_flow.azione_photoshop_options_list.any? %>
-            <div class="mb-3">
-              <label for="azione_photoshop" class="form-label"><strong>🎨 Azione Photoshop</strong></label>
-              <select class="form-select" id="azione_photoshop" name="azione_photoshop">
-                <option value="">-- Seleziona azione --</option>
-                <% selected_flow.azione_photoshop_options_list.each do |option| %>
-                  <option value="<%= option %>" 
-                          <%= 'selected' if option == selected_flow.default_azione_photoshop %>>
-                    <%= option %>
-                  </option>
-                <% end %>
-              </select>
-              <small class="text-muted">Valore da inviare a Switch</small>
-            </div>
-          <% end %>
+          <div id="azione-photoshop-container" class="mb-3" style="display: none;">
+            <label for="azione_photoshop" class="form-label"><strong>🎨 Azione Photoshop</strong></label>
+            <select class="form-select" id="azione_photoshop" name="azione_photoshop">
+              <option value="">-- Seleziona azione --</option>
+            </select>
+            <small class="text-muted">Valore da inviare a Switch</small>
+          </div>
+
+          <script>
+            function updateAzionPhotoshopOptions(radioElement) {
+              const flowId = radioElement.value;
+              const container = document.getElementById('azione-photoshop-container');
+              const select = document.getElementById('azione_photoshop');
+              
+              if (!flowId) {
+                container.style.display = 'none';
+                return;
+              }
+              
+              // Fetch azione photoshop options for this flow
+              fetch(`/api/print_flows/${flowId}/azione_photoshop_options`)
+                .then(response => response.json())
+                .then(data => {
+                  select.innerHTML = '<option value="">-- Seleziona azione --</option>';
+                  
+                  if (data.enabled && data.options.length > 0) {
+                    data.options.forEach(option => {
+                      const opt = document.createElement('option');
+                      opt.value = option;
+                      opt.textContent = option;
+                      if (option === data.default) {
+                        opt.selected = true;
+                      }
+                      select.appendChild(opt);
+                    });
+                    container.style.display = 'block';
+                  } else {
+                    container.style.display = 'none';
+                  }
+                })
+                .catch(error => {
+                  console.error('Error loading azione photoshop options:', error);
+                  container.style.display = 'none';
+                });
+            }
+            
+            // Initialize on page load
+            const checkedFlow = document.querySelector('input[name="print_flow_id"]:checked');
+            if (checkedFlow) {
+              updateAzionPhotoshopOptions(checkedFlow);
+            }
+          </script>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
