@@ -243,6 +243,14 @@ class PrintOrchestrator < Sinatra::Base
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
 
+    # Get selected print machine
+    print_machine_id = params[:print_machine_id]
+    print_machine = PrintMachine.find_by(id: print_machine_id) if print_machine_id.present?
+    
+    unless print_machine
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Stampante+non+selezionata"
+    end
+
     # Get print flow and label webhook
     print_flow = item.print_flow
     unless print_flow&.label_webhook
@@ -274,6 +282,7 @@ class PrintOrchestrator < Sinatra::Base
           url: "#{server_url}/api/assets/#{print_asset.id}/download",
           widegest_url: "#{server_url}/api/v1/reports_create",
           filename: item.switch_filename_for_asset(print_asset) || "#{order.external_order_code.downcase}-#{item.id}.png",
+          nome_macchina: print_machine.name,
           quantita: item.quantity,
           materiale: product&.notes || 'N/A',
           campi_custom: {},

@@ -171,11 +171,10 @@
 
           <!-- Etichetta -->
           <% if @item.print_flow&.label_webhook %>
-            <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/send_label" method="post" class="d-inline">
-              <button type="submit" class="btn btn-outline-primary">
-                🏷️ Etichetta
-              </button>
-            </form>
+            <button type="button" class="btn btn-outline-primary" 
+                    data-bs-toggle="modal" data-bs-target="#labelMachineSelectModal">
+              🏷️ Etichetta
+            </button>
           <% end %>
 
           <!-- Reset -->
@@ -284,6 +283,40 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-success">✅ Send to Print</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Select Machine for Label -->
+<div class="modal fade" id="labelMachineSelectModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Choose Printer for Label</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/send_label" method="post">
+        <div class="modal-body">
+          <p class="text-muted mb-3">Select printer for this label:</p>
+          <% available_machines.each do |machine| %>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="print_machine_id" 
+                     value="<%= machine.id %>" id="label_machine_<%= machine.id %>"
+                     <%= 'checked' if available_machines.first.id == machine.id %>>
+              <label class="form-check-label" for="label_machine_<%= machine.id %>">
+                <strong><%= machine.name %></strong>
+                <% if machine.description %>
+                  <br><small class="text-muted"><%= machine.description %></small>
+                <% end %>
+              </label>
+            </div>
+          <% end %>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">🏷️ Send Label</button>
         </div>
       </form>
     </div>
