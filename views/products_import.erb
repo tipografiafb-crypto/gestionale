@@ -51,15 +51,30 @@
                 <td>true o false (default: true)</td>
                 <td><span class="badge bg-info">No</span></td>
               </tr>
+              <tr>
+                <td><code>print_flow_names</code></td>
+                <td>Nome/i dei flussi di stampa (separati da | se multipli, es: "Flusso A|Flusso B")</td>
+                <td><span class="badge bg-info">No</span></td>
+              </tr>
+              <tr>
+                <td><code>default_print_flow_name</code></td>
+                <td>Nome del flusso di stampa di default (deve essere uno dei flussi listed in print_flow_names)</td>
+                <td><span class="badge bg-info">No</span></td>
+              </tr>
             </tbody>
           </table>
 
           <div class="alert alert-info mt-3">
-            <strong>📝 Esempio CSV:</strong>
+            <strong>📝 Esempio CSV (semplice):</strong>
             <pre>sku,name,notes,category_name,active
 TPH001-71,Plettri Flow,Plettri piccoli,Plettri,true
 TPH205-88,Maglietta,T-shirt cotone,Abbigliamento,true
 TPH500,Tazza,Stampa ceramica,Tazze,true</pre>
+            
+            <strong>📝 Esempio CSV (con flussi di stampa):</strong>
+            <pre>sku,name,notes,category_name,active,print_flow_names,default_print_flow_name
+TPH001-71,Plettri Flow,Plettri piccoli,Plettri,true,Flusso A|Flusso B,Flusso A
+TPH205-88,Maglietta,T-shirt cotone,Abbigliamento,true,Flusso C,Flusso C</pre>
           </div>
 
           <p class="text-muted small mt-3">

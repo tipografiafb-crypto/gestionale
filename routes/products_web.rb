@@ -33,6 +33,8 @@ class PrintOrchestrator < Sinatra::Base
           notes = row['notes']&.strip
           category_name = row['category_name']&.strip
           active = row['active']&.strip&.downcase != 'false'
+          print_flow_names = row['print_flow_names']&.strip
+          default_print_flow_name = row['default_print_flow_name']&.strip
 
           # Validate required fields
           unless sku.present?
@@ -63,16 +65,50 @@ class PrintOrchestrator < Sinatra::Base
             end
           end
 
+          # Find print flows if provided
+          print_flows = []
+          default_print_flow = nil
+          
+          if print_flow_names.present?
+            flow_names_list = print_flow_names.split('|').map(&:strip)
+            flow_names_list.each do |flow_name|
+              flow = PrintFlow.find_by(name: flow_name)
+              if flow
+                print_flows << flow
+              else
+                error_details << "Riga #{line_num} (#{sku}): Flusso di stampa '#{flow_name}' non trovato"
+              end
+            end
+            
+            # Find default print flow if specified
+            if default_print_flow_name.present?
+              default_print_flow = PrintFlow.find_by(name: default_print_flow_name)
+              unless default_print_flow
+                error_details << "Riga #{line_num} (#{sku}): Flusso di stampa default '#{default_print_flow_name}' non trovato"
+              end
+            elsif print_flows.any?
+              # Use first flow as default if not specified
+              default_print_flow = print_flows.first
+            end
+          end
+
           # Create product
           product = Product.new(
             sku: sku,
             name: name,
             notes: notes,
             product_category_id: category&.id,
-            active: active
+            active: active,
+            default_print_flow_id: default_print_flow&.id
           )
 
           if product.save
+            # Associate print flows if provided
+            if print_flows.any?
+              print_flows.each do |flow|
+                ProductPrintFlow.create(product_id: product.id, print_flow_id: flow.id)
+              end
+            end
             results[:successful] += 1
           else
             error_details << "Riga #{line_num} (#{sku}): #{product.errors.full_messages.join(', ')}"
@@ -102,10 +138,10 @@ class PrintOrchestrator < Sinatra::Base
     content_type 'text/csv'
     attachment 'prodotti_template.csv'
 
-    csv_data = "sku,name,notes,category_name,active\n"
-    csv_data += "TPH001-71,Plettri Flow,Plettri piccoli,Plettri,true\n"
-    csv_data += "TPH205-88,Maglietta,T-shirt cotone,Abbigliamento,true\n"
-    csv_data += "TPH500,Tazza,Stampa ceramica,Tazze,true\n"
+    csv_data = "sku,name,notes,category_name,active,print_flow_names,default_print_flow_name\n"
+    csv_data += "TPH001-71,Plettri Flow,Plettri piccoli,Plettri,true,Flusso A|Flusso B,Flusso A\n"
+    csv_data += "TPH205-88,Maglietta,T-shirt cotone,Abbigliamento,true,Flusso C,Flusso C\n"
+    csv_data += "TPH500,Tazza,Stampa ceramica,Tazze,true,,\n"
 
     csv_data
   end
