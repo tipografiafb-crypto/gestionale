@@ -94,6 +94,10 @@ class PrintOrchestrator < Sinatra::Base
           File.open(full_path, 'wb') { |f| f.write(pdf_data) }
           puts "[SWITCH_REPORT] PDF decoded and saved: #{saved_file_path}"
           
+          # Delete previous Switch output files for this item (keep only the latest)
+          item.assets.where(asset_type: 'print_output').destroy_all
+          puts "[SWITCH_REPORT] Deleted previous print_output assets for item #{item.id}"
+          
           # Create Asset record for preview display
           asset = item.assets.build(
             original_url: filename,

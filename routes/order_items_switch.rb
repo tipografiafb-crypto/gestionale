@@ -139,6 +139,10 @@ class PrintOrchestrator < Sinatra::Base
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
 
+    # Delete all previous Switch output files
+    item.assets.where(asset_type: 'print_output').destroy_all
+    puts "[RESET] Deleted print_output assets for item #{item.id}"
+
     item.update(
       preprint_status: 'pending',
       preprint_job_id: nil,
