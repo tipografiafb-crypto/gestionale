@@ -148,8 +148,7 @@
         <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px;">
           <!-- Pre-stampa -->
           <button type="button" class="btn btn-outline-warning" 
-                  <%= 'disabled' unless @item.can_send_to_preprint? %>
-                  title="<%= @item.can_send_to_preprint? ? 'Configure and send to preprint' : 'Download images first' %>"
+                  title="Configure and send to preprint"
                   data-bs-toggle="modal" data-bs-target="#flowSelectModal">
             🖨️ Pre-stampa
             <% if @item.preprint_status != 'pending' %>
@@ -161,7 +160,6 @@
 
           <!-- Stampa -->
           <button type="button" class="btn btn-outline-success" 
-                  <%= 'disabled' unless @item.can_send_to_print? %>
                   data-bs-toggle="modal" data-bs-target="#machineSelectModal">
             ✅ Stampa
             <% if @item.print_status != 'pending' %>
