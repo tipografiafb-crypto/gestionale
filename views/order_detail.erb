@@ -15,7 +15,7 @@
     <form action="/orders/<%= @order.id %>" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro? Eliminerai completamente questo ordine.');">
       <input type="hidden" name="_method" value="DELETE">
       <button type="submit" class="btn btn-danger">
-        🗑 Delete
+        <i class="fas fa-trash"></i> Delete
       </button>
     </form>
   </div>
@@ -117,18 +117,18 @@
           <td><%= item.quantity %></td>
           <td>
             <% if item.preprint_completed_at && item.print_completed_at %>
-              <span class="badge bg-success">✓ Completed</span>
+              <span class="badge bg-success"><i class="fas fa-check"></i> Completed</span>
             <% elsif item.preprint_status == 'failed' || item.print_status == 'failed' %>
               <span class="badge bg-danger">✗ Failed</span>
             <% elsif item.preprint_status == 'processing' || item.print_status == 'processing' %>
-              <span class="badge bg-warning text-dark">⏳ Processing</span>
+              <span class="badge bg-warning text-dark"><i class="fas fa-hourglass-half"></i> Processing</span>
             <% else %>
               <span class="badge bg-secondary">Pending</span>
             <% end %>
           </td>
           <td>
             <a href="/orders/<%= @order.id %>/items/<%= item.id %>" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();">
-              📋 Open Job
+              <i class="fas fa-copy"></i> Open Job
             </a>
           </td>
         </tr>

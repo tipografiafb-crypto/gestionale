@@ -1,7 +1,7 @@
 <div class="container mt-4">
   <div class="row">
     <div class="col-md-8">
-      <h1><%= @product ? '✎ Modifica Prodotto' : '➕ Nuovo Prodotto' %></h1>
+      <h1><%= @product ? '✎ Modifica Prodotto' : '<i class="fas fa-plus"></i> Nuovo Prodotto' %></h1>
     </div>
     <div class="col-md-4 text-end">
       <a href="/products" class="btn btn-secondary">← Indietro</a>
@@ -108,7 +108,7 @@
 
       <div class="card-footer bg-light">
         <button type="submit" class="btn btn-primary">
-          <%= @product ? '💾 Salva Modifiche' : '➕ Crea Prodotto' %>
+          <%= @product ? '💾 Salva Modifiche' : '<i class="fas fa-plus"></i> Crea Prodotto' %>
         </button>
         <a href="/products" class="btn btn-outline-secondary">Annulla</a>
       </div>

@@ -1,7 +1,7 @@
 <div class="container mt-4">
   <div class="row justify-content-center">
     <div class="col-md-6">
-      <h2><%= @machine.new_record? ? '➕ Nuova Macchina' : '✏️ Modifica Macchina' %></h2>
+      <h2><%= @machine.new_record? ? '<i class="fas fa-plus"></i> Nuova Macchina' : '<i class="fas fa-edit"></i> Modifica Macchina' %></h2>
 
       <% if @error_message %>
         <div class="alert alert-danger"><%= @error_message %></div>

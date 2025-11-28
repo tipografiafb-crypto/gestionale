@@ -79,7 +79,7 @@
         <span style="font-size: 18px;">🖨️</span>
         <div>
           <% if @item.preprint_completed_at %>
-            <span class="badge bg-success">✓</span>
+            <span class="badge bg-success"><i class="fas fa-check"></i></span>
             <small class="text-muted"><%= @item.preprint_completed_at.strftime('%d-%m-%y %H:%M') %></small>
           <% elsif @item.preprint_status == 'failed' %>
             <span class="badge bg-danger">✗</span>
@@ -89,10 +89,10 @@
         </div>
       </div>
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 18px;">✅</span>
+        <span style="font-size: 18px;"><i class="fas fa-check-circle"></i></span>
         <div>
           <% if @item.print_completed_at %>
-            <span class="badge bg-success">✓</span>
+            <span class="badge bg-success"><i class="fas fa-check"></i></span>
             <small class="text-muted"><%= @item.print_completed_at.strftime('%d-%m-%y %H:%M') %></small>
           <% elsif @item.print_status == 'failed' %>
             <span class="badge bg-danger">✗</span>
@@ -339,7 +339,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-success">✅ Send to Print</button>
+          <button type="submit" class="btn btn-success"><i class="fas fa-check-circle"></i> Send to Print</button>
         </div>
       </form>
     </div>

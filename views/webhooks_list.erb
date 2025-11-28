@@ -1,17 +1,17 @@
 <div class="container mt-4">
   <div class="row mb-4">
     <div class="col-md-8">
-      <h1>🔗 Switch Webhooks</h1>
+      <h1><i class="fas fa-link"></i> Switch Webhooks</h1>
       <p class="text-muted">Registra i tuoi endpoint Switch qui</p>
     </div>
     <div class="col-md-4 text-end">
-      <a href="/webhooks/new" class="btn btn-primary">➕ Nuovo Webhook</a>
+      <a href="/webhooks/new" class="btn btn-primary"><i class="fas fa-plus"></i> Nuovo Webhook</a>
     </div>
   </div>
 
   <% if params[:success] %>
     <div class="alert alert-success alert-dismissible fade show" role="alert">
-      ✓ Webhook <%= params[:success] %> con successo!
+      <i class="fas fa-check"></i> Webhook <%= params[:success] %> con successo!
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   <% end %>
@@ -49,7 +49,7 @@
               </td>
               <td>
                 <a href="/webhooks/<%= webhook.id %>/edit" class="btn btn-sm btn-outline-primary">✎ Modifica</a>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteWebhook(<%= webhook.id %>)">🗑 Elimina</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteWebhook(<%= webhook.id %>)"><i class="fas fa-trash"></i> Elimina</button>
               </td>
             </tr>
           <% end %>

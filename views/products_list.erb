@@ -1,19 +1,19 @@
 <div class="container mt-4">
   <div class="row mb-4">
     <div class="col-md-8">
-      <h1>📦 Prodotti (SKU)</h1>
+      <h1><i class="fas fa-cube"></i> Prodotti (SKU)</h1>
       <p class="text-muted">Configura il routing dei prodotti verso i flussi di stampa</p>
     </div>
     <div class="col-md-4 text-end">
       <a href="/products/export" class="btn btn-info">📤 Esporta CSV</a>
-      <a href="/products/import" class="btn btn-success">📥 Importa da CSV</a>
-      <a href="/products/new" class="btn btn-primary">➕ Nuovo Prodotto</a>
+      <a href="/products/import" class="btn btn-success"><i class="fas fa-download"></i> Importa da CSV</a>
+      <a href="/products/new" class="btn btn-primary"><i class="fas fa-plus"></i> Nuovo Prodotto</a>
     </div>
   </div>
 
   <% if params[:success] %>
     <div class="alert alert-success alert-dismissible fade show" role="alert">
-      ✓ Prodotto <%= params[:success] %> con successo!
+      <i class="fas fa-check"></i> Prodotto <%= params[:success] %> con successo!
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   <% end %>
@@ -23,9 +23,9 @@
     <div class="col-md-12">
       <form method="get" action="/products" class="d-flex gap-2">
         <input type="text" name="search" class="form-control" placeholder="Cerca per SKU, nome prodotto o categoria..." value="<%= @search_term %>">
-        <button type="submit" class="btn btn-outline-secondary">🔍 Cerca</button>
+        <button type="submit" class="btn btn-outline-secondary"><i class="fas fa-search"></i> Cerca</button>
         <% if @search_term.present? %>
-          <a href="/products" class="btn btn-outline-secondary">✕ Azzera</a>
+          <a href="/products" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Azzera</a>
         <% end %>
       </form>
     </div>
@@ -79,15 +79,15 @@
               </td>
               <td>
                 <% if product.active %>
-                  <span class="badge bg-success">✓ Attivo</span>
+                  <span class="badge bg-success"><i class="fas fa-check"></i> Attivo</span>
                 <% else %>
                   <span class="badge bg-danger">✗ Inattivo</span>
                 <% end %>
               </td>
               <td>
                 <a href="/products/<%= product.id %>/edit" class="btn btn-sm btn-outline-primary">✎ Modifica</a>
-                <button class="btn btn-sm btn-outline-info" onclick="duplicateProduct(<%= product.id %>)">📋 Duplica</button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(<%= product.id %>)">🗑 Elimina</button>
+                <button class="btn btn-sm btn-outline-info" onclick="duplicateProduct(<%= product.id %>)"><i class="fas fa-copy"></i> Duplica</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(<%= product.id %>)"><i class="fas fa-trash"></i> Elimina</button>
               </td>
             </tr>
           <% end %>

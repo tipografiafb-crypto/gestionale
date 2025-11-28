@@ -1,7 +1,7 @@
 <div class="container mt-4">
   <div class="row">
     <div class="col-md-8">
-      <h1><%= @webhook ? '✎ Modifica Webhook' : '➕ Nuovo Webhook' %></h1>
+      <h1><%= @webhook ? '✎ Modifica Webhook' : '<i class="fas fa-plus"></i> Nuovo Webhook' %></h1>
     </div>
     <div class="col-md-4 text-end">
       <a href="/webhooks" class="btn btn-secondary">← Indietro</a>
@@ -51,11 +51,11 @@
 
       <div class="card-footer bg-light">
         <button type="submit" class="btn btn-primary">
-          <%= @webhook ? '💾 Salva Modifiche' : '➕ Crea Webhook' %>
+          <%= @webhook ? '💾 Salva Modifiche' : '<i class="fas fa-plus"></i> Crea Webhook' %>
         </button>
         <a href="/webhooks" class="btn btn-outline-secondary">Annulla</a>
         <% if @webhook %>
-          <button type="button" class="btn btn-outline-danger float-end" onclick="deleteWebhookForm()">🗑 Elimina</button>
+          <button type="button" class="btn btn-outline-danger float-end" onclick="deleteWebhookForm()"><i class="fas fa-trash"></i> Elimina</button>
         <% end %>
       </div>
     </div>
