@@ -215,6 +215,11 @@
         <div id="preprint-result-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
           <!-- Populated by polling: shows processing bar until Switch sends file, then shows result button -->
         </div>
+
+        <!-- Stampa Result Section -->
+        <div id="print-result-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+          <!-- Populated by polling: shows processing bar until Switch sends file, then shows result button -->
+        </div>
       </div>
     </div>
   </div>
@@ -506,6 +511,61 @@
       pollingInterval = setInterval(function() {
         pollPreprintResult();
         checkStatusAndContinuePolling();
+      }, 3000);
+    }
+  });
+
+  // Poll print result section
+  let printPollingInterval = null;
+  
+  function pollPrintResult() {
+    const orderId = '<%= @order.id %>';
+    const itemId = '<%= @item.id %>';
+    const printResultSection = document.getElementById('print-result-section');
+    
+    if (!printResultSection) return;
+    
+    fetch(`/orders/${orderId}/items/${itemId}/print_result_section`)
+      .then(response => response.text())
+      .then(html => {
+        printResultSection.innerHTML = html;
+      })
+      .catch(error => {
+        console.error('[POLLING] Error fetching print result:', error);
+      });
+  }
+  
+  function checkPrintStatusAndContinuePolling() {
+    const orderId = '<%= @order.id %>';
+    const itemId = '<%= @item.id %>';
+    
+    fetch(`/orders/${orderId}/items/${itemId}`)
+      .then(response => response.text())
+      .then(html => {
+        const hasProcessingOrResult = html.includes('Elaborando') || html.includes('print_result');
+        return hasProcessingOrResult;
+      })
+      .catch(error => {
+        console.error('[POLLING] Error checking print status:', error);
+        return true;
+      })
+      .then(shouldContinue => {
+        if (!shouldContinue && printPollingInterval) {
+          clearInterval(printPollingInterval);
+          printPollingInterval = null;
+          console.log('[POLLING] Print polling stopped');
+        }
+      });
+  }
+  
+  // Start print polling if needed
+  document.addEventListener('DOMContentLoaded', function() {
+    const initialPrintStatus = '<%= @item.print_status %>';
+    if (initialPrintStatus !== 'pending') {
+      pollPrintResult();
+      printPollingInterval = setInterval(function() {
+        pollPrintResult();
+        checkPrintStatusAndContinuePolling();
       }, 3000);
     }
   });

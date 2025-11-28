@@ -239,6 +239,63 @@ class PrintOrchestrator < Sinatra::Base
     ''
   end
 
+  # GET /orders/:order_id/items/:item_id/print_result_section - Print result section (for polling)
+  get '/orders/:order_id/items/:item_id/print_result_section' do
+    @order = Order.find(params[:order_id])
+    @item = @order.order_items.includes(:assets).find(params[:item_id])
+    
+    # Get the Switch output file from print phase (asset_type: 'print_result' or similar)
+    # For now, we check if a new print_output was created after print_status changed to processing
+    print_result_asset = @item.assets.where(asset_type: 'print_output').order(:created_at).last
+    
+    html = ""
+    
+    # If print is processing but no result file yet, show processing bar
+    if @item.print_status == 'processing' && !print_result_asset
+      html = <<~HTML
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 14px; font-weight: bold;">🔄 Elaborando in Switch...</span>
+              <div style="flex: 1; height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden;">
+                <div style="height: 100%; background: linear-gradient(90deg, #0d6efd, #0dcaf0); animation: progress 1.5s infinite; width: 30%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      HTML
+    # If file exists (from Switch), show result button and confirm button
+    elsif print_result_asset && @item.print_status == 'processing'
+      html = <<~HTML
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <a href="/file/#{print_result_asset.id}" class="btn btn-outline-secondary" target="_blank" title="Switch result file: #{print_result_asset.original_url}">
+            📄 Result
+          </a>
+          <form action="/orders/#{@order.id}/items/#{@item.id}/confirm_print" method="post" class="d-inline">
+            <button type="submit" class="btn btn-success">
+              ✓ Conferma Stampa
+            </button>
+          </form>
+        </div>
+      HTML
+    # If print is completed and file exists, show only result button (user can still view file)
+    elsif print_result_asset && @item.print_status == 'completed'
+      html = <<~HTML
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <a href="/file/#{print_result_asset.id}" class="btn btn-outline-secondary" target="_blank" title="Switch result file: #{print_result_asset.original_url}">
+            📄 Result
+          </a>
+          <span style="font-size: 12px; color: #6c757d;">✓ Stampa confermata</span>
+        </div>
+      HTML
+    end
+    
+    html
+  rescue ActiveRecord::RecordNotFound
+    status 404
+    ''
+  end
+
   # POST /orders/:id/download - Trigger asset download (web form)
   post '/orders/:id/download' do
     order = Order.find(params[:id])
