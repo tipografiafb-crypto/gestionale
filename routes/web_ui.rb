@@ -460,12 +460,12 @@ class PrintOrchestrator < Sinatra::Base
       end
       
       item.update(reset_data)
-      redirect "/orders/#{order.id}?msg=success&text=Item%20reimpostato%20al%20workflow%20iniziale"
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=Item%20reimpostato%20al%20workflow%20iniziale"
     rescue => e
       puts "[RESET_ERROR] #{e.class}: #{e.message}"
       puts e.backtrace.join("\n")
       error_msg = e.message.to_s.gsub(' ', '%20').gsub("'", '%27')[0..100]
-      redirect "/orders/#{params[:order_id]}?msg=error&text=#{error_msg}"
+      redirect "/orders/#{params[:order_id]}/items/#{params[:item_id]}?msg=error&text=#{error_msg}"
     end
   end
 
