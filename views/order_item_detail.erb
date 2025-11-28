@@ -149,7 +149,8 @@
           <!-- Pre-stampa -->
           <button type="button" class="btn btn-outline-warning" 
                   title="Configure and send to preprint"
-                  data-bs-toggle="modal" data-bs-target="#flowSelectModal">
+                  data-bs-toggle="modal" data-bs-target="#flowSelectModal"
+                  <%= 'disabled' if @item.preprint_completed_at %>>
             🖨️ Pre-stampa
             <% if @item.preprint_status != 'pending' %>
               <span class="badge <%= @item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
@@ -160,7 +161,8 @@
 
           <!-- Stampa -->
           <button type="button" class="btn btn-outline-success" 
-                  data-bs-toggle="modal" data-bs-target="#machineSelectModal">
+                  data-bs-toggle="modal" data-bs-target="#machineSelectModal"
+                  <%= 'disabled' if @item.print_completed_at %>>
             ✅ Stampa
             <% if @item.print_status != 'pending' %>
               <span class="badge <%= @item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
