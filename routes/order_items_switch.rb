@@ -31,9 +31,12 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Path+webhook+pre-stampa+vuoto"
     end
 
-    # Get percentuale from form and build campi_webhook
+    # Get percentuale and azione_photoshop from form and build campi_webhook
     percentuale = params[:percentuale].to_i rescue 0
+    azione_photoshop = params[:azione_photoshop]&.strip
+    
     campi_webhook = { percentuale: percentuale.to_s }
+    campi_webhook["azione photoshop"] = azione_photoshop if azione_photoshop.present?
     
     # Store selected print flow in item
     item.update(

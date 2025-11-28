@@ -245,6 +245,23 @@
                    placeholder="Enter percentage (e.g. +10, -5)">
             <small class="text-muted">Positive or negative value to send to Switch</small>
           </div>
+
+          <% selected_flow = @item.available_print_flows.first %>
+          <% if selected_flow&.azione_photoshop_enabled && selected_flow.azione_photoshop_options_list.any? %>
+            <div class="mb-3">
+              <label for="azione_photoshop" class="form-label"><strong>🎨 Azione Photoshop</strong></label>
+              <select class="form-select" id="azione_photoshop" name="azione_photoshop">
+                <option value="">-- Seleziona azione --</option>
+                <% selected_flow.azione_photoshop_options_list.each do |option| %>
+                  <option value="<%= option %>" 
+                          <%= 'selected' if option == selected_flow.default_azione_photoshop %>>
+                    <%= option %>
+                  </option>
+                <% end %>
+              </select>
+              <small class="text-muted">Valore da inviare a Switch</small>
+            </div>
+          <% end %>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

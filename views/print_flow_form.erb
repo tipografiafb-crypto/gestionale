@@ -86,9 +86,50 @@
       <textarea class="form-control" id="notes" name="notes" rows="2"><%= @flow&.notes %></textarea>
     </div>
 
+    <div class="card mb-3">
+      <div class="card-header">
+        <h5>🎨 Azione Photoshop (Opzionale)</h5>
+      </div>
+      <div class="card-body">
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="azione_photoshop_enabled" 
+                 name="azione_photoshop_enabled" value="1"
+                 <%= 'checked' if @flow&.azione_photoshop_enabled %>>
+          <label class="form-check-label" for="azione_photoshop_enabled">
+            <strong>Abilita Azione Photoshop</strong>
+          </label>
+          <small class="d-block text-muted mt-1">Attiva il selettore di azione photoshop durante la pre-stampa</small>
+        </div>
+
+        <div id="azione-photoshop-options" style="<%= 'display: none;' unless @flow&.azione_photoshop_enabled %>">
+          <div class="mb-3">
+            <label for="azione_photoshop_options" class="form-label"><strong>Valori disponibili</strong></label>
+            <textarea class="form-control" id="azione_photoshop_options" name="azione_photoshop_options" 
+                      rows="4" placeholder="Inserisci i valori uno per riga&#10;Es:&#10;plettri bianchi&#10;plettri neri&#10;plettri rossi"><%= @flow&.azione_photoshop_options %></textarea>
+            <small class="text-muted">Un valore per riga. Questi valori appariranno nel dropdown durante la pre-stampa</small>
+          </div>
+
+          <div class="mb-3">
+            <label for="default_azione_photoshop" class="form-label">Valore di Default</label>
+            <input type="text" class="form-control" id="default_azione_photoshop" 
+                   name="default_azione_photoshop" value="<%= @flow&.default_azione_photoshop %>"
+                   placeholder="Valore di default (deve essere nella lista dei valori sopra)">
+            <small class="text-muted">Il valore selezionato di default nel dropdown</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="d-flex gap-2">
       <button type="submit" class="btn btn-primary">💾 Salva Flusso</button>
       <a href="/print_flows" class="btn btn-secondary">Annulla</a>
     </div>
+
+    <script>
+      document.getElementById('azione_photoshop_enabled').addEventListener('change', function() {
+        const optionsDiv = document.getElementById('azione-photoshop-options');
+        optionsDiv.style.display = this.checked ? 'block' : 'none';
+      });
+    </script>
   </form>
 </div>

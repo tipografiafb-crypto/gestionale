@@ -20,4 +20,10 @@ class PrintFlow < ActiveRecord::Base
   def display_name
     "#{name} (#{products.count} prodotti)"
   end
+
+  # Parse azione_photoshop options as array
+  def azione_photoshop_options_list
+    return [] unless azione_photoshop_options.present?
+    azione_photoshop_options.split("\n").map(&:strip).reject(&:empty?)
+  end
 end

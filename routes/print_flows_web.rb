@@ -24,7 +24,10 @@ class PrintOrchestrator < Sinatra::Base
       preprint_webhook_id: params[:preprint_webhook_id],
       print_webhook_id: params[:print_webhook_id],
       label_webhook_id: params[:label_webhook_id],
-      notes: params[:notes]
+      notes: params[:notes],
+      azione_photoshop_enabled: params[:azione_photoshop_enabled] == '1',
+      azione_photoshop_options: params[:azione_photoshop_options],
+      default_azione_photoshop: params[:default_azione_photoshop]
     )
 
     if flow.save
@@ -56,7 +59,10 @@ class PrintOrchestrator < Sinatra::Base
       preprint_webhook_id: params[:preprint_webhook_id],
       print_webhook_id: params[:print_webhook_id],
       label_webhook_id: params[:label_webhook_id],
-      notes: params[:notes]
+      notes: params[:notes],
+      azione_photoshop_enabled: params[:azione_photoshop_enabled] == '1',
+      azione_photoshop_options: params[:azione_photoshop_options],
+      default_azione_photoshop: params[:default_azione_photoshop]
     )
 
     if flow.save
