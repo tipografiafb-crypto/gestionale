@@ -209,13 +209,22 @@
           <a href="/orders/<%= @order.id %>/items/<%= @item.id %>/print" class="btn btn-outline-info" target="_blank">
             🖨️ Print Card
           </a>
+        </div>
 
-          <!-- Switch Output File Link -->
+        <!-- Pre-stampa Result Section (NEW LINE) -->
+        <div id="preprint-result-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
           <% print_output_asset = @item.assets.where(asset_type: 'print_output').first %>
-          <% if print_output_asset %>
-            <a href="/file/<%= print_output_asset.id %>" class="btn btn-outline-secondary" target="_blank" title="Switch result file: <%= print_output_asset.original_url %>">
-              📄 Result
-            </a>
+          <% if print_output_asset && @item.preprint_status == 'processing' %>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <a href="/file/<%= print_output_asset.id %>" class="btn btn-outline-secondary" target="_blank" title="Switch result file: <%= print_output_asset.original_url %>">
+                📄 Result
+              </a>
+              <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/confirm_preprint" method="post" class="d-inline">
+                <button type="submit" class="btn btn-success">
+                  ✓ Conferma Pre-stampa
+                </button>
+              </form>
+            </div>
           <% end %>
         </div>
       </div>
