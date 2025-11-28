@@ -134,43 +134,24 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore conferma: ' + e.message)}"
   end
 
-  # POST /orders/:order_id/items/:item_id/reset - Reset specific action (preprint or print)
+  # POST /orders/:order_id/items/:item_id/reset - Reset item to initial state
   post '/orders/:order_id/items/:item_id/reset' do
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
-    
-    reset_target = params[:reset_target]  # 'preprint' or 'print'
-    puts "[RESET_DEBUG] reset_target received: #{reset_target.inspect}, params: #{params.inspect}"
 
-    case reset_target
-    when 'preprint'
-      puts "[RESET_PREPRINT] Resetting preprint for item #{item.id}"
-      item.assets.where(asset_type: 'print_output').destroy_all
-      item.update(
-        preprint_status: 'pending',
-        preprint_job_id: nil,
-        preprint_preview_url: nil
-      )
-      message = "Pre-stampa+resettata"
-      
-    when 'print'
-      puts "[RESET_PRINT] Resetting print for item #{item.id}"
-      item.assets.where(asset_type: 'print_output').order(:created_at).last&.destroy
-      item.update(
-        print_status: 'pending',
-        print_job_id: nil,
-        print_machine_id: nil,
-        print_started_at: nil,
-        print_completed_at: nil
-      )
-      message = "Stampa+resettata"
-      
-    else
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Target+reset+non+valido"
-      return
-    end
+    # Delete all previous Switch output files
+    item.assets.where(asset_type: 'print_output').destroy_all
+    puts "[RESET] Deleted print_output assets for item #{item.id}"
 
-    redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=#{message}"
+    item.update(
+      preprint_status: 'pending',
+      preprint_job_id: nil,
+      preprint_preview_url: nil,
+      print_status: 'pending',
+      print_job_id: nil
+    )
+
+    redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=Item+reset+completato"
   rescue => e
     redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Errore+reset:+#{URI.encode_www_form_component(e.message)}"
   end
