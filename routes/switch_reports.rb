@@ -39,59 +39,25 @@ class PrintOrchestrator < Sinatra::Base
         return { success: false, error: 'Missing filename or file data' }.to_json
       end
       
-      # Parse job_operation_id - supports TWO formats:
-      # NEW FORMAT: "order-{order_id}-item-{position}"
-      # OLD FORMAT: just the operation position number (1, 2, 3...)
+      # job_operation_id is the OrderItem ID (sent from order_items_switch.rb)
+      item_id = job_operation_id.to_s.strip.to_i
       
-      job_id_str = job_operation_id.to_s.strip
-      item = nil
-      order = nil
-      
-      # Try NEW format first
-      job_id_match = job_id_str.match(/^order-(\d+)-item-(\d+)$/)
-      if job_id_match
-        puts "[SWITCH_REPORT_DEBUG] Parsed NEW format job_id"
-        order_id = job_id_match[1].to_i
-        item_position = job_id_match[2].to_i
-        
-        order = Order.find_by(id: order_id)
-        unless order
-          status 404
-          puts "[SWITCH_REPORT_ERROR] Order #{order_id} not found!"
-          return { success: false, error: "Order #{order_id} not found" }.to_json
-        end
-        
-        item = order.order_items.order(:id)[item_position - 1]
-        unless item
-          status 404
-          puts "[SWITCH_REPORT_ERROR] Item position #{item_position} not found in order #{order_id}!"
-          puts "[SWITCH_REPORT_ERROR] Order has #{order.order_items.count} items"
-          return { success: false, error: "OrderItem at position #{item_position} not found in order #{order_id}" }.to_json
-        end
-      else
-        # Fall back to CURRENT format: just the OrderItem database ID
-        item_id = job_id_str.to_i
-        
-        if item_id > 0
-          puts "[SWITCH_REPORT_DEBUG] Parsed CURRENT format job_id (item_id #{item_id})"
-          
-          # Find the OrderItem directly by database ID from job_operation_id
-          item = OrderItem.find_by(id: item_id)
-          
-          if item
-            order = item.order
-            puts "[SWITCH_REPORT_DEBUG] Successfully found OrderItem #{item.id} (order #{order.id})"
-          else
-            puts "[SWITCH_REPORT_WARN] OrderItem id=#{item_id} not found"
-            item = nil
-            order = nil
-          end
-        else
-          status 400
-          puts "[SWITCH_REPORT_ERROR] Invalid job-operation-id: #{job_operation_id.inspect}"
-          return { success: false, error: 'Invalid job-operation-id format' }.to_json
-        end
+      unless item_id > 0
+        status 400
+        puts "[SWITCH_REPORT_ERROR] Invalid job-operation-id: #{job_operation_id.inspect}"
+        return { success: false, error: 'Invalid job-operation-id format' }.to_json
       end
+      
+      # Find OrderItem directly by ID
+      item = OrderItem.find_by(id: item_id)
+      unless item
+        status 404
+        puts "[SWITCH_REPORT_ERROR] OrderItem #{item_id} not found"
+        return { success: false, error: "OrderItem #{item_id} not found" }.to_json
+      end
+      
+      order = item.order
+      puts "[SWITCH_REPORT_DEBUG] Found OrderItem #{item.id} from order #{order.id}"
       
       # Decode base64 PDF and save to storage
       saved_file_path = nil
@@ -128,59 +94,18 @@ class PrintOrchestrator < Sinatra::Base
           File.open(full_path, 'wb') { |f| f.write(pdf_data) }
           puts "[SWITCH_REPORT] PDF decoded and saved: #{saved_file_path}"
           
-          # Create Asset record and update SwitchJob with preview URL
-          if item
-            puts "[SWITCH_REPORT_DEBUG] Item found: #{item.id}"
-            
-            # Reload to ensure we have latest job IDs
-            item.reload
-            puts "[SWITCH_REPORT_DEBUG] Item reloaded. print_job_id: #{item.print_job_id}, preprint_job_id: #{item.preprint_job_id}"
-            
-            asset = item.assets.build(
-              original_url: filename,
-              local_path: saved_file_path,
-              asset_type: 'print_output'
-            )
-            asset.save!
-            puts "[SWITCH_REPORT_DEBUG] Asset created: #{asset.id}"
-            
-            # Generate preview URL accessible from web
-            preview_url = "/file/#{asset.id}"
-            
-            # Reload jobs with includes to ensure they're loaded
-            item = item.class.includes(:preprint_job, :print_job).find(item.id)
-            puts "[SWITCH_REPORT_DEBUG] print_job: #{item.print_job.inspect}, preprint_job: #{item.preprint_job.inspect}"
-            
-            # Determine which job (preprint or print) based on filename or kind
-            # Try to update the most recent job that doesn't have a result yet
-            if item.print_job.present?
-              puts "[SWITCH_REPORT_DEBUG] print_job exists, result_preview_url: #{item.print_job.result_preview_url.inspect}"
-              if !item.print_job.result_preview_url.present?
-                item.print_job.update(result_preview_url: preview_url)
-                puts "[SWITCH_REPORT] Updated print_job with preview_url: #{preview_url}"
-              end
-            elsif item.preprint_job.present?
-              puts "[SWITCH_REPORT_DEBUG] preprint_job exists, result_preview_url: #{item.preprint_job.result_preview_url.inspect}"
-              if !item.preprint_job.result_preview_url.present?
-                item.preprint_job.update(result_preview_url: preview_url)
-                puts "[SWITCH_REPORT] Updated preprint_job with preview_url: #{preview_url}"
-              end
-            else
-              puts "[SWITCH_REPORT_WARN] No print_job or preprint_job found for item #{item.id}"
-            end
-            
-            # Update item with Switch results
-            item.update(print_status: 'completed')
-            
-            # Log the update
-            if order.switch_job
-              order.switch_job.add_log("[#{Time.now.iso8601}] Report received for item (#{filename}). Job Op: #{job_operation_id}. Preview: #{preview_url}")
-            end
-          else
-            # Item not found - this shouldn't happen in normal operation
-            # since job_operation_id always comes from an OrderItem we created
-            puts "[SWITCH_REPORT_WARN] Could not save asset to item or order"
-          end
+          # Create Asset record for preview display
+          asset = item.assets.build(
+            original_url: filename,
+            local_path: saved_file_path,
+            asset_type: 'print_output'
+          )
+          asset.save!
+          puts "[SWITCH_REPORT] Asset created: #{asset.id} with local_path: #{saved_file_path}"
+          
+          # Asset ID can be used directly in preview URL: /file/{asset.id}
+          preview_url = "/file/#{asset.id}"
+          puts "[SWITCH_REPORT] Preview URL ready: #{preview_url}"
           
         rescue => e
           puts "[SWITCH_REPORT_ERROR] File decode error: #{e.message}"
