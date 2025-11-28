@@ -1,0 +1,161 @@
+<div class="container mt-4">
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <h1>📥 Importa Prodotti da CSV</h1>
+      <p class="text-muted">Carica un file CSV per aggiungere più prodotti contemporaneamente</p>
+    </div>
+    <div class="col-md-4 text-end">
+      <a href="/products" class="btn btn-outline-secondary">← Torna ai Prodotti</a>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5>📋 Formato CSV</h5>
+        </div>
+        <div class="card-body">
+          <p><strong>Il file CSV deve avere le seguenti colonne:</strong></p>
+          <table class="table table-sm table-bordered">
+            <thead class="table-light">
+              <tr>
+                <th>Colonna</th>
+                <th>Descrizione</th>
+                <th>Obbligatorio</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>sku</code></td>
+                <td>Codice univoco del prodotto (es: TPH001-71)</td>
+                <td><span class="badge bg-danger">Sì</span></td>
+              </tr>
+              <tr>
+                <td><code>name</code></td>
+                <td>Nome del prodotto (es: Plettri Flow)</td>
+                <td><span class="badge bg-danger">Sì</span></td>
+              </tr>
+              <tr>
+                <td><code>notes</code></td>
+                <td>Note/descrizione del prodotto</td>
+                <td><span class="badge bg-info">No</span></td>
+              </tr>
+              <tr>
+                <td><code>category_name</code></td>
+                <td>Nome della categoria (deve esistere nel sistema)</td>
+                <td><span class="badge bg-info">No</span></td>
+              </tr>
+              <tr>
+                <td><code>active</code></td>
+                <td>true o false (default: true)</td>
+                <td><span class="badge bg-info">No</span></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="alert alert-info mt-3">
+            <strong>📝 Esempio CSV:</strong>
+            <pre>sku,name,notes,category_name,active
+TPH001-71,Plettri Flow,Plettri piccoli,Plettri,true
+TPH205-88,Maglietta,T-shirt cotone,Abbigliamento,true
+TPH500,Tazza,Stampa ceramica,Tazze,true</pre>
+          </div>
+
+          <p class="text-muted small mt-3">
+            <strong>Note importanti:</strong>
+            <ul>
+              <li>La prima riga deve contenere i nomi delle colonne (header)</li>
+              <li>Usa virgole come separatore</li>
+              <li>Se una categoria non esiste, il prodotto verrà creato senza categoria</li>
+              <li>SKU duplicati non verranno importati</li>
+              <li>Tutti i prodotti importati avranno uno stato "attivo" di default</li>
+            </ul>
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h5>📤 Carica il tuo File</h5>
+        </div>
+        <div class="card-body">
+          <% if @error %>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+              <strong>Errore:</strong> <%= @error %>
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          <% end %>
+
+          <% if @results %>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+              <strong>✓ Importazione completata!</strong>
+              <ul class="mb-0 mt-2">
+                <li><strong><%= @results[:successful] %></strong> prodotti importati con successo</li>
+                <% if @results[:skipped] > 0 %>
+                  <li><strong><%= @results[:skipped] %></strong> prodotti skippati (SKU duplicato)</li>
+                <% end %>
+                <% if @results[:errors] > 0 %>
+                  <li><strong><%= @results[:errors] %></strong> righe con errore</li>
+                <% end %>
+              </ul>
+              <% if @error_details.any? %>
+                <div class="mt-2">
+                  <strong>Dettagli errori:</strong>
+                  <ul class="mb-0">
+                    <% @error_details.each do |error| %>
+                      <li><small><%= error %></small></li>
+                    <% end %>
+                  </ul>
+                </div>
+              <% end %>
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          <% end %>
+
+          <form method="post" action="/products/import" enctype="multipart/form-data">
+            <div class="mb-3">
+              <label for="csv_file" class="form-label"><strong>Seleziona file CSV</strong></label>
+              <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+              <small class="text-muted">Dimensione massima: 5MB. Solo file CSV.</small>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-success">📥 Importa Prodotti</button>
+              <a href="/products" class="btn btn-outline-secondary">Annulla</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card bg-light">
+        <div class="card-header">
+          <h5>💡 Suggerimenti</h5>
+        </div>
+        <div class="card-body">
+          <ul class="small">
+            <li>Prepara il CSV in Excel o Google Sheets</li>
+            <li>Esporta come CSV (virgole)</li>
+            <li>Verifica i dati prima di importare</li>
+            <li>Controlla che le categorie esistano nel sistema</li>
+            <li>Prova con pochi prodotti prima</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header">
+          <h5>📊 Template CSV</h5>
+        </div>
+        <div class="card-body">
+          <p>Scarica il template:</p>
+          <form method="get" action="/products/import/template" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-outline-primary w-100">⬇️ Scarica Template</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

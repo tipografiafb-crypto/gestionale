@@ -1,8 +1,115 @@
 # @feature orders
 # @domain web
 # Products management routes - Register and manage SKU to webhook routing
+require 'csv'
 
 class PrintOrchestrator < Sinatra::Base
+  # GET /products/import - CSV import form
+  get '/products/import' do
+    erb :products_import
+  end
+
+  # POST /products/import - Process CSV upload
+  post '/products/import' do
+    unless params[:csv_file] && params[:csv_file][:tempfile]
+      @error = "Nessun file selezionato"
+      return erb :products_import
+    end
+
+    file = params[:csv_file][:tempfile]
+    results = { successful: 0, skipped: 0, errors: 0 }
+    error_details = []
+
+    begin
+      csv_content = file.read.force_encoding('utf-8')
+      rows = CSV.parse(csv_content, headers: true)
+
+      rows.each_with_index do |row, index|
+        line_num = index + 2  # +2 because header is line 1, data starts at 2
+
+        begin
+          sku = row['sku']&.strip&.upcase
+          name = row['name']&.strip
+          notes = row['notes']&.strip
+          category_name = row['category_name']&.strip
+          active = row['active']&.strip&.downcase != 'false'
+
+          # Validate required fields
+          unless sku.present?
+            error_details << "Riga #{line_num}: SKU mancante"
+            results[:errors] += 1
+            next
+          end
+
+          unless name.present?
+            error_details << "Riga #{line_num} (#{sku}): Nome mancante"
+            results[:errors] += 1
+            next
+          end
+
+          # Check if SKU already exists
+          if Product.find_by(sku: sku)
+            error_details << "Riga #{line_num} (#{sku}): SKU già esiste"
+            results[:skipped] += 1
+            next
+          end
+
+          # Find category if provided
+          category = nil
+          if category_name.present?
+            category = ProductCategory.find_by(name: category_name)
+            unless category
+              error_details << "Riga #{line_num} (#{sku}): Categoria '#{category_name}' non trovata"
+            end
+          end
+
+          # Create product
+          product = Product.new(
+            sku: sku,
+            name: name,
+            notes: notes,
+            product_category_id: category&.id,
+            active: active
+          )
+
+          if product.save
+            results[:successful] += 1
+          else
+            error_details << "Riga #{line_num} (#{sku}): #{product.errors.full_messages.join(', ')}"
+            results[:errors] += 1
+          end
+
+        rescue => e
+          error_details << "Riga #{line_num}: #{e.message}"
+          results[:errors] += 1
+        end
+      end
+
+      @results = results
+      @error_details = error_details
+
+    rescue CSV::ParserError => e
+      @error = "Errore nel parsing del CSV: #{e.message}"
+    rescue => e
+      @error = "Errore durante l'importazione: #{e.message}"
+    end
+
+    erb :products_import
+  end
+
+  # GET /products/import/template - Download CSV template
+  get '/products/import/template' do
+    content_type 'text/csv'
+    attachment 'prodotti_template.csv'
+
+    csv_data = "sku,name,notes,category_name,active\n"
+    csv_data += "TPH001-71,Plettri Flow,Plettri piccoli,Plettri,true\n"
+    csv_data += "TPH205-88,Maglietta,T-shirt cotone,Abbigliamento,true\n"
+    csv_data += "TPH500,Tazza,Stampa ceramica,Tazze,true\n"
+
+    csv_data
+  end
+
   # GET /products - List all products with search filtering
   get '/products' do
     @products = Product.all
