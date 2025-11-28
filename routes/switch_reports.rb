@@ -130,24 +130,43 @@ class PrintOrchestrator < Sinatra::Base
           
           # Create Asset record and update SwitchJob with preview URL
           if item
+            puts "[SWITCH_REPORT_DEBUG] Item found: #{item.id}"
+            
+            # Reload to ensure we have latest job IDs
+            item.reload
+            puts "[SWITCH_REPORT_DEBUG] Item reloaded. print_job_id: #{item.print_job_id}, preprint_job_id: #{item.preprint_job_id}"
+            
             asset = item.assets.build(
               original_url: filename,
               local_path: saved_file_path,
               asset_type: 'print_output'
             )
             asset.save!
+            puts "[SWITCH_REPORT_DEBUG] Asset created: #{asset.id}"
             
             # Generate preview URL accessible from web
             preview_url = "/file/#{asset.id}"
             
+            # Reload jobs with includes to ensure they're loaded
+            item = item.class.includes(:preprint_job, :print_job).find(item.id)
+            puts "[SWITCH_REPORT_DEBUG] print_job: #{item.print_job.inspect}, preprint_job: #{item.preprint_job.inspect}"
+            
             # Determine which job (preprint or print) based on filename or kind
             # Try to update the most recent job that doesn't have a result yet
-            if item.print_job && !item.print_job.result_preview_url.present?
-              item.print_job.update(result_preview_url: preview_url)
-              puts "[SWITCH_REPORT] Updated print_job with preview_url: #{preview_url}"
-            elsif item.preprint_job && !item.preprint_job.result_preview_url.present?
-              item.preprint_job.update(result_preview_url: preview_url)
-              puts "[SWITCH_REPORT] Updated preprint_job with preview_url: #{preview_url}"
+            if item.print_job.present?
+              puts "[SWITCH_REPORT_DEBUG] print_job exists, result_preview_url: #{item.print_job.result_preview_url.inspect}"
+              if !item.print_job.result_preview_url.present?
+                item.print_job.update(result_preview_url: preview_url)
+                puts "[SWITCH_REPORT] Updated print_job with preview_url: #{preview_url}"
+              end
+            elsif item.preprint_job.present?
+              puts "[SWITCH_REPORT_DEBUG] preprint_job exists, result_preview_url: #{item.preprint_job.result_preview_url.inspect}"
+              if !item.preprint_job.result_preview_url.present?
+                item.preprint_job.update(result_preview_url: preview_url)
+                puts "[SWITCH_REPORT] Updated preprint_job with preview_url: #{preview_url}"
+              end
+            else
+              puts "[SWITCH_REPORT_WARN] No print_job or preprint_job found for item #{item.id}"
             end
             
             # Update item with Switch results
