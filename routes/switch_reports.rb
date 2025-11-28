@@ -128,7 +128,7 @@ class PrintOrchestrator < Sinatra::Base
           File.open(full_path, 'wb') { |f| f.write(pdf_data) }
           puts "[SWITCH_REPORT] PDF decoded and saved: #{saved_file_path}"
           
-          # Create Asset record only if item exists
+          # Create Asset record and update SwitchJob with preview URL
           if item
             asset = item.assets.build(
               original_url: filename,
@@ -137,12 +137,25 @@ class PrintOrchestrator < Sinatra::Base
             )
             asset.save!
             
+            # Generate preview URL accessible from web
+            preview_url = "/file/#{asset.id}"
+            
+            # Determine which job (preprint or print) based on filename or kind
+            # Try to update the most recent job that doesn't have a result yet
+            if item.print_job && !item.print_job.result_preview_url.present?
+              item.print_job.update(result_preview_url: preview_url)
+              puts "[SWITCH_REPORT] Updated print_job with preview_url: #{preview_url}"
+            elsif item.preprint_job && !item.preprint_job.result_preview_url.present?
+              item.preprint_job.update(result_preview_url: preview_url)
+              puts "[SWITCH_REPORT] Updated preprint_job with preview_url: #{preview_url}"
+            end
+            
             # Update item with Switch results
             item.update(print_status: 'completed')
             
             # Log the update
             if order.switch_job
-              order.switch_job.add_log("[#{Time.now.iso8601}] Report received for item (#{filename}). Job Op: #{job_operation_id}")
+              order.switch_job.add_log("[#{Time.now.iso8601}] Report received for item (#{filename}). Job Op: #{job_operation_id}. Preview: #{preview_url}")
             end
           else
             # Item not found - this shouldn't happen in normal operation
