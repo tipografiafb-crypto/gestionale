@@ -433,6 +433,7 @@
 <!-- Auto-refresh preprint result section -->
 <script>
   let pollingInterval = null;
+  let lastKnownStatus = '<%= @item.preprint_status %>';
   
   function pollPreprintResult() {
     const orderId = '<%= @order.id %>';
@@ -441,28 +442,15 @@
     
     if (!preprintResultSection) return; // Section doesn't exist
     
-    const currentStatus = '<%= @item.preprint_status %>';
-    
-    // Only poll if preprint is in processing state
-    if (currentStatus !== 'processing') {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-        pollingInterval = null;
-      }
-      return;
-    }
-    
-    // Fetch updated HTML for the section
+    // Fetch the updated section and get the current status from the server
     fetch(`/orders/${orderId}/items/${itemId}/preprint_result_section`)
       .then(response => response.text())
       .then(html => {
         preprintResultSection.innerHTML = html;
         
-        // Check if file has arrived (result button is visible)
-        const resultLink = preprintResultSection.querySelector('a[target="_blank"][title*="Switch result"]');
-        if (resultLink) {
-          console.log('[POLLING] Switch file received!');
-          // File arrived, can stop polling after a few more checks
+        // Check if we got content (means preprint is processing or completed)
+        if (html.trim() !== '') {
+          console.log('[POLLING] Result section updated');
         }
       })
       .catch(error => {
@@ -470,13 +458,55 @@
       });
   }
   
+  function checkStatusAndContinuePolling() {
+    const orderId = '<%= @order.id %>';
+    const itemId = '<%= @item.id %>';
+    
+    // Fetch the item detail to check current status
+    fetch(`/orders/${orderId}/items/${itemId}`)
+      .then(response => response.text())
+      .then(html => {
+        // Extract status from the response (simple approach: check if preprint_status appears in certain state)
+        // If content contains "Elaborando" or "Result" button, keep polling
+        // If content shows only pending state, stop polling
+        
+        // Continue polling as long as preprint is not pending (i.e., it's processing or completed)
+        // Stop polling only when reset (back to pending with no file)
+        const hasProcessingOrResult = html.includes('Elaborando') || html.includes('Switch result');
+        
+        if (hasProcessingOrResult) {
+          // Continue polling
+          return true;
+        } else {
+          // Stop polling (back to pending)
+          return false;
+        }
+      })
+      .catch(error => {
+        console.error('[POLLING] Error checking status:', error);
+        // Continue polling on error
+        return true;
+      })
+      .then(shouldContinue => {
+        if (!shouldContinue && pollingInterval) {
+          clearInterval(pollingInterval);
+          pollingInterval = null;
+          console.log('[POLLING] Stopped - item reset to pending');
+        }
+      });
+  }
+  
   // Start polling on page load
   document.addEventListener('DOMContentLoaded', function() {
     pollPreprintResult(); // Initial call
     
-    const currentStatus = '<%= @item.preprint_status %>';
-    if (currentStatus === 'processing') {
-      pollingInterval = setInterval(pollPreprintResult, 3000);
+    const initialStatus = '<%= @item.preprint_status %>';
+    if (initialStatus !== 'pending') {
+      // Start continuous polling that will automatically stop when reset
+      pollingInterval = setInterval(function() {
+        pollPreprintResult();
+        checkStatusAndContinuePolling();
+      }, 3000);
     }
   });
 </script>
