@@ -132,7 +132,7 @@
             <tbody>
               <% @preview_assets.each do |asset| %>
                 <tr>
-                  <td><small><%= asset.imported_at.strftime('%d-%m-%y %H:%M') %></small></td>
+                  <td><small><%= asset.created_at.strftime('%d-%m-%y %H:%M') %></small></td>
                   <td><%= asset.order_item.order.store.code %></td>
                   <td><a href="/orders/<%= asset.order_item.order.id %>"><%= asset.order_item.order.external_order_code %></a></td>
                   <td><%= asset.order_item.sku %></td>
