@@ -160,33 +160,16 @@
           </button>
 
           <!-- Stampa -->
-          <% if available_machines.count > 1 %>
-            <button type="button" class="btn btn-outline-success" 
-                    <%= 'disabled' unless @item.can_send_to_print? %>
-                    data-bs-toggle="modal" data-bs-target="#machineSelectModal">
-              ✅ Stampa
-              <% if @item.print_status != 'pending' %>
-                <span class="badge <%= @item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
-                  <%= @item.print_status&.upcase %>
-                </span>
-              <% end %>
-            </button>
-          <% else %>
-            <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/send_print" method="post" class="d-inline">
-              <% if available_machines.count == 1 %>
-                <input type="hidden" name="print_machine_id" value="<%= available_machines.first.id %>">
-              <% end %>
-              <button type="submit" class="btn btn-outline-success" 
-                      <%= 'disabled' unless @item.can_send_to_print? %>>
-                ✅ Stampa
-                <% if @item.print_status != 'pending' %>
-                  <span class="badge <%= @item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
-                    <%= @item.print_status&.upcase %>
-                  </span>
-                <% end %>
-              </button>
-            </form>
-          <% end %>
+          <button type="button" class="btn btn-outline-success" 
+                  <%= 'disabled' unless @item.can_send_to_print? %>
+                  data-bs-toggle="modal" data-bs-target="#machineSelectModal">
+            ✅ Stampa
+            <% if @item.print_status != 'pending' %>
+              <span class="badge <%= @item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
+                <%= @item.print_status&.upcase %>
+              </span>
+            <% end %>
+          </button>
 
           <!-- Etichetta -->
           <% if @item.print_flow&.label_webhook %>
