@@ -141,6 +141,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'routes/admin_cleanup_web'
   require_relative 'routes/switch_reports'
   require_relative 'routes/pdf_proxy'
+  require_relative 'routes/api_print_flows'
   
   # Start FTP poller in background (if configured)
   configure do
