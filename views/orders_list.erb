@@ -92,8 +92,19 @@
                   <td><%= order.store.name %></td>
                   <td><a href="/orders/<%= order.id %>"><%= order.external_order_code %></a></td>
                   <td>
-                    <span class="badge status-badge status-<%= order.status %>">
-                      <%= order.status.gsub('_', ' ').upcase %>
+                    <% wf_status = order.workflow_status %>
+                    <% wf_color = case wf_status
+                      when 'nuovo'
+                        'bg-info'
+                      when 'in-lavorazione'
+                        'bg-warning text-dark'
+                      when 'completato'
+                        'bg-success'
+                      else
+                        'bg-secondary'
+                      end %>
+                    <span class="badge <%= wf_color %>">
+                      <%= wf_status.upcase %>
                     </span>
                   </td>
                   <td><%= order.order_items.count %></td>
@@ -175,8 +186,19 @@
                   <td><%= order.store.name %></td>
                   <td><a href="/orders/<%= order.id %>"><%= order.external_order_code %></a></td>
                   <td>
-                    <span class="badge status-badge status-<%= order.status %>">
-                      <%= order.status.gsub('_', ' ').upcase %>
+                    <% wf_status = order.workflow_status %>
+                    <% wf_color = case wf_status
+                      when 'nuovo'
+                        'bg-info'
+                      when 'in-lavorazione'
+                        'bg-warning text-dark'
+                      when 'completato'
+                        'bg-success'
+                      else
+                        'bg-secondary'
+                      end %>
+                    <span class="badge <%= wf_color %>">
+                      <%= wf_status.upcase %>
                     </span>
                   </td>
                   <td><%= order.order_items.count %></td>
