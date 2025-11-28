@@ -10,10 +10,6 @@ class PrintOrchestrator < Sinatra::Base
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
 
-    unless item.can_send_to_preprint?
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Non+puoi+inviare+questo+item+a+pre-stampa"
-    end
-
     # Get selected print flow or use default
     print_flow_id = params[:print_flow_id] || item.product&.default_print_flow_id
     puts "[DEBUG_PREPRINT] print_flow_id: #{print_flow_id.inspect}"
@@ -160,10 +156,6 @@ class PrintOrchestrator < Sinatra::Base
   post '/orders/:order_id/items/:item_id/send_print' do
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
-
-    unless item.can_send_to_print?
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Non+puoi+inviare+questo+item+in+stampa"
-    end
 
     # Get selected print machine
     print_machine_id = params[:print_machine_id]
