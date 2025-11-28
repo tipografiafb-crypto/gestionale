@@ -209,32 +209,17 @@
           <a href="/orders/<%= @order.id %>/items/<%= @item.id %>/print" class="btn btn-outline-info" target="_blank">
             🖨️ Print Card
           </a>
+
+          <!-- Switch Output File Link -->
+          <% print_output_asset = @item.assets.where(asset_type: 'print_output').first %>
+          <% if print_output_asset %>
+            <a href="/file/<%= print_output_asset.id %>" class="btn btn-outline-secondary" target="_blank" title="Switch result file: <%= print_output_asset.original_url %>">
+              📄 Result
+            </a>
+          <% end %>
         </div>
       </div>
     </div>
-  </div>
-</div>
-
-<!-- BLOCCO PDF RISULTATO SWITCH -->
-<div class="card mb-4">
-  <div class="card-header">
-    <strong>Switch Output Files</strong>
-  </div>
-  <div class="card-body">
-    <% print_output_assets = @item.assets.where(asset_type: 'print_output') %>
-    
-    <% if print_output_assets.any? %>
-      <% print_output_assets.each do |asset| %>
-        <div class="mb-4">
-          <h6><%= asset.original_url %></h6>
-          <a href="/file/<%= asset.id %>" target="_blank" style="border: none; background: none; padding: 0; cursor: pointer;">
-            <img src="/file/<%= asset.id %>" alt="Switch Output" class="img-fluid" style="cursor: pointer; max-width: 400px; border: 1px solid #ddd; border-radius: 4px;">
-          </a>
-        </div>
-      <% end %>
-    <% else %>
-      <p class="text-muted">No Switch output files available yet. Complete pre-stampa or stampa to generate files.</p>
-    <% end %>
   </div>
 </div>
 
