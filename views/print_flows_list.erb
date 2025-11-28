@@ -1,7 +1,7 @@
 <div class="container mt-5">
   <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>🔄 Flussi di Stampa</h1>
-    <a href="/print_flows/new" class="btn btn-primary">+ Nuovo Flusso</a>
+    <h1><i class="fas fa-sync"></i> Flussi di Stampa</h1>
+    <a href="/print_flows/new" class="btn btn-primary"><i class="fas fa-plus"></i> Nuovo Flusso</a>
   </div>
 
   <% if params[:success] %>
@@ -33,12 +33,12 @@
               <td><%= flow.preprint_webhook&.name %><br><code><%= flow.preprint_webhook&.hook_path %></code></td>
               <td><%= flow.print_webhook&.name %><br><code><%= flow.print_webhook&.hook_path %></code></td>
               <td><span class="badge bg-info"><%= flow.products.count %></span></td>
-              <td><%= flow.active? ? '✅ Attivo' : '⏸️ Inattivo' %></td>
+              <td><%= flow.active? ? '<i class="fas fa-check"></i> Attivo' : '<i class="fas fa-pause"></i> Inattivo' %></td>
               <td>
-                <a href="/print_flows/<%= flow.id %>/edit" class="btn btn-sm btn-warning">✏️ Modifica</a>
+                <a href="/print_flows/<%= flow.id %>/edit" class="btn btn-sm btn-warning"><i class="fas fa-pen"></i> Modifica</a>
                 <form action="/print_flows/<%= flow.id %>" method="post" style="display:inline;">
                   <input type="hidden" name="_method" value="DELETE">
-                  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Cancellare questo flusso?')">🗑️ Cancella</button>
+                  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Cancellare questo flusso?')"><i class="fas fa-trash"></i> Cancella</button>
                 </form>
               </td>
             </tr>

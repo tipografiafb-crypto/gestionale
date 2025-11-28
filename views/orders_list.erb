@@ -1,14 +1,14 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1>📋 Ordini</h1>
+  <h1><i class="fas fa-list"></i> Ordini</h1>
   <div class="d-flex align-items-center gap-3">
     <div class="text-muted">
       Total: <%= @orders.count %> orders
       <% if @filter_order_code.present? || @filter_store.present? || @filter_order_date.present? %>
-        | <a href="/orders" class="text-reset">✕ Azzera filtri</a>
+        | <a href="/orders" class="text-reset"><i class="fas fa-xmark"></i> Azzera filtri</a>
       <% end %>
     </div>
     <a href="/orders/new" class="btn btn-primary">
-      ➕ Aggiungi Ordine
+      <i class="fas fa-plus"></i> Aggiungi Ordine
     </a>
   </div>
 </div>
@@ -26,17 +26,17 @@
   <ul class="nav nav-tabs" role="tablist">
     <li class="nav-item" role="presentation">
       <button class="nav-link active" id="in-progress-tab" data-bs-toggle="tab" data-bs-target="#in-progress" type="button" role="tab" aria-controls="in-progress" aria-selected="true">
-        ⏳ In Lavorazione <span class="badge bg-primary"><%= in_progress.count %></span>
+        <i class="fas fa-hourglass"></i> In Lavorazione <span class="badge bg-primary"><%= in_progress.count %></span>
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab" aria-controls="completed" aria-selected="false">
-        ✅ Completati <span class="badge bg-success"><%= completed.count %></span>
+        <i class="fas fa-check"></i> Completati <span class="badge bg-success"><%= completed.count %></span>
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" id="errors-tab" data-bs-toggle="tab" data-bs-target="#errors" type="button" role="tab" aria-controls="errors" aria-selected="false">
-        ⚠️ Errori <span class="badge bg-danger"><%= @import_errors.count %></span>
+        <i class="fas fa-exclamation-triangle"></i> Errori <span class="badge bg-danger"><%= @import_errors.count %></span>
       </button>
     </li>
   </ul>
