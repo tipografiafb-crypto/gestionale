@@ -426,6 +426,10 @@ class PrintOrchestrator < Sinatra::Base
       order = Order.find(params[:order_id])
       item = order.order_items.find(params[:item_id])
       
+      # Delete all Switch output files (this ensures the processing bar appears again next time)
+      item.assets.where(asset_type: 'print_output').destroy_all
+      puts "[RESET] Deleted print_output assets for item #{item.id}"
+      
       # Reset workflow statuses to pending - only update fields that exist
       reset_data = {
         preprint_status: 'pending',
