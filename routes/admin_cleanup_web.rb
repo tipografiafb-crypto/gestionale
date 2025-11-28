@@ -54,7 +54,7 @@ class PrintOrchestrator < Sinatra::Base
       start_date = Date.new(year, month, 1).beginning_of_month
       end_date = start_date.end_of_month
       
-      @preview_assets = Asset.where("imported_at >= ? AND imported_at <= ?", start_date, end_date).where(deleted_at: nil).includes(:order_item).order(imported_at: :desc)
+      @preview_assets = Asset.where("created_at >= ? AND created_at <= ?", start_date, end_date).where(deleted_at: nil).includes(:order_item).order(created_at: :desc)
       
       @preview_space = format_file_size(@preview_assets.sum { |a| a.file_size })
     else
@@ -72,7 +72,7 @@ class PrintOrchestrator < Sinatra::Base
       deleted_count = 0
       freed_space = 0
 
-      Asset.where("imported_at < ?", cutoff_date).where(deleted_at: nil).find_each do |asset|
+      Asset.where("created_at < ?", cutoff_date).where(deleted_at: nil).find_each do |asset|
         if asset.downloaded? && File.exist?(asset.local_path_full)
           file_size = File.size(asset.local_path_full)
           begin
@@ -109,7 +109,7 @@ class PrintOrchestrator < Sinatra::Base
       deleted_count = 0
       freed_space = 0
 
-      Asset.where("imported_at >= ? AND imported_at <= ?", start_date, end_date).where(deleted_at: nil).find_each do |asset|
+      Asset.where("created_at >= ? AND created_at <= ?", start_date, end_date).where(deleted_at: nil).find_each do |asset|
         if asset.downloaded? && File.exist?(asset.local_path_full)
           file_size = File.size(asset.local_path_full)
           begin
