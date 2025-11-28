@@ -240,20 +240,20 @@
             <div class="alert alert-warning">No print flows available</div>
           <% end %>
           
-          <div class="mb-3">
-            <label for="percentuale" class="form-label"><strong>Percentage (%)</strong></label>
-            <input type="number" class="form-control" id="percentuale" 
-                   name="percentuale" value="0" step="1" min="-999" max="999"
-                   placeholder="Enter percentage (e.g. +10, -5)">
-            <small class="text-muted">Positive or negative value to send to Switch</small>
-          </div>
-
           <div id="azione-photoshop-container" class="mb-3" style="display: none;">
             <label for="azione_photoshop" class="form-label"><strong>🎨 Azione Photoshop</strong></label>
             <select class="form-select" id="azione_photoshop" name="azione_photoshop">
               <option value="">-- Seleziona azione --</option>
             </select>
             <small class="text-muted">Valore da inviare a Switch</small>
+          </div>
+
+          <div class="mb-3">
+            <label for="percentuale" class="form-label"><strong>Percentage (%)</strong></label>
+            <input type="number" class="form-control" id="percentuale" 
+                   name="percentuale" value="0" step="1" min="-999" max="999"
+                   placeholder="Enter percentage (e.g. +10, -5)">
+            <small class="text-muted">Positive or negative value to send to Switch</small>
           </div>
 
           <script>
