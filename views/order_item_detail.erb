@@ -121,16 +121,16 @@
                       </button>
                     <% else %>
                       <div style="background-color: #f0f0f0; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 4px; margin-bottom: 8px; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="/file/<%= asset.id %>" data-file-type="pdf">
-                        <span style="font-size: 32px; font-weight: bold;">[FILE]</span>
+                        <i class="fas fa-file-pdf" style="font-size: 32px; color: #dc3545;"></i>
                       </div>
                     <% end %>
                     <small class="d-block"><strong>Print File</strong></small>
                     <div class="btn-group btn-group-sm mt-2" role="group">
                       <% if asset.downloaded? %>
-                        <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Download">[DL]</a>
+                        <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Download"><i class="fas fa-download"></i></a>
                         <form action="/assets/<%= asset.id %>" method="post" class="d-inline">
                           <input type="hidden" name="_method" value="DELETE">
-                          <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Delete this file?');">[DEL]</button>
+                          <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Delete this file?');"><i class="fas fa-trash"></i></button>
                         </form>
                       <% end %>
                     </div>
@@ -151,7 +151,7 @@
                   title="Configure and send to preprint"
                   data-bs-toggle="modal" data-bs-target="#flowSelectModal"
                   <%= 'disabled' if @item.preprint_completed_at %>>
-            [PRINT] Pre-stampa
+<i class="fas fa-print"></i> Pre-stampa
             <% if @item.preprint_status != 'pending' %>
               <span class="badge <%= @item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
                 <%= @item.preprint_status&.upcase %>
@@ -163,7 +163,7 @@
           <button type="button" class="btn btn-outline-success" 
                   data-bs-toggle="modal" data-bs-target="#machineSelectModal"
                   <%= 'disabled' if @item.print_completed_at %>>
-            [OK] Stampa
+<i class="fas fa-check-circle"></i> Stampa
             <% if @item.print_status != 'pending' %>
               <span class="badge <%= @item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
                 <%= @item.print_status&.upcase %>
@@ -175,7 +175,7 @@
           <% if @item.print_flow&.label_webhook %>
             <button type="button" class="btn btn-outline-primary" 
                     data-bs-toggle="modal" data-bs-target="#labelMachineSelectModal">
-              [LABEL] Etichetta
+<i class="fas fa-tag"></i> Etichetta
             </button>
           <% end %>
 
@@ -183,13 +183,13 @@
           <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/reset" method="post" class="d-inline" onsubmit="return confirm('Reset this job?');">
             <button type="submit" class="btn btn-outline-secondary" 
                     <%= 'disabled' if @item.preprint_status == 'pending' && @item.print_status == 'pending' %>>
-              [RESET] Reset
+<i class="fas fa-redo"></i> Reset
             </button>
           </form>
 
           <!-- Print Card -->
           <a href="/orders/<%= @order.id %>/items/<%= @item.id %>/print" class="btn btn-outline-info" target="_blank">
-            [PRINT] Print Card
+<i class="fas fa-file-invoice"></i> Print Card
           </a>
         </div>
 
@@ -214,7 +214,7 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">[PRINT] Pre-stampa - Configure</h5>
+        <h5 class="modal-title"><i class="fas fa-print"></i> Pre-stampa - Configure</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/send_preprint" method="post">
@@ -243,7 +243,7 @@
           <% end %>
           
           <div id="azione-photoshop-container" class="mb-3" style="display: none;">
-            <label for="azione_photoshop" class="form-label"><strong>[ART] Azione Photoshop</strong></label>
+            <label for="azione_photoshop" class="form-label"><strong><i class="fas fa-palette"></i> Azione Photoshop</strong></label>
             <select class="form-select" id="azione_photoshop" name="azione_photoshop">
               <option value="">-- Seleziona azione --</option>
             </select>
