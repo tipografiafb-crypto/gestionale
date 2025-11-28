@@ -144,6 +144,7 @@
         <% end %>
 
         <!-- Action Buttons -->
+        <% available_machines = @item.print_flow&.print_machines || [] %>
         <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px;">
           <!-- Pre-stampa -->
           <button type="button" class="btn btn-outline-warning" 
@@ -159,7 +160,6 @@
           </button>
 
           <!-- Stampa -->
-          <% available_machines = @item.print_flow&.print_machines || [] %>
           <% if available_machines.count > 1 %>
             <button type="button" class="btn btn-outline-success" 
                     <%= 'disabled' unless @item.can_send_to_print? %>
