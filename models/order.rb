@@ -35,6 +35,23 @@ class Order < ActiveRecord::Base
     update(status: new_status) if STATUSES.include?(new_status)
   end
 
+  # Determine order status based on its items' workflow status
+  # Returns: 'nuovo', 'in-lavorazione', 'completato'
+  def workflow_status
+    items = order_items
+    return 'nuovo' if items.empty?
+    
+    # Check if all items are completed
+    all_completed = items.all? { |item| item.print_status == 'completed' }
+    return 'completato' if all_completed
+    
+    # Check if any item has started
+    any_started = items.any? { |item| item.preprint_status != 'pending' || item.print_status != 'pending' }
+    return 'in-lavorazione' if any_started
+    
+    'nuovo'
+  end
+
   # Duplicate order for reprinting
   def duplicate
     new_order = dup

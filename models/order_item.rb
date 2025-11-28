@@ -73,6 +73,20 @@ class OrderItem < ActiveRecord::Base
     order.order_items.where("id <= ?", id).count
   end
 
+  # Determine workflow status based on preprint and print completion
+  # Returns: 'nuovo', 'pre-stampa', 'stampa', 'completato'
+  def workflow_status
+    if print_status == 'completed'
+      'completato'
+    elsif preprint_status == 'completed'
+      'stampa'
+    elsif preprint_status == 'processing' || preprint_status == 'pending'
+      preprint_status == 'processing' ? 'pre-stampa' : 'nuovo'
+    else
+      'nuovo'
+    end
+  end
+
   # Generate Switch filename based on number of print stages
   # Single file: eu{order_id}-{item_number}.png
   # Two files: eu{order_id}-{item_number}_F.png (stage1) and _R.png (stage2)

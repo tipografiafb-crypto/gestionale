@@ -47,8 +47,21 @@
             <td><code><%= li[:item].sku %></code></td>
             <td><%= li[:item].quantity %></td>
             <td>
-              <span class="badge status-badge status-<%= li[:order].status %>">
-                <%= li[:order].status.gsub('_', ' ').upcase %>
+              <% workflow_status = li[:item].workflow_status %>
+              <% status_color = case workflow_status
+                when 'nuovo'
+                  'bg-info'
+                when 'pre-stampa'
+                  'bg-warning text-dark'
+                when 'stampa'
+                  'bg-primary'
+                when 'completato'
+                  'bg-success'
+                else
+                  'bg-secondary'
+                end %>
+              <span class="badge <%= status_color %>">
+                <%= workflow_status.upcase %>
               </span>
             </td>
             <td>
