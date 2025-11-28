@@ -114,6 +114,27 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
+  # Helper method to render SVG icons
+  def svg_icon(name, size = 'inline')
+    svg_path = File.join(settings.public_folder, 'icons', "#{name}.svg")
+    if File.exist?(svg_path)
+      svg_content = File.read(svg_path)
+      classes = case size
+                when 'sm'
+                  'icon-sm'
+                when 'md'
+                  'icon-md'
+                when 'lg'
+                  'icon-lg'
+                else
+                  'icon-inline'
+                end
+      "<span class=\"#{classes}\">#{svg_content}</span>"
+    else
+      "<!-- Icon not found: #{name} -->"
+    end
+  end
+
   # Health check endpoint
   get '/health' do
     content_type :json
