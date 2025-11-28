@@ -79,9 +79,8 @@ class PrintOrchestrator < Sinatra::Base
             puts "[SWITCH_REPORT_DEBUG] Saving to order directory: #{saved_file_path}"
           else
             # Save to pending directory (order doesn't exist yet or item not found)
-            # Use external_id_riga to ensure we can link to correct item later
-            upload_dir = File.join(Dir.pwd, 'storage', 'pending', order_code.to_s)
-            saved_file_path = "storage/pending/#{order_code}/#{filename}"
+            upload_dir = File.join(Dir.pwd, 'storage', 'pending', item_id.to_s)
+            saved_file_path = "storage/pending/#{item_id}/#{filename}"
             
             puts "[SWITCH_REPORT_DEBUG] Order/item not in DB, saving to pending directory: #{saved_file_path}"
           end
@@ -133,9 +132,6 @@ class PrintOrchestrator < Sinatra::Base
       # Add order info if available
       if order
         response_data[:codice_ordine] = order.external_order_code
-      end
-      if filename_match
-        response_data[:codice_ordine] ||= filename_match[1]
       end
       
       response_data.to_json
