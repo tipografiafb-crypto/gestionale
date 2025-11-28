@@ -79,6 +79,20 @@ if [ $? -ne 0 ]; then
 fi
 echo -e "${GREEN}✓ Database ready${NC}"
 
+# Step 5.5: Add Azione Photoshop columns to print_flows
+echo -e "\n${YELLOW}[5.5/7]${NC} Adding Azione Photoshop columns to print_flows..."
+psql "$DATABASE_URL" << 'SQLEOF'
+ALTER TABLE print_flows 
+  ADD COLUMN IF NOT EXISTS azione_photoshop_enabled boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS azione_photoshop_options text,
+  ADD COLUMN IF NOT EXISTS default_azione_photoshop varchar;
+SQLEOF
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✓ Azione Photoshop columns added${NC}"
+else
+  echo -e "${YELLOW}⚠ Could not add columns (they may already exist)${NC}"
+fi
+
 # Step 6: Health check
 echo -e "\n${YELLOW}[6/7]${NC} Testing database connection..."
 TABLE_COUNT=$(psql "$DATABASE_URL" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';" 2>/dev/null || echo "0")
