@@ -57,12 +57,12 @@
       </thead>
       <tbody>
         <% @inventory_items.each do |inv| %>
-          <% row_bg = inv.quantity_in_stock == 0 ? 'bg-danger bg-opacity-25' : (inv.quantity_in_stock < inv.product.min_stock_level ? 'bg-warning bg-opacity-25' : '') %>
+          <% row_bg = inv.quantity_in_stock <= 0 ? 'bg-danger bg-opacity-25' : (inv.quantity_in_stock < inv.product.min_stock_level ? 'bg-warning bg-opacity-25' : '') %>
           <tr class="<%= row_bg %>">
             <td><code><%= inv.product.sku %></code></td>
             <td><strong><%= inv.product.name %></strong></td>
             <td>
-              <span class="badge <%= inv.quantity_in_stock == 0 ? 'bg-danger' : (inv.quantity_in_stock < inv.product.min_stock_level ? 'bg-warning text-dark' : 'bg-success') %>">
+              <span class="badge <%= inv.quantity_in_stock <= 0 ? 'bg-danger' : (inv.quantity_in_stock < inv.product.min_stock_level ? 'bg-warning text-dark' : 'bg-success') %>">
                 <%= inv.quantity_in_stock %>
               </span>
             </td>

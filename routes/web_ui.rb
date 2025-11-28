@@ -426,7 +426,7 @@ class PrintOrchestrator < Sinatra::Base
       @inventory_items = @inventory_items.select do |inv|
         case @status_filter
         when 'finiti'
-          inv.quantity_in_stock == 0
+          inv.quantity_in_stock <= 0
         when 'sottoscorta'
           inv.quantity_in_stock > 0 && inv.quantity_in_stock < inv.product.min_stock_level
         when 'disponibili'
