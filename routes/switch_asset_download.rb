@@ -18,7 +18,7 @@ class PrintOrchestrator < Sinatra::Base
       
       # Get Switch filename for this asset
       switch_filename = asset.order_item.switch_filename_for_asset(asset)
-      download_filename = switch_filename || asset.filename
+      download_filename = switch_filename || asset.filename_from_url
       
       # Determine content type based on file extension and asset type
       file_ext = File.extname(download_filename).downcase
