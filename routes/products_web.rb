@@ -146,6 +146,37 @@ class PrintOrchestrator < Sinatra::Base
     csv_data
   end
 
+  # GET /products/export - Export all products to CSV
+  get '/products/export' do
+    content_type 'text/csv'
+    attachment 'prodotti_export.csv'
+
+    csv_string = CSV.generate do |csv|
+      csv << ['sku', 'name', 'notes', 'category_name', 'active', 'print_flow_names', 'default_print_flow_name']
+      
+      Product.all.order(:sku).each do |product|
+        category_name = product.product_category&.name
+        
+        # Get associated print flows
+        flows = product.print_flows.order(:name)
+        flow_names = flows.map(&:name).join('|')
+        default_flow_name = product.default_print_flow&.name
+        
+        csv << [
+          product.sku,
+          product.name,
+          product.notes || '',
+          category_name || '',
+          product.active ? 'true' : 'false',
+          flow_names,
+          default_flow_name || ''
+        ]
+      end
+    end
+    
+    csv_string
+  end
+
   # GET /products - List all products with search filtering
   get '/products' do
     @products = Product.all
