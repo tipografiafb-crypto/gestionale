@@ -277,22 +277,24 @@
     }
 
     .nav-tabs .nav-link {
-      color: var(--neutral-600);
+      color: var(--neutral-600) !important;
       border: none;
       border-bottom: 3px solid transparent;
       font-weight: 600;
-      padding: 0.75rem 1rem;
+      padding: 0.75rem 1.25rem;
       transition: all 0.2s ease;
+      background: none !important;
     }
 
     .nav-tabs .nav-link:hover {
-      color: var(--primary);
+      color: var(--primary) !important;
       border-bottom-color: var(--primary);
+      background: var(--neutral-50) !important;
     }
 
     .nav-tabs .nav-link.active {
-      color: var(--primary);
-      background: none;
+      color: var(--primary) !important;
+      background: none !important;
       border-bottom-color: var(--primary);
     }
 
