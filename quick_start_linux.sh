@@ -93,14 +93,31 @@ else
   echo -e "${YELLOW}⚠ Could not add columns (they may already exist)${NC}"
 fi
 
+# Step 5.6: Create backup_configs table
+echo -e "\n${YELLOW}[5.6/7]${NC} Creating backup_configs table..."
+psql "$DATABASE_URL" << 'SQLEOF'
+CREATE TABLE IF NOT EXISTS backup_configs (
+  id SERIAL PRIMARY KEY,
+  remote_ip VARCHAR(255),
+  remote_path VARCHAR(1024),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+SQLEOF
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✓ backup_configs table created${NC}"
+else
+  echo -e "${YELLOW}⚠ Could not create backup_configs table (it may already exist)${NC}"
+fi
+
 # Step 6: Health check
 echo -e "\n${YELLOW}[6/7]${NC} Testing database connection..."
 TABLE_COUNT=$(psql "$DATABASE_URL" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';" 2>/dev/null || echo "0")
 
-if [ "$TABLE_COUNT" -gt 12 ]; then
+if [ "$TABLE_COUNT" -gt 13 ]; then
   echo -e "${GREEN}✓ Database connected ($TABLE_COUNT tables created)${NC}"
 else
-  echo -e "${RED}✗ Database setup incomplete (only $TABLE_COUNT tables, expected 15+)${NC}"
+  echo -e "${RED}✗ Database setup incomplete (only $TABLE_COUNT tables, expected 16+)${NC}"
   exit 1
 fi
 
