@@ -1,4 +1,4 @@
-# 🖨️ Print Order Orchestrator
+# 🖨️ Print Order Orchestrator!
 
 A local Ruby application for managing print orders from e-commerce platforms with Magenta Product Designer plugin integration.
 
