@@ -424,27 +424,7 @@
     a:hover {
       color: var(--primary);
     }
-
-    /* Active nav link highlighting */
-    .nav-link.active {
-      color: var(--primary) !important;
-      border-bottom: 3px solid var(--primary);
-      padding-bottom: 12px;
-    }
   </style>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const navLinks = document.querySelectorAll('.navbar-nav .nav-link:not(.dropdown-toggle)');
-      const currentPath = window.location.pathname;
-      
-      navLinks.forEach(link => {
-        const href = link.getAttribute('href');
-        if (currentPath.startsWith(href) && href !== '/') {
-          link.classList.add('active');
-        }
-      });
-    });
-  </script>
 </head>
 <body>
   <nav class="navbar navbar-expand-lg navbar-dark">
