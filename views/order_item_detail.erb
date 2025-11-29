@@ -117,7 +117,7 @@
                   <div class="card-body text-center">
                     <% if asset.downloaded? && asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) %>
                       <button type="button" class="btn-preview-image" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="/file/<%= asset.id %>" data-file-type="image" style="border: none; background: none; padding: 0; cursor: pointer;">
-                        <img src="/file/<%= asset.id %>" alt="<%= asset.asset_type %>" style="width: 100%; height: auto; cursor: pointer; border-radius: 4px; margin-bottom: 8px;">
+                        <img src="/file/<%= asset.id %>" alt="<%= asset.asset_type %>" style="width: 50%; height: auto; cursor: pointer; border-radius: 4px; margin-bottom: 8px;">
                       </button>
                     <% else %>
                       <div style="background-color: #f0f0f0; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 4px; margin-bottom: 8px; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#previewModal" data-file-url="/file/<%= asset.id %>" data-file-type="pdf">
