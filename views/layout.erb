@@ -246,6 +246,15 @@
     /* Tables */
     .table {
       margin-bottom: 0;
+      font-size: 0.95rem;
+    }
+
+    .table.table-striped tbody tr:nth-child(odd) {
+      background-color: var(--neutral-50);
+    }
+
+    .table.table-striped tbody tr:nth-child(even) {
+      background-color: white;
     }
 
     .table thead th {
@@ -254,6 +263,7 @@
       font-weight: 600;
       color: var(--secondary);
       padding: 1rem 0.75rem;
+      font-size: 0.95rem;
     }
 
     .table tbody tr {
@@ -261,13 +271,14 @@
     }
 
     .table tbody tr:hover {
-      background-color: var(--neutral-50);
+      background-color: var(--neutral-100);
     }
 
     .table td {
       vertical-align: middle;
       padding: 0.875rem 0.75rem;
       border-bottom: 1px solid var(--neutral-200);
+      font-size: 0.95rem;
     }
 
     /* Tabs */
