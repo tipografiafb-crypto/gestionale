@@ -274,6 +274,21 @@
       background-color: var(--neutral-100) !important;
     }
 
+    /* Protect filter rows in table head */
+    .table thead tr[style*="background"] {
+      background-color: var(--neutral-100) !important;
+    }
+
+    .table thead tr[style*="background"]:hover {
+      background-color: var(--neutral-100) !important;
+    }
+
+    .table thead tr[style*="background"] td {
+      padding: 0.875rem 0.75rem;
+      vertical-align: middle;
+      border-bottom: 1px solid var(--neutral-200);
+    }
+
     .table td {
       vertical-align: middle;
       padding: 0.875rem 0.75rem;
