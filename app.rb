@@ -43,6 +43,13 @@ class PrintOrchestrator < Sinatra::Base
     set :host_authorization, permitted_hosts: allowed_hosts
   end
 
+  # Disable browser caching for all responses
+  before do
+    cache_control :no_cache, :no_store, :must_revalidate
+    headers 'Pragma' => 'no-cache'
+    headers 'Expires' => '0'
+  end
+
   # Load models
   require_relative 'models/store'
   require_relative 'models/order'
