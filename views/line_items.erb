@@ -5,7 +5,7 @@
 <div class="card mb-4">
   <div class="card-body">
     <form method="get" action="/line_items" class="d-flex gap-2">
-      <input type="text" class="form-control" name="search" placeholder="Cerca per nome prodotto..." value="<%= @search_term %>">
+      <input type="text" class="form-control" name="search" placeholder="Cerca per nome prodotto, SKU o numero ordine..." value="<%= @search_term %>">
       <button type="submit" class="btn btn-primary">Cerca</button>
       <% if @search_term.present? %>
         <a href="/line_items" class="btn btn-outline-secondary">Azzera</a>
