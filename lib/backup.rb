@@ -1,5 +1,7 @@
 # @feature backup
 # Backup system for database and files
+require 'zip'
+
 class BackupManager
   def self.perform_backup(config = nil)
     config ||= BackupConfig.current
@@ -22,9 +24,12 @@ class BackupManager
         system("tar -czf #{storage_tar} -C #{Dir.pwd} storage") || raise("Storage tar failed")
       end
 
-      # 3. Create ZIP with all
+      # 3. Create ZIP with all using rubyzip
       zip_file = File.join(backup_dir, "backup_#{timestamp}.zip")
-      system("cd #{backup_dir} && zip -q #{zip_file} database_#{timestamp}.sql storage_#{timestamp}.tar.gz") || raise("ZIP creation failed")
+      Zip::File.open(zip_file, Zip::File::CREATE) do |zipfile|
+        zipfile.add("database_#{timestamp}.sql", db_file) if File.exist?(db_file)
+        zipfile.add("storage_#{timestamp}.tar.gz", storage_tar) if File.exist?(storage_tar)
+      end
 
       # 4. Copy to remote (assumes mount or SSH accessible)
       remote_full_path = "#{config.remote_path}/backup_#{timestamp}.zip"
