@@ -101,47 +101,72 @@
 </div>
 
 <!-- Ripristino Backup -->
-<% backups = BackupManager.list_backups %>
-<div class="card mb-4">
-  <div class="card-header">
-    <strong><i class="fas fa-history"></i> Ripristino Backup Salvati</strong>
-  </div>
-  <div class="card-body">
-    <% if backups.any? %>
-      <p class="text-muted mb-3">Seleziona un backup da ripristinare. ATTENZIONE: Sovrascriverà il database e i file attuali!</p>
-      <div class="table-responsive">
-        <table class="table table-hover table-sm">
-          <thead class="table-light">
-            <tr>
-              <th>File</th>
-              <th>Data</th>
-              <th>Dimensione</th>
-              <th>Azione</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% backups.each do |backup| %>
-              <tr>
-                <td><code><%= backup[:filename] %></code></td>
-                <td><%= backup[:created_at].strftime('%d/%m/%Y %H:%M:%S') %></td>
-                <td><strong><%= format_file_size(backup[:size]) %></strong></td>
-                <td>
-                  <form action="/admin/backup/restore" method="post" class="d-inline">
-                    <input type="hidden" name="filename" value="<%= backup[:filename] %>">
-                    <button type="submit" class="btn btn-sm btn-warning" 
-                            onclick="return confirm('ATTENZIONE! Sovrascriverà il database e i file attuali.\n\nSei sicuro di voler ripristinare <%= backup[:filename] %>?')">
-                      <i class="fas fa-undo"></i> Ripristina
-                    </button>
-                  </form>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
+<div class="row mb-4">
+  <!-- Backup locali (se esistono) -->
+  <div class="col-md-6">
+    <% backups = BackupManager.list_backups %>
+    <div class="card">
+      <div class="card-header">
+        <strong><i class="fas fa-history"></i> Backup Locali</strong>
       </div>
-    <% else %>
-      <p class="text-muted">Nessun backup disponibile. Esegui un backup per crearne uno.</p>
-    <% end %>
+      <div class="card-body">
+        <% if backups.any? %>
+          <p class="text-muted small mb-3">Ripristina da backup locali (di solito vuoto perché i backup vengono trasferiti su Switch).</p>
+          <div class="table-responsive">
+            <table class="table table-hover table-sm">
+              <thead class="table-light">
+                <tr>
+                  <th>File</th>
+                  <th style="width: 100px;">Azione</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% backups.each do |backup| %>
+                  <tr>
+                    <td><small><code><%= backup[:filename] %></code></small></td>
+                    <td>
+                      <form action="/admin/backup/restore" method="post" class="d-inline">
+                        <input type="hidden" name="filename" value="<%= backup[:filename] %>">
+                        <button type="submit" class="btn btn-sm btn-warning" 
+                                onclick="return confirm('ATTENZIONE! Sovrascriverà tutto.\n\nRipristinare?')">
+                          <i class="fas fa-undo"></i> Ripristina
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% else %>
+          <p class="text-muted small">Nessun backup locale. I backup vengono trasferiti su Switch e cancellati.</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload backup per disaster recovery -->
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <strong><i class="fas fa-upload"></i> Disaster Recovery (Upload Backup)</strong>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">Carica un backup da file (in caso di crash). ATTENZIONE: Sovrascriverà tutto!</p>
+        <form action="/admin/backup/restore_upload" method="post" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label for="backup_file" class="form-label">Seleziona file backup (.zip)</label>
+            <input type="file" class="form-control" id="backup_file" name="backup_file" 
+                   accept=".zip" required>
+            <small class="text-muted">Solo file .zip (backup_YYYYMMDD_HHMMSS.zip)</small>
+          </div>
+          <button type="submit" class="btn btn-danger w-100" 
+                  onclick="return confirm('⚠️ ATTENZIONE!\n\nQuesto sovrascriverà:\n✗ Database PostgreSQL\n✗ Tutti i file nella cartella storage/\n\nSei VERAMENTE sicuro?')">
+            <i class="fas fa-exclamation-triangle"></i> Ripristina Backup Caricato
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
 

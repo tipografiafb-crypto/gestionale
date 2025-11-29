@@ -85,8 +85,28 @@ class BackupManager
     return { success: false, error: 'File non trovato' } unless File.exist?(zip_path)
     return { success: false, error: 'File non è un backup valido' } unless filename.start_with?('backup_') && filename.end_with?('.zip')
 
+    do_restore(zip_path)
+  end
+
+  def self.restore_from_uploaded_file(uploaded_file)
+    return { success: false, error: 'File non caricato' } if !uploaded_file || !uploaded_file[:tempfile]
+    return { success: false, error: 'Solo file ZIP sono consentiti' } unless uploaded_file[:filename].end_with?('.zip')
+
     begin
-      extract_dir = File.join(backup_dir, 'restore_temp')
+      zip_path = uploaded_file[:tempfile].path
+      do_restore(zip_path)
+    rescue => e
+      { success: false, error: e.message }
+    end
+  end
+
+  private
+
+  def self.do_restore(zip_path)
+    backup_dir = File.join(Dir.pwd, 'tmp', 'backups')
+    extract_dir = File.join(backup_dir, 'restore_temp')
+    
+    begin
       FileUtils.rm_rf(extract_dir)
       FileUtils.mkdir_p(extract_dir)
 
