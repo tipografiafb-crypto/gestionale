@@ -62,6 +62,16 @@
       transform: translateY(-1px);
     }
 
+    .nav-link.active {
+      color: var(--primary) !important;
+      border-bottom: 3px solid var(--primary);
+      padding-bottom: 0.75rem;
+    }
+
+    .nav-link.active:hover {
+      color: var(--primary-light) !important;
+    }
+
     .dropdown-menu {
       background: var(--secondary);
       border: 1px solid var(--neutral-300);
@@ -436,13 +446,13 @@
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-3">
           <li class="nav-item">
-            <a class="nav-link" href="/orders"><i class="fas fa-list"></i> Ordini</a>
+            <a class="nav-link <%= 'active' if request.path_info =~ %r{^/orders} %>" href="/orders"><i class="fas fa-list"></i> Ordini</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/line_items"><i class="fas fa-link"></i> Lavorazioni</a>
+            <a class="nav-link <%= 'active' if request.path_info =~ %r{^/line_items} %>" href="/line_items"><i class="fas fa-link"></i> Lavorazioni</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/inventory"><i class="fas fa-boxes"></i> Magazzino</a>
+            <a class="nav-link <%= 'active' if request.path_info =~ %r{^/inventory} %>" href="/inventory"><i class="fas fa-boxes"></i> Magazzino</a>
           </li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="settingsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
