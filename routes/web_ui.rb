@@ -401,15 +401,20 @@ class PrintOrchestrator < Sinatra::Base
         @line_items << {
           item: item,
           order: order,
-          product_name: item.product&.name || item.sku
+          product_name: item.product&.name || item.sku,
+          sku: item.sku
         }
       end
     end
     
-    # Filter by product name if search param is provided
+    # Filter by product name or SKU if search param is provided
     if params[:search].present?
-      search_term = params[:search].downcase
-      @line_items = @line_items.select { |li| li[:product_name].downcase.include?(search_term) }
+      search_term = params[:search].downcase.strip
+      @line_items = @line_items.select do |li|
+        product_name = (li[:product_name] || "").downcase
+        sku = (li[:sku] || "").downcase
+        product_name.include?(search_term) || sku.include?(search_term)
+      end
     end
     
     @search_term = params[:search]
