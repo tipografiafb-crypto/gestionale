@@ -71,8 +71,13 @@ class PrintOrchestrator < Sinatra::Base
       cutoff_date = RETENTION_DAYS.days.ago
       test_count = 0
       test_space = 0
+      candidates = 0
 
-      Asset.where("created_at < ?", cutoff_date).where(deleted_at: nil).find_each do |asset|
+      # Find all assets older than retention period
+      old_assets = Asset.where("created_at < ?", cutoff_date).where(deleted_at: nil)
+      candidates = old_assets.count
+
+      old_assets.find_each do |asset|
         if asset.downloaded? && File.exist?(asset.local_path_full)
           file_size = File.size(asset.local_path_full)
           test_space += file_size
@@ -80,7 +85,11 @@ class PrintOrchestrator < Sinatra::Base
         end
       end
 
-      msg = "TEST PULIZIA (NO DELETE): #{test_count} file, #{format_file_size(test_space)} da liberare"
+      if test_count > 0
+        msg = "TEST PULIZIA (NO DELETE): #{test_count} file trovati (#{candidates} candidati), #{format_file_size(test_space)} da liberare"
+      else
+        msg = "TEST PULIZIA: Nessun file da eliminare. Candidati per età: #{candidates}, con local_path: #{Asset.where("created_at < ?", cutoff_date).where(deleted_at: nil).where.not(local_path: nil).count}"
+      end
       redirect "/admin/cleanup?msg=info&text=#{URI.encode_www_form_component(msg)}"
     rescue => e
       redirect "/admin/cleanup?msg=error&text=#{URI.encode_www_form_component("Errore durante test: #{e.message}")}"
