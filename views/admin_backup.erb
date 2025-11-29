@@ -1,0 +1,122 @@
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/orders">Orders</a></li>
+      <li class="breadcrumb-item active">Admin</li>
+      <li class="breadcrumb-item active">Backup</li>
+    </ol>
+  </nav>
+</div>
+
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h1><i class="fas fa-database"></i> Backup Database e File</h1>
+  </div>
+</div>
+
+<% if params[:msg] %>
+  <% alert_type = case params[:msg]
+    when 'success'
+      'success'
+    when 'info'
+      'info'
+    else
+      'danger'
+    end %>
+  <div class="alert alert-<%= alert_type %> alert-dismissible fade show" role="alert">
+    <%= params[:text]&.gsub('+', ' ') %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+
+<div class="row">
+  <!-- Configurazione Backup -->
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <strong><i class="fas fa-cog"></i> Configurazione Backup Remoto</strong>
+      </div>
+      <div class="card-body">
+        <form action="/admin/backup/config" method="post">
+          <div class="mb-3">
+            <label for="remote_ip" class="form-label">IP Macchina Switch</label>
+            <input type="text" class="form-control" id="remote_ip" name="remote_ip" 
+                   value="<%= @backup_config.remote_ip %>" placeholder="es: 192.168.1.100" required>
+            <small class="text-muted">Indirizzo IP della macchina Switch per backup remoto</small>
+          </div>
+
+          <div class="mb-3">
+            <label for="remote_path" class="form-label">Percorso Remoto</label>
+            <input type="text" class="form-control" id="remote_path" name="remote_path" 
+                   value="<%= @backup_config.remote_path %>" placeholder="es: /mnt/backup" required>
+            <small class="text-muted">Percorso assoluto sul server Switch dove salvare i backup</small>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-save"></i> Salva Configurazione
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Esecuzione Backup -->
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <strong><i class="fas fa-cloud-upload-alt"></i> Esecuzione Backup</strong>
+      </div>
+      <div class="card-body">
+        <p class="text-muted">Esegui il backup manualmente o verifica la connessione alla macchina Switch.</p>
+        <div class="d-grid gap-2">
+          <form action="/admin/backup/test" method="post">
+            <input type="hidden" name="remote_ip" value="<%= @backup_config.remote_ip %>">
+            <input type="hidden" name="remote_path" value="<%= @backup_config.remote_path %>">
+            <button type="submit" class="btn btn-outline-info w-100">
+              <i class="fas fa-wifi"></i> Test Connessione SSH
+            </button>
+          </form>
+
+          <form action="/admin/backup/now" method="post">
+            <button type="submit" class="btn btn-success w-100" 
+                    onclick="return confirm('Esegui backup ORA? Database + file verranno compressi e salvati su Switch.')">
+              <i class="fas fa-play"></i> Esegui Backup ORA
+            </button>
+          </form>
+        </div>
+        
+        <hr>
+        
+        <h6 class="mt-3"><i class="fas fa-clock"></i> Backup Automatico</h6>
+        <p class="text-muted small mb-0">Il backup verrà eseguito automaticamente ogni notte alle 02:00 (dopo cron setup).</p>
+        <p class="text-muted small">
+          <small><strong>Cosa viene salvato:</strong></small><br>
+          <small>✓ Database PostgreSQL completo</small><br>
+          <small>✓ Cartella storage/ (tutti i file importati e processati)</small><br>
+          <small>✓ File .zip con timestamp</small>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Documentazione Cron -->
+<div class="card">
+  <div class="card-header">
+    <strong><i class="fas fa-book"></i> Setup Backup Automatico Notturno</strong>
+  </div>
+  <div class="card-body">
+    <p class="text-muted">Per eseguire il backup automaticamente ogni notte, aggiungi questo comando al cron:</p>
+    
+    <pre class="bg-light p-3 rounded"><code>crontab -e
+
+# Aggiungi questa riga (backup ogni notte alle 02:00)
+0 2 * * * cd /home/runner/workspace && curl -X POST http://localhost:5000/admin/backup/now 2>&1 | tee -a backup.log</code></pre>
+
+    <p class="mt-3 small text-muted">
+      <i class="fas fa-info-circle"></i> 
+      <strong>Nota:</strong> Sostituisci <code>/home/runner/workspace</code> con il percorso effettivo del tuo progetto 
+      e <code>http://localhost:5000</code> con l'URL del tuo server se diverso.
+    </p>
+  </div>
+</div>

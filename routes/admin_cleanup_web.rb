@@ -160,4 +160,53 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/admin/cleanup?msg=error&text=Errore+durante+l'eliminazione:+#{e.message}"
     end
   end
+
+  # GET /admin/backup - Show backup configuration page
+  get '/admin/backup' do
+    @backup_config = BackupConfig.current
+    erb :admin_backup
+  end
+
+  # POST /admin/backup/config - Save backup configuration
+  post '/admin/backup/config' do
+    begin
+      config = BackupConfig.current
+      config.update(
+        remote_ip: params[:remote_ip],
+        remote_path: params[:remote_path]
+      )
+      redirect "/admin/backup?msg=success&text=Configurazione+salvata"
+    rescue => e
+      redirect "/admin/backup?msg=error&text=Errore+nel+salvataggio:+#{e.message}"
+    end
+  end
+
+  # POST /admin/backup/test - Test connection
+  post '/admin/backup/test' do
+    begin
+      result = BackupManager.test_connection(params[:remote_ip], params[:remote_path])
+      if result[:connected]
+        redirect "/admin/backup?msg=success&text=Connessione+OK:+SSH+raggiungibile"
+      else
+        redirect "/admin/backup?msg=error&text=Errore+connessione:+#{result[:error]}"
+      end
+    rescue => e
+      redirect "/admin/backup?msg=error&text=Errore+test:+#{e.message}"
+    end
+  end
+
+  # POST /admin/backup/now - Execute backup immediately
+  post '/admin/backup/now' do
+    begin
+      result = BackupManager.perform_backup
+      if result[:success]
+        msg = "Backup OK: #{result[:file]} (#{format_file_size(result[:size])}) salvato in #{result[:remote_path]}"
+        redirect "/admin/backup?msg=success&text=#{URI.encode_www_form_component(msg)}"
+      else
+        redirect "/admin/backup?msg=error&text=#{URI.encode_www_form_component("Backup fallito: #{result[:error]}")}"
+      end
+    rescue => e
+      redirect "/admin/backup?msg=error&text=#{URI.encode_www_form_component("Errore backup: #{e.message}")}"
+    end
+  end
 end
