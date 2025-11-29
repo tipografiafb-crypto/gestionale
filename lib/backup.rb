@@ -64,4 +64,61 @@ class BackupManager
       { connected: false, error: e.message }
     end
   end
+
+  def self.list_backups
+    backup_dir = File.join(Dir.pwd, 'tmp', 'backups')
+    return [] unless Dir.exist?(backup_dir)
+    
+    backup_files = Dir.glob(File.join(backup_dir, "backup_*.zip")).sort.reverse
+    backup_files.map do |file|
+      filename = File.basename(file)
+      size = File.size(file)
+      mtime = File.mtime(file)
+      { filename: filename, path: file, size: size, created_at: mtime }
+    end
+  end
+
+  def self.restore_backup(filename)
+    backup_dir = File.join(Dir.pwd, 'tmp', 'backups')
+    zip_path = File.join(backup_dir, filename)
+    
+    return { success: false, error: 'File non trovato' } unless File.exist?(zip_path)
+    return { success: false, error: 'File non è un backup valido' } unless filename.start_with?('backup_') && filename.end_with?('.zip')
+
+    begin
+      extract_dir = File.join(backup_dir, 'restore_temp')
+      FileUtils.rm_rf(extract_dir)
+      FileUtils.mkdir_p(extract_dir)
+
+      # Extract ZIP
+      Zip::File.open(zip_path) do |zipfile|
+        zipfile.each do |entry|
+          entry.extract(File.join(extract_dir, entry.name))
+        end
+      end
+
+      # Find database and storage files
+      db_file = Dir.glob(File.join(extract_dir, "database_*.sql")).first
+      storage_tar = Dir.glob(File.join(extract_dir, "storage_*.tar.gz")).first
+
+      # Restore database
+      if db_file && File.exist?(db_file)
+        db_url = ENV['DATABASE_URL'] || 'postgresql://localhost/print_orchestrator_development'
+        system("psql #{db_url} < #{db_file}") || raise("Database restore failed")
+      end
+
+      # Restore storage files
+      if storage_tar && File.exist?(storage_tar)
+        system("cd #{Dir.pwd} && tar -xzf #{storage_tar}") || raise("Storage restore failed")
+      end
+
+      # Cleanup
+      FileUtils.rm_rf(extract_dir)
+
+      { success: true, message: "Backup ripristinato con successo" }
+    rescue => e
+      FileUtils.rm_rf(extract_dir) if Dir.exist?(extract_dir)
+      { success: false, error: e.message }
+    end
+  end
 end
