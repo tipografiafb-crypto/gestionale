@@ -59,8 +59,10 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'models/inventory'
   require_relative 'models/import_error'
   require_relative 'models/pending_file'
+  require_relative 'models/backup_config'
 
   # Load services
+  require_relative 'lib/backup'
   require_relative 'services/asset_downloader'
   require_relative 'services/switch_client'
   require_relative 'services/ftp_poller'
