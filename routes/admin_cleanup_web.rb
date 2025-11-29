@@ -65,6 +65,28 @@ class PrintOrchestrator < Sinatra::Base
     erb :admin_cleanup
   end
 
+  # POST /admin/cleanup/test - DRY RUN (no delete)
+  post '/admin/cleanup/test' do
+    begin
+      cutoff_date = RETENTION_DAYS.days.ago
+      test_count = 0
+      test_space = 0
+
+      Asset.where("created_at < ?", cutoff_date).where(deleted_at: nil).find_each do |asset|
+        if asset.downloaded? && File.exist?(asset.local_path_full)
+          file_size = File.size(asset.local_path_full)
+          test_space += file_size
+          test_count += 1
+        end
+      end
+
+      msg = "TEST PULIZIA (NO DELETE): #{test_count} file, #{format_file_size(test_space)} da liberare"
+      redirect "/admin/cleanup?msg=info&text=#{URI.encode_www_form_component(msg)}"
+    rescue => e
+      redirect "/admin/cleanup?msg=error&text=#{URI.encode_www_form_component("Errore durante test: #{e.message}")}"
+    end
+  end
+
   # POST /admin/cleanup/auto - Execute automatic cleanup
   post '/admin/cleanup/auto' do
     begin

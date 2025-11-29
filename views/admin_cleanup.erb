@@ -15,7 +15,15 @@
 </div>
 
 <% if params[:msg] %>
-  <div class="alert alert-<%= params[:msg] == 'success' ? 'success' : 'danger' %> alert-dismissible fade show" role="alert">
+  <% alert_type = case params[:msg]
+    when 'success'
+      'success'
+    when 'info'
+      'info'
+    else
+      'danger'
+    end %>
+  <div class="alert alert-<%= alert_type %> alert-dismissible fade show" role="alert">
     <%= params[:text]&.gsub('+', ' ') %>
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
@@ -63,11 +71,18 @@
       </div>
       <div class="card-body">
         <p class="text-muted">File cancellati automaticamente ogni notte dopo <%= @retention_days %> giorni.</p>
-        <form action="/admin/cleanup/auto" method="post">
-          <button type="submit" class="btn btn-primary w-100" onclick="return confirm('Esegui pulizia automatica ORA (file > <%= @retention_days %> giorni)?')">
-            <i class="fas fa-play"></i> Esegui Pulizia ORA
-          </button>
-        </form>
+        <div class="d-grid gap-2">
+          <form action="/admin/cleanup/test" method="post" class="d-inline">
+            <button type="submit" class="btn btn-outline-info w-100">
+              <i class="fas fa-search"></i> Test (anteprima senza cancellare)
+            </button>
+          </form>
+          <form action="/admin/cleanup/auto" method="post" class="d-inline">
+            <button type="submit" class="btn btn-primary w-100" onclick="return confirm('Esegui pulizia automatica ORA (file > <%= @retention_days %> giorni)? ATTENZIONE: Cancella davvero i file!')">
+              <i class="fas fa-play"></i> Esegui Pulizia ORA (CANCELLA)
+            </button>
+          </form>
+        </div>
         <small class="text-muted d-block mt-2">
           Ultima esecuzione: <strong><%= @last_cleanup_time || 'Mai' %></strong>
         </small>
