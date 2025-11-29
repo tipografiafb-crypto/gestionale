@@ -2,18 +2,6 @@
   <h1><i class="fas fa-link"></i> Article da Fare</h1>
 </div>
 
-<div class="card mb-4">
-  <div class="card-body">
-    <form method="get" action="/line_items" class="d-flex gap-2">
-      <input type="text" class="form-control" name="search" placeholder="Cerca per nome prodotto, SKU o numero ordine..." value="<%= @search_term %>">
-      <button type="submit" class="btn btn-primary">Cerca</button>
-      <% if @search_term.present? %>
-        <a href="/line_items" class="btn btn-outline-secondary">Azzera</a>
-      <% end %>
-    </form>
-  </div>
-</div>
-
 <% if @line_items.empty? %>
   <div class="alert alert-info">
     <% if @search_term.present? %>
@@ -38,6 +26,38 @@
         </tr>
       </thead>
       <tbody>
+        <tr style="background-color: var(--neutral-100);">
+          <td>
+            <form method="get" action="/line_items" style="display: contents;">
+              <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>">
+          </td>
+          <td>
+              <input type="text" class="form-control form-control-sm" name="order_code" placeholder="Numero..." value="<%= @filter_order_code %>">
+          </td>
+          <td>
+              <select class="form-select form-select-sm" name="store_id" onchange="this.form.submit()">
+                <option value="">Tutti negozi</option>
+                <% @stores.each do |store| %>
+                  <option value="<%= store.id %>" <%= 'selected' if @filter_store == store.id.to_s %>>
+                    <%= store.name %>
+                  </option>
+                <% end %>
+              </select>
+          </td>
+          <td>
+              <input type="text" class="form-control form-control-sm" name="product_name" placeholder="Nome..." value="<%= @filter_product_name %>">
+          </td>
+          <td>
+              <input type="text" class="form-control form-control-sm" name="sku" placeholder="SKU..." value="<%= @filter_sku %>">
+          </td>
+          <td></td>
+          <td></td>
+          <td style="display: flex; gap: 4px; justify-content: flex-end;">
+              <button type="submit" class="btn btn-primary btn-sm" style="padding: 0.375rem 0.75rem;"><i class="fas fa-filter"></i> Filtra</button>
+              <a href="/line_items" class="btn btn-outline-secondary btn-sm" style="padding: 0.375rem 0.75rem;"><i class="fas fa-redo"></i> Reset</a>
+            </form>
+          </td>
+        </tr>
         <% @line_items.each do |li| %>
           <tr>
             <td><%= li[:order].created_at.strftime('%d-%m-%y') %></td>

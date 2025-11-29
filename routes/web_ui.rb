@@ -389,10 +389,13 @@ class PrintOrchestrator < Sinatra::Base
     erb :not_found
   end
 
-  # GET /line_items - List all order items from in-progress orders with product search
+  # GET /line_items - List all order items from in-progress orders with multiple filters
   get '/line_items' do
     # Get only orders that are in progress (not done/error)
     in_progress_orders = Order.where("status NOT IN ('done', 'error')").includes(:store, :order_items)
+    
+    # Get all stores for dropdown
+    @stores = Store.all.order(:name)
     
     # Get all order items from these orders, with their associated order and product
     @line_items = []
@@ -407,18 +410,40 @@ class PrintOrchestrator < Sinatra::Base
       end
     end
     
-    # Filter by product name, SKU, or order code if search param is provided
-    if params[:search].present?
-      search_term = params[:search].downcase.strip
-      @line_items = @line_items.select do |li|
-        product_name = (li[:product_name] || "").downcase
-        sku = (li[:sku] || "").downcase
-        order_code = (li[:order].external_order_code || "").downcase
-        product_name.include?(search_term) || sku.include?(search_term) || order_code.include?(search_term)
-      end
+    # Store filter values
+    @filter_order_date = params[:order_date]
+    @filter_order_code = params[:order_code]
+    @filter_store = params[:store_id]
+    @filter_product_name = params[:product_name]
+    @filter_sku = params[:sku]
+    
+    # Apply filters
+    # Filter by date
+    if @filter_order_date.present?
+      filter_date = Date.parse(@filter_order_date)
+      @line_items = @line_items.select { |li| li[:order].created_at.to_date == filter_date }
     end
     
-    @search_term = params[:search]
+    # Filter by order code
+    if @filter_order_code.present?
+      @line_items = @line_items.select { |li| li[:order].external_order_code.downcase.include?(@filter_order_code.downcase) }
+    end
+    
+    # Filter by store
+    if @filter_store.present?
+      @line_items = @line_items.select { |li| li[:order].store_id.to_s == @filter_store }
+    end
+    
+    # Filter by product name
+    if @filter_product_name.present?
+      @line_items = @line_items.select { |li| li[:product_name].downcase.include?(@filter_product_name.downcase) }
+    end
+    
+    # Filter by SKU
+    if @filter_sku.present?
+      @line_items = @line_items.select { |li| li[:sku].downcase.include?(@filter_sku.downcase) }
+    end
+    
     erb :line_items
   end
 
