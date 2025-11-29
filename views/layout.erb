@@ -1,45 +1,407 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Print Order Orchestrator</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --primary: #e91e8c;
+      --primary-light: #f74aaa;
+      --primary-dark: #c91a74;
+      --secondary: #1f2937;
+      --accent: #06b6d4;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --neutral-50: #f9fafb;
+      --neutral-100: #f3f4f6;
+      --neutral-200: #e5e7eb;
+      --neutral-300: #d1d5db;
+      --neutral-400: #9ca3af;
+      --neutral-600: #4b5563;
+      --neutral-700: #374151;
+    }
+
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    body {
+      background-color: var(--neutral-50);
+      color: var(--neutral-700);
+    }
+
+    /* Navbar */
+    .navbar {
+      background: linear-gradient(135deg, var(--secondary) 0%, #2d3748 100%);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      padding: 1rem 0;
+      border-bottom: 3px solid var(--primary);
+    }
+
+    .navbar-brand {
+      font-weight: 700;
+      font-size: 1.5rem;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-link {
+      font-weight: 500;
+      font-size: 0.95rem;
+      color: rgba(255, 255, 255, 0.8) !important;
+      transition: all 0.2s ease;
+      margin: 0 0.5rem;
+    }
+
+    .nav-link:hover {
+      color: var(--primary) !important;
+      transform: translateY(-1px);
+    }
+
+    .dropdown-menu {
+      background: var(--secondary);
+      border: 1px solid var(--neutral-300);
+      border-radius: 0.5rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+
+    .dropdown-item {
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .dropdown-item:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1400px;
+    }
+
+    /* Headings */
+    h1 {
+      font-weight: 700;
+      color: var(--secondary);
+      letter-spacing: -0.5px;
+      margin-bottom: 0.5rem;
+    }
+
+    h2 {
+      font-weight: 700;
+      color: var(--secondary);
+      letter-spacing: -0.3px;
+      margin-bottom: 1.5rem;
+    }
+
+    h3 {
+      font-weight: 600;
+      color: var(--secondary);
+      margin-bottom: 1rem;
+    }
+
+    /* Cards */
+    .card {
+      border: 1px solid var(--neutral-200);
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+      transition: all 0.2s ease;
+    }
+
+    .card:hover {
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+      border-color: var(--neutral-300);
+    }
+
+    .card-header {
+      background: linear-gradient(135deg, var(--neutral-50) 0%, var(--neutral-100) 100%);
+      border-bottom: 2px solid var(--neutral-200);
+      font-weight: 600;
+      color: var(--secondary);
+      padding: 1rem 1.25rem;
+    }
+
+    .card-body {
+      padding: 1.5rem;
+    }
+
+    /* Buttons */
+    .btn {
+      font-weight: 600;
+      border-radius: 0.5rem;
+      padding: 0.5rem 1rem;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgba(233, 30, 140, 0.3);
+    }
+
+    .btn-success {
+      background: var(--success);
+    }
+
+    .btn-success:hover {
+      background: #059669;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    .btn-outline-secondary {
+      color: var(--neutral-600);
+      border: 1.5px solid var(--neutral-300);
+    }
+
+    .btn-outline-secondary:hover {
+      background: var(--neutral-100);
+      border-color: var(--neutral-400);
+      color: var(--secondary);
+    }
+
+    .btn-sm {
+      font-size: 0.875rem;
+      padding: 0.375rem 0.75rem;
+    }
+
+    /* Badges */
+    .badge {
+      font-weight: 600;
+      padding: 0.5em 0.75em;
+      border-radius: 0.375rem;
+      font-size: 0.8rem;
+      letter-spacing: 0.25px;
+    }
+
+    .badge.bg-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%) !important;
+    }
+
+    .badge.bg-success {
+      background: var(--success) !important;
+    }
+
+    .badge.bg-warning {
+      background: var(--warning) !important;
+      color: white !important;
+    }
+
+    .badge.bg-danger {
+      background: var(--danger) !important;
+    }
+
+    .badge.bg-info {
+      background: var(--accent) !important;
+    }
+
     .status-badge {
       font-size: 0.85em;
       padding: 0.35em 0.65em;
     }
-    .status-new { background-color: #0d6efd; }
-    .status-sent_to_switch { background-color: #6c757d; }
-    .status-processing { background-color: #ffc107; color: #000; }
-    .status-done { background-color: #198754; }
-    .status-error { background-color: #dc3545; }
+
+    .status-new {
+      background: var(--accent);
+      color: white;
+    }
+
+    .status-sent_to_switch {
+      background: var(--neutral-400);
+      color: white;
+    }
+
+    .status-processing {
+      background: var(--warning);
+      color: white;
+    }
+
+    .status-done {
+      background: var(--success);
+      color: white;
+    }
+
+    .status-error {
+      background: var(--danger);
+      color: white;
+    }
+
+    /* Tables */
+    .table {
+      margin-bottom: 0;
+    }
+
+    .table thead th {
+      background: linear-gradient(135deg, var(--neutral-100) 0%, var(--neutral-50) 100%);
+      border-bottom: 2px solid var(--neutral-300);
+      font-weight: 600;
+      color: var(--secondary);
+      padding: 1rem 0.75rem;
+    }
+
+    .table tbody tr {
+      transition: all 0.2s ease;
+    }
+
+    .table tbody tr:hover {
+      background-color: var(--neutral-50);
+    }
+
+    .table td {
+      vertical-align: middle;
+      padding: 0.875rem 0.75rem;
+      border-bottom: 1px solid var(--neutral-200);
+    }
+
+    /* Tabs */
+    .nav-tabs {
+      border-bottom: 2px solid var(--neutral-300);
+      gap: 0.5rem;
+    }
+
+    .nav-tabs .nav-link {
+      color: var(--neutral-600);
+      border: none;
+      border-bottom: 3px solid transparent;
+      font-weight: 600;
+      padding: 0.75rem 1rem;
+      transition: all 0.2s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .nav-tabs .nav-link.active {
+      color: var(--primary);
+      background: none;
+      border-bottom-color: var(--primary);
+    }
+
+    /* Forms */
+    .form-control, .form-select {
+      border: 1.5px solid var(--neutral-300);
+      border-radius: 0.5rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(233, 30, 140, 0.1);
+    }
+
+    /* Alerts */
+    .alert {
+      border: 1.5px solid;
+      border-radius: 0.75rem;
+      font-weight: 500;
+    }
+
+    .alert-info {
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0.05) 100%);
+      border-color: var(--accent);
+      color: var(--neutral-700);
+    }
+
+    .alert-success {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
+      border-color: var(--success);
+      color: var(--neutral-700);
+    }
+
+    .alert-danger {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
+      border-color: var(--danger);
+      color: var(--neutral-700);
+    }
+
+    /* Asset Preview */
     .asset-preview {
       max-width: 100px;
       max-height: 100px;
       object-fit: cover;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      border: 1.5px solid var(--neutral-300);
+      border-radius: 0.5rem;
     }
+
+    /* Log Box */
     .log-box {
-      background-color: #f8f9fa;
-      border: 1px solid #dee2e6;
-      border-radius: 4px;
+      background: var(--neutral-100);
+      border: 1.5px solid var(--neutral-300);
+      border-radius: 0.5rem;
       padding: 1rem;
-      font-family: monospace;
+      font-family: 'Courier New', monospace;
       font-size: 0.85rem;
       white-space: pre-wrap;
       max-height: 300px;
       overflow-y: auto;
+      color: var(--neutral-700);
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+      background: none;
+      padding: 0;
+      margin-bottom: 1.5rem;
+    }
+
+    .breadcrumb-item.active {
+      color: var(--neutral-600);
+      font-weight: 600;
+    }
+
+    .breadcrumb-item a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .breadcrumb-item a:hover {
+      text-decoration: underline;
+    }
+
+    /* Utilities */
+    .text-muted {
+      color: var(--neutral-500) !important;
+    }
+
+    .gap-3 {
+      gap: 1rem;
+    }
+
+    /* Smooth Transitions */
+    a {
+      transition: all 0.2s ease;
+    }
+
+    a:hover {
+      color: var(--primary);
     }
   </style>
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container-fluid">
-      <a class="navbar-brand" href="/"><img src="/logo.png" alt="Magenta" style="height: 40px; margin-left: 15px;"></a>
+      <a class="navbar-brand" href="/"><img src="/logo.png" alt="Magenta" style="height: 40px;"></a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -76,7 +438,7 @@
     </div>
   </nav>
   
-  <div class="container mt-4">
+  <div class="container mt-5">
     <%= yield %>
   </div>
 
