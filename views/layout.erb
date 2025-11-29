@@ -249,12 +249,13 @@
       font-size: 0.95rem;
     }
 
-    .table.table-striped tbody tr:nth-child(odd) {
-      background-color: var(--neutral-50);
-    }
-
-    .table.table-striped tbody tr:nth-child(even) {
-      background-color: white;
+    .table thead.table-dark th {
+      background: var(--secondary);
+      border-bottom: none;
+      font-weight: 600;
+      color: white;
+      padding: 1rem 0.75rem;
+      font-size: 0.95rem;
     }
 
     .table thead th {
@@ -271,7 +272,7 @@
     }
 
     .table tbody tr:hover {
-      background-color: var(--neutral-100);
+      background-color: var(--neutral-100) !important;
     }
 
     .table td {
