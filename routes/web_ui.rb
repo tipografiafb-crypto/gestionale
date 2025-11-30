@@ -20,7 +20,7 @@ class PrintOrchestrator < Sinatra::Base
   get '/orders' do
     @stores = Store.where(active: true).ordered
     
-    @orders = Order.includes(:store, :switch_job).recent
+    @orders = Order.includes(:store, :switch_job, :order_items).recent
     @orders = @orders.by_store(params[:store_id]) if params[:store_id].present?
     @orders = @orders.by_order_code(params[:order_code]) if params[:order_code].present?
     @orders = @orders.by_date(params[:order_date]) if params[:order_date].present?
