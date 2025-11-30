@@ -1,9 +1,9 @@
 <div class="mb-4">
   <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-      <li class="breadcrumb-item"><a href="/orders">Orders</a></li>
+      <li class="breadcrumb-item"><a href="/orders">Ordini</a></li>
       <li class="breadcrumb-item"><a href="/orders/<%= @order.id %>"><%= @order.external_order_code %></a></li>
-      <li class="breadcrumb-item active"><a href="/orders/<%= @order.id %>/items/<%= @item.id %>">Job <%= @item.id %></a></li>
+      <li class="breadcrumb-item active"><a href="/orders/<%= @order.id %>/items/<%= @item.id %>">Lavoro <%= @item.id %></a></li>
     </ol>
   </nav>
 </div>
@@ -14,24 +14,24 @@
   <div class="col-md-6">
     <div class="card">
       <div class="card-header">
-        <strong>Job Information</strong>
+        <strong>Informazioni Lavoro</strong>
       </div>
       <div class="card-body">
         <table class="table table-sm table-borderless">
           <tr>
-            <th>Order Code:</th>
+            <th>Codice Ordine:</th>
             <td><strong><%= @order.external_order_code %></strong></td>
           </tr>
           <tr>
-            <th>Product:</th>
+            <th>Prodotto:</th>
             <td><strong><%= @item.product&.name || @item.sku %></strong></td>
           </tr>
           <tr>
-            <th>Quantity:</th>
+            <th>Quantità:</th>
             <td><strong><%= @item.quantity %></strong></td>
           </tr>
           <tr>
-            <th>Store:</th>
+            <th>Negozio:</th>
             <td><%= @order.store.code %></td>
           </tr>
           <tr>
@@ -50,7 +50,7 @@
   <div class="col-md-6">
     <div class="card">
       <div class="card-header">
-        <strong>Product Images</strong>
+        <strong>Immagini Prodotto</strong>
       </div>
       <div class="card-body text-center">
         <% product_images = @item.assets.select { |a| a.downloaded? && a.asset_type&.start_with?('screenshot') && a.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) } %>
@@ -63,18 +63,18 @@
             <% end %>
           </div>
         <% else %>
-          <p class="text-muted">No product images available</p>
+          <p class="text-muted">Nessuna immagine prodotto disponibile</p>
         <% end %>
       </div>
     </div>
   </div>
 </div>
 
-<!-- BLOCCO PRINCIPALE: PRINT WORKFLOW -->
+<!-- BLOCCO PRINCIPALE: FLUSSO DI STAMPA -->
 <div class="card mb-4">
   <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
     <div>
-      <strong>Print Workflow</strong>
+      <strong>Flusso di Stampa</strong>
     </div>
     <div style="display: flex; gap: 30px; align-items: center; font-size: 14px;">
       <div style="display: flex; align-items: center; gap: 8px;">
@@ -105,7 +105,7 @@
     <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
       <!-- Pre-stampa -->
       <button type="button" class="btn btn-outline-warning" 
-              title="Configure and send to preprint"
+              title="Configura e invia a Pre-stampa"
               data-bs-toggle="modal" data-bs-target="#flowSelectModal"
               <%= 'disabled' if @item.preprint_completed_at %>>
 <i class="fas fa-print"></i> Pre-stampa
@@ -137,10 +137,10 @@
       <% end %>
 
       <!-- Reset -->
-      <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/reset" method="post" class="d-inline" onsubmit="return confirm('Reset this job?');">
+      <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/reset" method="post" class="d-inline" onsubmit="return confirm('Resettare questo lavoro?');">
         <button type="submit" class="btn btn-outline-secondary" 
                 <%= 'disabled' if @item.preprint_status == 'pending' && @item.print_status == 'pending' %>>
-<i class="fas fa-redo"></i> Reset
+<i class="fas fa-redo"></i> Ripristina
         </button>
       </form>
     </div>
@@ -155,10 +155,10 @@
       <!-- Populated by polling: shows processing bar until Switch sends file, then shows result button -->
     </div>
 
-    <!-- Print Files ONLY & Action Buttons -->
+    <!-- File di Stampa e Azioni -->
     <div class="row">
       <div class="col-md-12">
-        <h6>Print Files & Actions:</h6>
+        <h6>File di Stampa e Azioni:</h6>
         
         <% print_files = @item.assets.select { |a| a.asset_type&.start_with?('print_file') } %>
         <% if print_files.any? %>
@@ -176,14 +176,14 @@
                         <i class="fas fa-file-pdf" style="font-size: 32px; color: #dc3545;"></i>
                       </div>
                     <% end %>
-                    <small class="d-block"><strong>Print File</strong></small>
+                    <small class="d-block"><strong>File di Stampa</strong></small>
                     <div class="btn-group btn-group-sm mt-2" role="group">
                       <% if asset.downloaded? %>
-                        <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Download"><i class="fas fa-download"></i></a>
+                        <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Scarica"><i class="fas fa-download"></i></a>
                         <form action="/assets/<%= asset.id %>/delete" method="post" class="d-inline">
                           <input type="hidden" name="order_id" value="<%= @order.id %>">
                           <input type="hidden" name="item_id" value="<%= @item.id %>">
-                          <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Cancellare questo file?');"><i class="fas fa-trash"></i></button>
+                          <button type="submit" class="btn btn-sm btn-outline-danger" title="Elimina" onclick="return confirm('Cancellare questo file?');"><i class="fas fa-trash"></i></button>
                         </form>
                       <% end %>
                     </div>
@@ -193,7 +193,7 @@
             <% end %>
           </div>
         <% else %>
-          <p class="text-muted">No print files uploaded yet. Upload files to send to print workflow.</p>
+          <p class="text-muted">Nessun file di stampa caricato. Carica file per inviarli al flusso di stampa.</p>
         <% end %>
 
         <!-- Upload Files Form -->
@@ -223,14 +223,14 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="fas fa-print"></i> Pre-stampa - Configure</h5>
+        <h5 class="modal-title"><i class="fas fa-print"></i> Pre-stampa - Configura</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/send_preprint" method="post">
         <div class="modal-body">
           <% if @item.available_print_flows.count > 0 %>
             <div class="mb-3">
-              <label class="form-label"><strong>Print Flow</strong></label>
+              <label class="form-label"><strong>Flusso di Stampa</strong></label>
               <% @item.available_print_flows.each do |flow| %>
                 <div class="form-check mb-2">
                   <input class="form-check-input" type="radio" name="print_flow_id" 
@@ -241,14 +241,14 @@
                   <label class="form-check-label" for="flow_<%= flow.id %>">
                     <strong><%= flow.name %></strong>
                     <% if flow.id == @item.product&.default_print_flow_id %>
-                      <span class="badge bg-info">Default</span>
+                      <span class="badge bg-info">Predefinito</span>
                     <% end %>
                   </label>
                 </div>
               <% end %>
             </div>
           <% else %>
-            <div class="alert alert-warning">No print flows available</div>
+            <div class="alert alert-warning">Nessun flusso di stampa disponibile</div>
           <% end %>
           
           <div id="azione-photoshop-container" class="mb-3" style="display: none;">
@@ -260,11 +260,11 @@
           </div>
 
           <div class="mb-3">
-            <label for="percentuale" class="form-label"><strong>Percentage (%)</strong></label>
+            <label for="percentuale" class="form-label"><strong>Percentuale (%)</strong></label>
             <input type="number" class="form-control" id="percentuale" 
                    name="percentuale" value="0" step="1" min="-999" max="999"
-                   placeholder="Enter percentage (e.g. +10, -5)">
-            <small class="text-muted">Positive or negative value to send to Switch</small>
+                   placeholder="Inserisci percentuale (es. +10, -5)">
+            <small class="text-muted">Valore positivo o negativo da inviare a Switch</small>
           </div>
 
           <script>
@@ -313,8 +313,8 @@
           </script>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-warning">🖨️ Send to Pre-stampa</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-warning">🖨️ Invia a Pre-stampa</button>
         </div>
       </form>
     </div>
@@ -326,12 +326,12 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Choose Print Machine</h5>
+        <h5 class="modal-title">Scegli Stampante</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/send_print" method="post">
         <div class="modal-body">
-          <p class="text-muted mb-3">Select machine for this job:</p>
+          <p class="text-muted mb-3">Seleziona stampante per questo lavoro:</p>
           <% available_machines.each do |machine| %>
             <div class="form-check mb-2">
               <input class="form-check-input" type="radio" name="print_machine_id" 
@@ -347,8 +347,8 @@
           <% end %>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-success"><i class="fas fa-check-circle"></i> Send to Print</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-success"><i class="fas fa-check-circle"></i> Invia a Stampa</button>
         </div>
       </form>
     </div>
@@ -360,12 +360,12 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Choose Printer for Label</h5>
+        <h5 class="modal-title">Scegli Stampante per Etichetta</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/send_label" method="post">
         <div class="modal-body">
-          <p class="text-muted mb-3">Select printer for this label:</p>
+          <p class="text-muted mb-3">Seleziona stampante per questa etichetta:</p>
           <% available_machines.each do |machine| %>
             <div class="form-check mb-2">
               <input class="form-check-input" type="radio" name="print_machine_id" 
@@ -381,33 +381,33 @@
           <% end %>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">🏷️ Send Label</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-primary">🏷️ Invia Etichetta</button>
         </div>
       </form>
     </div>
   </div>
 </div>
 
-<!-- Preview Modal (same as before) -->
+<!-- Modal Anteprima -->
 <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">File Preview</h5>
+        <h5 class="modal-title">Anteprima File</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
         <div id="imageContainer" style="display: none; text-align: center;">
-          <img id="previewImage" class="img-fluid" alt="Preview">
+          <img id="previewImage" class="img-fluid" alt="Anteprima">
         </div>
         
         <div id="pdfContainer" style="display: none;">
           <div id="pdf-viewer" style="margin-bottom: 20px;"></div>
           <div style="display: flex; justify-content: center; gap: 10px; margin-top: 15px;">
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="prevPage" style="display: none;">← Previous</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="prevPage" style="display: none;">← Precedente</button>
             <span id="pageInfo" style="align-self: center;"></span>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="nextPage" style="display: none;">Next →</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="nextPage" style="display: none;">Prossimo →</button>
           </div>
         </div>
       </div>
@@ -458,7 +458,7 @@
         renderPage(1);
       } catch (error) {
         pdfContainer.style.display = 'block';
-        pdfViewer.innerHTML = '<p class="text-danger">Error loading PDF</p>';
+        pdfViewer.innerHTML = '<p class="text-danger">Errore nel caricamento del PDF</p>';
       }
     }
   });
@@ -480,13 +480,13 @@
       pdfViewer.innerHTML = '';
       pdfViewer.appendChild(canvas);
       
-      pageInfo.textContent = 'Page ' + pageNum + ' of ' + currentTotalPages;
+      pageInfo.textContent = 'Pagina ' + pageNum + ' di ' + currentTotalPages;
       currentPageNum = pageNum;
       
       prevPageBtn.disabled = pageNum === 1;
       nextPageBtn.disabled = pageNum === currentTotalPages;
     } catch (error) {
-      pdfViewer.innerHTML = '<p class="text-danger">Error rendering page</p>';
+      pdfViewer.innerHTML = '<p class="text-danger">Errore nel rendering della pagina</p>';
     }
   }
 
