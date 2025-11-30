@@ -26,24 +26,7 @@ class PrintOrchestrator < Sinatra::Base
     @orders = @orders.by_date(params[:order_date]) if params[:order_date].present?
     @orders = @orders.limit(100)
     
-    # Filter by status (after limit, since select converts to Array)
-    if params[:status_filter].present? && params[:status_filter] != ''
-      status_filter = params[:status_filter]
-      @orders = @orders.select do |o|
-        case status_filter
-        when 'in_progress'
-          %w[new sent_to_switch processing].include?(o.status)
-        when 'done'
-          o.status == 'done'
-        when 'error'
-          o.status == 'error'
-        else
-          true
-        end
-      end
-    end
-    
-    # Sort by date (works on Array)
+    # Sort by date
     sort_order = params[:sort] == 'desc' ? 'desc' : 'asc'
     @orders = @orders.sort_by(&:created_at)
     @orders = @orders.reverse if sort_order == 'desc'
@@ -64,7 +47,6 @@ class PrintOrchestrator < Sinatra::Base
     @filter_store = params[:store_id]
     @filter_order_code = params[:order_code]
     @filter_order_date = params[:order_date]
-    @filter_status = params[:status_filter]
     @filter_sort = params[:sort]
     @filter_error_order_code = params[:error_order_code]
     @filter_error_date = params[:error_date]
