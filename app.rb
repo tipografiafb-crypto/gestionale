@@ -48,6 +48,13 @@ class PrintOrchestrator < Sinatra::Base
     cache_control :no_cache, :no_store, :must_revalidate
     headers 'Pragma' => 'no-cache'
     headers 'Expires' => '0'
+    
+    # LOG ALL REQUESTS
+    if request.post?
+      puts "[REQUEST] POST #{request.path} - Content-Type: #{request.content_type}"
+      puts "[REQUEST] Params keys: #{params.keys.inspect}"
+      puts "[REQUEST] File param: #{params[:file].class if params[:file]}"
+    end
   end
 
   # Load models
