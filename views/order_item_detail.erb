@@ -128,11 +128,10 @@
                     <div class="btn-group btn-group-sm mt-2" role="group">
                       <% if asset.downloaded? %>
                         <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Download"><i class="fas fa-download"></i></a>
-                        <form action="/assets/<%= asset.id %>" method="post" class="d-inline">
-                          <input type="hidden" name="_method" value="DELETE">
+                        <form action="/assets/<%= asset.id %>/delete" method="post" class="d-inline">
                           <input type="hidden" name="order_id" value="<%= @order.id %>">
                           <input type="hidden" name="item_id" value="<%= @item.id %>">
-                          <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Delete this file?');"><i class="fas fa-trash"></i></button>
+                          <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Cancellare questo file?');"><i class="fas fa-trash"></i></button>
                         </form>
                       <% end %>
                     </div>
