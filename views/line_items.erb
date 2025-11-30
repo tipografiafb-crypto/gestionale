@@ -4,9 +4,8 @@
     <select class="form-select form-select-sm" name="status_filter" onchange="this.form.submit()" style="width: auto;">
       <option value="">Tutti gli stati</option>
       <option value="nuovo" <%= 'selected' if @filter_status == 'nuovo' %>>Nuovo</option>
-      <option value="pre-stampa" <%= 'selected' if @filter_status == 'pre-stampa' %>>Pre-stampa</option>
-      <option value="stampa" <%= 'selected' if @filter_status == 'stampa' %>>Stampa</option>
-      <option value="completato" <%= 'selected' if @filter_status == 'completato' %>>Completato</option>
+      <option value="pre-stampa" <%= 'selected' if @filter_status == 'pre-stampa' %>>Pre-stampa (in corso)</option>
+      <option value="stampa" <%= 'selected' if @filter_status == 'stampa' %>>Attende Stampa</option>
     </select>
     <a href="/line_items" class="btn btn-outline-secondary btn-sm"><i class="fas fa-redo"></i> Reset</a>
   </form>

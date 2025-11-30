@@ -457,9 +457,13 @@ class PrintOrchestrator < Sinatra::Base
     @stores = Store.all.order(:name)
     
     # Get all order items from these orders, with their associated order and product
+    # EXCLUDE completed items (print_status == 'completed')
     @line_items = []
     in_progress_orders.each do |order|
       order.order_items.each do |item|
+        # Skip completed items
+        next if item.print_status == 'completed'
+        
         @line_items << {
           item: item,
           order: order,
@@ -506,7 +510,14 @@ class PrintOrchestrator < Sinatra::Base
     
     # Filter by workflow status
     if @filter_status.present? && @filter_status != ''
-      @line_items = @line_items.select { |li| li[:item].workflow_status.upcase == @filter_status.upcase }
+      case @filter_status
+      when 'nuovo'
+        @line_items = @line_items.select { |li| li[:item].preprint_status == 'pending' && li[:item].print_status == 'pending' }
+      when 'pre-stampa'
+        @line_items = @line_items.select { |li| li[:item].preprint_status != 'pending' && li[:item].preprint_status != 'completed' }
+      when 'stampa'
+        @line_items = @line_items.select { |li| li[:item].preprint_status == 'completed' && li[:item].print_status != 'completed' }
+      end
     end
     
     erb :line_items
