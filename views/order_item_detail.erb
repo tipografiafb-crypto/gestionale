@@ -147,11 +147,13 @@
         <div class="card mb-4" style="background-color: var(--neutral-50); border: 2px dashed var(--neutral-300);">
           <div class="card-body">
             <h6 class="mb-3"><i class="fas fa-cloud-upload-alt"></i> Carica File di Stampa</h6>
-            <form method="post" enctype="multipart/form-data" style="display:flex; gap: 10px; align-items: center;">
-              <input type="file" name="file" accept=".png,.jpg,.jpeg,.pdf,.gif,.webp" required style="flex:1;">
-              <button type="submit" class="btn btn-primary" formaction="/orders/<%= @order.id %>/items/<%= @item.id %>/upload">
-                <i class="fas fa-upload"></i> Carica
-              </button>
+            <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/upload" method="post" enctype="multipart/form-data">
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="file" name="file" accept=".png,.jpg,.jpeg,.pdf,.gif,.webp" required style="flex: 1;">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-upload"></i> Carica
+                </button>
+              </div>
             </form>
             <small class="text-muted d-block mt-2">PNG, JPG, PDF, GIF, WebP (max 50MB)</small>
           </div>
