@@ -135,7 +135,7 @@
                           <form action="/orders/<%= order.id %>/duplicate" method="post" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-outline-secondary" title="Duplica"><i class="fas fa-copy"></i></button>
                           </form>
-                          <form action="/orders/<%= order.id %>/force_close" method="post" class="d-inline" onsubmit="return confirm('Forzare la chiusura di questo ordine?');">
+                          <form action="/orders/<%= order.id %>/force_close" method="post" class="d-inline" onsubmit="return confirm('Forzare la chiusura di questo ordine?');" onclick="event.stopPropagation();">
                             <button type="submit" class="btn btn-sm btn-outline-success" title="Forza Chiusura"><i class="fas fa-lock"></i></button>
                           </form>
                           <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');">
