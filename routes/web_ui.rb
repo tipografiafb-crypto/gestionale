@@ -381,6 +381,34 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/orders/#{order.id}/items/#{item.id}"
   end
 
+  # DELETE /assets/:id - Delete asset file
+  delete '/assets/:id' do
+    begin
+      asset = Asset.find(params[:id])
+      
+      # Delete file from disk if it exists
+      if asset.local_path.present? && File.exist?(asset.local_path_full)
+        File.delete(asset.local_path_full)
+      end
+      
+      # Delete asset from database
+      asset.destroy
+      
+      # Redirect back to item page if order_id and item_id provided
+      order_id = params[:order_id]
+      item_id = params[:item_id]
+      
+      if order_id && item_id
+        redirect "/orders/#{order_id}/items/#{item_id}"
+      else
+        redirect '/orders'
+      end
+    rescue => e
+      puts "[DELETE] Error deleting asset: #{e.message}"
+      redirect '/orders'
+    end
+  end
+
   # DELETE /orders/:id - Delete order
   delete '/orders/:id' do
     order = Order.find(params[:id])

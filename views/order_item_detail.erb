@@ -130,6 +130,8 @@
                         <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Download"><i class="fas fa-download"></i></a>
                         <form action="/assets/<%= asset.id %>" method="post" class="d-inline">
                           <input type="hidden" name="_method" value="DELETE">
+                          <input type="hidden" name="order_id" value="<%= @order.id %>">
+                          <input type="hidden" name="item_id" value="<%= @item.id %>">
                           <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Delete this file?');"><i class="fas fa-trash"></i></button>
                         </form>
                       <% end %>
