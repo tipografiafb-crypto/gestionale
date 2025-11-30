@@ -8,8 +8,8 @@ Se vuoi **saltare tutta la configurazione manuale**, usa gli script automatici:
 
 ```bash
 # 1. Clona il repository
-mkdir -p /home/paolo/apps
-cd /home/paolo/apps
+mkdir -p /home/magenta/apps
+cd /home/magenta/apps
 git clone https://github.com/tipografiafb-crypto/gestionale.git print-orchestrator
 cd print-orchestrator
 
