@@ -12,6 +12,11 @@
     <h1>Order: <%= @order.external_order_code %></h1>
   </div>
   <div class="col-md-4 text-end">
+    <form action="/orders/<%= @order.id %>/force_close" method="post" class="d-inline" onsubmit="return confirm('Forzare la chiusura di questo ordine?');">
+      <button type="submit" class="btn btn-success">
+        <i class="fas fa-lock"></i> Forza Chiusura
+      </button>
+    </form>
     <form action="/orders/<%= @order.id %>" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro? Eliminerai completamente questo ordine.');">
       <input type="hidden" name="_method" value="DELETE">
       <button type="submit" class="btn btn-danger">
