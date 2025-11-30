@@ -337,12 +337,14 @@ class PrintOrchestrator < Sinatra::Base
   # POST /orders/:order_id/items/:item_id/upload_asset - Upload/re-upload asset file
   post '/orders/:order_id/items/:item_id/upload_asset' do
     puts "[UPLOAD] Route called! Order: #{params[:order_id]}, Item: #{params[:item_id]}"
-    puts "[UPLOAD] File param present: #{params[:file].present?}"
+    puts "[UPLOAD] File param: #{params[:file].inspect}"
+    puts "[UPLOAD] All params: #{params.keys.inspect}"
     
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
     
     file = params[:file]
+    puts "[UPLOAD] File is_a Hash? #{file.is_a?(Hash)}, present? #{file.present?}"
     if file.present? && file.is_a?(Hash) && file[:filename].present?
       begin
         # Validate file extension
