@@ -366,16 +366,22 @@ class PrintOrchestrator < Sinatra::Base
           asset.update(local_path: local_path, downloaded: true)
         else
           # Create new asset for print file
-          asset = item.assets.create(
+          asset = item.assets.build(
             asset_type: 'print_file',
-            original_url: "local:#{filename}",
+            original_url: "file:///#{filename}",
             local_path: local_path,
             external_url: nil,
             downloaded: true
           )
+          if asset.save
+            puts "[UPLOAD] Asset created successfully: #{asset.id}, type: #{asset.asset_type}, local_path: #{asset.local_path}"
+          else
+            puts "[UPLOAD] Asset save failed: #{asset.errors.full_messages.join(', ')}"
+          end
         end
       rescue => e
-        warn "File upload error for #{sku}: #{e.message}"
+        puts "[UPLOAD] File upload error for #{sku}: #{e.message}"
+        puts e.backtrace.first(5)
       end
     end
     
