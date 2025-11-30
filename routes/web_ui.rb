@@ -168,6 +168,7 @@ class PrintOrchestrator < Sinatra::Base
   # POST /orders/:id/force_close - Force close an order
   post '/orders/:id/force_close' do
     @order = Order.find(params[:id])
+    @order.update(status: 'done')
     @order.order_items.each do |item|
       item.update(preprint_status: 'completed', preprint_completed_at: Time.now, print_status: 'completed', print_completed_at: Time.now)
     end
