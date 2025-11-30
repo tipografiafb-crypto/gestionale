@@ -27,16 +27,19 @@
             <td><strong><%= @item.product&.name || @item.sku %></strong></td>
           </tr>
           <tr>
-            <th>SKU:</th>
-            <td><%= @item.sku %></td>
-          </tr>
-          <tr>
             <th>Quantity:</th>
             <td><strong><%= @item.quantity %></strong></td>
           </tr>
           <tr>
             <th>Store:</th>
             <td><%= @order.store.code %></td>
+          </tr>
+          <tr>
+            <td colspan="2">
+              <a href="/orders/<%= @order.id %>/items/<%= @item.id %>/print" class="btn btn-outline-info w-100" target="_blank">
+                <i class="fas fa-file-invoice"></i> Scheda Lavoro
+              </a>
+            </td>
           </tr>
         </table>
       </div>
@@ -204,10 +207,6 @@
             </button>
           </form>
 
-          <!-- Print Card -->
-          <a href="/orders/<%= @order.id %>/items/<%= @item.id %>/print" class="btn btn-outline-info" target="_blank">
-<i class="fas fa-file-invoice"></i> Print Card
-          </a>
         </div>
 
         <!-- Pre-stampa Result Section -->
