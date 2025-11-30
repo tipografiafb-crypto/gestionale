@@ -168,7 +168,9 @@ class PrintOrchestrator < Sinatra::Base
   # POST /orders/:id/force_close - Force close an order
   post '/orders/:id/force_close' do
     @order = Order.find(params[:id])
-    @order.update(workflow_status: 'completato')
+    @order.order_items.each do |item|
+      item.update(print_status: 'completed', print_completed_at: Time.now)
+    end
     redirect "/orders/#{@order.id}"
   rescue => e
     redirect "/orders?error=#{e.message}"
