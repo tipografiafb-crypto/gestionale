@@ -24,6 +24,29 @@ class PrintOrchestrator < Sinatra::Base
     @orders = @orders.by_store(params[:store_id]) if params[:store_id].present?
     @orders = @orders.by_order_code(params[:order_code]) if params[:order_code].present?
     @orders = @orders.by_date(params[:order_date]) if params[:order_date].present?
+    
+    # Filter by status
+    if params[:status_filter].present? && params[:status_filter] != ''
+      status_filter = params[:status_filter]
+      @orders = @orders.select do |o|
+        case status_filter
+        when 'in_progress'
+          %w[new sent_to_switch processing].include?(o.status)
+        when 'done'
+          o.status == 'done'
+        when 'error'
+          o.status == 'error'
+        else
+          true
+        end
+      end
+    end
+    
+    # Sort by date
+    sort_order = params[:sort] == 'desc' ? 'desc' : 'asc'
+    @orders = @orders.sort_by(&:created_at)
+    @orders = @orders.reverse if sort_order == 'desc'
+    
     @orders = @orders.limit(100)
     
     # Try to load import errors, but gracefully handle if table doesn't exist
@@ -42,6 +65,8 @@ class PrintOrchestrator < Sinatra::Base
     @filter_store = params[:store_id]
     @filter_order_code = params[:order_code]
     @filter_order_date = params[:order_date]
+    @filter_status = params[:status_filter]
+    @filter_sort = params[:sort]
     @filter_error_order_code = params[:error_order_code]
     @filter_error_date = params[:error_date]
     
@@ -469,6 +494,7 @@ class PrintOrchestrator < Sinatra::Base
     @filter_store = params[:store_id]
     @filter_product_name = params[:product_name]
     @filter_sku = params[:sku]
+    @filter_status = params[:status_filter]
     
     # Apply filters
     # Filter by date
@@ -495,6 +521,11 @@ class PrintOrchestrator < Sinatra::Base
     # Filter by SKU
     if @filter_sku.present?
       @line_items = @line_items.select { |li| li[:sku].downcase.include?(@filter_sku.downcase) }
+    end
+    
+    # Filter by workflow status
+    if @filter_status.present? && @filter_status != ''
+      @line_items = @line_items.select { |li| li[:item].workflow_status.upcase == @filter_status.upcase }
     end
     
     erb :line_items
