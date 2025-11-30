@@ -24,8 +24,9 @@ class PrintOrchestrator < Sinatra::Base
     @orders = @orders.by_store(params[:store_id]) if params[:store_id].present?
     @orders = @orders.by_order_code(params[:order_code]) if params[:order_code].present?
     @orders = @orders.by_date(params[:order_date]) if params[:order_date].present?
+    @orders = @orders.limit(100)
     
-    # Filter by status
+    # Filter by status (after limit, since select converts to Array)
     if params[:status_filter].present? && params[:status_filter] != ''
       status_filter = params[:status_filter]
       @orders = @orders.select do |o|
@@ -42,12 +43,10 @@ class PrintOrchestrator < Sinatra::Base
       end
     end
     
-    # Sort by date
+    # Sort by date (works on Array)
     sort_order = params[:sort] == 'desc' ? 'desc' : 'asc'
     @orders = @orders.sort_by(&:created_at)
     @orders = @orders.reverse if sort_order == 'desc'
-    
-    @orders = @orders.limit(100)
     
     # Try to load import errors, but gracefully handle if table doesn't exist
     @import_errors = []
