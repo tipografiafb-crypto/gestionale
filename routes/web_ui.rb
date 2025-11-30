@@ -169,9 +169,9 @@ class PrintOrchestrator < Sinatra::Base
   post '/orders/:id/force_close' do
     @order = Order.find(params[:id])
     @order.order_items.each do |item|
-      item.update(print_status: 'completed', print_completed_at: Time.now)
+      item.update(preprint_status: 'completed', preprint_completed_at: Time.now, print_status: 'completed', print_completed_at: Time.now)
     end
-    redirect "/orders/#{@order.id}"
+    redirect "/orders"
   rescue => e
     redirect "/orders?error=#{e.message}"
   end
