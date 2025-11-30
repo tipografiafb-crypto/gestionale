@@ -334,65 +334,53 @@ class PrintOrchestrator < Sinatra::Base
     erb :not_found
   end
 
-  # POST /orders/:order_id/items/:item_id/upload_asset - Upload/re-upload asset file
-  post '/orders/:order_id/items/:item_id/upload_asset' do
-    puts "[UPLOAD] Route called! Order: #{params[:order_id]}, Item: #{params[:item_id]}"
-    puts "[UPLOAD] File param: #{params[:file].inspect}"
-    puts "[UPLOAD] All params: #{params.keys.inspect}"
+  # POST /orders/:order_id/items/:item_id/upload - Upload print file
+  post '/orders/:order_id/items/:item_id/upload' do
+    puts "[UPLOAD] ✅ Route called! Order: #{params[:order_id]}, Item: #{params[:item_id]}"
+    puts "[UPLOAD] File: #{params[:file].class} - #{!params[:file].nil?}"
     
-    order = Order.find(params[:order_id])
-    item = order.order_items.find(params[:item_id])
-    
-    file = params[:file]
-    puts "[UPLOAD] File is_a Hash? #{file.is_a?(Hash)}, present? #{file.present?}"
-    if file.present? && file.is_a?(Hash) && file[:filename].present?
-      begin
-        # Validate file extension
+    begin
+      order = Order.find(params[:order_id])
+      item = order.order_items.find(params[:item_id])
+      file = params[:file]
+      
+      if file && file[:filename]
+        puts "[UPLOAD] Processing file: #{file[:filename]}"
+        
         unless valid_file_extension?(file[:filename])
-          redirect "/orders/#{order.id}?msg=error&text=#{URI.encode_www_form_component('Tipo file non consentito. Solo PNG, JPG, JPEG, PDF')}"
+          puts "[UPLOAD] Invalid extension"
+          return redirect "/orders/#{order.id}/items/#{item.id}?error=invalid_file"
         end
-
+        
         store_code = order.store.code || order.store.id.to_s
         order_code = order.external_order_code
         sku = item.sku
         upload_dir = File.join(Dir.pwd, 'storage', store_code, order_code, sku)
-        FileUtils.mkdir_p(upload_dir) unless Dir.exist?(upload_dir)
+        FileUtils.mkdir_p(upload_dir)
         
         filename = File.basename(file[:filename])
         local_path = "storage/#{store_code}/#{order_code}/#{sku}/#{filename}"
         full_path = File.join(Dir.pwd, local_path)
         
-        content = file[:tempfile].read
-        File.open(full_path, 'wb') { |f| f.write(content) }
+        File.write(full_path, file[:tempfile].read)
         
-        # If asset_id is provided, update existing asset
-        if params[:asset_id].present?
-          asset = Asset.find(params[:asset_id])
-          asset.update(local_path: local_path, downloaded: true)
-        else
-          # Create new asset for print file
-          asset = item.assets.build(
-            asset_type: 'print_file',
-            original_url: "file:///#{filename}",
-            local_path: local_path,
-            external_url: nil,
-            downloaded: true
-          )
-          if asset.save
-            puts "[UPLOAD] Asset created successfully: #{asset.id}, type: #{asset.asset_type}, local_path: #{asset.local_path}"
-          else
-            puts "[UPLOAD] Asset save failed: #{asset.errors.full_messages.join(', ')}"
-          end
-        end
-      rescue => e
-        puts "[UPLOAD] File upload error for #{sku}: #{e.message}"
-        puts e.backtrace.first(5)
+        # Create new asset
+        asset = item.assets.create(
+          asset_type: 'print_file',
+          original_url: "file:#{filename}",
+          local_path: local_path,
+          external_url: nil,
+          downloaded: true
+        )
+        
+        puts "[UPLOAD] ✅ Asset #{asset.id} created for item #{item.id}"
       end
+    rescue => e
+      puts "[UPLOAD] ❌ ERROR: #{e.message}"
+      puts e.backtrace.take(3)
     end
     
     redirect "/orders/#{order.id}/items/#{item.id}"
-  rescue => e
-    redirect "/orders"
   end
 
   # DELETE /orders/:id - Delete order
