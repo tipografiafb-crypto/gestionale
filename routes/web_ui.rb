@@ -165,6 +165,15 @@ class PrintOrchestrator < Sinatra::Base
     erb :not_found
   end
 
+  # POST /orders/:id/force_close - Force close an order
+  post '/orders/:id/force_close' do
+    @order = Order.find(params[:id])
+    @order.update(workflow_status: 'completato')
+    redirect "/orders/#{@order.id}"
+  rescue => e
+    redirect "/orders?error=#{e.message}"
+  end
+
   # GET /orders/:order_id/items/:item_id - Order item detail (job detail)
   get '/orders/:order_id/items/:item_id' do
     @order = Order.includes(:store).find(params[:order_id])
