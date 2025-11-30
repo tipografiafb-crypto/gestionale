@@ -334,11 +334,10 @@ class PrintOrchestrator < Sinatra::Base
     erb :not_found
   end
 
-  # POST /orders/:order_id/items/:item_id/upload_asset - Re-upload asset file
+  # POST /orders/:order_id/items/:item_id/upload_asset - Upload/re-upload asset file
   post '/orders/:order_id/items/:item_id/upload_asset' do
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
-    asset = Asset.find(params[:asset_id])
     
     file = params[:file]
     if file.present? && file.is_a?(Hash) && file[:filename].present?
@@ -361,13 +360,25 @@ class PrintOrchestrator < Sinatra::Base
         content = file[:tempfile].read
         File.open(full_path, 'wb') { |f| f.write(content) }
         
-        asset.update(local_path: local_path)
+        # If asset_id is provided, update existing asset
+        if params[:asset_id].present?
+          asset = Asset.find(params[:asset_id])
+          asset.update(local_path: local_path, downloaded: true)
+        else
+          # Create new asset for print file
+          asset = item.assets.create(
+            asset_type: 'print_file',
+            local_path: local_path,
+            external_url: nil,
+            downloaded: true
+          )
+        end
       rescue => e
         warn "File upload error for #{sku}: #{e.message}"
       end
     end
     
-    redirect "/orders/#{order.id}"
+    redirect "/orders/#{order.id}/items/#{item.id}"
   rescue => e
     redirect "/orders"
   end
