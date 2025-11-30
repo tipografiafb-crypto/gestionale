@@ -72,38 +72,77 @@
 
 <!-- BLOCCO PRINCIPALE: PRINT WORKFLOW -->
 <div class="card mb-4">
-  <div class="card-header">
-    <strong>Print Workflow</strong>
-  </div>
-  <div class="card-body">
-    <!-- Timeline Status -->
-    <div class="mb-4" style="display: flex; gap: 40px; align-items: center; flex-wrap: wrap;">
+  <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <strong>Print Workflow</strong>
+    </div>
+    <div style="display: flex; gap: 30px; align-items: center; font-size: 14px;">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 18px;">🖨️</span>
+        <span>🖨️</span>
         <div>
           <% if @item.preprint_completed_at %>
-            <span class="badge bg-success"><i class="fas fa-check"></i></span>
-            <small class="text-muted"><%= @item.preprint_completed_at.strftime('%d-%m-%y %H:%M') %></small>
+            <small class="text-muted"><strong>Fine:</strong> <%= @item.preprint_completed_at.strftime('%d-%m-%y %H:%M') %></small>
           <% elsif @item.preprint_status == 'failed' %>
-            <span class="badge bg-danger">✗</span>
-          <% else %>
-            <span class="badge bg-warning text-dark"><%= @item.preprint_status&.upcase %></span>
+            <span class="badge bg-danger">Errore</span>
           <% end %>
         </div>
       </div>
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 18px;"><i class="fas fa-check-circle"></i></span>
+        <span><i class="fas fa-check-circle"></i></span>
         <div>
           <% if @item.print_completed_at %>
-            <span class="badge bg-success"><i class="fas fa-check"></i></span>
-            <small class="text-muted"><%= @item.print_completed_at.strftime('%d-%m-%y %H:%M') %></small>
+            <small class="text-muted"><strong>Fine:</strong> <%= @item.print_completed_at.strftime('%d-%m-%y %H:%M') %></small>
           <% elsif @item.print_status == 'failed' %>
-            <span class="badge bg-danger">✗</span>
-          <% else %>
-            <span class="badge bg-warning text-dark"><%= @item.print_status&.upcase %></span>
+            <span class="badge bg-danger">Errore</span>
           <% end %>
         </div>
       </div>
+    </div>
+  </div>
+  <div class="card-body">
+    <!-- Action Buttons - Sopra Print Files -->
+    <% available_machines = @item.print_flow&.print_machines || [] %>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+      <!-- Pre-stampa -->
+      <button type="button" class="btn btn-outline-warning" 
+              title="Configure and send to preprint"
+              data-bs-toggle="modal" data-bs-target="#flowSelectModal"
+              <%= 'disabled' if @item.preprint_completed_at %>>
+<i class="fas fa-print"></i> Pre-stampa
+        <% if @item.preprint_status != 'pending' %>
+          <span class="badge <%= @item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
+            <%= @item.preprint_status&.upcase %>
+          </span>
+        <% end %>
+      </button>
+
+      <!-- Stampa -->
+      <button type="button" class="btn btn-outline-success" 
+              data-bs-toggle="modal" data-bs-target="#machineSelectModal"
+              <%= 'disabled' if @item.print_completed_at %>>
+<i class="fas fa-check-circle"></i> Stampa
+        <% if @item.print_status != 'pending' %>
+          <span class="badge <%= @item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
+            <%= @item.print_status&.upcase %>
+          </span>
+        <% end %>
+      </button>
+
+      <!-- Etichetta -->
+      <% if @item.print_flow&.label_webhook %>
+        <button type="button" class="btn btn-outline-primary" 
+                data-bs-toggle="modal" data-bs-target="#labelMachineSelectModal">
+<i class="fas fa-tag"></i> Etichetta
+        </button>
+      <% end %>
+
+      <!-- Reset -->
+      <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/reset" method="post" class="d-inline" onsubmit="return confirm('Reset this job?');">
+        <button type="submit" class="btn btn-outline-secondary" 
+                <%= 'disabled' if @item.preprint_status == 'pending' && @item.print_status == 'pending' %>>
+<i class="fas fa-redo"></i> Reset
+        </button>
+      </form>
     </div>
 
     <!-- Print Files ONLY & Action Buttons -->
@@ -161,52 +200,6 @@
             </form>
             <small class="text-muted d-block mt-2">PNG, JPG, PDF, GIF, WebP (max 50MB)</small>
           </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <% available_machines = @item.print_flow&.print_machines || [] %>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px;">
-          <!-- Pre-stampa -->
-          <button type="button" class="btn btn-outline-warning" 
-                  title="Configure and send to preprint"
-                  data-bs-toggle="modal" data-bs-target="#flowSelectModal"
-                  <%= 'disabled' if @item.preprint_completed_at %>>
-<i class="fas fa-print"></i> Pre-stampa
-            <% if @item.preprint_status != 'pending' %>
-              <span class="badge <%= @item.preprint_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
-                <%= @item.preprint_status&.upcase %>
-              </span>
-            <% end %>
-          </button>
-
-          <!-- Stampa -->
-          <button type="button" class="btn btn-outline-success" 
-                  data-bs-toggle="modal" data-bs-target="#machineSelectModal"
-                  <%= 'disabled' if @item.print_completed_at %>>
-<i class="fas fa-check-circle"></i> Stampa
-            <% if @item.print_status != 'pending' %>
-              <span class="badge <%= @item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
-                <%= @item.print_status&.upcase %>
-              </span>
-            <% end %>
-          </button>
-
-          <!-- Etichetta -->
-          <% if @item.print_flow&.label_webhook %>
-            <button type="button" class="btn btn-outline-primary" 
-                    data-bs-toggle="modal" data-bs-target="#labelMachineSelectModal">
-<i class="fas fa-tag"></i> Etichetta
-            </button>
-          <% end %>
-
-          <!-- Reset -->
-          <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/reset" method="post" class="d-inline" onsubmit="return confirm('Reset this job?');">
-            <button type="submit" class="btn btn-outline-secondary" 
-                    <%= 'disabled' if @item.preprint_status == 'pending' && @item.print_status == 'pending' %>>
-<i class="fas fa-redo"></i> Reset
-            </button>
-          </form>
-
         </div>
 
         <!-- Pre-stampa Result Section -->
