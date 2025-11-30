@@ -368,8 +368,7 @@ class PrintOrchestrator < Sinatra::Base
         asset = item.assets.create(
           asset_type: 'print_file',
           original_url: "file:#{filename}",
-          local_path: local_path,
-          downloaded: true
+          local_path: local_path
         )
         
         puts "[UPLOAD] ✅ Asset #{asset.id} created for item #{item.id}"
