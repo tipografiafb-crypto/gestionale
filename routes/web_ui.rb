@@ -369,7 +369,6 @@ class PrintOrchestrator < Sinatra::Base
           asset_type: 'print_file',
           original_url: "file:#{filename}",
           local_path: local_path,
-          external_url: nil,
           downloaded: true
         )
         
