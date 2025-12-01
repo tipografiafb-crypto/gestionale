@@ -16,12 +16,17 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 
 ## Recent Work
 
+### December 1, 2025 (Switch Port Configuration Update)
+- Updated Switch webhook URL port from 51088 to 51077 (correct active port on Ubuntu Switch installation)
+- Verified Switch is listening on port 51077 using system port checking
+- Updated `.env` configuration: SWITCH_WEBHOOK_BASE_URL=http://192.168.1.162:51077
+
 ### November 27, 2025 (Switch v7 Webhook Configuration Fix)
-- Fixed Switch webhook URL to use port 51088 (v7) instead of 51080
+- Fixed Switch webhook URL to use port 51077 (v7) on Ubuntu instead of 51080
 - Added mandatory `/scripting/` prefix required by Switch Webhook v7 app
 - Made webhook prefix configurable via SWITCH_WEBHOOK_PREFIX environment variable
 - Corrected webhook path construction: base_url + `/scripting` + webhook_path
-- System now sends to correct URL format: http://192.168.1.162:51088/scripting/prestampa_adesivi
+- System now sends to correct URL format: http://192.168.1.162:51077/scripting/prestampa_adesivi
 - Added debug logging to show complete URL and response from Switch
 
 ### November 25, 2025 (Switch Webhook Payload Standardization)
@@ -134,7 +139,7 @@ bundle exec rake db:migrate
 - `RACK_ENV` - Environment mode (production/development)
 
 **Switch Integration (v7 Webhook):**
-- `SWITCH_WEBHOOK_BASE_URL` - Switch server base URL (e.g., http://192.168.1.162:51088)
+- `SWITCH_WEBHOOK_BASE_URL` - Switch server base URL (e.g., http://192.168.1.162:51077)
 - `SWITCH_WEBHOOK_PREFIX` - Webhook prefix for v7 (use `/scripting` for v7, empty for v6)
 - `SWITCH_API_KEY` - Switch API authentication (optional)
 - `SWITCH_SIMULATION` - Test mode without real Switch (true/false)
