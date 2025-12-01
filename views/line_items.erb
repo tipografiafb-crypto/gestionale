@@ -3,6 +3,7 @@
   <form method="get" action="/line_items" style="display: flex; gap: 10px; align-items: center;">
     <select class="form-select form-select-sm" name="status_filter" onchange="this.form.submit()" style="width: auto;">
       <option value="">Tutti gli stati</option>
+      <option value="in-lavorazione" <%= 'selected' if @filter_status == 'in-lavorazione' %>>In Lavorazione</option>
       <option value="nuovo" <%= 'selected' if @filter_status == 'nuovo' %>>Nuovo</option>
       <option value="pre-stampa" <%= 'selected' if @filter_status == 'pre-stampa' %>>Pre-stampa (in corso)</option>
       <option value="stampa" <%= 'selected' if @filter_status == 'stampa' %>>Attende Stampa</option>
