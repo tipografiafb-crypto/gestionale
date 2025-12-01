@@ -517,8 +517,6 @@ class PrintOrchestrator < Sinatra::Base
         @line_items = @line_items.select { |li| li[:item].preprint_status != 'pending' && li[:item].preprint_status != 'completed' }
       when 'stampa'
         @line_items = @line_items.select { |li| li[:item].preprint_status == 'completed' && li[:item].print_status != 'completed' }
-      when 'in-lavorazione'
-        @line_items = @line_items.select { |li| li[:order].status == 'processing' || li[:order].status == 'sent_to_switch' }
       end
     end
     
