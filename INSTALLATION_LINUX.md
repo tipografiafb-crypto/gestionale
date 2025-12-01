@@ -216,7 +216,8 @@ sudo apt-get install -y \
   build-essential \
   libpq-dev \
   curl \
-  wget
+  wget \
+  sshpass
 
 # Verifica le versioni
 ruby --version
@@ -346,6 +347,7 @@ Questo comando:
 - ✅ Carica automaticamente lo schema SQL consolidato come fallback
 - ✅ Verifica che tutte le 15 tabelle siano create
 - ✅ Carica i dati di seed
+- ✅ Aggiunge le colonne SSH per il backup remoto
 
 Se tutto va bene, vedrai:
 ```
@@ -359,6 +361,34 @@ Se tutto va bene, vedrai:
 bundle exec rake db:create
 bundle exec rake db:migrate
 psql -U orchestrator_user -d print_orchestrator_dev -f db/init/consolidated_schema.sql
+
+# Aggiungi le colonne SSH per il backup remoto
+psql -U orchestrator_user -d print_orchestrator_dev -f db/migrate_backup_config.sql
+```
+
+### ⚙️ Aggiungere le Colonne SSH (Database Esistente)
+
+Se il database è già stato creato e vuoi aggiungere il supporto backup remoto con SSH:
+
+```bash
+# Connettiti al database
+psql -U orchestrator_user -d print_orchestrator_dev
+
+# Dentro psql, esegui:
+ALTER TABLE backup_configs ADD COLUMN IF NOT EXISTS ssh_username VARCHAR(255);
+ALTER TABLE backup_configs ADD COLUMN IF NOT EXISTS ssh_password VARCHAR(1024);
+
+# Verifica che le colonne siano state aggiunte
+\d backup_configs
+
+# Esci da psql
+\q
+```
+
+**Oppure in una sola riga:**
+
+```bash
+psql -U orchestrator_user -d print_orchestrator_dev -f db/migrate_backup_config.sql
 ```
 
 ---
