@@ -31,23 +31,29 @@ class BackupManager
         zipfile.add("storage_#{timestamp}.tar.gz", storage_tar) if File.exist?(storage_tar)
       end
 
-      # 4. Copy to remote (assumes mount or SSH accessible)
-      remote_full_path = "#{config.remote_path}/backup_#{timestamp}.zip"
+      # 4. Store backup locally in backup_dir
+      result = { 
+        success: true, 
+        file: "backup_#{timestamp}.zip", 
+        size: File.size(zip_file), 
+        local_path: zip_file,
+        message: "Backup creato e salvato in tmp/backups" 
+      }
       
-      # Try SSH first, fallback to local copy if mounted
-      ssh_cmd = "scp #{zip_file} root@#{config.remote_ip}:#{config.remote_path}/"
-      if system(ssh_cmd)
-        result = { success: true, file: "backup_#{timestamp}.zip", size: File.size(zip_file), remote_path: remote_full_path }
-      else
-        # Fallback: try direct copy if path is mounted
-        FileUtils.cp(zip_file, remote_full_path)
-        result = { success: true, file: "backup_#{timestamp}.zip", size: File.size(zip_file), remote_path: remote_full_path }
+      # Try to copy to remote if SSH is configured and reachable
+      if config.remote_ip.present? && config.remote_path.present?
+        ssh_cmd = "scp #{zip_file} root@#{config.remote_ip}:#{config.remote_path}/ 2>/dev/null"
+        if system(ssh_cmd)
+          result[:remote_path] = "#{config.remote_path}/backup_#{timestamp}.zip"
+          result[:message] = "Backup salvato localmente e copiato su server remoto"
+        else
+          result[:message] = "Backup salvato localmente (connessione remota non disponibile)"
+        end
       end
 
-      # Cleanup temp files
+      # Cleanup temp files (keep the ZIP in backup_dir)
       File.delete(db_file) if File.exist?(db_file)
       File.delete(storage_tar) if File.exist?(storage_tar)
-      File.delete(zip_file) if File.exist?(zip_file)
 
       result
     rescue => e
