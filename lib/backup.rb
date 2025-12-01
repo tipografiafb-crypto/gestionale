@@ -39,7 +39,8 @@ class BackupManager
       
       # Transfer via SCP using sshpass for password authentication
       # sshpass allows non-interactive password authentication
-      sshpass_cmd = "sshpass -p #{Shellwords.escape(config.ssh_password)} scp -o ConnectTimeout=10 -o StrictHostKeyChecking=no #{Shellwords.escape(zip_file)} #{Shellwords.escape(config.ssh_username)}@#{config.remote_ip}:#{Shellwords.escape(config.remote_path)}/ 2>&1"
+      ssh_port = config.ssh_port.presence || 22
+      sshpass_cmd = "sshpass -p #{Shellwords.escape(config.ssh_password)} scp -P #{ssh_port} -o ConnectTimeout=10 -o StrictHostKeyChecking=no #{Shellwords.escape(zip_file)} #{Shellwords.escape(config.ssh_username)}@#{config.remote_ip}:#{Shellwords.escape(config.remote_path)}/ 2>&1"
       transfer_output = `#{sshpass_cmd}`
       transfer_success = $?.success?
       

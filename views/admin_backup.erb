@@ -66,6 +66,13 @@
             <small class="text-muted">Password per l'autenticazione SSH (non richiede chiavi pubbliche)</small>
           </div>
 
+          <div class="mb-3">
+            <label for="ssh_port" class="form-label">Porta SSH (opzionale)</label>
+            <input type="number" class="form-control" id="ssh_port" name="ssh_port" 
+                   value="<%= @backup_config.ssh_port || 22 %>" placeholder="22" min="1" max="65535">
+            <small class="text-muted">Porta SSH - predefinita 22 se lasciata vuota</small>
+          </div>
+
           <button type="submit" class="btn btn-primary w-100">
             <i class="fas fa-save"></i> Salva Configurazione
           </button>

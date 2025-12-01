@@ -175,7 +175,8 @@ class PrintOrchestrator < Sinatra::Base
         remote_ip: params[:remote_ip],
         remote_path: params[:remote_path],
         ssh_username: params[:ssh_username],
-        ssh_password: params[:ssh_password]
+        ssh_password: params[:ssh_password],
+        ssh_port: (params[:ssh_port].presence || 22).to_i
       )
       redirect "/admin/backup?msg=success&text=Configurazione+salvata"
     rescue => e
