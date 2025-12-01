@@ -32,13 +32,14 @@ class BackupManager
       end
 
       # 4. Copy to remote (required)
-      unless config.remote_ip.present? && config.remote_path.present?
-        raise "Configurazione server remoto mancante (IP e percorso richiesti)"
+      unless config.remote_ip.present? && config.remote_path.present? && config.ssh_username.present? && config.ssh_password.present?
+        raise "Configurazione SSH incompleta (IP, percorso, username e password richiesti)"
       end
       
-      # Transfer via SCP to remote
-      ssh_cmd = "scp -o ConnectTimeout=10 -o StrictHostKeyChecking=no #{zip_file} root@#{config.remote_ip}:#{config.remote_path}/ 2>&1"
-      transfer_output = `#{ssh_cmd}`
+      # Transfer via SCP using sshpass for password authentication
+      # sshpass allows non-interactive password authentication
+      sshpass_cmd = "sshpass -p #{Shellwords.escape(config.ssh_password)} scp -o ConnectTimeout=10 -o StrictHostKeyChecking=no #{Shellwords.escape(zip_file)} #{Shellwords.escape(config.ssh_username)}@#{config.remote_ip}:#{Shellwords.escape(config.remote_path)}/ 2>&1"
+      transfer_output = `#{sshpass_cmd}`
       transfer_success = $?.success?
       
       unless transfer_success

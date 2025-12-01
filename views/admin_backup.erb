@@ -52,6 +52,20 @@
             <small class="text-muted">Percorso assoluto sul server Switch dove salvare i backup</small>
           </div>
 
+          <div class="mb-3">
+            <label for="ssh_username" class="form-label">Username SSH</label>
+            <input type="text" class="form-control" id="ssh_username" name="ssh_username" 
+                   value="<%= @backup_config.ssh_username %>" placeholder="es: root" required>
+            <small class="text-muted">Utente SSH per la connessione al Mac remoto</small>
+          </div>
+
+          <div class="mb-3">
+            <label for="ssh_password" class="form-label">Password SSH</label>
+            <input type="password" class="form-control" id="ssh_password" name="ssh_password" 
+                   value="<%= @backup_config.ssh_password %>" placeholder="••••••••" required>
+            <small class="text-muted">Password per l'autenticazione SSH (non richiede chiavi pubbliche)</small>
+          </div>
+
           <button type="submit" class="btn btn-primary w-100">
             <i class="fas fa-save"></i> Salva Configurazione
           </button>
