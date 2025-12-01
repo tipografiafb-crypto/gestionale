@@ -9,6 +9,9 @@ class PrintOrchestrator < Sinatra::Base
     
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
+    
+    # Mark order as in processing when user starts working on an item
+    order.update(status: 'processing') if order.status == 'new'
 
     # Get selected print flow or use default
     print_flow_id = params[:print_flow_id] || item.product&.default_print_flow_id
@@ -159,6 +162,9 @@ class PrintOrchestrator < Sinatra::Base
   post '/orders/:order_id/items/:item_id/send_print' do
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
+    
+    # Mark order as in processing when user starts working on an item
+    order.update(status: 'processing') if order.status == 'new'
 
     # Get selected print machine
     print_machine_id = params[:print_machine_id]
@@ -245,6 +251,9 @@ class PrintOrchestrator < Sinatra::Base
   post '/orders/:order_id/items/:item_id/send_label' do
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
+    
+    # Mark order as in processing when user starts working on an item
+    order.update(status: 'processing') if order.status == 'new'
 
     # Get selected print machine
     print_machine_id = params[:print_machine_id]
