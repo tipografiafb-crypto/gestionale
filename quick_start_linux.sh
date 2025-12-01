@@ -93,19 +93,25 @@ else
   echo -e "${YELLOW}⚠ Could not add columns (they may already exist)${NC}"
 fi
 
-# Step 5.6: Create backup_configs table
+# Step 5.6: Create backup_configs table with SSH columns
 echo -e "\n${YELLOW}[5.6/7]${NC} Creating backup_configs table..."
 psql "$DATABASE_URL" << 'SQLEOF'
 CREATE TABLE IF NOT EXISTS backup_configs (
   id SERIAL PRIMARY KEY,
   remote_ip VARCHAR(255),
   remote_path VARCHAR(1024),
+  ssh_username VARCHAR(255),
+  ssh_password VARCHAR(1024),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Add SSH columns if they don't exist (for existing databases)
+ALTER TABLE backup_configs ADD COLUMN IF NOT EXISTS ssh_username VARCHAR(255);
+ALTER TABLE backup_configs ADD COLUMN IF NOT EXISTS ssh_password VARCHAR(1024);
 SQLEOF
 if [ $? -eq 0 ]; then
-  echo -e "${GREEN}✓ backup_configs table created${NC}"
+  echo -e "${GREEN}✓ backup_configs table created with SSH support${NC}"
 else
   echo -e "${YELLOW}⚠ Could not create backup_configs table (it may already exist)${NC}"
 fi
