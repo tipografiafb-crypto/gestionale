@@ -37,11 +37,9 @@ class BackupManager
         raise "Configurazione SSH incompleta (IP, percorso, username e password richiesti)"
       end
       
-      ssh_port = config.ssh_port.present? ? config.ssh_port.to_i : 22
-      
       # Transfer via SCP using sshpass for password authentication
       # sshpass allows non-interactive password authentication
-      sshpass_cmd = "sshpass -p #{Shellwords.escape(config.ssh_password)} scp -P #{ssh_port} -o ConnectTimeout=10 -o StrictHostKeyChecking=no #{Shellwords.escape(zip_file)} #{Shellwords.escape(config.ssh_username)}@#{config.remote_ip}:#{Shellwords.escape(config.remote_path)}/ 2>&1"
+      sshpass_cmd = "sshpass -p #{Shellwords.escape(config.ssh_password)} scp -o ConnectTimeout=10 -o StrictHostKeyChecking=no #{Shellwords.escape(zip_file)} #{Shellwords.escape(config.ssh_username)}@#{config.remote_ip}:#{Shellwords.escape(config.remote_path)}/ 2>&1"
       transfer_output = `#{sshpass_cmd}`
       transfer_success = $?.success?
       
@@ -68,10 +66,10 @@ class BackupManager
     end
   end
 
-  def self.test_connection(ip, path, username = 'root', port = 22)
+  def self.test_connection(ip, path)
     begin
       # Test SSH connection
-      result = `ssh -p #{port} -o ConnectTimeout=5 #{username}@#{ip} "test -d #{path}" 2>&1`
+      result = `ssh -o ConnectTimeout=5 root@#{ip} "test -d #{path}" 2>&1`
       $?.success? ? { connected: true } : { connected: false, error: "Path not found or SSH failed: #{result}" }
     rescue => e
       { connected: false, error: e.message }
