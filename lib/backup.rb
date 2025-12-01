@@ -1,6 +1,7 @@
 # @feature backup
 # Backup system for database and files
 require 'zip'
+require 'shellwords'
 
 class BackupManager
   def self.perform_backup(config = nil)
