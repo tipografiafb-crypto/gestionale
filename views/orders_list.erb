@@ -18,6 +18,37 @@
     </div>
   </div>
 
+  <!-- Filter section - Always visible -->
+  <div class="card mb-4 border-0 shadow-sm">
+    <div class="card-body">
+      <form method="get" action="/orders" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+        <div style="flex: 1; min-width: 150px;">
+          <label class="form-label small mb-2">Data Ordine</label>
+          <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>">
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+          <label class="form-label small mb-2">Negozio</label>
+          <select class="form-select form-select-sm" name="store_id">
+            <option value="">Tutti</option>
+            <% @stores.each do |store| %>
+              <option value="<%= store.id %>" <%= 'selected' if @filter_store == store.id.to_s %>>
+                <%= store.name %>
+              </option>
+            <% end %>
+          </select>
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+          <label class="form-label small mb-2">Codice Ordine</label>
+          <input type="text" class="form-control form-control-sm" name="order_code" placeholder="Codice..." value="<%= @filter_order_code %>">
+        </div>
+        <div style="display: flex; gap: 4px;">
+          <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter"></i> Filtra</button>
+          <a href="/orders" class="btn btn-outline-secondary btn-sm"><i class="fas fa-redo"></i> Reset</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <% if @orders.empty? %>
     <div class="card border-0 shadow-sm">
       <div class="card-body text-center py-5">
@@ -80,33 +111,7 @@
                     <th style="text-align: center;">Asset</th>
                     <th style="text-align: right; width: 120px;">Azioni</th>
                   </tr>
-                  <tr style="background-color: var(--neutral-100);">
-                    <td>
-                      <form method="get" action="/orders" style="display: contents;">
-                        <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>">
-                    </td>
-                    <td>
-                        <select class="form-select form-select-sm" name="store_id" onchange="this.form.submit()">
-                          <option value="">Tutti</option>
-                          <% @stores.each do |store| %>
-                            <option value="<%= store.id %>" <%= 'selected' if @filter_store == store.id.to_s %>>
-                              <%= store.name %>
-                            </option>
-                          <% end %>
-                        </select>
-                    </td>
-                    <td>
-                        <input type="text" class="form-control form-control-sm" name="order_code" placeholder="Codice..." value="<%= @filter_order_code %>" onchange="this.form.submit()">
-                    </td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td style="display: flex; gap: 4px; justify-content: flex-end;">
-                        <button type="submit" class="btn btn-primary btn-sm" style="padding: 0.375rem 0.75rem;"><i class="fas fa-filter"></i> Filtra</button>
-                        <a href="/orders" class="btn btn-outline-secondary btn-sm" style="padding: 0.375rem 0.75rem;"><i class="fas fa-redo"></i> Reset</a>
-                      </form>
-                    </td>
-                  </tr>
+
                 </thead>
                 <tbody>
                   <% new_orders.each do |order| %>
@@ -174,33 +179,7 @@
                     <th style="text-align: center;">Asset</th>
                     <th style="text-align: right; width: 120px;">Azioni</th>
                   </tr>
-                  <tr style="background-color: var(--neutral-100);">
-                    <td>
-                      <form method="get" action="/orders" style="display: contents;">
-                        <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>">
-                    </td>
-                    <td>
-                        <select class="form-select form-select-sm" name="store_id" onchange="this.form.submit()">
-                          <option value="">Tutti</option>
-                          <% @stores.each do |store| %>
-                            <option value="<%= store.id %>" <%= 'selected' if @filter_store == store.id.to_s %>>
-                              <%= store.name %>
-                            </option>
-                          <% end %>
-                        </select>
-                    </td>
-                    <td>
-                        <input type="text" class="form-control form-control-sm" name="order_code" placeholder="Codice..." value="<%= @filter_order_code %>" onchange="this.form.submit()">
-                    </td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td style="display: flex; gap: 4px; justify-content: flex-end;">
-                        <button type="submit" class="btn btn-primary btn-sm" style="padding: 0.375rem 0.75rem;"><i class="fas fa-filter"></i> Filtra</button>
-                        <a href="/orders" class="btn btn-outline-secondary btn-sm" style="padding: 0.375rem 0.75rem;"><i class="fas fa-redo"></i> Reset</a>
-                      </form>
-                    </td>
-                  </tr>
+
                 </thead>
                 <tbody>
                   <% in_progress.each do |order| %>
@@ -284,33 +263,7 @@
                     <th style="text-align: center;">Asset</th>
                     <th style="text-align: right; width: 120px;">Azioni</th>
                   </tr>
-                  <tr style="background-color: var(--neutral-100);">
-                    <td>
-                      <form method="get" action="/orders" style="display: contents;">
-                        <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>">
-                    </td>
-                    <td>
-                        <select class="form-select form-select-sm" name="store_id" onchange="this.form.submit()">
-                          <option value="">Tutti</option>
-                          <% @stores.each do |store| %>
-                            <option value="<%= store.id %>" <%= 'selected' if @filter_store == store.id.to_s %>>
-                              <%= store.name %>
-                            </option>
-                          <% end %>
-                        </select>
-                    </td>
-                    <td>
-                        <input type="text" class="form-control form-control-sm" name="order_code" placeholder="Codice..." value="<%= @filter_order_code %>" onchange="this.form.submit()">
-                    </td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td style="display: flex; gap: 4px; justify-content: flex-end;">
-                        <button type="submit" class="btn btn-primary btn-sm" style="padding: 0.375rem 0.75rem;"><i class="fas fa-filter"></i> Filtra</button>
-                        <a href="/orders" class="btn btn-outline-secondary btn-sm" style="padding: 0.375rem 0.75rem;"><i class="fas fa-redo"></i> Reset</a>
-                      </form>
-                    </td>
-                  </tr>
+
                 </thead>
                 <tbody>
                   <% completed.each do |order| %>
