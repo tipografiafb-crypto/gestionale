@@ -31,29 +31,32 @@ class BackupManager
         zipfile.add("storage_#{timestamp}.tar.gz", storage_tar) if File.exist?(storage_tar)
       end
 
-      # 4. Store backup locally in backup_dir
+      # 4. Copy to remote (required)
+      unless config.remote_ip.present? && config.remote_path.present?
+        raise "Configurazione server remoto mancante (IP e percorso richiesti)"
+      end
+      
+      # Transfer via SCP to remote
+      ssh_cmd = "scp -o ConnectTimeout=10 -o StrictHostKeyChecking=no #{zip_file} root@#{config.remote_ip}:#{config.remote_path}/ 2>&1"
+      transfer_output = `#{ssh_cmd}`
+      transfer_success = $?.success?
+      
+      unless transfer_success
+        raise "Trasferimento su server remoto fallito: #{transfer_output}"
+      end
+      
       result = { 
         success: true, 
         file: "backup_#{timestamp}.zip", 
         size: File.size(zip_file), 
-        local_path: zip_file,
-        message: "Backup creato e salvato in tmp/backups" 
+        remote_path: "#{config.remote_path}/backup_#{timestamp}.zip",
+        message: "✓ Backup trasferito su server remoto (#{config.remote_ip})" 
       }
-      
-      # Try to copy to remote if SSH is configured and reachable
-      if config.remote_ip.present? && config.remote_path.present?
-        ssh_cmd = "scp #{zip_file} root@#{config.remote_ip}:#{config.remote_path}/ 2>/dev/null"
-        if system(ssh_cmd)
-          result[:remote_path] = "#{config.remote_path}/backup_#{timestamp}.zip"
-          result[:message] = "Backup salvato localmente e copiato su server remoto"
-        else
-          result[:message] = "Backup salvato localmente (connessione remota non disponibile)"
-        end
-      end
 
-      # Cleanup temp files (keep the ZIP in backup_dir)
+      # Cleanup temp files AND local backup after successful remote transfer
       File.delete(db_file) if File.exist?(db_file)
       File.delete(storage_tar) if File.exist?(storage_tar)
+      File.delete(zip_file) if File.exist?(zip_file)
 
       result
     rescue => e
