@@ -173,7 +173,9 @@ class PrintOrchestrator < Sinatra::Base
       config = BackupConfig.current
       config.update(
         remote_ip: params[:remote_ip],
-        remote_path: params[:remote_path]
+        remote_path: params[:remote_path],
+        ssh_username: params[:ssh_username],
+        ssh_password: params[:ssh_password]
       )
       redirect "/admin/backup?msg=success&text=Configurazione+salvata"
     rescue => e
