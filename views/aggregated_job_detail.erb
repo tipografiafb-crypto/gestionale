@@ -139,6 +139,11 @@
               </button>
             </form>
             <% end %>
+            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/reset" method="post" class="mb-2">
+              <button type="submit" class="btn btn-outline-warning w-100" onclick="return confirm('Resettare a In Attesa?')">
+                <i class="fas fa-redo"></i> Resetta
+              </button>
+            </form>
             <hr>
             <form action="/aggregated_jobs/<%= @aggregated_job.id %>" method="post">
               <input type="hidden" name="_method" value="delete">
