@@ -181,11 +181,46 @@ class AggregatedJob < ActiveRecord::Base
     end
   end
   
-  # Approve preview and move to aggregated status
-  def approve_preview
+  # Send aggregated file to Switch for an operation (preprint, print, label)
+  def send_to_switch_operation(webhook_path, operation)
     return { success: false, error: 'Job non in preview_pending' } unless status == 'preview_pending'
-    update(status: 'aggregated')
-    { success: true, message: 'Preview approvato - pronto per stampa' }
+    return { success: false, error: 'File aggregato non disponibile' } unless aggregated_file_url.present?
+    return { success: false, error: 'Webhook non specificato' } unless webhook_path.present?
+    
+    server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
+    
+    operation_map = { 'preprint' => 1, 'print' => 2, 'label' => 3 }
+    operation_id = operation_map[operation] || 2
+    
+    payload = {
+      aggregated_job_id: id,
+      nr_files: 1,
+      id_riga: id,
+      codice_ordine: "AGG-#{id}",
+      product: name,
+      operation_id: operation_id,
+      job_operation_id: "agg-#{operation}-#{id}",
+      url: aggregated_file_url,
+      widegest_url: "#{server_url}/api/v1/aggregation_callback",
+      filename: aggregated_filename || "aggregated_#{id}.pdf",
+      scala: '1:1',
+      quantita: order_items.sum(:quantity),
+      materiale: order_items.first&.product&.notes || '',
+      campi_custom: {},
+      taglio: false,
+      stampa: true,
+      plancia: false,
+      larghezza: 0.0,
+      altezza: 0.0
+    }
+    
+    result = SwitchClient.send_to_switch(webhook_path: webhook_path, job_data: payload)
+    
+    if result[:success]
+      { success: true, message: "File aggregato inviato per #{operation}" }
+    else
+      { success: false, error: result[:error] }
+    end
   end
   
   # Called when print is completed

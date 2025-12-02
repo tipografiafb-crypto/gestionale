@@ -26,7 +26,10 @@ class PrintOrchestrator < Sinatra::Base
   # POST /aggregated_jobs - Create aggregated job from selected items
   post '/aggregated_jobs' do
     item_ids = params[:item_ids] || []
+    print_flow_id = params[:print_flow_id].presence
+    
     return redirect '/aggregated_jobs/new?msg=error&text=Seleziona+almeno+2+line+items' if item_ids.count < 2
+    return redirect '/aggregated_jobs/new?msg=error&text=Seleziona+un+flusso+di+stampa' unless print_flow_id
 
     begin
       items = OrderItem.where(id: item_ids, preprint_status: 'completed')
@@ -35,7 +38,7 @@ class PrintOrchestrator < Sinatra::Base
       job = AggregatedJob.create_from_items(
         items, 
         name: params[:name], 
-        print_flow_id: params[:print_flow_id].presence
+        print_flow_id: print_flow_id
       )
       redirect "/aggregated_jobs/#{job.id}?msg=success&text=Aggregazione+creata+con+#{items.count}+file"
     rescue => e
@@ -131,11 +134,48 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=Aggregazione+completata"
   end
 
-  # POST /aggregated_jobs/:id/approve_preview - Approve preview and proceed to print
-  post '/aggregated_jobs/:id/approve_preview' do
+  # POST /aggregated_jobs/:id/send_preprint - Send aggregated file to Switch for preprint
+  post '/aggregated_jobs/:id/send_preprint' do
     @aggregated_job = AggregatedJob.find(params[:id])
-    result = @aggregated_job.approve_preview
-    redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=#{URI.encode_www_form_component(result[:message])}"
+    webhook_path = params[:webhook_path]
+    
+    unless webhook_path.present?
+      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Seleziona+un+webhook+per+la+pre-stampa"
+    end
+    
+    unless @aggregated_job.status == 'preview_pending'
+      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Job+non+in+anteprima"
+    end
+
+    result = @aggregated_job.send_to_switch_operation(webhook_path, 'preprint')
+    
+    if result[:success]
+      redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=#{URI.encode_www_form_component(result[:message])}"
+    else
+      redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=#{URI.encode_www_form_component(result[:error])}"
+    end
+  end
+
+  # POST /aggregated_jobs/:id/send_label - Send aggregated file to Switch for label
+  post '/aggregated_jobs/:id/send_label' do
+    @aggregated_job = AggregatedJob.find(params[:id])
+    webhook_path = params[:webhook_path]
+    
+    unless webhook_path.present?
+      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Seleziona+un+webhook+per+l'etichetta"
+    end
+    
+    unless @aggregated_job.status == 'preview_pending'
+      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Job+non+in+anteprima"
+    end
+
+    result = @aggregated_job.send_to_switch_operation(webhook_path, 'label')
+    
+    if result[:success]
+      redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=#{URI.encode_www_form_component(result[:message])}"
+    else
+      redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=#{URI.encode_www_form_component(result[:error])}"
+    end
   end
 
   # POST /aggregated_jobs/:id/reset - Reset aggregation to pending

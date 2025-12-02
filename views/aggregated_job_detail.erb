@@ -148,9 +148,49 @@
             </div>
 
           <% elsif @aggregated_job.status == 'preview_pending' %>
-            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/approve_preview" method="post" class="mb-2">
-              <button type="submit" class="btn btn-success w-100" onclick="return confirm('Approvare l\'anteprima e procedere con la stampa?')">
-                <i class="fas fa-check"></i> Approva Anteprima
+            <div class="mb-2">
+              <label class="form-label small"><strong>Operazioni Disponibili:</strong></label>
+            </div>
+            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_preprint" method="post" class="mb-2">
+              <div class="mb-2">
+                <label class="form-label small">Webhook Pre-Stampa:</label>
+                <select name="webhook_path" class="form-select form-select-sm" required>
+                  <option value="">-- Seleziona --</option>
+                  <% @switch_webhooks.each do |wh| %>
+                    <option value="<%= wh.hook_path %>"><%= wh.name %></option>
+                  <% end %>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-info w-100" onclick="return confirm('Invia file aggregato a pre-stampa?')">
+                <i class="fas fa-scissors"></i> Pre-Stampa
+              </button>
+            </form>
+            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_print" method="post" class="mb-2">
+              <div class="mb-2">
+                <label class="form-label small">Webhook Stampa:</label>
+                <select name="webhook_path" class="form-select form-select-sm" required>
+                  <option value="">-- Seleziona --</option>
+                  <% @switch_webhooks.each do |wh| %>
+                    <option value="<%= wh.hook_path %>"><%= wh.name %></option>
+                  <% end %>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary w-100" onclick="return confirm('Invia file aggregato a stampa?')">
+                <i class="fas fa-print"></i> Stampa
+              </button>
+            </form>
+            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_label" method="post" class="mb-2">
+              <div class="mb-2">
+                <label class="form-label small">Webhook Etichetta:</label>
+                <select name="webhook_path" class="form-select form-select-sm" required>
+                  <option value="">-- Seleziona --</option>
+                  <% @switch_webhooks.each do |wh| %>
+                    <option value="<%= wh.hook_path %>"><%= wh.name %></option>
+                  <% end %>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-secondary w-100" onclick="return confirm('Invia file aggregato a etichetta?')">
+                <i class="fas fa-tag"></i> Etichetta
               </button>
             </form>
             <form action="/aggregated_jobs/<%= @aggregated_job.id %>/reset" method="post">

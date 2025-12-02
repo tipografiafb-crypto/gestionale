@@ -88,14 +88,14 @@
           </div>
 
           <div class="mb-3">
-            <label for="print_flow_id" class="form-label">Flusso di Stampa (opzionale)</label>
-            <select class="form-select" id="print_flow_id" name="print_flow_id">
-              <option value="">-- Nessuno --</option>
+            <label for="print_flow_id" class="form-label">Flusso di Stampa <span class="text-danger">*</span></label>
+            <select class="form-select" id="print_flow_id" name="print_flow_id" required>
+              <option value="">-- Seleziona un flusso --</option>
               <% @print_flows.each do |pf| %>
                 <option value="<%= pf.id %>"><%= pf.name %></option>
               <% end %>
             </select>
-            <small class="text-muted">Il flusso da usare per la stampa del file aggregato</small>
+            <small class="text-muted">Obbligatorio - il flusso da usare per la presstampa e stampa del file aggregato</small>
           </div>
 
           <div id="selected-count" class="alert alert-info">
