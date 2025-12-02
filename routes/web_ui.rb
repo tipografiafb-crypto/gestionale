@@ -173,7 +173,7 @@ class PrintOrchestrator < Sinatra::Base
 
   # GET /orders/:id/print - Print order card
   get '/orders/:id/print' do
-    @order = Order.includes(:store, { order_items: [:product, :assets] }).find(params[:id])
+    @order = Order.includes(:store, { order_items: :assets }).find(params[:id])
     erb :print_order_card, layout: false
   rescue ActiveRecord::RecordNotFound
     status 404

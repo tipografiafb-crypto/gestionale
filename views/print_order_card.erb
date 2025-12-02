@@ -152,7 +152,7 @@
         <% @order.order_items.each_with_index do |item, index| %>
           <tr>
             <td><strong><%= index + 1 %></strong></td>
-            <td><%= item.product&.name || 'N/A' %></td>
+            <td><%= item.sku %></td>
             <td><%= item.sku %></td>
             <td><%= item.quantity %></td>
             <td>
