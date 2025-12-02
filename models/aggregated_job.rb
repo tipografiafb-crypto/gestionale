@@ -247,6 +247,8 @@ class AggregatedJob < ActiveRecord::Base
     result = SwitchClient.send_to_switch(webhook_path: webhook.hook_path, job_data: payload)
     
     if result[:success]
+      # Track when preprint is sent
+      update(preprint_sent_at: Time.current) if operation == 'preprint'
       { success: true, message: "File aggregato inviato per #{operation}" }
     else
       { success: false, error: result[:error] }

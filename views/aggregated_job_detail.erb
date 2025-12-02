@@ -128,7 +128,7 @@
               </button>
             </form>
             <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_print" method="post" class="mb-2">
-              <button type="submit" class="btn btn-primary w-100" onclick="return confirm('Invia file aggregato a stampa?')">
+              <button type="submit" class="btn btn-primary w-100" <% if !@aggregated_job.preprint_sent_at.present? %>disabled<% end %> onclick="return confirm('Invia file aggregato a stampa?')">
                 <i class="fas fa-print"></i> Stampa
               </button>
             </form>
@@ -168,7 +168,7 @@
               </button>
             </form>
             <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_print" method="post" class="mb-2">
-              <button type="submit" class="btn btn-primary w-100" onclick="return confirm('Invia file aggregato a stampa?')">
+              <button type="submit" class="btn btn-primary w-100" <% if !@aggregated_job.preprint_sent_at.present? %>disabled<% end %> onclick="return confirm('Invia file aggregato a stampa?')">
                 <i class="fas fa-print"></i> Stampa
               </button>
             </form>
