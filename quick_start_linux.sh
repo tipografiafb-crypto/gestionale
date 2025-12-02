@@ -139,6 +139,7 @@ ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS aggregated_file_url TEXT;
 ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS aggregated_filename VARCHAR(255);
 ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS aggregated_at TIMESTAMP;
 ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
+ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS preprint_sent_at TIMESTAMP;
 ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS notes TEXT;
 
 CREATE TABLE IF NOT EXISTS aggregated_job_items (
