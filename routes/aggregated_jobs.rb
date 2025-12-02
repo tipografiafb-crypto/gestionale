@@ -151,6 +151,28 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
+  # POST /aggregated_jobs/:id/send_print - Send aggregated file to Switch for print
+  post '/aggregated_jobs/:id/send_print' do
+    @aggregated_job = AggregatedJob.find(params[:id])
+    print_machine_id = params[:print_machine_id]
+    
+    unless print_machine_id.present?
+      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Seleziona+una+stampante"
+    end
+    
+    unless @aggregated_job.status == 'preview_pending' || @aggregated_job.status == 'pending'
+      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Job+non+pronto+per+stampa"
+    end
+
+    result = @aggregated_job.send_to_switch_operation('print', print_machine_id)
+    
+    if result[:success]
+      redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=#{URI.encode_www_form_component(result[:message])}"
+    else
+      redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=#{URI.encode_www_form_component(result[:error])}"
+    end
+  end
+
   # POST /aggregated_jobs/:id/send_label - Send aggregated file to Switch for label
   post '/aggregated_jobs/:id/send_label' do
     @aggregated_job = AggregatedJob.find(params[:id])

@@ -192,7 +192,7 @@ class AggregatedJob < ActiveRecord::Base
   end
   
   # Send aggregated file to Switch for an operation (preprint, print, label)
-  def send_to_switch_operation(operation)
+  def send_to_switch_operation(operation, print_machine_id = nil)
     # Se in pending, aggregare prima. Se in preview_pending, procedere direttamente
     if status == 'pending'
       # Auto-aggregate first from pending items
@@ -202,6 +202,12 @@ class AggregatedJob < ActiveRecord::Base
     return { success: false, error: 'Job non in preview_pending' } unless status == 'preview_pending'
     return { success: false, error: 'File aggregato non disponibile' } unless aggregated_file_url.present?
     return { success: false, error: 'Flusso di stampa non assegnato' } unless print_flow.present?
+    
+    # For print operation, validate machine selection
+    if operation == 'print' && print_machine_id.present?
+      machine = print_flow.print_machines.find_by(id: print_machine_id)
+      return { success: false, error: 'Stampante non trovata' } unless machine
+    end
     
     # Get webhook from print_flow based on operation
     webhook = case operation
@@ -244,11 +250,18 @@ class AggregatedJob < ActiveRecord::Base
       altezza: 0.0
     }
     
+    # Add print machine ID if operation is print
+    if operation == 'print' && print_machine_id.present?
+      payload[:print_machine_id] = print_machine_id
+    end
+    
     result = SwitchClient.send_to_switch(webhook_path: webhook.hook_path, job_data: payload)
     
     if result[:success]
       # Track when preprint is sent
       update(preprint_sent_at: Time.current) if operation == 'preprint'
+      # Update status when print is sent
+      update(status: 'printing') if operation == 'print'
       { success: true, message: "File aggregato inviato per #{operation}" }
     else
       { success: false, error: result[:error] }

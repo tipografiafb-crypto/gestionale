@@ -127,11 +127,11 @@
                 <i class="fas fa-scissors"></i> Pre-Stampa
               </button>
             </form>
-            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_print" method="post" class="mb-2">
-              <button type="submit" class="btn btn-primary w-100" <% if !@aggregated_job.preprint_sent_at.present? %>disabled<% end %> onclick="return confirm('Invia file aggregato a stampa?')">
-                <i class="fas fa-print"></i> Stampa
-              </button>
-            </form>
+            <button type="button" class="btn btn-primary w-100 mb-2" 
+                    data-bs-toggle="modal" data-bs-target="#machineSelectAggregatedModal"
+                    <% if !@aggregated_job.preprint_sent_at.present? %>disabled title="Completa prima la pre-stampa"<% end %>>
+              <i class="fas fa-print"></i> Stampa
+            </button>
             <% if @aggregated_job.print_flow&.label_webhook.present? %>
             <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_label" method="post" class="mb-2">
               <button type="submit" class="btn btn-secondary w-100" onclick="return confirm('Invia file aggregato a etichetta?')">
@@ -167,11 +167,11 @@
                 <i class="fas fa-scissors"></i> Pre-Stampa
               </button>
             </form>
-            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_print" method="post" class="mb-2">
-              <button type="submit" class="btn btn-primary w-100" <% if !@aggregated_job.preprint_sent_at.present? %>disabled<% end %> onclick="return confirm('Invia file aggregato a stampa?')">
-                <i class="fas fa-print"></i> Stampa
-              </button>
-            </form>
+            <button type="button" class="btn btn-primary w-100 mb-2" 
+                    data-bs-toggle="modal" data-bs-target="#machineSelectAggregatedModal"
+                    <% if !@aggregated_job.preprint_sent_at.present? %>disabled title="Completa prima la pre-stampa"<% end %>>
+              <i class="fas fa-print"></i> Stampa
+            </button>
             <% if @aggregated_job.print_flow&.label_webhook.present? %>
             <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_label" method="post" class="mb-2">
               <button type="submit" class="btn btn-secondary w-100" onclick="return confirm('Invia file aggregato a etichetta?')">
@@ -255,6 +255,45 @@
           </a>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Select Machine for Aggregated Print -->
+<div class="modal fade" id="machineSelectAggregatedModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Scegli Stampante</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_print" method="post">
+        <div class="modal-body">
+          <p class="text-muted mb-3">Seleziona stampante per questo aggregato:</p>
+          <% available_machines = @aggregated_job.print_flow&.print_machines || [] %>
+          <% if available_machines.any? %>
+            <% available_machines.each do |machine| %>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="print_machine_id" 
+                       value="<%= machine.id %>" id="agg_machine_<%= machine.id %>"
+                       <%= 'checked' if available_machines.first.id == machine.id %>>
+                <label class="form-check-label" for="agg_machine_<%= machine.id %>">
+                  <strong><%= machine.name %></strong>
+                  <% if machine.description %>
+                    <br><small class="text-muted"><%= machine.description %></small>
+                  <% end %>
+                </label>
+              </div>
+            <% end %>
+          <% else %>
+            <div class="alert alert-warning">Nessuna stampante disponibile nel flusso</div>
+          <% end %>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-primary" <% if available_machines.empty? %>disabled<% end %>><i class="fas fa-print"></i> Invia a Stampa</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
