@@ -28,7 +28,7 @@ class PrintOrchestrator < Sinatra::Base
     item_ids = params[:item_ids] || []
     print_flow_id = params[:print_flow_id].presence
     
-    return redirect '/aggregated_jobs/new?msg=error&text=Seleziona+almeno+2+line+items' if item_ids.count < 2
+    return redirect '/aggregated_jobs/new?msg=error&text=Seleziona+almeno+1+line+item' if item_ids.count < 1
     return redirect '/aggregated_jobs/new?msg=error&text=Seleziona+un+flusso+di+stampa' unless print_flow_id
 
     begin
