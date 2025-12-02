@@ -59,11 +59,12 @@ class PrintOrchestrator < Sinatra::Base
     erb :aggregated_job_detail
   end
   
-  # GET /file/agg_:id - Serve aggregated job file for preview
-  get '/file/agg_:id' do
+  # GET /file/agg_:id/:filename - Serve aggregated job file for preview
+  get '/file/agg_:id/:filename' do
     begin
       @aggregated_job = AggregatedJob.find(params[:id])
-      file_path = File.join(Dir.pwd, 'storage', 'aggregated', "agg_#{params[:id]}.pdf")
+      filename = params[:filename]
+      file_path = File.join(Dir.pwd, 'storage', 'aggregated', filename)
       
       if File.exist?(file_path)
         send_file file_path, disposition: 'inline', type: 'application/pdf'

@@ -157,17 +157,17 @@ class AggregatedJob < ActiveRecord::Base
       dir = File.join(Dir.pwd, 'storage', 'aggregated')
       FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
       
-      # Save file with job ID as name
-      local_filename = "agg_#{id}.pdf"
+      # Save file with filename from Switch
+      local_filename = filename.present? ? filename : "agg_#{id}.pdf"
       local_path = File.join(dir, local_filename)
       File.write(local_path, file_content)
       
       puts "[AGGREGATED_JOB] Saved file to: #{local_path}"
       
-      # Update job with file info
+      # Update job with file info - use filename received from Switch
       update(
         status: 'preview_pending',
-        aggregated_file_url: "/file/agg_#{id}",
+        aggregated_file_url: "/file/agg_#{id}/#{local_filename}",
         aggregated_filename: filename,
         aggregated_at: Time.current,
         notes: local_filename
