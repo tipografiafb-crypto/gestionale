@@ -142,7 +142,6 @@
         <tr>
           <th>#</th>
           <th>Prodotto</th>
-          <th>SKU</th>
           <th>Quantità</th>
           <th>Pre-Stampa</th>
           <th>Stampa</th>
@@ -152,7 +151,6 @@
         <% @order.order_items.each_with_index do |item, index| %>
           <tr>
             <td><strong><%= index + 1 %></strong></td>
-            <td><%= item.sku %></td>
             <td><%= item.sku %></td>
             <td><%= item.quantity %></td>
             <td>
