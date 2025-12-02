@@ -61,12 +61,21 @@ class PrintOrchestrator < Sinatra::Base
   
   # GET /file/agg_:id - Serve aggregated job file for preview
   get '/file/agg_:id' do
-    @aggregated_job = AggregatedJob.find(params[:id])
-    if @aggregated_job.notes.present? && File.exist?(File.join(Dir.pwd, @aggregated_job.notes))
-      send_file File.join(Dir.pwd, @aggregated_job.notes), disposition: 'inline'
-    else
-      status 404
-      'File not found'
+    begin
+      @aggregated_job = AggregatedJob.find(params[:id])
+      file_path = File.join(Dir.pwd, 'storage', 'aggregated', "agg_#{params[:id]}.pdf")
+      
+      if File.exist?(file_path)
+        send_file file_path, disposition: 'inline', type: 'application/pdf'
+      else
+        puts "[FILE_SERVE_ERROR] File not found at: #{file_path}"
+        status 404
+        'File not found'
+      end
+    rescue => e
+      puts "[FILE_SERVE_ERROR] #{e.message}"
+      status 500
+      'Error serving file'
     end
   end
 

@@ -153,33 +153,30 @@ class AggregatedJob < ActiveRecord::Base
       # Decode base64
       file_content = Base64.decode64(file_base64)
       
-      # Create storage directory if not exists
-      first_item = order_items.first
-      store_code = first_item&.order&.store&.code || 'unknown'
-      order_code = first_item&.order&.external_order_code || "AGG-#{id}"
-      
-      dir = File.join(Dir.pwd, 'storage', store_code, order_code, 'aggregated')
+      # Create storage/aggregated directory
+      dir = File.join(Dir.pwd, 'storage', 'aggregated')
       FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
       
-      # Save file locally
-      local_path = File.join(dir, filename)
+      # Save file with job ID as name
+      local_filename = "agg_#{id}.pdf"
+      local_path = File.join(dir, local_filename)
       File.write(local_path, file_content)
       
-      # Store relative path for database
-      relative_path = File.join('storage', store_code, order_code, 'aggregated', filename)
+      puts "[AGGREGATED_JOB] Saved file to: #{local_path}"
       
       # Update job with file info
       update(
         status: 'preview_pending',
-        aggregated_file_url: "/file/agg_#{id}",  # Custom route for serving
+        aggregated_file_url: "/file/agg_#{id}",
         aggregated_filename: filename,
         aggregated_at: Time.current,
-        notes: relative_path  # Store relative path temporarily
+        notes: local_filename
       )
       
       { success: true, message: 'File saved locally' }
     rescue => e
       puts "[AGGREGATED_JOB_ERROR] Failed to save base64 file: #{e.message}"
+      puts "[AGGREGATED_JOB_ERROR] Backtrace: #{e.backtrace.first(5).join("\n")}"
       { success: false, error: e.message }
     end
   end
