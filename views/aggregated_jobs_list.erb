@@ -36,7 +36,8 @@
     <div class="btn-group" role="group">
       <span class="badge bg-secondary me-2">In Attesa: <%= AggregatedJob.pending.count %></span>
       <span class="badge bg-info me-2">Aggregazione: <%= AggregatedJob.aggregating.count %></span>
-      <span class="badge bg-warning me-2">Pronto Stampa: <%= AggregatedJob.ready_for_print.count %></span>
+      <span class="badge bg-warning me-2">Anteprima: <%= AggregatedJob.preview_pending.count %></span>
+      <span class="badge bg-success me-2">Pronto Stampa: <%= AggregatedJob.ready_for_print.count %></span>
       <span class="badge bg-primary me-2">In Stampa: <%= AggregatedJob.printing.count %></span>
       <span class="badge bg-success me-2">Completati: <%= AggregatedJob.completed.count %></span>
     </div>

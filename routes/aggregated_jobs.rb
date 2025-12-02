@@ -49,7 +49,25 @@ class PrintOrchestrator < Sinatra::Base
     @order_items = @aggregated_job.order_items.includes(:order, :assets)
     @switch_webhooks = SwitchWebhook.ordered
     @print_flows = PrintFlow.ordered
+    
+    # For preview, get the local file
+    if @aggregated_job.status == 'preview_pending' && @aggregated_job.notes.present?
+      @preview_file_path = @aggregated_job.notes
+      @preview_file_exists = File.exist?(File.join(Dir.pwd, @preview_file_path))
+    end
+    
     erb :aggregated_job_detail
+  end
+  
+  # GET /file/agg_:id - Serve aggregated job file for preview
+  get '/file/agg_:id' do
+    @aggregated_job = AggregatedJob.find(params[:id])
+    if @aggregated_job.notes.present? && File.exist?(File.join(Dir.pwd, @aggregated_job.notes))
+      send_file File.join(Dir.pwd, @aggregated_job.notes), disposition: 'inline'
+    else
+      status 404
+      'File not found'
+    end
   end
 
   # POST /aggregated_jobs/:id/send_aggregation - Send files to Switch for aggregation
@@ -101,6 +119,13 @@ class PrintOrchestrator < Sinatra::Base
     @aggregated_job = AggregatedJob.find(params[:id])
     @aggregated_job.mark_print_completed
     redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=Aggregazione+completata"
+  end
+
+  # POST /aggregated_jobs/:id/approve_preview - Approve preview and proceed to print
+  post '/aggregated_jobs/:id/approve_preview' do
+    @aggregated_job = AggregatedJob.find(params[:id])
+    result = @aggregated_job.approve_preview
+    redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=#{URI.encode_www_form_component(result[:message])}"
   end
 
   # POST /aggregated_jobs/:id/reset - Reset aggregation to pending

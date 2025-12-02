@@ -8,12 +8,13 @@ class AggregatedJob < ActiveRecord::Base
   
   validates :name, presence: true
   
-  # Statuses: pending, aggregating, aggregated, printing, completed, failed
-  # Flow: pending -> aggregating (sent to Switch) -> aggregated (file received) -> printing -> completed
-  STATUSES = %w[pending aggregating aggregated printing completed failed].freeze
+  # Statuses: pending, aggregating, preview_pending, aggregated, printing, completed, failed
+  # Flow: pending -> aggregating -> preview_pending (await approval) -> aggregated -> printing -> completed
+  STATUSES = %w[pending aggregating preview_pending aggregated printing completed failed].freeze
   
   scope :pending, -> { where(status: 'pending') }
   scope :aggregating, -> { where(status: 'aggregating') }
+  scope :preview_pending, -> { where(status: 'preview_pending') }
   scope :aggregated, -> { where(status: 'aggregated') }
   scope :ready_for_print, -> { where(status: 'aggregated') }
   scope :printing, -> { where(status: 'printing') }
@@ -136,14 +137,58 @@ class AggregatedJob < ActiveRecord::Base
     end
   end
   
-  # Called by Switch when aggregated file is ready
+  # Called by Switch when aggregated file is ready (with URL)
   def receive_aggregated_file(file_url, filename = nil)
     update(
-      status: 'aggregated',
+      status: 'preview_pending',
       aggregated_file_url: file_url,
       aggregated_filename: filename || File.basename(file_url),
       aggregated_at: Time.current
     )
+  end
+  
+  # Receive aggregated file from base64 and save locally
+  def receive_aggregated_file_from_base64(file_base64, filename = 'aggregated.pdf')
+    begin
+      # Decode base64
+      file_content = Base64.decode64(file_base64)
+      
+      # Create storage directory if not exists
+      first_item = order_items.first
+      store_code = first_item&.order&.store&.code || 'unknown'
+      order_code = first_item&.order&.external_order_code || "AGG-#{id}"
+      
+      dir = File.join(Dir.pwd, 'storage', store_code, order_code, 'aggregated')
+      FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
+      
+      # Save file locally
+      local_path = File.join(dir, filename)
+      File.write(local_path, file_content)
+      
+      # Store relative path for database
+      relative_path = File.join('storage', store_code, order_code, 'aggregated', filename)
+      
+      # Update job with file info
+      update(
+        status: 'preview_pending',
+        aggregated_file_url: "/file/agg_#{id}",  # Custom route for serving
+        aggregated_filename: filename,
+        aggregated_at: Time.current,
+        notes: relative_path  # Store relative path temporarily
+      )
+      
+      { success: true, message: 'File saved locally' }
+    rescue => e
+      puts "[AGGREGATED_JOB_ERROR] Failed to save base64 file: #{e.message}"
+      { success: false, error: e.message }
+    end
+  end
+  
+  # Approve preview and move to aggregated status
+  def approve_preview
+    return { success: false, error: 'Job non in preview_pending' } unless status == 'preview_pending'
+    update(status: 'aggregated')
+    { success: true, message: 'Preview approvato - pronto per stampa' }
   end
   
   # Called when print is completed
@@ -172,6 +217,7 @@ class AggregatedJob < ActiveRecord::Base
     case status
     when 'pending' then 'In Attesa'
     when 'aggregating' then 'Aggregazione in corso'
+    when 'preview_pending' then 'In Anteprima'
     when 'aggregated' then 'Pronto per stampa'
     when 'printing' then 'In stampa'
     when 'completed' then 'Completato'
@@ -184,7 +230,8 @@ class AggregatedJob < ActiveRecord::Base
     case status
     when 'pending' then 'secondary'
     when 'aggregating' then 'info'
-    when 'aggregated' then 'warning'
+    when 'preview_pending' then 'warning'
+    when 'aggregated' then 'success'
     when 'printing' then 'primary'
     when 'completed' then 'success'
     when 'failed' then 'danger'

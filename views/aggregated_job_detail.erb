@@ -73,7 +73,23 @@
       </div>
     </div>
 
-    <% if @aggregated_job.aggregated_file_url.present? %>
+    <% if @preview_file_exists %>
+      <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+          <strong><i class="fas fa-file-pdf"></i> Anteprima File Aggregato</strong>
+        </div>
+        <div class="card-body">
+          <div style="border: 1px solid #ddd; border-radius: 5px; overflow: hidden; height: 400px; margin-bottom: 1rem;">
+            <iframe src="<%= @aggregated_job.aggregated_file_url %>#toolbar=0&navpanes=0&scrollbar=0" 
+                    style="width: 100%; height: 100%; border: none;"></iframe>
+          </div>
+          <p>
+            <strong>File:</strong> <%= @aggregated_job.aggregated_filename %><br>
+            <strong>Ricevuto:</strong> <%= @aggregated_job.aggregated_at&.strftime('%d/%m/%Y %H:%M') %>
+          </p>
+        </div>
+      </div>
+    <% elsif @aggregated_job.aggregated_file_url.present? %>
       <div class="card mb-4">
         <div class="card-header bg-success text-white">
           <strong><i class="fas fa-file-pdf"></i> File Aggregato</strong>
@@ -144,6 +160,18 @@
               <i class="fas fa-spinner fa-spin"></i> Aggregazione in corso...
               <br><small>In attesa del file aggregato da Switch</small>
             </div>
+
+          <% elsif @aggregated_job.status == 'preview_pending' %>
+            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/approve_preview" method="post" class="mb-2">
+              <button type="submit" class="btn btn-success w-100" onclick="return confirm('Approvare l\'anteprima e procedere con la stampa?')">
+                <i class="fas fa-check"></i> Approva Anteprima
+              </button>
+            </form>
+            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/reset" method="post">
+              <button type="submit" class="btn btn-outline-warning w-100" onclick="return confirm('Resettare a In Attesa?')">
+                <i class="fas fa-redo"></i> Resetta
+              </button>
+            </form>
 
           <% elsif @aggregated_job.status == 'aggregated' %>
             <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_print" method="post">

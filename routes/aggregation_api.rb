@@ -11,10 +11,10 @@ class PrintOrchestrator < Sinatra::Base
       payload = JSON.parse(request.body.read)
       puts "[AGGREGATION_CALLBACK] Received: #{payload.inspect}"
       
-      aggregated_job_id = payload['aggregated_job_id'] || payload['job_id']
-      file_url = payload['file_url'] || payload['url']
-      filename = payload['filename']
-      status = payload['status']
+      # Handle both underscore and hyphen-separated keys
+      aggregated_job_id = payload['aggregated_job_id'] || payload['aggregated-job-id'] || payload['job_id']
+      file_base64 = payload['file']
+      filename = payload['filename'] || '2629.pdf'
       
       unless aggregated_job_id
         return { success: false, error: 'Missing aggregated_job_id' }.to_json
@@ -25,15 +25,17 @@ class PrintOrchestrator < Sinatra::Base
         return { success: false, error: 'Aggregated job not found' }.to_json
       end
       
-      if status == 'completed' && file_url.present?
-        job.receive_aggregated_file(file_url, filename)
-        puts "[AGGREGATION_CALLBACK] Job #{aggregated_job_id} received aggregated file: #{file_url}"
-        { success: true, message: 'Aggregated file received' }.to_json
-      elsif status == 'failed'
-        job.update(status: 'failed')
-        { success: true, message: 'Aggregation marked as failed' }.to_json
+      if file_base64.present?
+        # Decode base64 and save file
+        result = job.receive_aggregated_file_from_base64(file_base64, filename)
+        if result[:success]
+          puts "[AGGREGATION_CALLBACK] Job #{aggregated_job_id} received aggregated file: #{filename}"
+          { success: true, message: 'Aggregated file received' }.to_json
+        else
+          { success: false, error: result[:error] }.to_json
+        end
       else
-        { success: false, error: 'Invalid callback data' }.to_json
+        { success: false, error: 'Invalid callback data - missing file' }.to_json
       end
       
     rescue JSON::ParserError => e
