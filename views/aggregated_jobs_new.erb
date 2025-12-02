@@ -44,12 +44,12 @@
                 </thead>
                 <tbody>
                   <% @available_items.each do |item| %>
-                    <tr onclick="toggleRow(this)" style="cursor: pointer;">
+                    <tr onclick="toggleRow(this)" style="cursor: pointer;" class="item-row" data-product="<%= item.sku %>">
                       <td>
                         <input type="checkbox" name="item_ids[]" value="<%= item.id %>" class="item-checkbox" onclick="event.stopPropagation();">
                       </td>
                       <td><strong><%= item.order.external_order_code %></strong></td>
-                      <td><%= item.sku %></td>
+                      <td class="product-name"><%= item.sku %></td>
                       <td><%= item.quantity %></td>
                       <td>
                         <% asset = item.assets.where(asset_type: 'preprint').first || item.assets.order(created_at: :desc).first %>
@@ -98,6 +98,12 @@
             <small class="text-muted">Obbligatorio - il flusso da usare per la presstampa e stampa del file aggregato</small>
           </div>
 
+          <div class="mb-3">
+            <label for="product-filter" class="form-label">Filtra per Prodotto</label>
+            <input type="text" class="form-control" id="product-filter" placeholder="Inserisci SKU o nome prodotto..." onkeyup="filterByProduct()">
+            <small class="text-muted">Filtra gli item per trovare prodotti simili</small>
+          </div>
+
           <div id="selected-count" class="alert alert-info">
             <strong>Selezionati:</strong> <span id="count">0</span> item
             <br><small id="min-warning" class="text-danger" style="display:none;">Minimo 2 item richiesti</small>
@@ -119,13 +125,36 @@
 
 <script>
 function toggleAll(checkbox) {
-  document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = checkbox.checked);
+  document.querySelectorAll('.item-checkbox:not([style*="display: none"])').closest('tr').forEach(tr => {
+    const cb = tr.querySelector('.item-checkbox');
+    if (cb) cb.checked = checkbox.checked;
+  });
   updateCount();
 }
 
 function toggleRow(row) {
   const cb = row.querySelector('.item-checkbox');
   cb.checked = !cb.checked;
+  updateCount();
+}
+
+function filterByProduct() {
+  const filter = document.getElementById('product-filter').value.toLowerCase();
+  const rows = document.querySelectorAll('.item-row');
+  let visibleCount = 0;
+  
+  rows.forEach(row => {
+    const productName = row.getAttribute('data-product').toLowerCase();
+    if (productName.includes(filter)) {
+      row.style.display = '';
+      visibleCount++;
+    } else {
+      row.style.display = 'none';
+    }
+  });
+  
+  // Reset select-all checkbox when filtering
+  document.getElementById('select-all').checked = false;
   updateCount();
 }
 
