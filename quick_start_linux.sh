@@ -64,10 +64,12 @@ sudo -u postgres psql -c "ALTER USER orchestrator_user CREATEDB;" 2>/dev/null ||
 echo -e "${GREEN}✓ PostgreSQL user ready${NC}"
 
 # Step 4: Create storage directory
-echo -e "\n${YELLOW}[4/7]${NC} Creating storage directory..."
+echo -e "\n${YELLOW}[4/7]${NC} Creating storage directories..."
 mkdir -p storage
+mkdir -p storage/aggregated
 chmod 755 storage
-echo -e "${GREEN}✓ Storage directory ready${NC}"
+chmod 755 storage/aggregated
+echo -e "${GREEN}✓ Storage directories ready${NC}"
 
 # Step 5: Database setup
 echo -e "\n${YELLOW}[5/7]${NC} Setting up database..."
