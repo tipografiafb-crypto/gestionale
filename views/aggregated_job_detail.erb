@@ -212,8 +212,8 @@
               <i class="fas fa-print"></i> Stampa in corso...
             </div>
             <form action="/aggregated_jobs/<%= @aggregated_job.id %>/mark_completed" method="post" class="mb-2">
-              <button type="submit" class="btn btn-outline-success w-100" onclick="return confirm('Segnare come completato manualmente?')">
-                <i class="fas fa-check"></i> Completa Manualmente
+              <button type="submit" class="btn btn-success w-100" onclick="return confirm('Chiudere il lavoro? Tutti i line items saranno segnati come completati.')">
+                <i class="fas fa-check-circle"></i> Conferma Stampa e Chiudi
               </button>
             </form>
             <form action="/aggregated_jobs/<%= @aggregated_job.id %>/reset" method="post">

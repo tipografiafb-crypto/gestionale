@@ -286,7 +286,8 @@ class AggregatedJob < ActiveRecord::Base
       aggregated_filename: nil,
       sent_at: nil,
       aggregated_at: nil,
-      completed_at: nil
+      completed_at: nil,
+      preprint_sent_at: nil
     )
   end
   
