@@ -130,6 +130,7 @@ CREATE TABLE IF NOT EXISTS aggregated_jobs (
   sent_at TIMESTAMP,
   aggregated_at TIMESTAMP,
   completed_at TIMESTAMP,
+  notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -138,6 +139,7 @@ ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS aggregated_file_url TEXT;
 ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS aggregated_filename VARCHAR(255);
 ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS aggregated_at TIMESTAMP;
 ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
+ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS notes TEXT;
 
 CREATE TABLE IF NOT EXISTS aggregated_job_items (
   id SERIAL PRIMARY KEY,
