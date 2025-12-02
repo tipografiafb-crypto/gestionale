@@ -15,6 +15,7 @@ class SwitchWebhook < ActiveRecord::Base
   validates :name, uniqueness: { scope: :store_id, allow_nil: true }
 
   scope :by_store, ->(store_id) { where(store_id: store_id) }
+  scope :ordered, -> { order(:name) }
 
   # Compute full webhook URL from hook_path
   def webhook_url

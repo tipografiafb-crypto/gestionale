@@ -5,11 +5,20 @@ CREATE TABLE IF NOT EXISTS aggregated_jobs (
   status VARCHAR(50) DEFAULT 'pending',
   nr_files INTEGER DEFAULT 0,
   print_flow_id INTEGER REFERENCES print_flows(id) ON DELETE SET NULL,
-  aggregation_job_id INTEGER,
+  aggregated_file_url TEXT,
+  aggregated_filename VARCHAR(255),
   sent_at TIMESTAMP,
+  aggregated_at TIMESTAMP,
+  completed_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Add columns if they don't exist (for existing databases)
+ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS aggregated_file_url TEXT;
+ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS aggregated_filename VARCHAR(255);
+ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS aggregated_at TIMESTAMP;
+ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
 
 -- Aggregated Job Items table (join table)
 CREATE TABLE IF NOT EXISTS aggregated_job_items (

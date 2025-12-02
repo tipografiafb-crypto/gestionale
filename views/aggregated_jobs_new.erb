@@ -11,6 +11,7 @@
 <div class="row mb-4">
   <div class="col-md-12">
     <h1><i class="fas fa-plus"></i> Crea Nuova Aggregazione</h1>
+    <p class="text-muted">Seleziona almeno 2 line items con pre-stampa completata per aggregarli in un unico lavoro.</p>
   </div>
 </div>
 
@@ -29,8 +30,6 @@
           <strong><i class="fas fa-file-alt"></i> Seleziona Line Items</strong>
         </div>
         <div class="card-body">
-          <p class="text-muted">Scegli almeno 2 line items con pre-stampa completata:</p>
-          
           <% if @available_items.any? %>
             <div class="table-responsive">
               <table class="table table-hover">
@@ -40,30 +39,36 @@
                     <th>Ordine</th>
                     <th>Prodotto</th>
                     <th>Quantità</th>
-                    <th>Status Pre-stampa</th>
+                    <th>File</th>
                   </tr>
                 </thead>
                 <tbody>
                   <% @available_items.each do |item| %>
-                    <tr>
+                    <tr onclick="toggleRow(this)" style="cursor: pointer;">
                       <td>
-                        <input type="checkbox" name="item_ids[]" value="<%= item.id %>" class="item-checkbox">
+                        <input type="checkbox" name="item_ids[]" value="<%= item.id %>" class="item-checkbox" onclick="event.stopPropagation();">
                       </td>
                       <td><strong><%= item.order.code %></strong></td>
                       <td><%= item.sku %></td>
                       <td><%= item.quantity %></td>
                       <td>
-                        <span class="badge bg-success">✓ Completata</span>
+                        <% asset = item.assets.where(asset_type: 'preprint').first || item.assets.order(created_at: :desc).first %>
+                        <% if asset %>
+                          <span class="badge bg-success"><i class="fas fa-check"></i></span>
+                        <% else %>
+                          <span class="badge bg-warning">-</span>
+                        <% end %>
                       </td>
                     </tr>
                   <% end %>
                 </tbody>
               </table>
             </div>
-            <small class="text-muted"><%= @available_items.count %> line items disponibili</small>
+            <small class="text-muted"><%= @available_items.count %> line items disponibili per aggregazione</small>
           <% else %>
             <div class="alert alert-info">
-              Nessun line item con pre-stampa completata. Completa la pre-stampa per alcuni ordini prima di creare un'aggregazione.
+              <i class="fas fa-info-circle"></i> Nessun line item disponibile per l'aggregazione. 
+              <br><small>Completa la pre-stampa per alcuni ordini prima di creare un'aggregazione.</small>
             </div>
           <% end %>
         </div>
@@ -82,8 +87,20 @@
             <small class="text-muted">Opzionale - se non inserito, verrà generato automaticamente</small>
           </div>
 
+          <div class="mb-3">
+            <label for="print_flow_id" class="form-label">Flusso di Stampa (opzionale)</label>
+            <select class="form-select" id="print_flow_id" name="print_flow_id">
+              <option value="">-- Nessuno --</option>
+              <% @print_flows.each do |pf| %>
+                <option value="<%= pf.id %>"><%= pf.name %></option>
+              <% end %>
+            </select>
+            <small class="text-muted">Il flusso da usare per la stampa del file aggregato</small>
+          </div>
+
           <div id="selected-count" class="alert alert-info">
             <strong>Selezionati:</strong> <span id="count">0</span> item
+            <br><small id="min-warning" class="text-danger" style="display:none;">Minimo 2 item richiesti</small>
           </div>
 
           <div class="d-grid gap-2">
@@ -106,10 +123,17 @@ function toggleAll(checkbox) {
   updateCount();
 }
 
+function toggleRow(row) {
+  const cb = row.querySelector('.item-checkbox');
+  cb.checked = !cb.checked;
+  updateCount();
+}
+
 function updateCount() {
   const count = document.querySelectorAll('.item-checkbox:checked').length;
   document.getElementById('count').textContent = count;
   document.getElementById('submit-btn').disabled = count < 2;
+  document.getElementById('min-warning').style.display = count > 0 && count < 2 ? 'block' : 'none';
 }
 
 document.querySelectorAll('.item-checkbox').forEach(cb => cb.addEventListener('change', updateCount));

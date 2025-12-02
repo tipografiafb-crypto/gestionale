@@ -519,6 +519,9 @@
             <a class="nav-link <%= 'active' if request.path_info =~ %r{^/line_items} %>" href="/line_items"><i class="fas fa-link"></i> Lavorazioni</a>
           </li>
           <li class="nav-item">
+            <a class="nav-link <%= 'active' if request.path_info =~ %r{^/aggregated_jobs} %>" href="/aggregated_jobs"><i class="fas fa-layer-group"></i> Aggregazioni</a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link <%= 'active' if request.path_info =~ %r{^/inventory} %>" href="/inventory"><i class="fas fa-boxes"></i> Magazzino</a>
           </li>
           <li class="nav-item dropdown">

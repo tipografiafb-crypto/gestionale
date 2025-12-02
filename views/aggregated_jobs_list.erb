@@ -31,6 +31,18 @@
   </div>
 <% end %>
 
+<div class="row mb-3">
+  <div class="col-md-12">
+    <div class="btn-group" role="group">
+      <span class="badge bg-secondary me-2">In Attesa: <%= AggregatedJob.pending.count %></span>
+      <span class="badge bg-info me-2">Aggregazione: <%= AggregatedJob.aggregating.count %></span>
+      <span class="badge bg-warning me-2">Pronto Stampa: <%= AggregatedJob.ready_for_print.count %></span>
+      <span class="badge bg-primary me-2">In Stampa: <%= AggregatedJob.printing.count %></span>
+      <span class="badge bg-success me-2">Completati: <%= AggregatedJob.completed.count %></span>
+    </div>
+  </div>
+</div>
+
 <div class="card">
   <div class="card-body">
     <% if @aggregated_jobs.any? %>
@@ -41,6 +53,7 @@
               <th>ID</th>
               <th>Nome</th>
               <th>File</th>
+              <th>Flusso</th>
               <th>Stato</th>
               <th>Creato</th>
               <th>Azioni</th>
@@ -55,9 +68,15 @@
                   <span class="badge bg-info"><%= job.nr_files %> file</span>
                 </td>
                 <td>
-                  <% status_colors = { 'pending' => 'warning', 'sent' => 'info', 'completed' => 'success', 'failed' => 'danger' } %>
-                  <span class="badge bg-<%= status_colors[job.status] || 'secondary' %>">
-                    <%= job.status.upcase %>
+                  <% if job.print_flow %>
+                    <small><%= job.print_flow.name %></small>
+                  <% else %>
+                    <small class="text-muted">-</small>
+                  <% end %>
+                </td>
+                <td>
+                  <span class="badge bg-<%= job.status_color %>">
+                    <%= job.status_label %>
                   </span>
                 </td>
                 <td><small class="text-muted"><%= job.created_at.strftime('%d/%m %H:%M') %></small></td>
@@ -65,7 +84,7 @@
                   <a href="/aggregated_jobs/<%= job.id %>" class="btn btn-sm btn-info">
                     <i class="fas fa-eye"></i>
                   </a>
-                  <% if job.status == 'pending' %>
+                  <% if ['pending', 'failed'].include?(job.status) %>
                     <form action="/aggregated_jobs/<%= job.id %>" method="post" style="display:inline;">
                       <input type="hidden" name="_method" value="delete">
                       <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Elimina questa aggregazione?')">

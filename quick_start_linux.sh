@@ -116,6 +116,59 @@ else
   echo -e "${YELLOW}⚠ Could not create backup_configs table (it may already exist)${NC}"
 fi
 
+# Step 5.7: Create aggregated_jobs tables
+echo -e "\n${YELLOW}[5.7/7]${NC} Creating aggregated_jobs tables..."
+psql "$DATABASE_URL" << 'SQLEOF'
+CREATE TABLE IF NOT EXISTS aggregated_jobs (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  status VARCHAR(50) DEFAULT 'pending',
+  nr_files INTEGER DEFAULT 0,
+  print_flow_id INTEGER REFERENCES print_flows(id) ON DELETE SET NULL,
+  aggregated_file_url TEXT,
+  aggregated_filename VARCHAR(255),
+  sent_at TIMESTAMP,
+  aggregated_at TIMESTAMP,
+  completed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS aggregated_file_url TEXT;
+ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS aggregated_filename VARCHAR(255);
+ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS aggregated_at TIMESTAMP;
+ALTER TABLE aggregated_jobs ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS aggregated_job_items (
+  id SERIAL PRIMARY KEY,
+  aggregated_job_id INTEGER NOT NULL REFERENCES aggregated_jobs(id) ON DELETE CASCADE,
+  order_item_id INTEGER NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(aggregated_job_id, order_item_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_aggregated_jobs_status ON aggregated_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_aggregated_job_items_job_id ON aggregated_job_items(aggregated_job_id);
+CREATE INDEX IF NOT EXISTS idx_aggregated_job_items_item_id ON aggregated_job_items(order_item_id);
+SQLEOF
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✓ Aggregated jobs tables created${NC}"
+else
+  echo -e "${YELLOW}⚠ Could not create aggregated_jobs tables (they may already exist)${NC}"
+fi
+
+# Step 5.8: Add SSH port column to backup_configs
+echo -e "\n${YELLOW}[5.8/7]${NC} Adding SSH port column to backup_configs..."
+psql "$DATABASE_URL" << 'SQLEOF'
+ALTER TABLE backup_configs ADD COLUMN IF NOT EXISTS ssh_port INTEGER DEFAULT 22;
+SQLEOF
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✓ SSH port column added${NC}"
+else
+  echo -e "${YELLOW}⚠ Could not add SSH port column (it may already exist)${NC}"
+fi
+
 # Step 6: Health check
 echo -e "\n${YELLOW}[6/7]${NC} Testing database connection..."
 TABLE_COUNT=$(psql "$DATABASE_URL" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';" 2>/dev/null || echo "0")

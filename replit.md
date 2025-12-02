@@ -16,6 +16,17 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 
 ## Recent Work
 
+### December 2, 2025 (Aggregated Jobs System)
+- Implemented complete Aggregated Jobs system for batch processing
+- New workflow: pending → aggregating → aggregated → printing → completed
+- Created AggregatedJob and AggregatedJobItem models with full database schema
+- Added routes for creating, viewing, and managing aggregated jobs
+- Integrated with SwitchClient for sending aggregation requests to Switch
+- Added API callbacks: `/api/v1/aggregation_callback` and `/api/v1/aggregation_print_callback`
+- Added "Aggregazioni" link in main navigation menu
+- Updated quick_start_linux.sh with aggregated_jobs tables (Step 5.7)
+- Views: aggregated_jobs_list.erb, aggregated_job_detail.erb, aggregated_jobs_new.erb
+
 ### December 1, 2025 (Switch Port Configuration Verified)
 - Confirmed Switch webhook URL port is 51088 (v7 on Ubuntu Switch installation)
 - Verified via Switch system port checking
@@ -113,6 +124,8 @@ Tables:
 - `order_items` - Items within orders
 - `assets` - Images and files
 - `switch_jobs` - Switch job tracking
+- `aggregated_jobs` - Aggregated batch jobs for multiple items
+- `aggregated_job_items` - Join table linking aggregated jobs to order items
 
 Run migrations:
 ```bash
