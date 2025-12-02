@@ -168,24 +168,39 @@
             </form>
 
           <% elsif @aggregated_job.status == 'printing' %>
-            <div class="alert alert-primary mb-0">
+            <div class="alert alert-primary mb-2">
               <i class="fas fa-print"></i> Stampa in corso...
             </div>
-            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/mark_completed" method="post" class="mt-2">
+            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/mark_completed" method="post" class="mb-2">
               <button type="submit" class="btn btn-outline-success w-100" onclick="return confirm('Segnare come completato manualmente?')">
                 <i class="fas fa-check"></i> Completa Manualmente
               </button>
             </form>
+            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/reset" method="post">
+              <button type="submit" class="btn btn-outline-warning w-100" onclick="return confirm('Resettare a In Attesa?')">
+                <i class="fas fa-redo"></i> Resetta
+              </button>
+            </form>
 
           <% elsif @aggregated_job.status == 'completed' %>
-            <div class="alert alert-success mb-0">
+            <div class="alert alert-success mb-2">
               <i class="fas fa-check-circle"></i> Lavoro completato!
             </div>
+            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/reset" method="post" class="mb-2">
+              <button type="submit" class="btn btn-outline-warning w-100" onclick="return confirm('Resettare a In Attesa?')">
+                <i class="fas fa-redo"></i> Resetta
+              </button>
+            </form>
 
           <% elsif @aggregated_job.status == 'failed' %>
             <div class="alert alert-danger mb-2">
               <i class="fas fa-exclamation-triangle"></i> Lavoro fallito
             </div>
+            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/reset" method="post" class="mb-2">
+              <button type="submit" class="btn btn-outline-warning w-100" onclick="return confirm('Resettare a In Attesa?')">
+                <i class="fas fa-redo"></i> Resetta
+              </button>
+            </form>
             <form action="/aggregated_jobs/<%= @aggregated_job.id %>" method="post">
               <input type="hidden" name="_method" value="delete">
               <button type="submit" class="btn btn-danger w-100" onclick="return confirm('Elimina questa aggregazione?')">

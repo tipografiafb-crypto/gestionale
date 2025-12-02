@@ -156,6 +156,18 @@ class AggregatedJob < ActiveRecord::Base
     end
   end
   
+  # Reset aggregation to pending state (clear aggregation data)
+  def reset_aggregation
+    update(
+      status: 'pending',
+      aggregated_file_url: nil,
+      aggregated_filename: nil,
+      sent_at: nil,
+      aggregated_at: nil,
+      completed_at: nil
+    )
+  end
+  
   def status_label
     case status
     when 'pending' then 'In Attesa'

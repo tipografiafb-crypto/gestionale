@@ -103,12 +103,19 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=Aggregazione+completata"
   end
 
+  # POST /aggregated_jobs/:id/reset - Reset aggregation to pending
+  post '/aggregated_jobs/:id/reset' do
+    @aggregated_job = AggregatedJob.find(params[:id])
+    @aggregated_job.reset_aggregation
+    redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=Aggregazione+resettata+a+In+Attesa"
+  end
+
   # DELETE /aggregated_jobs/:id - Delete aggregated job
   delete '/aggregated_jobs/:id' do
     @aggregated_job = AggregatedJob.find(params[:id])
     
-    unless ['pending', 'failed'].include?(@aggregated_job.status)
-      return redirect "/aggregated_jobs?msg=error&text=Non+puoi+eliminare+un+job+in+corso"
+    if @aggregated_job.status == 'completed'
+      return redirect "/aggregated_jobs?msg=error&text=Non+puoi+eliminare+un+job+completato"
     end
 
     @aggregated_job.destroy

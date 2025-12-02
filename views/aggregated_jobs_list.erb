@@ -81,13 +81,20 @@
                 </td>
                 <td><small class="text-muted"><%= job.created_at.strftime('%d/%m %H:%M') %></small></td>
                 <td>
-                  <a href="/aggregated_jobs/<%= job.id %>" class="btn btn-sm btn-info">
+                  <a href="/aggregated_jobs/<%= job.id %>" class="btn btn-sm btn-info" title="Visualizza">
                     <i class="fas fa-eye"></i>
                   </a>
-                  <% if ['pending', 'failed'].include?(job.status) %>
+                  <% if !['pending', 'completed'].include?(job.status) %>
+                    <form action="/aggregated_jobs/<%= job.id %>/reset" method="post" style="display:inline;">
+                      <button type="submit" class="btn btn-sm btn-warning" title="Resetta a In Attesa" onclick="return confirm('Resettare questa aggregazione?')">
+                        <i class="fas fa-redo"></i>
+                      </button>
+                    </form>
+                  <% end %>
+                  <% if job.status != 'completed' %>
                     <form action="/aggregated_jobs/<%= job.id %>" method="post" style="display:inline;">
                       <input type="hidden" name="_method" value="delete">
-                      <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Elimina questa aggregazione?')">
+                      <button type="submit" class="btn btn-sm btn-danger" title="Elimina" onclick="return confirm('Elimina questa aggregazione?')">
                         <i class="fas fa-trash"></i>
                       </button>
                     </form>
