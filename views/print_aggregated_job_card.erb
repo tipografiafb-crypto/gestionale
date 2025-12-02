@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scheda Lavoro Aggregazione #<%= @aggregated_job.id %></title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: white;
+    }
+    .header {
+      margin-bottom: 30px;
+      border-bottom: 3px solid #333;
+      padding-bottom: 15px;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .header-info {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+    .section {
+      margin-bottom: 25px;
+    }
+    .section-title {
+      background: #f0f0f0;
+      padding: 10px 15px;
+      font-weight: bold;
+      font-size: 14px;
+      margin-bottom: 10px;
+      border-left: 4px solid #007bff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    table th {
+      background: #f9f9f9;
+      padding: 8px;
+      text-align: left;
+      border-bottom: 2px solid #ddd;
+      font-weight: bold;
+    }
+    table td {
+      padding: 8px;
+      border-bottom: 1px solid #ddd;
+    }
+    table tr:nth-child(even) {
+      background: #fafafa;
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    .info-item {
+      border: 1px solid #ddd;
+      padding: 10px;
+      background: #fafafa;
+    }
+    .info-label {
+      font-weight: bold;
+      color: #333;
+      font-size: 11px;
+    }
+    .info-value {
+      font-size: 12px;
+      color: #666;
+      margin-top: 3px;
+    }
+    @media print {
+      body {
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1><i class="fas fa-layer-group"></i> Scheda Lavoro Aggregazione</h1>
+    <div class="header-info">
+      <strong>ID:</strong> #<%= @aggregated_job.id %> | 
+      <strong>Data:</strong> <%= @aggregated_job.created_at.strftime('%d/%m/%Y %H:%M') %> |
+      <strong>Stato:</strong> <%= @aggregated_job.status_label %>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Informazioni Aggregazione</div>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="info-label">Nome</div>
+        <div class="info-value"><%= @aggregated_job.name %></div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">File Inclusi</div>
+        <div class="info-value"><%= @aggregated_job.nr_files %></div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Flusso di Stampa</div>
+        <div class="info-value"><%= @aggregated_job.print_flow&.name || 'N/A' %></div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Creato</div>
+        <div class="info-value"><%= @aggregated_job.created_at.strftime('%d/%m/%Y') %></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Line Items Aggregati</div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Ordine</th>
+          <th>Prodotto</th>
+          <th>SKU</th>
+          <th>Quantità</th>
+          <th>Negozio</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @order_items.each_with_index do |item, index| %>
+          <tr>
+            <td><strong><%= index + 1 %></strong></td>
+            <td><strong><%= item.order.external_order_code %></strong></td>
+            <td><%= item.product&.name || 'N/A' %></td>
+            <td><%= item.sku %></td>
+            <td><%= item.quantity %></td>
+            <td><%= item.order.store.code %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section" style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #ddd; font-size: 11px; color: #999;">
+    <p>Documento generato automaticamente da Print Orchestrator</p>
+    <p><%= Time.now.strftime('%d/%m/%Y %H:%M:%S') %></p>
+  </div>
+
+  <script>
+    window.onload = function() {
+      window.print();
+    }
+  </script>
+</body>
+</html>

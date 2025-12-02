@@ -208,4 +208,14 @@ class PrintOrchestrator < Sinatra::Base
     @aggregated_job.destroy
     redirect '/aggregated_jobs?msg=success&text=Aggregazione+eliminata'
   end
+
+  # GET /aggregated_jobs/:id/print - Print aggregated job card
+  get '/aggregated_jobs/:id/print' do
+    @aggregated_job = AggregatedJob.find(params[:id])
+    @order_items = @aggregated_job.order_items.includes(:order, :assets)
+    erb :print_aggregated_job_card, layout: false
+  rescue ActiveRecord::RecordNotFound
+    status 404
+    'Aggregation not found'
+  end
 end
