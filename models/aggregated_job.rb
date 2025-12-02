@@ -182,10 +182,24 @@ class AggregatedJob < ActiveRecord::Base
   end
   
   # Send aggregated file to Switch for an operation (preprint, print, label)
-  def send_to_switch_operation(webhook_path, operation)
+  def send_to_switch_operation(operation)
     return { success: false, error: 'Job non in preview_pending' } unless status == 'preview_pending'
     return { success: false, error: 'File aggregato non disponibile' } unless aggregated_file_url.present?
-    return { success: false, error: 'Webhook non specificato' } unless webhook_path.present?
+    return { success: false, error: 'Flusso di stampa non assegnato' } unless print_flow.present?
+    
+    # Get webhook from print_flow based on operation
+    webhook = case operation
+              when 'preprint'
+                print_flow.preprint_webhook
+              when 'print'
+                print_flow.print_webhook
+              when 'label'
+                print_flow.label_webhook
+              else
+                nil
+              end
+    
+    return { success: false, error: "Webhook per #{operation} non configurato nel flusso" } unless webhook.present?
     
     server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
     
@@ -214,7 +228,7 @@ class AggregatedJob < ActiveRecord::Base
       altezza: 0.0
     }
     
-    result = SwitchClient.send_to_switch(webhook_path: webhook_path, job_data: payload)
+    result = SwitchClient.send_to_switch(webhook_path: webhook.hook_path, job_data: payload)
     
     if result[:success]
       { success: true, message: "File aggregato inviato per #{operation}" }
