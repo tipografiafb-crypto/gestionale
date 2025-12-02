@@ -73,33 +73,19 @@
       </div>
     </div>
 
-    <% if @preview_file_exists %>
+    <% if @aggregated_job.aggregated_file_url.present? && @aggregated_job.aggregated_at.present? %>
       <div class="card mb-4">
-        <div class="card-header bg-info text-white">
-          <strong><i class="fas fa-file-pdf"></i> Anteprima File Aggregato</strong>
-        </div>
-        <div class="card-body">
-          <div style="border: 1px solid #ddd; border-radius: 5px; overflow: hidden; height: 400px; margin-bottom: 1rem;">
-            <iframe src="<%= @aggregated_job.aggregated_file_url %>#toolbar=0&navpanes=0&scrollbar=0" 
-                    style="width: 100%; height: 100%; border: none;"></iframe>
-          </div>
-          <p>
-            <strong>File:</strong> <%= @aggregated_job.aggregated_filename %><br>
-            <strong>Ricevuto:</strong> <%= @aggregated_job.aggregated_at&.strftime('%d/%m/%Y %H:%M') %>
-          </p>
-        </div>
-      </div>
-    <% elsif @aggregated_job.aggregated_file_url.present? %>
-      <div class="card mb-4">
-        <div class="card-header bg-success text-white">
+        <div class="card-header <%= @aggregated_job.status == 'preview_pending' ? 'bg-warning' : 'bg-success' %> text-white">
           <strong><i class="fas fa-file-pdf"></i> File Aggregato</strong>
         </div>
         <div class="card-body">
           <p>
             <strong>File:</strong> <%= @aggregated_job.aggregated_filename %><br>
-            <strong>URL:</strong> <a href="<%= @aggregated_job.aggregated_file_url %>" target="_blank"><%= @aggregated_job.aggregated_file_url %></a><br>
-            <strong>Ricevuto:</strong> <%= @aggregated_job.aggregated_at&.strftime('%d/%m/%Y %H:%M') %>
+            <strong>Ricevuto:</strong> <%= @aggregated_job.aggregated_at.strftime('%d/%m/%Y %H:%M') %>
           </p>
+          <a href="<%= @aggregated_job.aggregated_file_url %>" target="_blank" class="btn btn-primary">
+            <i class="fas fa-download"></i> Apri PDF
+          </a>
         </div>
       </div>
     <% end %>
@@ -246,3 +232,12 @@
     </div>
   </div>
 </div>
+
+<% if @aggregated_job.status == 'preview_pending' %>
+  <script>
+    // Auto-refresh pagina ogni 2 secondi mentre è in anteprima
+    setInterval(() => {
+      location.reload();
+    }, 2000);
+  </script>
+<% end %>
