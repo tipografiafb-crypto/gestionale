@@ -44,12 +44,12 @@
                 </thead>
                 <tbody>
                   <% @available_items.each do |item| %>
-                    <tr onclick="toggleRow(this)" style="cursor: pointer;" class="item-row" data-product="<%= item.sku %>">
+                    <tr onclick="toggleRow(this)" style="cursor: pointer;" class="item-row" data-product="<%= item.product&.name || item.sku %>">
                       <td>
                         <input type="checkbox" name="item_ids[]" value="<%= item.id %>" class="item-checkbox" onclick="event.stopPropagation();">
                       </td>
                       <td><strong><%= item.order.external_order_code %></strong></td>
-                      <td class="product-name"><%= item.sku %></td>
+                      <td class="product-name"><%= item.product&.name || item.sku %></td>
                       <td><%= item.quantity %></td>
                       <td>
                         <% asset = item.assets.where(asset_type: 'preprint').first || item.assets.order(created_at: :desc).first %>
@@ -100,7 +100,7 @@
 
           <div class="mb-3">
             <label for="product-filter" class="form-label">Filtra per Prodotto</label>
-            <input type="text" class="form-control" id="product-filter" placeholder="Inserisci SKU o nome prodotto..." onkeyup="filterByProduct()">
+            <input type="text" class="form-control" id="product-filter" placeholder="Inserisci nome prodotto..." onkeyup="filterByProduct()">
             <small class="text-muted">Filtra gli item per trovare prodotti simili</small>
           </div>
 
