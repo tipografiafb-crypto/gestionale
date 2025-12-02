@@ -35,6 +35,16 @@ class AggregatedJob < ActiveRecord::Base
     job
   end
   
+  # Auto-send aggregation (used when pending job needs to aggregate)
+  def send_aggregation_first
+    return unless status == 'pending' && print_flow.present?
+    return unless print_flow.preprint_webhook.present?
+    
+    # Use preprint webhook for aggregation
+    webhook = print_flow.preprint_webhook
+    send_aggregation_to_switch(webhook.hook_path)
+  end
+  
   # Send aggregation request to Switch (step 1: aggregate files)
   def send_aggregation_to_switch(webhook_path)
     return { success: false, error: 'Job non pronto per l\'invio' } unless status == 'pending'
@@ -183,6 +193,12 @@ class AggregatedJob < ActiveRecord::Base
   
   # Send aggregated file to Switch for an operation (preprint, print, label)
   def send_to_switch_operation(operation)
+    # Se in pending, aggregare prima. Se in preview_pending, procedere direttamente
+    if status == 'pending'
+      # Auto-aggregate first from pending items
+      send_aggregation_first
+    end
+    
     return { success: false, error: 'Job non in preview_pending' } unless status == 'preview_pending'
     return { success: false, error: 'File aggregato non disponibile' } unless aggregated_file_url.present?
     return { success: false, error: 'Flusso di stampa non assegnato' } unless print_flow.present?
