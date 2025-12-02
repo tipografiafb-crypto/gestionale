@@ -12,6 +12,9 @@
     <h1>Order: <%= @order.external_order_code %></h1>
   </div>
   <div class="col-md-4 text-end">
+    <a href="/orders/<%= @order.id %>/print" class="btn btn-outline-info" target="_blank">
+      <i class="fas fa-file-invoice"></i> Scheda Ordine
+    </a>
     <form action="/orders/<%= @order.id %>/force_close" method="post" class="d-inline" onsubmit="return confirm('Forzare la chiusura di questo ordine?');">
       <button type="submit" class="btn btn-success">
         <i class="fas fa-lock"></i> Forza Chiusura

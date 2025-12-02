@@ -171,6 +171,15 @@ class PrintOrchestrator < Sinatra::Base
     erb :not_found
   end
 
+  # GET /orders/:id/print - Print order card
+  get '/orders/:id/print' do
+    @order = Order.includes(:store, { order_items: [:product, :assets] }).find(params[:id])
+    erb :print_order_card, layout: false
+  rescue ActiveRecord::RecordNotFound
+    status 404
+    'Order not found'
+  end
+
   # POST /orders/:id/force_close - Force close an order
   post '/orders/:id/force_close' do
     @order = Order.find(params[:id])
