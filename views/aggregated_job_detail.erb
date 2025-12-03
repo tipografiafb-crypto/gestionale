@@ -162,12 +162,19 @@
             </div>
 
           <% elsif @aggregated_job.status == 'preview_pending' %>
+            <div class="alert alert-success mb-3">
+              <i class="fas fa-check-circle"></i> <strong>File aggregato pronto!</strong>
+              <br><small><%= @aggregated_job.aggregated_filename %></small>
+              <% if @aggregated_job.aggregated_file_url %>
+                <br><a href="<%= @aggregated_job.aggregated_file_url %>" target="_blank" class="alert-link">Anteprima PDF</a>
+              <% end %>
+            </div>
             <div class="mb-2">
-              <label class="form-label small"><strong>Operazioni Disponibili:</strong></label>
+              <label class="form-label small"><strong>Conferma e Continua:</strong></label>
             </div>
             <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_preprint" method="post" class="mb-2">
-              <button type="submit" class="btn btn-info w-100" onclick="return confirm('Invia file aggregato a pre-stampa?')">
-                <i class="fas fa-scissors"></i> Pre-Stampa
+              <button type="submit" class="btn btn-success w-100" onclick="return confirm('Invia file aggregato a pre-stampa?')">
+                <i class="fas fa-scissors"></i> Conferma Pre-Stampa
               </button>
             </form>
             <button type="button" class="btn btn-primary w-100 mb-2" 
