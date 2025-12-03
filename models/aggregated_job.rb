@@ -200,7 +200,15 @@ class AggregatedJob < ActiveRecord::Base
     end
     
     return { success: false, error: 'Job non in preview_pending' } unless status == 'preview_pending'
-    return { success: false, error: 'File aggregato non disponibile' } unless aggregated_file_url.present?
+    
+    # Check if file exists (either URL is set, or file exists physically in storage)
+    file_url = aggregated_file_url
+    if !file_url.present? && notes.present?
+      # Try to construct URL from local filename stored in notes
+      file_url = "/file/agg_#{id}/#{notes}"
+    end
+    
+    return { success: false, error: 'File aggregato non disponibile' } unless file_url.present?
     return { success: false, error: 'Flusso di stampa non assegnato' } unless print_flow.present?
     
     # For print operation, validate machine selection
@@ -236,7 +244,7 @@ class AggregatedJob < ActiveRecord::Base
       product: name,
       operation_id: operation_id,
       job_operation_id: "agg-#{operation}-#{id}",
-      url: aggregated_file_url,
+      url: file_url,
       widegest_url: "#{server_url}/api/v1/aggregation_callback",
       filename: aggregated_filename || "aggregated_#{id}.pdf",
       scala: '1:1',
