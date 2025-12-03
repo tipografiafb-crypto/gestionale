@@ -35,6 +35,7 @@ class PrintOrchestrator < Sinatra::Base
           active = row['active']&.strip&.downcase != 'false'
           print_flow_names = row['print_flow_names']&.strip
           default_print_flow_name = row['default_print_flow_name']&.strip
+          min_stock_level = row['min_stock_level']&.strip&.to_i
 
           # Validate required fields
           unless sku.present?
@@ -94,7 +95,8 @@ class PrintOrchestrator < Sinatra::Base
             notes: notes,
             product_category_id: category&.id,
             active: active,
-            default_print_flow_id: default_print_flow&.id
+            default_print_flow_id: default_print_flow&.id,
+            min_stock_level: min_stock_level
           )
 
           if product.save
@@ -135,10 +137,10 @@ class PrintOrchestrator < Sinatra::Base
     content_type 'text/csv'
     attachment 'prodotti_template.csv'
 
-    csv_data = "sku,name,notes,category_name,active,print_flow_names,default_print_flow_name\n"
-    csv_data += "TPH001-71,Plettri Flow,Plettri piccoli,Plettri,true,Flusso A|Flusso B,Flusso A\n"
-    csv_data += "TPH205-88,Maglietta,T-shirt cotone,Abbigliamento,true,Flusso C,Flusso C\n"
-    csv_data += "TPH500,Tazza,Stampa ceramica,Tazze,true,,\n"
+    csv_data = "sku,name,notes,category_name,active,print_flow_names,default_print_flow_name,min_stock_level\n"
+    csv_data += "TPH001-71,Plettri Flow,Plettri piccoli,Plettri,true,Flusso A|Flusso B,Flusso A,10\n"
+    csv_data += "TPH205-88,Maglietta,T-shirt cotone,Abbigliamento,true,Flusso C,Flusso C,5\n"
+    csv_data += "TPH500,Tazza,Stampa ceramica,Tazze,true,,0\n"
 
     csv_data
   end
@@ -149,7 +151,7 @@ class PrintOrchestrator < Sinatra::Base
     attachment 'prodotti_export.csv'
 
     csv_string = CSV.generate do |csv|
-      csv << ['sku', 'name', 'notes', 'category_name', 'active', 'print_flow_names', 'default_print_flow_name']
+      csv << ['sku', 'name', 'notes', 'category_name', 'active', 'print_flow_names', 'default_print_flow_name', 'min_stock_level']
       
       Product.all.order(:sku).each do |product|
         category_name = product.product_category&.name
@@ -166,7 +168,8 @@ class PrintOrchestrator < Sinatra::Base
           category_name || '',
           product.active ? 'true' : 'false',
           flow_names,
-          default_flow_name || ''
+          default_flow_name || '',
+          product.min_stock_level || 0
         ]
       end
     end
