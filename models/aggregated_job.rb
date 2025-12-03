@@ -54,7 +54,10 @@ class AggregatedJob < ActiveRecord::Base
     successful_count = 0
     server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
     
-    aggregated_job_items.each_with_index do |aji, index|
+    # Load with product to ensure it's available
+    items = aggregated_job_items.includes(order_item: :product)
+    
+    items.each_with_index do |aji, index|
       order_item = aji.order_item
       next unless order_item.preprint_status == 'completed'
       
@@ -64,6 +67,12 @@ class AggregatedJob < ActiveRecord::Base
       next unless preprint_asset
       
       product = order_item.product
+      # Build product string - always include SKU and name
+      product_str = if product
+                      "#{product.sku} - #{product.name}"
+                    else
+                      order_item.sku
+                    end
       
       payload = {
         aggregated_job_id: id,
@@ -71,7 +80,7 @@ class AggregatedJob < ActiveRecord::Base
         file_index: index + 1,
         id_riga: order_item.id,
         codice_ordine: order_item.order.external_order_code,
-        product: product ? "#{product.sku} - #{product.name}" : order_item.sku,
+        product: product_str,
         operation_id: 4, # 4 = aggregation
         job_operation_id: "agg-#{id}-item-#{order_item.id}",
         url: "#{server_url}/api/assets/#{preprint_asset.id}/download",
