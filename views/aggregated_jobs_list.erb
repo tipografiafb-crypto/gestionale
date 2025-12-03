@@ -92,14 +92,12 @@
                       </button>
                     </form>
                   <% end %>
-                  <% if job.status != 'completed' %>
-                    <form action="/aggregated_jobs/<%= job.id %>" method="post" style="display:inline;">
-                      <input type="hidden" name="_method" value="delete">
-                      <button type="submit" class="btn btn-sm btn-danger" title="Elimina" onclick="return confirm('Elimina questa aggregazione?')">
-                        <i class="fas fa-trash"></i>
-                      </button>
-                    </form>
-                  <% end %>
+                  <form action="/aggregated_jobs/<%= job.id %>" method="post" style="display:inline;">
+                    <input type="hidden" name="_method" value="delete">
+                    <button type="submit" class="btn btn-sm btn-danger" title="Elimina" onclick="return confirm('Elimina questa aggregazione?')">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </form>
                 </td>
               </tr>
             <% end %>
