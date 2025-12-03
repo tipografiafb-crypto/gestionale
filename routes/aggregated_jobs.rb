@@ -182,10 +182,17 @@ class PrintOrchestrator < Sinatra::Base
     webhook_path = @aggregated_job.print_flow.print_webhook.hook_path
     server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
     
+    # Convert relative URL to absolute if needed
+    unless file_url.start_with?('http')
+      file_url = "#{server_url}#{file_url}"
+    end
+    
     # Build Switch payload (same as normal order items)
     product = @aggregated_job.order_items.first&.product
     job_data = {
       aggregated_job_id: @aggregated_job.id,
+      nr_files: 1,
+      file_index: 1,
       id_riga: @aggregated_job.id,
       codice_ordine: "AGG-#{@aggregated_job.id}",
       product: "#{product&.sku} - #{product&.name}",
