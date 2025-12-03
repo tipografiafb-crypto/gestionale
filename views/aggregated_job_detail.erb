@@ -307,11 +307,3 @@
   </div>
 </div>
 
-<% if @aggregated_job.status == 'preview_pending' %>
-  <script>
-    // Auto-refresh pagina ogni 2 secondi mentre è in anteprima
-    setInterval(() => {
-      location.reload();
-    }, 2000);
-  </script>
-<% end %>
