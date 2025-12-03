@@ -199,6 +199,8 @@ class AggregatedJob < ActiveRecord::Base
       send_aggregation_first
     end
     
+    puts "[SEND_OPERATION_DEBUG] Job #{id} - Status: #{status}, aggregated_file_url: #{aggregated_file_url.inspect}, notes: #{notes.inspect}"
+    
     return { success: false, error: 'Job non in preview_pending' } unless status == 'preview_pending'
     
     # Check if file exists (either URL is set, or file exists physically in storage)
@@ -207,6 +209,8 @@ class AggregatedJob < ActiveRecord::Base
       # Try to construct URL from local filename stored in notes
       file_url = "/file/agg_#{id}/#{notes}"
     end
+    
+    puts "[SEND_OPERATION_DEBUG] Job #{id} - File URL resolved to: #{file_url.inspect}"
     
     return { success: false, error: 'File aggregato non disponibile' } unless file_url.present?
     return { success: false, error: 'Flusso di stampa non assegnato' } unless print_flow.present?
