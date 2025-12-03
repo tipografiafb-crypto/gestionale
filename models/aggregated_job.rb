@@ -192,7 +192,7 @@ class AggregatedJob < ActiveRecord::Base
   end
   
   # Send aggregated file to Switch for an operation (preprint, print, label)
-  def send_to_switch_operation(operation, print_machine_id = nil)
+  def send_to_switch_operation(operation, print_machine_id = nil, webhook_path_override = nil)
     # Se in pending, aggregare prima. Se in preview_pending, procedere direttamente
     if status == 'pending'
       # Auto-aggregate first from pending items
@@ -221,19 +221,23 @@ class AggregatedJob < ActiveRecord::Base
       return { success: false, error: 'Stampante non trovata' } unless machine
     end
     
-    # Get webhook from print_flow based on operation
-    webhook = case operation
-              when 'preprint'
-                print_flow.preprint_webhook
-              when 'print'
-                print_flow.print_webhook
-              when 'label'
-                print_flow.label_webhook
-              else
-                nil
-              end
-    
-    return { success: false, error: "Webhook per #{operation} non configurato nel flusso" } unless webhook.present?
+    # Get webhook path - use override if provided, otherwise get from print_flow
+    webhook_path = webhook_path_override
+    if !webhook_path.present?
+      webhook = case operation
+                when 'preprint'
+                  print_flow.preprint_webhook
+                when 'print'
+                  print_flow.print_webhook
+                when 'label'
+                  print_flow.label_webhook
+                else
+                  nil
+                end
+      
+      return { success: false, error: "Webhook per #{operation} non configurato nel flusso" } unless webhook.present?
+      webhook_path = webhook.hook_path
+    end
     
     server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
     
@@ -267,7 +271,9 @@ class AggregatedJob < ActiveRecord::Base
       payload[:print_machine_id] = print_machine_id
     end
     
-    result = SwitchClient.send_to_switch(webhook_path: webhook.hook_path, job_data: payload)
+    puts "[SEND_OPERATION_DEBUG] Sending to Switch with webhook_path: #{webhook_path}, operation: #{operation}, payload keys: #{payload.keys.inspect}"
+    
+    result = SwitchClient.send_to_switch(webhook_path: webhook_path, job_data: payload)
     
     if result[:success]
       # Track when preprint is sent

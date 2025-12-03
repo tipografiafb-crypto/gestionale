@@ -191,8 +191,8 @@ class PrintOrchestrator < Sinatra::Base
       return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Webhook+di+stampa+non+configurato"
     end
 
-    puts "[SEND_PRINT_ROUTE] Calling send_to_switch_operation with operation=print, print_machine_id=#{print_machine_id}"
-    result = @aggregated_job.send_to_switch_operation('print', print_machine_id)
+    puts "[SEND_PRINT_ROUTE] Calling send_to_switch_operation with operation=print, print_machine_id=#{print_machine_id}, webhook_path=#{webhook_path}"
+    result = @aggregated_job.send_to_switch_operation('print', print_machine_id, webhook_path)
     
     if result[:success]
       redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=#{URI.encode_www_form_component(result[:message])}"
