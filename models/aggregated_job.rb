@@ -54,10 +54,7 @@ class AggregatedJob < ActiveRecord::Base
     successful_count = 0
     server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
     
-    # Load with product to ensure it's available
-    items = aggregated_job_items.includes(order_item: :product)
-    
-    items.each_with_index do |aji, index|
+    aggregated_job_items.each_with_index do |aji, index|
       order_item = aji.order_item
       next unless order_item.preprint_status == 'completed'
       
