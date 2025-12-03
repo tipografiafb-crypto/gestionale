@@ -134,15 +134,22 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=Aggregazione+completata"
   end
 
-  # POST /aggregated_jobs/:id/send_preprint - Send aggregated file to Switch for preprint
+  # POST /aggregated_jobs/:id/send_preprint - Send files to Switch for aggregation (pending) or preprint (preview_pending)
   post '/aggregated_jobs/:id/send_preprint' do
     @aggregated_job = AggregatedJob.find(params[:id])
     
-    unless @aggregated_job.status == 'preview_pending'
-      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Job+non+in+anteprima"
+    if @aggregated_job.status == 'pending'
+      # First time: aggregate files using preprint_webhook from print_flow
+      unless @aggregated_job.print_flow&.preprint_webhook
+        return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Print+flow+non+ha+webhook+di+pre-stampa"
+      end
+      result = @aggregated_job.send_aggregation_to_switch(@aggregated_job.print_flow.preprint_webhook.hook_path)
+    elsif @aggregated_job.status == 'preview_pending'
+      # Second time: send aggregated file to preprint
+      result = @aggregated_job.send_to_switch_operation('preprint')
+    else
+      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Stato+non+valido+per+pre-stampa"
     end
-
-    result = @aggregated_job.send_to_switch_operation('preprint')
     
     if result[:success]
       redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=#{URI.encode_www_form_component(result[:message])}"
