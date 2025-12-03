@@ -172,13 +172,18 @@ class PrintOrchestrator < Sinatra::Base
   post '/aggregated_jobs/:id/send_print' do
     @aggregated_job = AggregatedJob.find(params[:id])
     print_machine_id = params[:print_machine_id]
+    webhook_path = params[:webhook_path]
     
     unless print_machine_id.present?
       return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Seleziona+una+stampante"
     end
     
-    unless @aggregated_job.status == 'preview_pending' || @aggregated_job.status == 'pending'
+    unless @aggregated_job.status == 'preview_pending'
       return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Job+non+pronto+per+stampa"
+    end
+    
+    unless webhook_path.present?
+      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Webhook+di+stampa+non+configurato"
     end
 
     result = @aggregated_job.send_to_switch_operation('print', print_machine_id)

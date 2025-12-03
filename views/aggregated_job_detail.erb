@@ -277,10 +277,14 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_print" method="post">
+        <% if @aggregated_job.print_flow&.print_webhook %>
+          <input type="hidden" name="webhook_path" value="<%= @aggregated_job.print_flow.print_webhook.hook_path %>">
+        <% end %>
         <div class="modal-body">
           <p class="text-muted mb-3">Seleziona stampante per questo aggregato:</p>
           <% available_machines = @aggregated_job.print_flow&.print_machines || [] %>
-          <% if available_machines.any? %>
+          <% if @aggregated_job.print_flow&.print_webhook %>
+            <% if available_machines.any? %>
             <% available_machines.each do |machine| %>
               <div class="form-check mb-2">
                 <input class="form-check-input" type="radio" name="print_machine_id" 
@@ -294,8 +298,13 @@
                 </label>
               </div>
             <% end %>
+            <% else %>
+              <div class="alert alert-warning">Nessuna stampante disponibile nel flusso</div>
+            <% end %>
           <% else %>
-            <div class="alert alert-warning">Nessuna stampante disponibile nel flusso</div>
+            <div class="alert alert-danger">
+              <i class="fas fa-exclamation-triangle"></i> Webhook di stampa non configurato nel flusso
+            </div>
           <% end %>
         </div>
         <div class="modal-footer">
