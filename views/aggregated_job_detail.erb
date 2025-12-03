@@ -166,19 +166,19 @@
               <label class="form-label small"><strong>Operazioni Disponibili:</strong></label>
             </div>
             <% if !@aggregated_job.preprint_sent_at.present? %>
-              <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_preprint" method="post" class="mb-2">
-                <button type="submit" class="btn btn-info w-100" onclick="return confirm('Invia file aggregato a pre-stampa?')">
-                  <i class="fas fa-scissors"></i> Pre-Stampa
+              <form action="/aggregated_jobs/<%= @aggregated_job.id %>/confirm_preprint" method="post" class="mb-2">
+                <button type="submit" class="btn btn-success w-100" onclick="return confirm('File aggregato pronto per la stampa?')">
+                  <i class="fas fa-check"></i> Conferma Pre-Stampa
                 </button>
               </form>
             <% else %>
               <div class="alert alert-success mb-2">
-                <i class="fas fa-check"></i> Pre-stampa completata
+                <i class="fas fa-check"></i> Pre-stampa confermata, pronto per stampa
               </div>
             <% end %>
             <button type="button" class="btn btn-primary w-100 mb-2" 
                     data-bs-toggle="modal" data-bs-target="#machineSelectAggregatedModal"
-                    <% if !@aggregated_job.preprint_sent_at.present? %>disabled title="Completa prima la pre-stampa"<% end %>>
+                    <% if !@aggregated_job.preprint_sent_at.present? %>disabled title="Conferma prima la pre-stampa"<% end %>>
               <i class="fas fa-print"></i> Stampa
             </button>
             <% if @aggregated_job.print_flow&.label_webhook.present? %>

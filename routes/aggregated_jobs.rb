@@ -134,28 +134,38 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=Aggregazione+completata"
   end
 
-  # POST /aggregated_jobs/:id/send_preprint - Send files to Switch for aggregation (pending) or preprint (preview_pending)
+  # POST /aggregated_jobs/:id/send_preprint - Send files to Switch for aggregation (only when pending)
   post '/aggregated_jobs/:id/send_preprint' do
     @aggregated_job = AggregatedJob.find(params[:id])
     
-    if @aggregated_job.status == 'pending'
-      # First time: aggregate files using preprint_webhook from print_flow
-      unless @aggregated_job.print_flow&.preprint_webhook
-        return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Print+flow+non+ha+webhook+di+pre-stampa"
-      end
-      result = @aggregated_job.send_aggregation_to_switch(@aggregated_job.print_flow.preprint_webhook.hook_path)
-    elsif @aggregated_job.status == 'preview_pending'
-      # Second time: send aggregated file to preprint
-      result = @aggregated_job.send_to_switch_operation('preprint')
-    else
-      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Stato+non+valido+per+pre-stampa"
+    unless @aggregated_job.status == 'pending'
+      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Job+già+in+anteprima"
     end
+    
+    # Aggregate files using preprint_webhook from print_flow
+    unless @aggregated_job.print_flow&.preprint_webhook
+      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Print+flow+non+ha+webhook+di+pre-stampa"
+    end
+    
+    result = @aggregated_job.send_aggregation_to_switch(@aggregated_job.print_flow.preprint_webhook.hook_path)
     
     if result[:success]
       redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=#{URI.encode_www_form_component(result[:message])}"
     else
       redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=#{URI.encode_www_form_component(result[:error])}"
     end
+  end
+
+  # POST /aggregated_jobs/:id/confirm_preprint - Confirm preprint (mark as reviewed and ready for print)
+  post '/aggregated_jobs/:id/confirm_preprint' do
+    @aggregated_job = AggregatedJob.find(params[:id])
+    
+    unless @aggregated_job.status == 'preview_pending'
+      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Job+non+in+anteprima"
+    end
+    
+    @aggregated_job.update(preprint_sent_at: Time.current)
+    redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=Pre-stampa+confermata"
   end
 
   # POST /aggregated_jobs/:id/send_print - Send aggregated file to Switch for print
