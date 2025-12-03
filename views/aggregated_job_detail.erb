@@ -177,7 +177,8 @@
               </div>
             <% end %>
             <button type="button" class="btn btn-primary w-100 mb-2" 
-                    data-bs-toggle="modal" data-bs-target="#machineSelectAggregatedModal"
+                    id="btnSendPrintAgg"
+                    onclick="handleSendPrintAgg(event)"
                     <% if !@aggregated_job.preprint_sent_at.present? %>disabled title="Conferma prima la pre-stampa"<% end %>>
               <i class="fas fa-print"></i> Stampa
             </button>
@@ -268,6 +269,29 @@
   </div>
 </div>
 
+<script>
+function handleSendPrintAgg(event) {
+  event.preventDefault();
+  
+  <% available_machines = @aggregated_job.print_flow&.print_machines || [] %>
+  const machineCount = <%= available_machines.count %>;
+  
+  if (machineCount === 0) {
+    alert('Nessuna stampante disponibile');
+    return;
+  }
+  
+  if (machineCount === 1) {
+    // Se c'è solo una macchina, invia direttamente il form
+    document.getElementById('formSendPrintAgg').submit();
+  } else {
+    // Se ce ne sono più, apri il modal
+    const modal = new bootstrap.Modal(document.getElementById('machineSelectAggregatedModal'));
+    modal.show();
+  }
+}
+</script>
+
 <!-- Modal: Select Machine for Aggregated Print -->
 <div class="modal fade" id="machineSelectAggregatedModal" tabindex="-1">
   <div class="modal-dialog">
@@ -276,7 +300,7 @@
         <h5 class="modal-title">Scegli Stampante</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_print" method="post">
+      <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_print" method="post" id="formSendPrintAgg">
         <% if @aggregated_job.print_flow&.print_webhook %>
           <input type="hidden" name="webhook_path" value="<%= @aggregated_job.print_flow.print_webhook.hook_path %>">
         <% end %>
