@@ -125,9 +125,15 @@
             <div class="mb-2">
               <label class="form-label small"><strong>Operazioni Disponibili:</strong></label>
             </div>
-            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_preprint" method="post" class="mb-2">
-              <button type="submit" class="btn btn-info w-100" onclick="return confirm('Invia file aggregato a pre-stampa?')">
-                <i class="fas fa-scissors"></i> Pre-Stampa
+            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_aggregation" method="post" class="mb-2">
+              <select name="webhook_path" class="form-select form-select-sm mb-2" required>
+                <option value="">-- Seleziona Webhook --</option>
+                <% @switch_webhooks.each do |webhook| %>
+                  <option value="<%= webhook.hook_path %>"><%= webhook.name %></option>
+                <% end %>
+              </select>
+              <button type="submit" class="btn btn-info w-100" onclick="return confirm('Invia file a Switch per aggregazione?')">
+                <i class="fas fa-scissors"></i> Aggrega File
               </button>
             </form>
             <button type="button" class="btn btn-primary w-100 mb-2" 
