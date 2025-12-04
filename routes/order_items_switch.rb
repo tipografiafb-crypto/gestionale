@@ -237,7 +237,8 @@ class PrintOrchestrator < Sinatra::Base
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
 
-    unless item.print_status == 'processing'
+    # Accept both 'processing' (single item) and 'ripped' (bulk print) statuses
+    unless %w[processing ripped].include?(item.print_status)
       redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Questo+item+non+è+in+fase+di+stampa"
     end
 

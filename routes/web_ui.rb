@@ -279,22 +279,28 @@ class PrintOrchestrator < Sinatra::Base
     
     html = ""
     
-    # If print is processing but no result file yet, show processing bar
-    if @item.print_status == 'processing' && !print_result_asset
+    # If print is processing/ripped but no result file yet, show processing bar
+    if %w[processing ripped].include?(@item.print_status) && !print_result_asset
+      status_label = @item.print_status == 'ripped' ? '🔄 Rippato - In coda stampa...' : '🔄 Elaborando in Switch...'
       html = <<~HTML
         <div style="display: flex; gap: 10px; align-items: center;">
           <div style="flex: 1;">
             <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 14px; font-weight: bold;">🔄 Elaborando in Switch...</span>
+              <span style="font-size: 14px; font-weight: bold;">#{status_label}</span>
               <div style="flex: 1; height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden;">
-                <div style="height: 100%; background: linear-gradient(90deg, #0d6efd, #0dcaf0); animation: progress 1.5s infinite; width: 30%;"></div>
+                <div style="height: 100%; background: linear-gradient(90deg, #6f42c1, #0dcaf0); animation: progress 1.5s infinite; width: 30%;"></div>
               </div>
             </div>
           </div>
+          <form action="/orders/#{@order.id}/items/#{@item.id}/confirm_print" method="post" class="d-inline">
+            <button type="submit" class="btn btn-success btn-sm">
+              ✓ Conferma Stampa
+            </button>
+          </form>
         </div>
       HTML
     # If file exists (from Switch), show result button and confirm button
-    elsif print_result_asset && @item.print_status == 'processing'
+    elsif print_result_asset && %w[processing ripped].include?(@item.print_status)
       html = <<~HTML
         <div style="display: flex; gap: 10px; align-items: center;">
           <a href="/file/#{print_result_asset.id}" class="btn btn-outline-secondary" target="_blank" title="Switch result file: #{print_result_asset.original_url}">
@@ -465,6 +471,9 @@ class PrintOrchestrator < Sinatra::Base
     # Get all stores for dropdown
     @stores = Store.all.order(:name)
     
+    # Get all active print machines for bulk print modal
+    @print_machines = PrintMachine.active.ordered
+    
     # Get all order items from these orders, with their associated order and product
     # EXCLUDE completed items (print_status == 'completed')
     @line_items = []
@@ -525,7 +534,10 @@ class PrintOrchestrator < Sinatra::Base
       when 'pre-stampa'
         @line_items = @line_items.select { |li| li[:item].preprint_status != 'pending' && li[:item].preprint_status != 'completed' }
       when 'stampa'
-        @line_items = @line_items.select { |li| li[:item].preprint_status == 'completed' && li[:item].print_status != 'completed' }
+        # Include items awaiting print (pending) and items currently printing (processing)
+        @line_items = @line_items.select { |li| li[:item].preprint_status == 'completed' && %w[pending processing].include?(li[:item].print_status) }
+      when 'rippato'
+        @line_items = @line_items.select { |li| li[:item].print_status == 'ripped' }
       end
     end
     

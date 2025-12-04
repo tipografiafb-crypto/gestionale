@@ -174,6 +174,104 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
+  # POST /api/v1/bulk_print_item - Send single item to print (for bulk operations)
+  # Sets status to 'ripped' instead of 'processing'
+  post '/api/v1/bulk_print_item' do
+    content_type :json
+    
+    begin
+      data = JSON.parse(request.body.read)
+      
+      order_id = data['order_id']
+      item_id = data['item_id']
+      print_machine_id = data['print_machine_id']
+      
+      unless order_id && item_id && print_machine_id
+        return { success: false, error: 'Parametri mancanti (order_id, item_id, print_machine_id)' }.to_json
+      end
+      
+      order = Order.find_by(id: order_id)
+      unless order
+        return { success: false, error: 'Ordine non trovato' }.to_json
+      end
+      
+      item = order.order_items.find_by(id: item_id)
+      unless item
+        return { success: false, error: 'Item non trovato' }.to_json
+      end
+      
+      print_machine = PrintMachine.find_by(id: print_machine_id)
+      unless print_machine
+        return { success: false, error: 'Macchina di stampa non trovata' }.to_json
+      end
+      
+      # Check if item is ready for print (preprint completed)
+      unless item.preprint_status == 'completed'
+        return { success: false, error: 'Pre-stampa non completata per questo item' }.to_json
+      end
+      
+      # Check if item is in pending print status
+      unless item.print_status == 'pending'
+        return { success: false, error: "Item non in attesa di stampa (stato: #{item.print_status})" }.to_json
+      end
+      
+      # Get print flow and print webhook
+      print_flow = item.print_flow
+      unless print_flow&.print_webhook
+        return { success: false, error: 'Flusso di stampa non configurato' }.to_json
+      end
+      
+      # Get the preprint output PDF (print_output asset)
+      print_output_asset = item.assets.where(asset_type: 'print_output').first
+      unless print_output_asset
+        return { success: false, error: 'File preprint non trovato' }.to_json
+      end
+      
+      product = item.product
+      server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
+      
+      # Build Switch payload
+      job_data = {
+        id_riga: item.item_number,
+        codice_ordine: order.external_order_code,
+        product: "#{product&.sku} - #{product&.name}",
+        operation_id: 2,  # 2=stampa
+        job_operation_id: item.id.to_s,
+        url: "#{server_url}/api/assets/#{print_output_asset.id}/download",
+        widegest_url: "#{server_url}/api/v1/reports_create",
+        filename: print_output_asset.original_url || "#{order.external_order_code.downcase}-#{item.id}-print.pdf",
+        nome_macchina: print_machine.name,
+        campi_webhook: item.campi_webhook || {}
+      }
+      
+      puts "[BULK_PRINT] Sending item #{item.id} to Switch: #{job_data.inspect}"
+      
+      result = SwitchClient.send_to_switch(
+        webhook_path: print_flow.print_webhook&.hook_path,
+        job_data: job_data
+      )
+      
+      if result[:success]
+        # Update item status to 'ripped' and store print machine
+        item.update(print_status: 'ripped', print_machine_id: print_machine.id)
+        
+        # Mark order as processing if it was new
+        order.update(status: 'processing') if order.status == 'new'
+        
+        { success: true, message: 'Item inviato a stampa' }.to_json
+      else
+        { success: false, error: result[:error] || 'Errore invio a Switch' }.to_json
+      end
+    rescue JSON::ParserError
+      status 400
+      { success: false, error: 'JSON non valido' }.to_json
+    rescue => e
+      puts "[BULK_PRINT_ERROR] #{e.class}: #{e.message}"
+      status 500
+      { success: false, error: e.message }.to_json
+    end
+  end
+
   private
 
   def extract_cart_id(item_data)

@@ -20,11 +20,12 @@ class OrderItem < ActiveRecord::Base
 
   # Statuses for two-phase workflow
   PREPRINT_STATUSES = %w[pending processing completed failed].freeze
-  PRINT_STATUSES = %w[pending processing completed failed].freeze
+  PRINT_STATUSES = %w[pending processing ripped completed failed].freeze
 
   scope :preprint_pending, -> { where(preprint_status: 'pending') }
   scope :preprint_completed, -> { where(preprint_status: 'completed') }
   scope :print_pending, -> { where(print_status: 'pending') }
+  scope :print_ripped, -> { where(print_status: 'ripped') }
 
   # Parse and store JSON data
   def store_json_data(data)
@@ -74,10 +75,12 @@ class OrderItem < ActiveRecord::Base
   end
 
   # Determine workflow status based on preprint and print completion
-  # Returns: 'nuovo', 'pre-stampa', 'stampa', 'completato'
+  # Returns: 'nuovo', 'pre-stampa', 'stampa', 'rippato', 'completato'
   def workflow_status
     if print_status == 'completed'
       'completato'
+    elsif print_status == 'ripped'
+      'rippato'
     elsif preprint_status == 'completed'
       'stampa'
     elsif preprint_status == 'processing' || preprint_status == 'pending'
