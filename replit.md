@@ -16,6 +16,20 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 
 ## Recent Work
 
+### December 4, 2025 (Bulk Print & Rippato Status)
+- Added new 'ripped' print status for bulk print operations
+- Implemented bulk print functionality in /line_items page:
+  - Checkbox selection for multiple items ready for print
+  - "Invia Selezionati a Stampa" button with selected count
+  - Modal for print machine selection
+  - Sequential API calls with progress bar and results feedback
+- Created POST /api/v1/bulk_print_item API endpoint for bulk operations
+- Added 'rippato' filter option in line items status dropdown
+- Updated confirm_print to accept both 'processing' and 'ripped' statuses
+- Updated print_result_section UI to show "Rippato - In coda stampa" status
+- Workflow: pending → ripped (bulk) or processing (single) → completed
+- Fixed aggregation print payload to use absolute URLs and include nr_files/file_index
+
 ### December 2, 2025 (Aggregated Jobs System)
 - Implemented complete Aggregated Jobs system for batch processing
 - New workflow: pending → aggregating → aggregated → printing → completed
