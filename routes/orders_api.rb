@@ -224,21 +224,21 @@ class PrintOrchestrator < Sinatra::Base
       product = item.product
       server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
       
-      # Build Switch payload for preprint
+      # Build Switch payload for preprint - SAME FORMAT AS SINGLE ITEM!
       job_data = {
         id_riga: item.item_number,
         codice_ordine: order.external_order_code,
         product: "#{product&.sku} - #{product&.name}",
-        operation_id: 1,  # 1=prestampa
+        operation_id: 1,  # 1=prepress, 2=stampa, 3=etichetta
         job_operation_id: item.id.to_s,
         url: "#{server_url}/api/assets/#{print_file_asset.id}/download",
         widegest_url: "#{server_url}/api/v1/reports_create",
-        filename: print_file_asset.original_url || "#{order.external_order_code.downcase}-#{item.id}-preprint.pdf",
+        filename: item.switch_filename_for_asset(print_file_asset) || "#{order.external_order_code.downcase}-#{item.id}.png",
         quantita: item.quantity,
-        materiale: item.materiale || 'standard',
-        scala: item.scala || '1:1',
-        campi_custom: item.campi_custom || {},
-        campi_webhook: item.campi_webhook || {}
+        materiale: product&.notes || 'N/A',
+        campi_custom: {},
+        opzioni_stampa: {},
+        campi_webhook: { percentuale: '0' }
       }
       
       puts "[BULK_PREPRINT] Sending item #{item.id} to Switch: #{job_data.inspect}"
