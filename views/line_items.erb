@@ -235,9 +235,18 @@ function toggleSelectAll() {
 
 function updateSelectedCount() {
   const checked = document.querySelectorAll('.item-checkbox:checked');
-  const count = checked.length;
-  document.getElementById('selectedCount').textContent = count;
-  document.getElementById('btnBulkPrint').disabled = count === 0;
+  
+  // Count items by preprint status
+  const preprintItems = Array.from(checked).filter(cb => cb.dataset.preprintStatus === 'pending');
+  const printItems = Array.from(checked).filter(cb => cb.dataset.preprintStatus === 'completed');
+  
+  // Update counts
+  document.getElementById('selectedCountPreprint').textContent = preprintItems.length;
+  document.getElementById('selectedCount').textContent = printItems.length;
+  
+  // Enable/disable buttons based on selected items
+  document.getElementById('btnBulkPreprint').disabled = preprintItems.length === 0;
+  document.getElementById('btnBulkPrint').disabled = printItems.length === 0;
   
   const selectAll = document.getElementById('selectAll');
   const allCheckboxes = document.querySelectorAll('.item-checkbox');
