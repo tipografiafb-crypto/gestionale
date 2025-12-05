@@ -71,9 +71,13 @@
                 <div class="files-container">
                   <% if item.assets.any? %>
                     <% item.assets.each do |asset| %>
-                      <div class="file-input-group mb-2">
+                      <div class="file-input-group mb-2 existing-file-group" data-asset-id="<%= asset.id %>">
                         <div class="input-group">
                           <input type="text" class="form-control" value="<%= asset.original_url %>" disabled>
+                          <button type="button" class="btn btn-outline-danger btn-sm delete-file-btn" title="Cancella questo file">
+                            <i class="fas fa-times"></i>
+                          </button>
+                          <input type="hidden" class="delete-asset-id" name="items[][delete_asset_ids][]" value="">
                           <small class="text-muted ms-2 mt-2">(file esistente)</small>
                         </div>
                       </div>
@@ -253,6 +257,21 @@ document.addEventListener('DOMContentLoaded', function() {
     if (e.target.classList.contains('remove-file-btn')) {
       e.preventDefault();
       e.target.closest('.file-input-group').remove();
+    }
+    
+    // Delete existing file button
+    if (e.target.closest('.delete-file-btn')) {
+      e.preventDefault();
+      const fileGroup = e.target.closest('.existing-file-group');
+      const assetId = fileGroup.getAttribute('data-asset-id');
+      const hiddenInput = fileGroup.querySelector('.delete-asset-id');
+      if (hiddenInput) {
+        hiddenInput.value = assetId;
+      }
+      fileGroup.style.opacity = '0.5';
+      fileGroup.style.textDecoration = 'line-through';
+      e.target.closest('.delete-file-btn').disabled = true;
+      e.target.closest('.delete-file-btn').classList.add('disabled');
     }
   });
   

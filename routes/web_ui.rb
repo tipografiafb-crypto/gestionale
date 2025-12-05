@@ -224,6 +224,17 @@ class PrintOrchestrator < Sinatra::Base
           )
           order_item.save!
 
+          # Delete specific asset IDs if provided
+          delete_asset_ids = item_params[:delete_asset_ids] || []
+          delete_asset_ids.each do |asset_id|
+            next if asset_id.blank?
+            asset = Asset.find_by(id: asset_id)
+            if asset && asset.order_item_id == order_item.id
+              File.delete(File.join(Dir.pwd, asset.local_path)) if File.exist?(File.join(Dir.pwd, asset.local_path))
+              asset.destroy
+            end
+          end
+
           # Handle multiple file uploads
           files = item_params[:files] || []
           files.each_with_index do |file, file_index|
