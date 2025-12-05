@@ -235,9 +235,9 @@ class PrintOrchestrator < Sinatra::Base
         widegest_url: "#{server_url}/api/v1/reports_create",
         filename: print_file_asset.original_url || "#{order.external_order_code.downcase}-#{item.id}-preprint.pdf",
         quantita: item.quantity,
-        materiale: 'standard',
+        materiale: item.materiale || 'standard',
+        scala: item.scala || '1:1',
         campi_custom: item.campi_custom || {},
-        opzioni_stampa: item.opzioni_stampa || {},
         campi_webhook: item.campi_webhook || {}
       }
       
