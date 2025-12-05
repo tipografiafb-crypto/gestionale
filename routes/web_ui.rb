@@ -578,6 +578,9 @@ class PrintOrchestrator < Sinatra::Base
     # Get all active print machines for bulk print modal
     @print_machines = PrintMachine.active.ordered
     
+    # Get all active print flows for bulk preprint modal
+    @print_flows = PrintFlow.active.ordered
+    
     # Get all order items from these orders, with their associated order and product
     # EXCLUDE completed items (print_status == 'completed')
     @line_items = []

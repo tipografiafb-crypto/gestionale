@@ -1,5 +1,5 @@
 
-<div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+<div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
   <form method="get" action="/line_items" style="display: flex; gap: 10px; align-items: center;">
     <select class="form-select form-select-sm" name="status_filter" onchange="this.form.submit()" style="width: auto;">
       <option value="">Tutti gli stati</option>
@@ -11,9 +11,14 @@
     <a href="/line_items" class="btn btn-outline-secondary btn-sm"><i class="fas fa-redo"></i> Reset</a>
   </form>
   
-  <button type="button" class="btn btn-success btn-sm" id="btnBulkPrint" disabled onclick="openBulkPrintModal()">
-    <i class="fas fa-print"></i> Invia Selezionati a Stampa (<span id="selectedCount">0</span>)
-  </button>
+  <div style="display: flex; gap: 10px;">
+    <button type="button" class="btn btn-warning btn-sm" id="btnBulkPreprint" disabled onclick="openBulkPreprintModal()">
+      <i class="fas fa-cogs"></i> Invio Massivo Prestampa (<span id="selectedCountPreprint">0</span>)
+    </button>
+    <button type="button" class="btn btn-success btn-sm" id="btnBulkPrint" disabled onclick="openBulkPrintModal()">
+      <i class="fas fa-print"></i> Invio Massivo Stampa (<span id="selectedCount">0</span>)
+    </button>
+  </div>
 </div>
 
 <% if @line_items.empty? %>
@@ -130,6 +135,51 @@
   </div>
 <% end %>
 
+<!-- Modal Bulk Preprint -->
+<div class="modal fade" id="bulkPreprintModal" tabindex="-1" aria-labelledby="bulkPreprintModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="bulkPreprintModalLabel"><i class="fas fa-cogs"></i> Invio Massivo a Prestampa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Stai per inviare <strong id="modalItemCountPreprint">0</strong> elementi a prestampa.</p>
+        
+        <div class="mb-3">
+          <label for="bulkPreprintFlow" class="form-label">Seleziona Flusso di Stampa</label>
+          <select class="form-select" id="bulkPreprintFlow" required>
+            <option value="">-- Seleziona flusso --</option>
+            <% @print_flows.each do |flow| %>
+              <option value="<%= flow.id %>"><%= flow.name %></option>
+            <% end %>
+          </select>
+        </div>
+        
+        <div id="bulkPreprintProgress" style="display: none;">
+          <div class="progress mb-2">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="progressBarPreprint"></div>
+          </div>
+          <p class="small text-muted" id="progressTextPreprint">Elaborazione in corso...</p>
+        </div>
+        
+        <div id="bulkPreprintResults" style="display: none;">
+          <hr>
+          <h6>Risultati:</h6>
+          <ul id="resultsListPreprint" class="small"></ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+        <button type="button" class="btn btn-warning" id="btnConfirmBulkPreprint" onclick="executeBulkPreprint()">
+          <i class="fas fa-paper-plane"></i> Invia a Prestampa
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Bulk Print -->
 <div class="modal fade" id="bulkPrintModal" tabindex="-1" aria-labelledby="bulkPrintModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -276,6 +326,90 @@ async function executeBulkPrint() {
   
   progressText.textContent = `Completato: ${successCount} successi, ${errorCount} errori`;
   document.getElementById('btnConfirmBulkPrint').style.display = 'none';
+  updateSelectedCount();
+}
+
+function openBulkPreprintModal() {
+  const checked = document.querySelectorAll('.item-checkbox:checked');
+  document.getElementById('modalItemCountPreprint').textContent = checked.length;
+  document.getElementById('bulkPreprintProgress').style.display = 'none';
+  document.getElementById('bulkPreprintResults').style.display = 'none';
+  document.getElementById('btnConfirmBulkPreprint').disabled = false;
+  document.getElementById('btnConfirmBulkPreprint').style.display = 'inline-block';
+  document.getElementById('bulkPreprintFlow').value = '';
+  
+  const modal = new bootstrap.Modal(document.getElementById('bulkPreprintModal'));
+  modal.show();
+}
+
+async function executeBulkPreprint() {
+  const printFlowId = document.getElementById('bulkPreprintFlow').value;
+  if (!printFlowId) {
+    alert('Seleziona un flusso di stampa');
+    return;
+  }
+  
+  const checked = document.querySelectorAll('.item-checkbox:checked');
+  const items = Array.from(checked).map(cb => ({
+    itemId: cb.dataset.itemId,
+    orderId: cb.dataset.orderId,
+    sku: cb.dataset.sku
+  }));
+  
+  if (items.length === 0) return;
+  
+  document.getElementById('btnConfirmBulkPreprint').disabled = true;
+  document.getElementById('bulkPreprintProgress').style.display = 'block';
+  document.getElementById('bulkPreprintResults').style.display = 'block';
+  document.getElementById('resultsListPreprint').innerHTML = '';
+  
+  const progressBar = document.getElementById('progressBarPreprint');
+  const progressText = document.getElementById('progressTextPreprint');
+  const resultsList = document.getElementById('resultsListPreprint');
+  
+  let successCount = 0;
+  let errorCount = 0;
+  
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const percent = Math.round(((i + 1) / items.length) * 100);
+    progressBar.style.width = percent + '%';
+    progressText.textContent = `Elaborazione ${i + 1} di ${items.length}...`;
+    
+    try {
+      const response = await fetch('/api/v1/bulk_preprint_item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: item.orderId,
+          item_id: item.itemId,
+          print_flow_id: printFlowId
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        successCount++;
+        resultsList.innerHTML += `<li class="text-success"><i class="fas fa-check"></i> ${item.sku} - Inviato con successo</li>`;
+        checked[i].closest('tr').querySelector('.badge').textContent = 'PRE-STAMPA';
+        checked[i].closest('tr').querySelector('.badge').style.backgroundColor = '#ffc107';
+        checked[i].checked = false;
+        checked[i].style.display = 'none';
+      } else {
+        errorCount++;
+        resultsList.innerHTML += `<li class="text-danger"><i class="fas fa-times"></i> ${item.sku} - ${result.error || 'Errore sconosciuto'}</li>`;
+      }
+    } catch (err) {
+      errorCount++;
+      resultsList.innerHTML += `<li class="text-danger"><i class="fas fa-times"></i> ${item.sku} - Errore di rete</li>`;
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  
+  progressText.textContent = `Completato: ${successCount} successi, ${errorCount} errori`;
+  document.getElementById('btnConfirmBulkPreprint').style.display = 'none';
   updateSelectedCount();
 }
 </script>
