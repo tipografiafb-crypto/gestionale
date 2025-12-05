@@ -1,0 +1,331 @@
+<div class="container mt-4">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+      <h1><i class="fas fa-chart-line"></i> Analitiche & Vendite</h1>
+      <p class="text-muted">Analizza i dati di vendita per periodo e categoria</p>
+    </div>
+  </div>
+
+  <!-- Date Range Filter -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="get" action="/analytics" class="row g-3">
+        <div class="col-md-4">
+          <label for="start_date" class="form-label">Data Inizio</label>
+          <input type="date" class="form-control" id="start_date" name="start_date" value="<%= @filter_start_date %>">
+        </div>
+        <div class="col-md-4">
+          <label for="end_date" class="form-label">Data Fine</label>
+          <input type="date" class="form-control" id="end_date" name="end_date" value="<%= @filter_end_date %>">
+        </div>
+        <div class="col-md-4" style="display: flex; align-items: flex-end; gap: 10px;">
+          <button type="submit" class="btn btn-primary" style="flex: 1;"><i class="fas fa-filter"></i> Filtra</button>
+          <a href="/analytics" class="btn btn-outline-secondary"><i class="fas fa-redo"></i> Reset</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Key Metrics -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h6 class="card-title text-muted">Ordini Totali</h6>
+          <h2 style="color: var(--primary); font-weight: 700;"><%= @total_orders %></h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h6 class="card-title text-muted">Articoli Totali</h6>
+          <h2 style="color: var(--accent); font-weight: 700;"><%= @total_items %></h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h6 class="card-title text-muted">Quantità Totale</h6>
+          <h2 style="color: var(--success); font-weight: 700;"><%= @total_quantity %></h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h6 class="card-title text-muted">Media per Ordine</h6>
+          <h2 style="color: var(--warning); font-weight: 700;">
+            <%= @total_orders.zero? ? 0 : (@total_quantity.to_f / @total_orders).round(1) %>
+          </h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Grid -->
+  <div class="row">
+    <!-- Daily Sales Trend -->
+    <div class="col-lg-12 mb-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="fas fa-line-chart"></i> Trend Vendite Giornaliere</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="dailyChart" height="80"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Products by Quantity -->
+    <div class="col-lg-6 mb-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="fas fa-boxes"></i> Top 15 Prodotti per Quantità</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="productChart" height="300"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sales by Category -->
+    <div class="col-lg-6 mb-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="fas fa-pie-chart"></i> Vendite per Categoria</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="categoryChart" height="300"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Week Comparison -->
+    <div class="col-lg-6 mb-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="fas fa-compare"></i> Confronto Settimanale</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="comparisonChart" height="250"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Products Table -->
+    <div class="col-lg-6 mb-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="fas fa-list"></i> Prodotti Top 10</h5>
+        </div>
+        <div class="card-body">
+          <div id="topProductsTable"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<script>
+  const colors = {
+    primary: '#e91e8c',
+    accent: '#06b6d4',
+    success: '#10b981',
+    warning: '#f59e0b',
+    danger: '#ef4444'
+  };
+
+  // Daily Sales Chart
+  async function loadDailyChart() {
+    const startDate = document.querySelector('input[name="start_date"]').value;
+    const endDate = document.querySelector('input[name="end_date"]').value;
+    
+    const response = await fetch(`/api/analytics/daily?start_date=${startDate}&end_date=${endDate}`);
+    const data = await response.json();
+    
+    const ctx = document.getElementById('dailyChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.labels,
+        datasets: [{
+          label: 'Quantità Venduta',
+          data: data.data,
+          borderColor: colors.primary,
+          backgroundColor: `rgba(233, 30, 140, 0.1)`,
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointBackgroundColor: colors.primary,
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'top' }
+        },
+        scales: {
+          y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }
+        }
+      }
+    });
+  }
+
+  // Products Chart
+  async function loadProductChart() {
+    const startDate = document.querySelector('input[name="start_date"]').value;
+    const endDate = document.querySelector('input[name="end_date"]').value;
+    
+    const response = await fetch(`/api/analytics/by-product?start_date=${startDate}&end_date=${endDate}`);
+    const data = await response.json();
+    
+    const ctx = document.getElementById('productChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.labels,
+        datasets: [{
+          label: 'Quantità',
+          data: data.quantities,
+          backgroundColor: colors.accent,
+          borderColor: colors.accent,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: true } },
+        scales: { x: { beginAtZero: true } }
+      }
+    });
+  }
+
+  // Category Chart
+  async function loadCategoryChart() {
+    const startDate = document.querySelector('input[name="start_date"]').value;
+    const endDate = document.querySelector('input[name="end_date"]').value;
+    
+    const response = await fetch(`/api/analytics/by-category?start_date=${startDate}&end_date=${endDate}`);
+    const data = await response.json();
+    
+    const ctx = document.getElementById('categoryChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: data.labels,
+        datasets: [{
+          data: data.data,
+          backgroundColor: [
+            colors.primary, colors.accent, colors.success,
+            colors.warning, colors.danger, '#8b5cf6', '#3b82f6'
+          ],
+          borderColor: '#fff',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+  }
+
+  // Comparison Chart
+  async function loadComparisonChart() {
+    const response = await fetch('/api/analytics/comparison');
+    const data = await response.json();
+    
+    const ctx = document.getElementById('comparisonChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: [data.current_week.label, data.previous_week.label],
+        datasets: [{
+          label: 'Quantità Venduta',
+          data: [data.current_week.quantity, data.previous_week.quantity],
+          backgroundColor: [colors.success, colors.warning],
+          borderRadius: 5
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              afterLabel: (context) => {
+                if (context.dataIndex === 0) {
+                  return `Variazione: ${data.change_percent > 0 ? '+' : ''}${data.change_percent}%`;
+                }
+              }
+            }
+          }
+        },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  }
+
+  // Top Products Table
+  async function loadTopProductsTable() {
+    const startDate = document.querySelector('input[name="start_date"]').value;
+    const endDate = document.querySelector('input[name="end_date"]').value;
+    
+    const response = await fetch(`/api/analytics/top-products?start_date=${startDate}&end_date=${endDate}`);
+    const data = await response.json();
+    
+    let html = '<table class="table table-sm table-striped"><thead><tr><th>Prodotto</th><th class="text-end">Quantità</th></tr></thead><tbody>';
+    
+    data.products.forEach((product, idx) => {
+      html += `<tr>
+        <td><strong>${product.name}</strong><br><small class="text-muted">${product.sku}</small></td>
+        <td class="text-end"><span class="badge bg-success">${product.quantity}</span></td>
+      </tr>`;
+    });
+    
+    html += '</tbody></table>';
+    document.getElementById('topProductsTable').innerHTML = html;
+  }
+
+  // Load all charts on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    loadDailyChart();
+    loadProductChart();
+    loadCategoryChart();
+    loadComparisonChart();
+    loadTopProductsTable();
+  });
+
+  // Reload charts when filters change
+  document.querySelector('form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    setTimeout(() => {
+      loadDailyChart();
+      loadProductChart();
+      loadCategoryChart();
+      loadTopProductsTable();
+    }, 500);
+    this.submit();
+  });
+</script>
+
+<style>
+  .card {
+    transition: all 0.3s ease;
+  }
+  
+  .card:hover {
+    transform: translateY(-2px);
+  }
+</style>
