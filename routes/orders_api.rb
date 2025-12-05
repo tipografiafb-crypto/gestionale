@@ -215,49 +215,61 @@ class PrintOrchestrator < Sinatra::Base
         return { success: false, error: 'Flusso di stampa non configurato per pre-stampa' }.to_json
       end
       
-      # Get the original print file (print_file asset)
-      print_file_asset = item.assets.where("asset_type LIKE ?", "print_file%").first
-      unless print_file_asset
+      # Get all print files (same as single item flow)
+      print_assets = item.switch_print_assets
+      unless print_assets.any?
         return { success: false, error: 'File grafico non trovato' }.to_json
       end
       
       product = item.product
       server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
       
-      # Build Switch payload for preprint - SAME FORMAT AS SINGLE ITEM!
-      job_data = {
-        id_riga: item.item_number,
-        codice_ordine: order.external_order_code,
-        product: "#{product&.sku} - #{product&.name}",
-        operation_id: 1,  # 1=prepress, 2=stampa, 3=etichetta
-        job_operation_id: item.id.to_s,
-        url: "#{server_url}/api/assets/#{print_file_asset.id}/download",
-        widegest_url: "#{server_url}/api/v1/reports_create",
-        filename: item.switch_filename_for_asset(print_file_asset) || "#{order.external_order_code.downcase}-#{item.id}.png",
-        quantita: item.quantity,
-        materiale: product&.notes || 'N/A',
-        campi_custom: {},
-        opzioni_stampa: {},
-        campi_webhook: { percentuale: '0' }
-      }
+      # Send each print asset to preprint (same as single item flow!)
+      errors = []
+      successful_assets = []
       
-      puts "[BULK_PREPRINT] Sending item #{item.id} to Switch: #{job_data.inspect}"
+      print_assets.each do |print_asset|
+        # Build Switch payload for preprint - IDENTICAL TO SINGLE ITEM!
+        job_data = {
+          id_riga: item.item_number,
+          codice_ordine: order.external_order_code,
+          product: "#{product&.sku} - #{product&.name}",
+          operation_id: 1,  # 1=prepress, 2=stampa, 3=etichetta
+          job_operation_id: item.id.to_s,
+          url: "#{server_url}/api/assets/#{print_asset.id}/download",
+          widegest_url: "#{server_url}/api/v1/reports_create",
+          filename: item.switch_filename_for_asset(print_asset) || "#{order.external_order_code.downcase}-#{item.id}.png",
+          quantita: item.quantity,
+          materiale: product&.notes || 'N/A',
+          campi_custom: {},
+          opzioni_stampa: {},
+          campi_webhook: { percentuale: '0' }
+        }
+        
+        puts "[BULK_PREPRINT] Sending item #{item.id}, asset #{print_asset.id} to Switch: #{job_data.inspect}"
+        
+        result = SwitchClient.send_to_switch(
+          webhook_path: print_flow.preprint_webhook&.hook_path,
+          job_data: job_data
+        )
+        
+        if result[:success]
+          successful_assets << print_asset.id
+        else
+          errors << result[:error]
+        end
+      end
       
-      result = SwitchClient.send_to_switch(
-        webhook_path: print_flow.preprint_webhook&.hook_path,
-        job_data: job_data
-      )
-      
-      if result[:success]
+      if errors.any?
+        { success: false, error: "Alcuni asset hanno generato errori: #{errors.join(', ')}" }.to_json
+      else
         # Update item status to 'processing' and store print flow
-        item.update(preprint_status: 'processing', preprint_print_flow_id: print_flow.id)
+        item.update(preprint_status: 'processing', preprint_print_flow_id: print_flow.id, preprint_job_id: successful_assets.join(','))
         
         # Mark order as processing if it was new
         order.update(status: 'processing') if order.status == 'new'
         
-        { success: true, message: 'Item inviato a pre-stampa' }.to_json
-      else
-        { success: false, error: result[:error] || 'Errore invio a Switch' }.to_json
+        { success: true, message: "#{successful_assets.length} asset(s) inviato(i) a pre-stampa" }.to_json
       end
     rescue JSON::ParserError
       status 400
