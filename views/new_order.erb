@@ -37,47 +37,103 @@
     
     <h4>Item Ordine</h4>
     <div id="items-container">
-      <div class="item-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
-        <div class="row mb-2">
-          <div class="col-md-5">
-            <label class="form-label">Prodotto (SKU) *</label>
-            <select class="form-select product-select" name="items[][sku]" required>
-              <option value="">-- Seleziona prodotto --</option>
-              <% @products.each do |product| %>
-                <option value="<%= product.sku %>" title="<%= product.name %>">
-                  <%= product.sku %> - <%= product.name %>
-                </option>
-              <% end %>
-            </select>
-          </div>
-          
-          <div class="col-md-3">
-            <label class="form-label">Quantità *</label>
-            <input type="number" class="form-control" name="items[][quantity]" min="1" value="1" required>
-          </div>
-          
-          <div class="col-md-4">
-            <label class="form-label">&nbsp;</label>
-            <button type="button" class="btn btn-outline-danger w-100 remove-item-btn" style="display: none;">
-              <i class="fas fa-trash"></i> Rimuovi
-            </button>
-          </div>
-        </div>
-        <div class="row">
-          <div class="col-md-12">
-            <label class="form-label"><i class="fas fa-paperclip"></i> File (immagine/PDF) - Multipli</label>
-            <div class="files-container">
-              <div class="file-input-group mb-2">
-                <input type="file" class="form-control" name="items[][files][]" accept=".png,.jpg,.jpeg,.pdf">
+      <% if is_edit && @order.order_items.any? %>
+        <% @order.order_items.each_with_index do |item, item_index| %>
+          <div class="item-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
+            <div class="row mb-2">
+              <div class="col-md-5">
+                <label class="form-label">Prodotto (SKU) *</label>
+                <select class="form-select product-select" name="items[][sku]" required>
+                  <option value="">-- Seleziona prodotto --</option>
+                  <% @products.each do |product| %>
+                    <option value="<%= product.sku %>" title="<%= product.name %>" <%= product.sku == item.sku ? "selected" : "" %>>
+                      <%= product.sku %> - <%= product.name %>
+                    </option>
+                  <% end %>
+                </select>
+              </div>
+              
+              <div class="col-md-3">
+                <label class="form-label">Quantità *</label>
+                <input type="number" class="form-control" name="items[][quantity]" min="1" value="<%= item.quantity %>" required>
+              </div>
+              
+              <div class="col-md-4">
+                <label class="form-label">&nbsp;</label>
+                <button type="button" class="btn btn-outline-danger w-100 remove-item-btn" <%= @order.order_items.count == 1 ? "style='display: none;'" : "" %>>
+                  <i class="fas fa-trash"></i> Rimuovi
+                </button>
               </div>
             </div>
-            <button type="button" class="btn btn-sm btn-outline-secondary add-file-btn">
-              <i class="fas fa-plus"></i> Aggiungi File
-            </button>
-            <small class="text-muted d-block mt-2">Opzionale - PNG, JPG, JPEG, PDF - Puoi caricare più file</small>
+            <div class="row">
+              <div class="col-md-12">
+                <label class="form-label"><i class="fas fa-paperclip"></i> File (immagine/PDF) - Multipli</label>
+                <div class="files-container">
+                  <% if item.assets.any? %>
+                    <% item.assets.each do |asset| %>
+                      <div class="file-input-group mb-2">
+                        <div class="input-group">
+                          <input type="text" class="form-control" value="<%= asset.original_url %>" disabled>
+                          <small class="text-muted ms-2 mt-2">(file esistente)</small>
+                        </div>
+                      </div>
+                    <% end %>
+                  <% end %>
+                  <div class="file-input-group mb-2">
+                    <input type="file" class="form-control" name="items[][files][]" accept=".png,.jpg,.jpeg,.pdf">
+                  </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary add-file-btn">
+                  <i class="fas fa-plus"></i> Aggiungi File
+                </button>
+                <small class="text-muted d-block mt-2">Opzionale - PNG, JPG, JPEG, PDF - Puoi caricare più file</small>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      <% else %>
+        <div class="item-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
+          <div class="row mb-2">
+            <div class="col-md-5">
+              <label class="form-label">Prodotto (SKU) *</label>
+              <select class="form-select product-select" name="items[][sku]" required>
+                <option value="">-- Seleziona prodotto --</option>
+                <% @products.each do |product| %>
+                  <option value="<%= product.sku %>" title="<%= product.name %>">
+                    <%= product.sku %> - <%= product.name %>
+                  </option>
+                <% end %>
+              </select>
+            </div>
+            
+            <div class="col-md-3">
+              <label class="form-label">Quantità *</label>
+              <input type="number" class="form-control" name="items[][quantity]" min="1" value="1" required>
+            </div>
+            
+            <div class="col-md-4">
+              <label class="form-label">&nbsp;</label>
+              <button type="button" class="btn btn-outline-danger w-100 remove-item-btn" style="display: none;">
+                <i class="fas fa-trash"></i> Rimuovi
+              </button>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-12">
+              <label class="form-label"><i class="fas fa-paperclip"></i> File (immagine/PDF) - Multipli</label>
+              <div class="files-container">
+                <div class="file-input-group mb-2">
+                  <input type="file" class="form-control" name="items[][files][]" accept=".png,.jpg,.jpeg,.pdf">
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-secondary add-file-btn">
+                <i class="fas fa-plus"></i> Aggiungi File
+              </button>
+              <small class="text-muted d-block mt-2">Opzionale - PNG, JPG, JPEG, PDF - Puoi caricare più file</small>
+            </div>
           </div>
         </div>
-      </div>
+      <% end %>
     </div>
 
     <div class="mb-4">
