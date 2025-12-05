@@ -6,23 +6,30 @@
 <% end %>
 
 <div class="container mt-4">
-  <h1>Crea Ordine Manuale</h1>
+  <% is_edit = @order.present? %>
+  <h1><%= is_edit ? "Modifica Ordine" : "Crea Ordine Manuale" %></h1>
   
-  <form method="post" action="/orders" class="needs-validation" novalidate enctype="multipart/form-data">
+  <form method="post" action="<%= is_edit ? "/orders/#{@order.id}" : "/orders" %>" class="needs-validation" novalidate enctype="multipart/form-data">
+    <% if is_edit %>
+      <input type="hidden" name="_method" value="PUT">
+    <% end %>
     <div class="row mb-4">
       <div class="col-md-6">
         <label for="store_id" class="form-label">Negozio *</label>
-        <select class="form-select" id="store_id" name="store_id" required>
+        <select class="form-select" id="store_id" name="store_id" required <%= is_edit ? "disabled" : "" %>>
           <option value="">-- Seleziona negozio --</option>
           <% @stores.each do |store| %>
-            <option value="<%= store.id %>"><%= store.name %></option>
+            <option value="<%= store.id %>" <%= is_edit && @order.store_id == store.id ? "selected" : "" %>><%= store.name %></option>
           <% end %>
         </select>
+        <% if is_edit %>
+          <input type="hidden" name="store_id" value="<%= @order.store_id %>">
+        <% end %>
       </div>
       
       <div class="col-md-6">
         <label for="order_code" class="form-label">Codice Ordine *</label>
-        <input type="text" class="form-control" id="order_code" name="order_code" required placeholder="es. ORD-123456">
+        <input type="text" class="form-control" id="order_code" name="order_code" required placeholder="es. ORD-123456" value="<%= is_edit ? @order.external_order_code : "" %>">
       </div>
     </div>
 
@@ -83,9 +90,9 @@
     
     <div class="d-flex gap-2">
       <button type="submit" class="btn btn-primary">
-        <i class="fas fa-check-circle"></i> Crea Ordine
+        <i class="fas fa-check-circle"></i> <%= is_edit ? "Salva Modifiche" : "Crea Ordine" %>
       </button>
-      <a href="/orders" class="btn btn-secondary">
+      <a href="<%= is_edit ? "/orders/#{@order.id}" : "/orders" %>" class="btn btn-secondary">
         ← Annulla
       </a>
     </div>

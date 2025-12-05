@@ -180,6 +180,99 @@ class PrintOrchestrator < Sinatra::Base
     'Order not found'
   end
 
+  # GET /orders/:id/edit - Form for editing order
+  get '/orders/:id/edit' do
+    @order = Order.includes(:store, { order_items: :assets }).find(params[:id])
+    @stores = Store.where(active: true).ordered
+    @products = Product.where(active: true).ordered
+    erb :new_order
+  rescue ActiveRecord::RecordNotFound
+    status 404
+    erb :not_found
+  end
+
+  # PUT /orders/:id - Update order
+  put '/orders/:id' do
+    @order = Order.find(params[:id])
+    store = Store.find(params[:store_id])
+    
+    begin
+      @order.update(external_order_code: params[:order_code])
+      
+      # Update items
+      if params[:items].present?
+        # Remove existing items not in the update
+        @order.order_items.delete_all
+        
+        params[:items].each_with_index do |item_params, index|
+          next if item_params[:sku].blank?
+          
+          product = Product.find_by(sku: item_params[:sku])
+          if product.nil?
+            redirect "/orders/#{@order.id}/edit?error=SKU non trovato: #{item_params[:sku]}"
+          end
+
+          quantity = item_params[:quantity].to_i
+          order_item = @order.order_items.build(
+            sku: item_params[:sku],
+            quantity: quantity,
+            raw_json: {
+              sku: item_params[:sku],
+              quantity: quantity,
+              product_name: product.name
+            }.to_json
+          )
+          order_item.save!
+
+          # Handle multiple file uploads
+          files = item_params[:files] || []
+          files.each_with_index do |file, file_index|
+            next if file.blank? || !file.is_a?(Hash) || file[:filename].blank?
+            
+            begin
+              unless valid_file_extension?(file[:filename])
+                redirect "/orders/#{@order.id}/edit?error=Tipo file non consentito per #{item_params[:sku]}. Solo PNG, JPG, JPEG, PDF"
+              end
+
+              store_code = store.code || store.id.to_s
+              order_code = params[:order_code]
+              sku = item_params[:sku]
+              upload_dir = File.join(Dir.pwd, 'storage', store_code, order_code, sku)
+              FileUtils.mkdir_p(upload_dir) unless Dir.exist?(upload_dir)
+              
+              filename = File.basename(file[:filename])
+              local_path = "storage/#{store_code}/#{order_code}/#{sku}/#{filename}"
+              full_path = File.join(Dir.pwd, local_path)
+              
+              content = file[:tempfile].read
+              File.open(full_path, 'wb') { |f| f.write(content) }
+              
+              existing_print_files = order_item.assets.select { |a| a.asset_type&.start_with?('print_file') }.count
+              asset_index = existing_print_files + 1
+              
+              asset = order_item.assets.build(
+                original_url: filename,
+                local_path: local_path,
+                asset_type: "print_file_#{asset_index}"
+              )
+              asset.save!
+            rescue => e
+              warn "File upload error for #{item_params[:sku]}: #{e.message}"
+            end
+          end
+        end
+      end
+
+      if @order.order_items.empty?
+        redirect "/orders/#{@order.id}/edit?error=Aggiungere almeno un item"
+      end
+
+      redirect "/orders/#{@order.id}"
+    rescue => e
+      redirect "/orders/#{@order.id}/edit?error=#{e.message}"
+    end
+  end
+
   # POST /orders/:id/force_close - Force close an order
   post '/orders/:id/force_close' do
     @order = Order.find(params[:id])
