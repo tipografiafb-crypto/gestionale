@@ -11,24 +11,26 @@
   <div class="col-md-8">
     <h1>Order: <%= @order.external_order_code %></h1>
   </div>
-  <div class="col-md-4 text-end">
-    <a href="/orders/<%= @order.id %>/print" class="btn btn-outline-info" target="_blank">
-      <i class="fas fa-file-invoice"></i> Scheda Ordine
-    </a>
-    <a href="/orders/<%= @order.id %>/edit" class="btn btn-outline-primary">
-      <i class="fas fa-edit"></i> Modifica
-    </a>
-    <form action="/orders/<%= @order.id %>/force_close" method="post" class="d-inline" onsubmit="return confirm('Forzare la chiusura di questo ordine?');">
-      <button type="submit" class="btn btn-success">
-        <i class="fas fa-lock"></i> Forza Chiusura
-      </button>
-    </form>
-    <form action="/orders/<%= @order.id %>" method="post" class="d-inline" onsubmit="return confirm('Sei sicuro? Eliminerai completamente questo ordine.');">
-      <input type="hidden" name="_method" value="DELETE">
-      <button type="submit" class="btn btn-danger">
-        <i class="fas fa-trash"></i> Delete
-      </button>
-    </form>
+  <div class="col-md-4">
+    <div class="d-flex flex-column gap-2">
+      <a href="/orders/<%= @order.id %>/print" class="btn btn-outline-info" target="_blank">
+        <i class="fas fa-file-invoice"></i> Scheda Ordine
+      </a>
+      <a href="/orders/<%= @order.id %>/edit" class="btn btn-outline-primary">
+        <i class="fas fa-edit"></i> Modifica
+      </a>
+      <form action="/orders/<%= @order.id %>/force_close" method="post" onsubmit="return confirm('Forzare la chiusura di questo ordine?');">
+        <button type="submit" class="btn btn-success w-100">
+          <i class="fas fa-lock"></i> Forza Chiusura
+        </button>
+      </form>
+      <form action="/orders/<%= @order.id %>" method="post" onsubmit="return confirm('Sei sicuro? Eliminerai completamente questo ordine.');">
+        <input type="hidden" name="_method" value="DELETE">
+        <button type="submit" class="btn btn-danger w-100">
+          <i class="fas fa-trash"></i> Delete
+        </button>
+      </form>
+    </div>
   </div>
 </div>
 
