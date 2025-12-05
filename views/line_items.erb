@@ -82,7 +82,7 @@
       </thead>
       <tbody>
         <% @line_items.each do |li| %>
-          <% can_select = li[:item].preprint_status == 'completed' && li[:item].print_status == 'pending' %>
+          <% can_select = li[:item].preprint_status == 'pending' || (li[:item].preprint_status == 'completed' && li[:item].print_status == 'pending') %>
           <tr>
             <td>
               <% if can_select %>
@@ -90,6 +90,8 @@
                        data-item-id="<%= li[:item].id %>" 
                        data-order-id="<%= li[:order].id %>"
                        data-sku="<%= li[:item].sku %>"
+                       data-preprint-status="<%= li[:item].preprint_status %>"
+                       data-print-status="<%= li[:item].print_status %>"
                        onclick="updateSelectedCount()">
               <% end %>
             </td>
@@ -266,13 +268,19 @@ async function executeBulkPrint() {
   }
   
   const checked = document.querySelectorAll('.item-checkbox:checked');
-  const items = Array.from(checked).map(cb => ({
-    itemId: cb.dataset.itemId,
-    orderId: cb.dataset.orderId,
-    sku: cb.dataset.sku
-  }));
+  // Filter only items with preprint_status == 'completed' (pronti per stampa)
+  const items = Array.from(checked)
+    .filter(cb => cb.dataset.preprintStatus === 'completed')
+    .map(cb => ({
+      itemId: cb.dataset.itemId,
+      orderId: cb.dataset.orderId,
+      sku: cb.dataset.sku
+    }));
   
-  if (items.length === 0) return;
+  if (items.length === 0) {
+    alert('Seleziona solo item pronti per la stampa (con pre-stampa completata)');
+    return;
+  }
   
   document.getElementById('btnConfirmBulkPrint').disabled = true;
   document.getElementById('bulkPrintProgress').style.display = 'block';
@@ -350,13 +358,19 @@ async function executeBulkPreprint() {
   }
   
   const checked = document.querySelectorAll('.item-checkbox:checked');
-  const items = Array.from(checked).map(cb => ({
-    itemId: cb.dataset.itemId,
-    orderId: cb.dataset.orderId,
-    sku: cb.dataset.sku
-  }));
+  // Filter only items with preprint_status == 'pending' (stato "nuovo")
+  const items = Array.from(checked)
+    .filter(cb => cb.dataset.preprintStatus === 'pending')
+    .map(cb => ({
+      itemId: cb.dataset.itemId,
+      orderId: cb.dataset.orderId,
+      sku: cb.dataset.sku
+    }));
   
-  if (items.length === 0) return;
+  if (items.length === 0) {
+    alert('Seleziona solo item con stato "Nuovo"');
+    return;
+  }
   
   document.getElementById('btnConfirmBulkPreprint').disabled = true;
   document.getElementById('bulkPreprintProgress').style.display = 'block';
