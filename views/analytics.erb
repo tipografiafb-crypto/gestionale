@@ -6,21 +6,43 @@
     </div>
   </div>
 
-  <!-- Date Range Filter -->
+  <!-- Filters -->
   <div class="card mb-4">
     <div class="card-body">
       <form method="get" action="/analytics" class="row g-3">
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label for="start_date" class="form-label">Data Inizio</label>
           <input type="date" class="form-control" id="start_date" name="start_date" value="<%= @filter_start_date %>">
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label for="end_date" class="form-label">Data Fine</label>
           <input type="date" class="form-control" id="end_date" name="end_date" value="<%= @filter_end_date %>">
         </div>
-        <div class="col-md-4" style="display: flex; align-items: flex-end; gap: 10px;">
-          <button type="submit" class="btn btn-primary" style="flex: 1;"><i class="fas fa-filter"></i> Filtra</button>
-          <a href="/analytics" class="btn btn-outline-secondary"><i class="fas fa-redo"></i> Reset</a>
+        <div class="col-md-3">
+          <label for="category_id" class="form-label">Categoria</label>
+          <select class="form-select" id="category_id" name="category_id">
+            <option value="">-- Tutte le categorie --</option>
+            <% @product_categories.each do |cat| %>
+              <option value="<%= cat.id %>" <%= 'selected' if @filter_category_id.to_s == cat.id.to_s %>>
+                <%= cat.name %>
+              </option>
+            <% end %>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="product_id" class="form-label">Prodotto</label>
+          <select class="form-select" id="product_id" name="product_id">
+            <option value="">-- Tutti i prodotti --</option>
+            <% @products.each do |prod| %>
+              <option value="<%= prod.id %>" <%= 'selected' if @filter_product_id.to_s == prod.id.to_s %>>
+                <%= "#{prod.name} (#{prod.sku})" %>
+              </option>
+            <% end %>
+          </select>
+        </div>
+        <div class="col-md-12" style="display: flex; gap: 10px;">
+          <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filtra</button>
+          <a href="/analytics" class="btn btn-outline-secondary"><i class="fas fa-redo"></i> Reset Filtri</a>
         </div>
       </form>
     </div>
@@ -138,12 +160,23 @@
     danger: '#ef4444'
   };
 
-  // Daily Sales Chart
-  async function loadDailyChart() {
+  // Helper function to build query string with all filters
+  function buildFilterParams() {
     const startDate = document.querySelector('input[name="start_date"]').value;
     const endDate = document.querySelector('input[name="end_date"]').value;
+    const productId = document.querySelector('select[name="product_id"]').value;
+    const categoryId = document.querySelector('select[name="category_id"]').value;
     
-    const response = await fetch(`/api/analytics/daily?start_date=${startDate}&end_date=${endDate}`);
+    let params = `start_date=${startDate}&end_date=${endDate}`;
+    if (productId) params += `&product_id=${productId}`;
+    if (categoryId) params += `&category_id=${categoryId}`;
+    return params;
+  }
+
+  // Daily Sales Chart
+  async function loadDailyChart() {
+    const params = buildFilterParams();
+    const response = await fetch(`/api/analytics/daily?${params}`);
     const data = await response.json();
     
     const ctx = document.getElementById('dailyChart').getContext('2d');
@@ -180,10 +213,8 @@
 
   // Products Chart
   async function loadProductChart() {
-    const startDate = document.querySelector('input[name="start_date"]').value;
-    const endDate = document.querySelector('input[name="end_date"]').value;
-    
-    const response = await fetch(`/api/analytics/by-product?start_date=${startDate}&end_date=${endDate}`);
+    const params = buildFilterParams();
+    const response = await fetch(`/api/analytics/by-product?${params}`);
     const data = await response.json();
     
     const ctx = document.getElementById('productChart').getContext('2d');
@@ -211,10 +242,8 @@
 
   // Category Chart
   async function loadCategoryChart() {
-    const startDate = document.querySelector('input[name="start_date"]').value;
-    const endDate = document.querySelector('input[name="end_date"]').value;
-    
-    const response = await fetch(`/api/analytics/by-category?start_date=${startDate}&end_date=${endDate}`);
+    const params = buildFilterParams();
+    const response = await fetch(`/api/analytics/by-category?${params}`);
     const data = await response.json();
     
     const ctx = document.getElementById('categoryChart').getContext('2d');
@@ -279,10 +308,8 @@
 
   // Top Products Table
   async function loadTopProductsTable() {
-    const startDate = document.querySelector('input[name="start_date"]').value;
-    const endDate = document.querySelector('input[name="end_date"]').value;
-    
-    const response = await fetch(`/api/analytics/top-products?start_date=${startDate}&end_date=${endDate}`);
+    const params = buildFilterParams();
+    const response = await fetch(`/api/analytics/top-products?${params}`);
     const data = await response.json();
     
     let html = '<table class="table table-sm table-striped"><thead><tr><th>Prodotto</th><th class="text-end">Quantità</th></tr></thead><tbody>';

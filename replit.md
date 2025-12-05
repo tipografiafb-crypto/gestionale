@@ -16,6 +16,28 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 
 ## Recent Work
 
+### December 5, 2025 (Analytics Dashboard & Filtri)
+- ✅ Created complete Analytics Dashboard at `/analytics`
+- ✅ Fixed critical bulk preprint bug: was only sending first asset (.first) instead of looping through all assets (.each)
+- Added 5 interactive charts with Chart.js:
+  - Trend Vendite Giornaliere (daily line chart)
+  - Top 15 Prodotti per Quantità (horizontal bar chart)
+  - Vendite per Categoria (doughnut chart)
+  - Confronto Settimanale (week-over-week comparison)
+  - Top 10 Prodotti (detail table)
+- ✅ Added date range filters (start_date, end_date)
+- ✅ Added product filter dropdown
+- ✅ Added category filter dropdown
+- Updated all API endpoints to support filtering:
+  - `/api/analytics/daily`
+  - `/api/analytics/by-product`
+  - `/api/analytics/by-category`
+  - `/api/analytics/comparison`
+  - `/api/analytics/top-products`
+- All charts update dynamically when filters change
+- Added "Analitiche" link to main navbar
+- Payload consistency: bulk and single-item preprint now identical (both loop through all print assets)
+
 ### December 4, 2025 (Bulk Print & Rippato Status)
 - Added new 'ripped' print status for bulk print operations
 - Implemented bulk print functionality in /line_items page:

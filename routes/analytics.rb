@@ -19,16 +19,39 @@ class PrintOrchestrator < Sinatra::Base
     order_ids = @orders.pluck(:id)
     @items = OrderItem.where(order_id: order_ids)
     
+    # Filter by product if specified
+    if params[:product_id].present?
+      product = Product.find_by(id: params[:product_id])
+      if product
+        @items = @items.where(sku: product.sku)
+      end
+    end
+    
+    # Filter by category if specified
+    if params[:category_id].present?
+      category = ProductCategory.find_by(id: params[:category_id])
+      if category
+        product_skus = Product.where(product_category_id: category.id).pluck(:sku)
+        @items = @items.where(sku: product_skus)
+      end
+    end
+    
     # Total statistics
     @total_orders = @orders.count
     @total_items = @items.count
     @total_quantity = @items.sum(:quantity)
     
+    # For display
+    @product_categories = ProductCategory.where(active: true).ordered
+    @products = Product.where(active: true).ordered
+    @filter_start_date = params[:start_date] || start_date.to_s
+    @filter_end_date = params[:end_date] || end_date.to_s
+    @filter_product_id = params[:product_id]
+    @filter_category_id = params[:category_id]
+    
     # Calculate period data for charts
     @period_start = start_date
     @period_end = end_date
-    @filter_start_date = params[:start_date] || start_date.to_s
-    @filter_end_date = params[:end_date] || end_date.to_s
     
     erb :analytics
   end
@@ -45,15 +68,33 @@ class PrintOrchestrator < Sinatra::Base
                          start_date.beginning_of_day, 
                          end_date.end_of_day)
     
+    # Get order items with optional product/category filter
+    order_ids = orders.pluck(:id)
+    items = OrderItem.where(order_id: order_ids)
+    
+    if params[:product_id].present?
+      product = Product.find_by(id: params[:product_id])
+      items = items.where(sku: product.sku) if product
+    end
+    
+    if params[:category_id].present?
+      category = ProductCategory.find_by(id: params[:category_id])
+      if category
+        product_skus = Product.where(product_category_id: category.id).pluck(:sku)
+        items = items.where(sku: product_skus)
+      end
+    end
+    
     data = {}
     (start_date..end_date).each do |date|
       data[date.to_s] = 0
     end
     
     # Group by date and sum quantities
-    orders.includes(:order_items).each do |order|
+    items_by_order = items.group_by { |item| item.order_id }
+    Order.where(id: items_by_order.keys).each do |order|
       date = order.created_at.to_date.to_s
-      quantity = order.order_items.sum(:quantity)
+      quantity = items_by_order[order.id].sum(&:quantity)
       data[date] = (data[date] || 0) + quantity
     end
     
@@ -74,9 +115,23 @@ class PrintOrchestrator < Sinatra::Base
                             start_date.beginning_of_day,
                             end_date.end_of_day).pluck(:id)
     
+    items = OrderItem.where(order_id: order_ids)
+    
+    if params[:product_id].present?
+      product = Product.find_by(id: params[:product_id])
+      items = items.where(sku: product.sku) if product
+    end
+    
+    if params[:category_id].present?
+      category = ProductCategory.find_by(id: params[:category_id])
+      if category
+        product_skus = Product.where(product_category_id: category.id).pluck(:sku)
+        items = items.where(sku: product_skus)
+      end
+    end
+    
     # Group by SKU and sum quantities
-    product_sales = OrderItem
-      .where(order_id: order_ids)
+    product_sales = items
       .group(:sku)
       .select('sku, SUM(quantity) as total_quantity, COUNT(*) as order_count')
       .order('total_quantity DESC')
@@ -113,6 +168,19 @@ class PrintOrchestrator < Sinatra::Base
     
     # Get items and group by product category
     items = OrderItem.where(order_id: order_ids).includes(:order)
+    
+    if params[:product_id].present?
+      product = Product.find_by(id: params[:product_id])
+      items = items.where(sku: product.sku) if product
+    end
+    
+    if params[:category_id].present?
+      category = ProductCategory.find_by(id: params[:category_id])
+      if category
+        product_skus = Product.where(product_category_id: category.id).pluck(:sku)
+        items = items.where(sku: product_skus)
+      end
+    end
     
     category_data = {}
     
@@ -154,8 +222,29 @@ class PrintOrchestrator < Sinatra::Base
                               prev_week_start.beginning_of_day,
                               prev_week_end.end_of_day)
     
-    current_qty = current_orders.includes(:order_items).sum { |o| o.order_items.sum(:quantity) }
-    prev_qty = prev_orders.includes(:order_items).sum { |o| o.order_items.sum(:quantity) }
+    # Apply filters if specified
+    current_items = OrderItem.where(order_id: current_orders.pluck(:id))
+    prev_items = OrderItem.where(order_id: prev_orders.pluck(:id))
+    
+    if params[:product_id].present?
+      product = Product.find_by(id: params[:product_id])
+      if product
+        current_items = current_items.where(sku: product.sku)
+        prev_items = prev_items.where(sku: product.sku)
+      end
+    end
+    
+    if params[:category_id].present?
+      category = ProductCategory.find_by(id: params[:category_id])
+      if category
+        product_skus = Product.where(product_category_id: category.id).pluck(:sku)
+        current_items = current_items.where(sku: product_skus)
+        prev_items = prev_items.where(sku: product_skus)
+      end
+    end
+    
+    current_qty = current_items.sum(:quantity)
+    prev_qty = prev_items.sum(:quantity)
     
     {
       current_week: {
@@ -183,8 +272,22 @@ class PrintOrchestrator < Sinatra::Base
                             start_date.beginning_of_day,
                             end_date.end_of_day).pluck(:id)
     
-    top_products = OrderItem
-      .where(order_id: order_ids)
+    items = OrderItem.where(order_id: order_ids)
+    
+    if params[:product_id].present?
+      product = Product.find_by(id: params[:product_id])
+      items = items.where(sku: product.sku) if product
+    end
+    
+    if params[:category_id].present?
+      category = ProductCategory.find_by(id: params[:category_id])
+      if category
+        product_skus = Product.where(product_category_id: category.id).pluck(:sku)
+        items = items.where(sku: product_skus)
+      end
+    end
+    
+    top_products = items
       .group(:sku)
       .select('sku, SUM(quantity) as total_quantity')
       .order('total_quantity DESC')
