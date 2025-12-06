@@ -13,7 +13,9 @@ class PrintOrchestrator < Sinatra::Base
       data = JSON.parse(request.body.read)
       
       # DEBUG: Log incoming data for troubleshooting
-      puts "[IMPORT DEBUG] Incoming JSON keys: #{data.keys.join(', ')}"
+      puts "[IMPORT DEBUG] ===== INCOMING JSON ====="
+      puts "[IMPORT DEBUG] #{data.to_json}"
+      puts "[IMPORT DEBUG] ===== END JSON ====="
       puts "[IMPORT DEBUG] customer_note value: #{data['customer_note'].inspect}"
       puts "[IMPORT DEBUG] site_name value: #{data['site_name'].inspect}"
       puts "[IMPORT DEBUG] id value: #{data['id'].inspect}"
