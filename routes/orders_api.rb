@@ -12,6 +12,21 @@ class PrintOrchestrator < Sinatra::Base
     begin
       data = JSON.parse(request.body.read)
       
+      # Map WooCommerce format to internal format
+      # Handle both direct API format and WooCommerce JSON format
+      if data['site_name'] && !data['store_id']
+        # Extract store code from site_name (e.g., "TPH DE" → "TPH_DE")
+        data['store_id'] = data['site_name'].upcase.gsub(' ', '_')
+      end
+      
+      if data['line_items'] && !data['items']
+        data['items'] = data['line_items']
+      end
+      
+      if (data['id'] || data['number']) && !data['external_order_code']
+        data['external_order_code'] = data['id'] || data['number']
+      end
+      
       # Validate store exists and is active
       store = Store.find_by_code(data['store_id'])
       unless store
