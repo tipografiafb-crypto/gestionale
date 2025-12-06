@@ -40,6 +40,7 @@
           <th>Data Ordine</th>
           <th>Codice Ordine</th>
           <th>Negozio</th>
+          <th>Categoria</th>
           <th>Nome Prodotto</th>
           <th>SKU</th>
           <th>Quantità</th>
@@ -61,6 +62,16 @@
                 <% @stores.each do |store| %>
                   <option value="<%= store.id %>" <%= 'selected' if @filter_store == store.id.to_s %>>
                     <%= store.name %>
+                  </option>
+                <% end %>
+              </select>
+          </td>
+          <td>
+              <select class="form-select form-select-sm" name="category_id" onchange="this.form.submit()">
+                <option value="">Tutte categorie</option>
+                <% @product_categories.each do |cat| %>
+                  <option value="<%= cat.id %>" <%= 'selected' if @filter_category_id.to_s == cat.id.to_s %>>
+                    <%= cat.name %>
                   </option>
                 <% end %>
               </select>
@@ -98,6 +109,7 @@
             <td><%= li[:order].created_at.strftime('%d-%m-%y') %></td>
             <td><a href="/orders/<%= li[:order].id %>"><%= li[:order].external_order_code %></a></td>
             <td><%= li[:order].store.name %></td>
+            <td><span class="badge bg-light text-dark"><%= li[:category_name] %></span></td>
             <td><strong><%= li[:product_name] %></strong></td>
             <td><code><%= li[:item].sku %></code></td>
             <td><%= li[:item].quantity %></td>

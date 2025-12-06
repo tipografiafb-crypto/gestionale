@@ -575,6 +575,9 @@ class PrintOrchestrator < Sinatra::Base
     # Get all stores for dropdown
     @stores = Store.all.order(:name)
     
+    # Get all product categories for dropdown
+    @product_categories = ProductCategory.where(active: true).ordered
+    
     # Get all active print machines for bulk print modal
     @print_machines = PrintMachine.active.ordered
     
@@ -589,10 +592,15 @@ class PrintOrchestrator < Sinatra::Base
         # Skip completed items
         next if item.print_status == 'completed'
         
+        product = item.product
+        category_name = product&.product_category&.name || 'Non categorizzato'
+        
         @line_items << {
           item: item,
           order: order,
-          product_name: item.product&.name || item.sku,
+          product_name: product&.name || item.sku,
+          category_name: category_name,
+          category_id: product&.product_category_id,
           sku: item.sku
         }
       end
@@ -602,6 +610,7 @@ class PrintOrchestrator < Sinatra::Base
     @filter_order_date = params[:order_date]
     @filter_order_code = params[:order_code]
     @filter_store = params[:store_id]
+    @filter_category_id = params[:category_id]
     @filter_product_name = params[:product_name]
     @filter_sku = params[:sku]
     @filter_status = params[:status_filter]
@@ -621,6 +630,11 @@ class PrintOrchestrator < Sinatra::Base
     # Filter by store
     if @filter_store.present?
       @line_items = @line_items.select { |li| li[:order].store_id.to_s == @filter_store }
+    end
+    
+    # Filter by category
+    if @filter_category_id.present?
+      @line_items = @line_items.select { |li| li[:category_id].to_s == @filter_category_id }
     end
     
     # Filter by product name

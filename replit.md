@@ -16,7 +16,7 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 
 ## Recent Work
 
-### December 5, 2025 (Analytics Dashboard & Filtri)
+### December 5, 2025 (Analytics Dashboard & Filtri + Category Filter on /line_items)
 - ✅ Created complete Analytics Dashboard at `/analytics`
 - ✅ Fixed critical bulk preprint bug: was only sending first asset (.first) instead of looping through all assets (.each)
 - Added 5 interactive charts with Chart.js:
@@ -37,6 +37,11 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 - All charts update dynamically when filters change
 - Added "Analitiche" link to main navbar
 - Payload consistency: bulk and single-item preprint now identical (both loop through all print assets)
+- ✅ Added category filter to `/line_items` (Lavorazioni page):
+  - New "Categoria" column in table showing product categories
+  - Dropdown filter "Tutte categori" in filter row
+  - Auto-submit filter on category selection
+  - Shows "Non categorizzato" for items without category assignment
 
 ### December 4, 2025 (Bulk Print & Rippato Status)
 - Added new 'ripped' print status for bulk print operations
