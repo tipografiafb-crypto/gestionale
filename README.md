@@ -75,6 +75,7 @@ The application will be available at `http://localhost:5000`
 {
   "store_id": "TPH_DE",
   "external_order_code": "DE11132",
+  "customer_note": "Note del cliente - importante!",
   "items": [
     {
       "sku": "PICK-ROCK-1MM",
