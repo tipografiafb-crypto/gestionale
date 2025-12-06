@@ -135,6 +135,15 @@
     </div>
   </div>
 
+  <% if @order.customer_note.present? %>
+    <div class="section">
+      <div class="section-title">Note Ordine</div>
+      <div style="background: #fff9e6; border: 1px solid #ffd700; padding: 12px; border-radius: 4px; line-height: 1.5;">
+        <%= simple_format(@order.customer_note) %>
+      </div>
+    </div>
+  <% end %>
+
   <div class="section">
     <div class="section-title">Line Items Ordine</div>
     <table>

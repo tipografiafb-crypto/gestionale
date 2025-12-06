@@ -16,7 +16,7 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 
 ## Recent Work
 
-### December 5, 2025 (Analytics Dashboard & Filtri + Category Filter on /line_items)
+### December 5, 2025 (Analytics Dashboard & Filtri + Category Filter on /line_items + Notes on Order Details)
 - ✅ Created complete Analytics Dashboard at `/analytics`
 - ✅ Fixed critical bulk preprint bug: was only sending first asset (.first) instead of looping through all assets (.each)
 - Added 5 interactive charts with Chart.js:
@@ -42,6 +42,15 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
   - Dropdown filter "Tutte categori" in filter row
   - Auto-submit filter on category selection
   - Shows "Non categorizzato" for items without category assignment
+- ✅ Added "Note Ordine" riquadro on order details page (/orders/:id):
+  - New card on right side (col-md-6) accanto a Order Information
+  - Shows customer_note field from orders table
+  - Displays "Nessuna nota" if no notes present
+  - Formatted with simple_format to preserve line breaks
+- ✅ Added "Note Ordine" section to print order card (/orders/:id/print):
+  - Appears in printed scheda ordine with highlighted yellow background
+  - Shows only if notes are present
+  - Formatted as print-friendly section
 
 ### December 4, 2025 (Bulk Print & Rippato Status)
 - Added new 'ripped' print status for bulk print operations

@@ -76,6 +76,21 @@
   </div>
 
   <div class="col-md-6">
+    <div class="card mb-4">
+      <div class="card-header">
+        <strong>Note Ordine</strong>
+      </div>
+      <div class="card-body">
+        <% if @order.customer_note.present? %>
+          <div class="alert alert-light" style="background-color: #f8f9fa; border: 1px solid #dee2e6; word-wrap: break-word;">
+            <%= simple_format(@order.customer_note) %>
+          </div>
+        <% else %>
+          <p class="text-muted">Nessuna nota</p>
+        <% end %>
+      </div>
+    </div>
+
     <% if @order.switch_job %>
       <div class="card mb-4">
         <div class="card-header">
