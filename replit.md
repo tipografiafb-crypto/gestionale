@@ -16,7 +16,7 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 
 ## Recent Work
 
-### December 5, 2025 (Analytics Dashboard & Filtri + Category Filter on /line_items + Notes on Order Details)
+### December 5, 2025 (Analytics Dashboard & Filtri + Category Filter on /line_items + Editable Notes on Order Details)
 - ✅ Created complete Analytics Dashboard at `/analytics`
 - ✅ Fixed critical bulk preprint bug: was only sending first asset (.first) instead of looping through all assets (.each)
 - Added 5 interactive charts with Chart.js:
@@ -44,9 +44,12 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
   - Shows "Non categorizzato" for items without category assignment
 - ✅ Added "Note Ordine" riquadro on order details page (/orders/:id):
   - New card on right side (col-md-6) accanto a Order Information
-  - Shows customer_note field from orders table
-  - Displays "Nessuna nota" if no notes present
-  - Formatted with simple_format to preserve line breaks
+  - Shows customer_note field from orders table with editable textarea
+  - Operators can write/edit notes directly in the interface
+  - "Salva" button saves notes via PATCH /orders/:id/update_notes
+  - "Annulla" button reverts changes
+  - Success/error messages appear below buttons
+  - Displays "Nessuna nota" placeholder if empty
 - ✅ Added "Note Ordine" section to print order card (/orders/:id/print):
   - Appears in printed scheda ordine with highlighted yellow background
   - Shows only if notes are present

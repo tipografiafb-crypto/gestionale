@@ -81,13 +81,16 @@
         <strong>Note Ordine</strong>
       </div>
       <div class="card-body">
-        <% if @order.customer_note.present? %>
-          <div class="alert alert-light" style="background-color: #f8f9fa; border: 1px solid #dee2e6; word-wrap: break-word;">
-            <%= simple_format(@order.customer_note) %>
-          </div>
-        <% else %>
-          <p class="text-muted">Nessuna nota</p>
-        <% end %>
+        <textarea class="form-control" id="orderNotes" rows="6" placeholder="Aggiungi una nota..." style="font-size: 13px; font-family: monospace;"><%= @order.customer_note %></textarea>
+        <div style="display: flex; gap: 8px; margin-top: 12px;">
+          <button class="btn btn-primary btn-sm" onclick="saveOrderNotes(<%= @order.id %>)">
+            <i class="fas fa-save"></i> Salva
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="resetOrderNotes('<%= @order.customer_note %>'); return false;">
+            <i class="fas fa-undo"></i> Annulla
+          </button>
+        </div>
+        <div id="noteSaveMessage" style="margin-top: 10px; display: none;"></div>
       </div>
     </div>
 
@@ -164,3 +167,40 @@
     </tbody>
   </table>
 </div>
+
+<script>
+function saveOrderNotes(orderId) {
+  const noteText = document.getElementById('orderNotes').value;
+  const messageDiv = document.getElementById('noteSaveMessage');
+  
+  fetch(`/orders/${orderId}/update_notes`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: `customer_note=${encodeURIComponent(noteText)}`
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      messageDiv.style.display = 'block';
+      messageDiv.innerHTML = '<div class="alert alert-success" role="alert"><i class="fas fa-check-circle"></i> Note salvate!</div>';
+      setTimeout(() => {
+        messageDiv.style.display = 'none';
+      }, 3000);
+    } else {
+      messageDiv.style.display = 'block';
+      messageDiv.innerHTML = `<div class="alert alert-danger" role="alert"><i class="fas fa-exclamation-circle"></i> Errore: ${data.error}</div>`;
+    }
+  })
+  .catch(err => {
+    messageDiv.style.display = 'block';
+    messageDiv.innerHTML = `<div class="alert alert-danger" role="alert"><i class="fas fa-exclamation-circle"></i> Errore di connessione</div>`;
+  });
+}
+
+function resetOrderNotes(originalNote) {
+  document.getElementById('orderNotes').value = originalNote;
+  document.getElementById('noteSaveMessage').style.display = 'none';
+}
+</script>

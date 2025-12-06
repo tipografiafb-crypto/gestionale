@@ -284,6 +284,17 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
+  # PATCH /orders/:id/update_notes - Update order notes
+  patch '/orders/:id/update_notes' do
+    content_type :json
+    @order = Order.find(params[:id])
+    @order.update(customer_note: params[:customer_note])
+    { success: true, message: 'Note salvate' }.to_json
+  rescue => e
+    status 400
+    { success: false, error: e.message }.to_json
+  end
+
   # POST /orders/:id/force_close - Force close an order
   post '/orders/:id/force_close' do
     @order = Order.find(params[:id])
