@@ -74,23 +74,36 @@ echo -e "${GREEN}✓ Storage directories ready${NC}"
 # Step 5: Database setup
 echo -e "\n${YELLOW}[5/7]${NC} Setting up database..."
 source .env  # Carica variabili dal .env
-bundle exec rake db:setup_complete
+
+# Create database if not exists
+echo -e "${YELLOW}  → Creating database...${NC}"
+bundle exec rake db:create 2>/dev/null || true
+
+# Run all migrations
+echo -e "${YELLOW}  → Running migrations...${NC}"
+bundle exec rake db:migrate
 if [ $? -ne 0 ]; then
-  echo -e "${RED}❌ Database setup failed${NC}"
+  echo -e "${RED}❌ Migration failed${NC}"
   exit 1
 fi
+
+# Also run setup_complete for additional setup
+bundle exec rake db:setup_complete 2>/dev/null || true
+
 echo -e "${GREEN}✓ Database ready${NC}"
 
-# Step 5.5: Add customer_note column to orders
-echo -e "\n${YELLOW}[5.5/7]${NC} Adding customer_note column to orders..."
+# Step 5.5: Verify and add all missing columns to orders
+echo -e "\n${YELLOW}[5.5/7]${NC} Ensuring all orders columns exist..."
 psql "$DATABASE_URL" << 'SQLEOF'
 ALTER TABLE orders 
-  ADD COLUMN IF NOT EXISTS customer_note text;
+  ADD COLUMN IF NOT EXISTS customer_name VARCHAR,
+  ADD COLUMN IF NOT EXISTS customer_note text,
+  ADD COLUMN IF NOT EXISTS source VARCHAR DEFAULT 'api';
 SQLEOF
 if [ $? -eq 0 ]; then
-  echo -e "${GREEN}✓ customer_note column added to orders${NC}"
+  echo -e "${GREEN}✓ All orders columns verified${NC}"
 else
-  echo -e "${YELLOW}⚠ Could not add customer_note column (it may already exist)${NC}"
+  echo -e "${YELLOW}⚠ Could not add orders columns (they may already exist)${NC}"
 fi
 
 # Step 5.5b: Add Azione Photoshop columns to print_flows

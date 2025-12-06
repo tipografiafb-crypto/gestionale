@@ -22,7 +22,10 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 - ✅ Updated new Magenta logo in `/public/logo.png`
 - ✅ Added `customer_note` import from JSON orders: field now mapped during order creation
 - ✅ Verified `customer_note` column exists in orders table
-- ✅ Updated quick_start_linux.sh with explicit customer_note column creation (Step 5.5)
+- ✅ Updated quick_start_linux.sh with explicit migration execution:
+  - Added `bundle exec rake db:migrate` to Step 5 for explicit migration running
+  - Updated Step 5.5 to add all orders columns in one command: `customer_name`, `customer_note`, `source`
+  - Now more robust for fresh Ubuntu installations
 - ✅ **FIXED**: Added automatic WooCommerce JSON format mapping to internal format:
   - Maps `site_name` (e.g. "TPH EU") → `store_id` (e.g. "TPH_EU")
   - Maps `line_items` → `items`
