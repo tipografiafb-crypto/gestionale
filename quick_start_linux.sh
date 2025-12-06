@@ -81,8 +81,20 @@ if [ $? -ne 0 ]; then
 fi
 echo -e "${GREEN}✓ Database ready${NC}"
 
-# Step 5.5: Add Azione Photoshop columns to print_flows
-echo -e "\n${YELLOW}[5.5/7]${NC} Adding Azione Photoshop columns to print_flows..."
+# Step 5.5: Add customer_note column to orders
+echo -e "\n${YELLOW}[5.5/7]${NC} Adding customer_note column to orders..."
+psql "$DATABASE_URL" << 'SQLEOF'
+ALTER TABLE orders 
+  ADD COLUMN IF NOT EXISTS customer_note text;
+SQLEOF
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✓ customer_note column added to orders${NC}"
+else
+  echo -e "${YELLOW}⚠ Could not add customer_note column (it may already exist)${NC}"
+fi
+
+# Step 5.5b: Add Azione Photoshop columns to print_flows
+echo -e "\n${YELLOW}[5.5b/7]${NC} Adding Azione Photoshop columns to print_flows..."
 psql "$DATABASE_URL" << 'SQLEOF'
 ALTER TABLE print_flows 
   ADD COLUMN IF NOT EXISTS azione_photoshop_enabled boolean DEFAULT false,

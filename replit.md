@@ -21,6 +21,8 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 - ✅ Replaced with CSS `white-space: pre-wrap` for proper line break handling
 - ✅ Updated new Magenta logo in `/public/logo.png`
 - ✅ Added `customer_note` import from JSON orders: field now mapped during order creation
+- ✅ Verified `customer_note` column exists in orders table
+- ✅ Updated quick_start_linux.sh with explicit customer_note column creation (Step 5.5)
 
 ### December 5, 2025 (Analytics Dashboard & Filtri + Category Filter on /line_items + Editable Notes on Order Details)
 - ✅ Created complete Analytics Dashboard at `/analytics`
