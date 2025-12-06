@@ -16,10 +16,11 @@ Local print order management system built with Ruby, Sinatra, and PostgreSQL. In
 
 ## Recent Work
 
-### December 6, 2025 (Note: Fixed simple_format error in print + New Magenta Logo)
+### December 6, 2025 (Note: Fixed simple_format error in print + New Magenta Logo + customer_note Import)
 - ✅ Fixed `NoMethodError` when printing order card: removed invalid `simple_format()` helper
 - ✅ Replaced with CSS `white-space: pre-wrap` for proper line break handling
 - ✅ Updated new Magenta logo in `/public/logo.png`
+- ✅ Added `customer_note` import from JSON orders: field now mapped during order creation
 
 ### December 5, 2025 (Analytics Dashboard & Filtri + Category Filter on /line_items + Editable Notes on Order Details)
 - ✅ Created complete Analytics Dashboard at `/analytics`

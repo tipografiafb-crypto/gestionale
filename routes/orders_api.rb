@@ -50,6 +50,7 @@ class PrintOrchestrator < Sinatra::Base
         order = Order.create!(
           store: store,
           external_order_code: data['external_order_code'],
+          customer_note: data['customer_note'],
           status: 'new'
         )
         

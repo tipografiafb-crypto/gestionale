@@ -1,0 +1,72 @@
+{
+    "id": "DE11422",
+    "number": "DE11422",
+    "site_name": "TPH DE",
+    "customer_note": "note del cliente impostate",
+    "print_files_with_cart_id": [
+        {
+            "cart_id": "MITOG46L",
+            "print_files": [
+                "https://de.thepickshouse.com/wp-content/uploads/lumise_data/orders/2025/12/mgJtTrHZPR-stage1.png",
+                "https://de.thepickshouse.com/wp-content/uploads/lumise_data/orders/2025/12/6VOjg9BGQR-stage2.png"
+            ]
+        }
+    ],
+    "screenshots_with_cart_id": [
+        {
+            "cart_id": "MITOG46L",
+            "screenshots": [
+                "https://de.thepickshouse.com/wp-content/uploads/lumise_data/orders/2025/12/gw8OU6GP3m.png",
+                "https://de.thepickshouse.com/wp-content/uploads/lumise_data/orders/2025/12/pr8JmLQSs6.png"
+            ]
+        }
+    ],
+    "line_items": [
+        {
+            "quantity": 5,
+            "sku": "TPH101-71",
+            "image": {
+                "id": 7052,
+                "src": "https://de.thepickshouse.com/wp-content/uploads/2023/03/standard-black.png"
+            },
+            "meta_data": {
+                "lumise_data": {
+                    "id": "variable:12524",
+                    "cart_id": "MITOG46L",
+                    "qty": 5,
+                    "product_id": "variable:12524",
+                    "product_cms": 12515,
+                    "product_name": "Schwarze Plektren aus Delrin - 0.71 - Medium, 2-Seitig",
+                    "price": {
+                        "total": 22,
+                        "fixed": 0,
+                        "resource": 0,
+                        "template": 0,
+                        "base": 4.4000000000000003552713678800500929355621337890625,
+                        "printing_price": 0
+                    },
+                    "options": {
+                        "quantity": "5"
+                    },
+                    "variation": null,
+                    "attributes": {
+                        "quantity": {
+                            "id": "quantity",
+                            "name": "Anzahl",
+                            "value": "5",
+                            "type": "quantity"
+                        }
+                    },
+                    "ext_attributes": {
+                        "pa_staerke": "0-71-medium",
+                        "pa_druckseitenanzahl": "2-seitig"
+                    },
+                    "printing": 12,
+                    "resource": [],
+                    "template": false,
+                    "file": "2025/12/MITOG46L_wR3qWOa3WA"
+                }
+            }
+        }
+    ]
+}
