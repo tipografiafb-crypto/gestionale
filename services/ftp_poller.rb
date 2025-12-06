@@ -115,8 +115,13 @@ class FTPPoller
       # Parse JSON
       raw_data = JSON.parse(content)
       
+      # DEBUG: Log the parsed data
+      puts "[FTPPoller DEBUG] Processing file: #{filename}"
+      puts "[FTPPoller DEBUG] customer_note: #{raw_data['customer_note'].inspect}"
+      
       # Convert WooCommerce format to standard format
       data = normalize_order_data(raw_data)
+      puts "[FTPPoller DEBUG] After normalize - customer_note: #{data['customer_note'].inspect}"
       
       # Validate store exists and is active
       store = Store.find_by_code(data['store_id'])
@@ -147,6 +152,8 @@ class FTPPoller
         order = Order.create!(
           store: store,
           external_order_code: data['external_order_code'],
+          customer_name: data['customer_name'],
+          customer_note: data['customer_note'],
           status: 'new',
           source: 'ftp'
         )
