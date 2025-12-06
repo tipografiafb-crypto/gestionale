@@ -138,8 +138,8 @@
   <% if @order.customer_note.present? %>
     <div class="section">
       <div class="section-title">Note Ordine</div>
-      <div style="background: #fff9e6; border: 1px solid #ffd700; padding: 12px; border-radius: 4px; line-height: 1.5;">
-        <%= simple_format(@order.customer_note) %>
+      <div style="background: #fff9e6; border: 1px solid #ffd700; padding: 12px; border-radius: 4px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word;">
+        <%= @order.customer_note %>
       </div>
     </div>
   <% end %>

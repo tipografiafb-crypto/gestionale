@@ -81,7 +81,7 @@
         <strong>Note Ordine</strong>
       </div>
       <div class="card-body">
-        <textarea class="form-control" id="orderNotes" rows="6" placeholder="Aggiungi una nota..." style="font-size: 13px; font-family: monospace;"><%= @order.customer_note %></textarea>
+        <textarea class="form-control" id="orderNotes" rows="6" placeholder="Aggiungi una nota..." style="font-size: 13px; font-family: monospace; white-space: pre-wrap;"><%= @order.customer_note %></textarea>
         <div style="display: flex; gap: 8px; margin-top: 12px;">
           <button class="btn btn-primary btn-sm" onclick="saveOrderNotes(<%= @order.id %>)">
             <i class="fas fa-save"></i> Salva
