@@ -13,11 +13,11 @@ class PrintOrchestrator < Sinatra::Base
       data = JSON.parse(request.body.read)
       
       # DEBUG: Log incoming data for troubleshooting
-      Rails.logger.info "[IMPORT DEBUG] Incoming JSON keys: #{data.keys.join(', ')}"
-      Rails.logger.info "[IMPORT DEBUG] customer_note value: #{data['customer_note'].inspect}"
-      Rails.logger.info "[IMPORT DEBUG] site_name value: #{data['site_name'].inspect}"
-      Rails.logger.info "[IMPORT DEBUG] id value: #{data['id'].inspect}"
-      Rails.logger.info "[IMPORT DEBUG] line_items count: #{(data['line_items'] || []).count}"
+      puts "[IMPORT DEBUG] Incoming JSON keys: #{data.keys.join(', ')}"
+      puts "[IMPORT DEBUG] customer_note value: #{data['customer_note'].inspect}"
+      puts "[IMPORT DEBUG] site_name value: #{data['site_name'].inspect}"
+      puts "[IMPORT DEBUG] id value: #{data['id'].inspect}"
+      puts "[IMPORT DEBUG] line_items count: #{(data['line_items'] || []).count}"
       
       # Map WooCommerce format to internal format
       # Handle both direct API format and WooCommerce JSON format
@@ -34,7 +34,7 @@ class PrintOrchestrator < Sinatra::Base
         data['external_order_code'] = data['id'] || data['number']
       end
       
-      Rails.logger.info "[IMPORT DEBUG] After mapping - store_id: #{data['store_id'].inspect}, external_order_code: #{data['external_order_code'].inspect}, customer_note: #{data['customer_note'].inspect}"
+      puts "[IMPORT DEBUG] After mapping - store_id: #{data['store_id'].inspect}, external_order_code: #{data['external_order_code'].inspect}, customer_note: #{data['customer_note'].inspect}"
       
       # Validate store exists and is active
       store = Store.find_by_code(data['store_id'])
