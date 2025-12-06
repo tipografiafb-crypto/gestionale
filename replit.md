@@ -19,6 +19,28 @@ The Print Order Orchestrator is a local print order management system designed t
 4. Track job status and results
 5. Provide simple web interface for operators
 
+## Recent Work
+
+### December 6, 2025 - Autopilot Preprint System + Bug Fixes
+- ✅ **IMPLEMENTED AUTOPILOT PREPRINT FEATURE**:
+  - Created `services/autopilot_service.rb` - automatically sends items to Switch preprint when category autopilot is enabled
+  - Added `autopilot_preprint_enabled` boolean column to categories table
+  - Updated `quick_start_ubuntu_safe.sh` to auto-migrate autopilot columns for Ubuntu installations
+  
+- ✅ **Autopilot Integration**:
+  - FTPPoller calls `AutopilotService.process_order()` after asset download
+  - API import (POST /api/orders/import) calls autopilot service after import
+  - Logic: Category has preprint autopilot? → YES: auto-send to Switch | NO: wait for operator
+  
+- ✅ **Category Management UI**:
+  - Added "Autopilot Preprint" column in `/product_categories` list with toggle button (⚡ ABILITATO / Disabilitato)
+  - Added checkbox in category form (create/edit) to enable/disable autopilot preprint
+  - Created POST `/product_categories/:id/toggle_autopilot` route for quick enable/disable
+  
+- ✅ **Fixed FTP Import**: FTPPoller now saves `customer_name` and `customer_note` to database
+  
+- ✅ **Fixed Delete Button**: Orders list `/orders` delete button now properly deletes orders (was opening order page)
+
 ## System Architecture
 
 The project follows an Enterprise-Grade Module Routing System with a feature-based organization.
@@ -30,27 +52,48 @@ The project follows an Enterprise-Grade Module Routing System with a feature-bas
 - **Server**: Puma 6.6 on port 5000
 - **Frontend**: Bootstrap 5 with ERB templates
 
-### UI/UX Decisions
-The web interface for operators (`ui` module) is built using ERB templates and Bootstrap 5 for a responsive and functional design. The system includes an Analytics Dashboard with interactive charts (Chart.js) for daily sales, top products, sales by category, and weekly comparisons, along with filtering capabilities. Order detail pages include editable notes for operators.
+### Key Features
+- **Autopilot Preprint System**: Categories can be configured to automatically send items to Switch preprint when orders arrive
+- **Order Management**: Handles order import via API and FTP, supporting WooCommerce JSON format mapping
+- **Asset Management**: Downloads and organizes product images locally, tracking them via `assets` table
+- **Switch Integration**: Communicates with Enfocus Switch for automated print workflow (preprint, print, label)
+- **Aggregated Jobs System**: Implements batch processing for multiple items
+- **Print Workflow**: Manages print statuses and facilitates bulk print operations
+- **Analytics Dashboard**: Interactive charts for daily sales, top products, sales by category
+- **Customer Notes**: Saves and displays customer notes/instructions from orders
 
-### Technical Implementations
-- **Order Management**: Handles order import via API and FTP, supporting WooCommerce JSON format mapping.
-- **Asset Management**: Downloads and organizes product images locally, tracking them via `assets` table.
-- **Switch Integration**: Communicates with Enfocus Switch for automated print workflow, supporting preprint, print, and label operations with standardized webhook payloads.
-- **Aggregated Jobs System**: Implements batch processing for multiple items, moving through statuses like pending, aggregating, aggregated, printing, and completed.
-- **Print Workflow**: Manages print statuses (e.g., 'ripped', 'processing', 'completed') and facilitates bulk print operations.
-- **Database Schema**: Utilizes ActiveRecord for PostgreSQL, with tables for `stores`, `orders`, `order_items`, `assets`, `switch_jobs`, `aggregated_jobs`, and `aggregated_job_items`.
+### Database Schema
+Key tables:
+- `stores`, `orders`, `order_items`, `assets`, `switch_jobs`, `aggregated_jobs`, `aggregated_job_items`
+- `product_categories` (with `autopilot_preprint_enabled` boolean)
+- `print_flows`, `products`, `inventory`, `backup_configs`
 
-### System Design Choices
-The project emphasizes a modular structure, separating concerns into distinct modules like `orders`, `storage`, `switch`, `ui`, `integration`, and `quality`. This design supports targeted development and maintenance, guided by a system_program structure for AI agent workflows.
+### API Endpoints
+
+**Order Import:**
+- `POST /api/orders/import` - Import new order with auto-autopilot processing
+
+**Autopilot Control:**
+- `POST /product_categories/:id/toggle_autopilot` - Enable/disable autopilot preprint for category
+
+**Web UI:**
+- `GET /product_categories` - List categories with autopilot status
+- `POST /product_categories/:id/toggle_autopilot` - Quick toggle autopilot
+- `GET /product_categories/:id/edit` - Edit category with autopilot checkbox
+- `GET /orders` - List orders with delete button (fixed)
+
+### Configuration Files
+- `quick_start_ubuntu_safe.sh` - Safe database setup for Ubuntu (includes autopilot columns)
+- `quick_start_linux.sh` - Database setup for Linux
+- `.env` - Environment variables (FTP credentials, Switch endpoint, etc.)
 
 ## External Dependencies
 
-- **PostgreSQL**: Primary database for all application data, configured via Replit's built-in database service.
-- **Enfocus Switch**: External print automation software. The system integrates with Switch via webhooks for sending job requests (preprint, print, label) and receiving callbacks.
-- **http gem**: Used as an HTTP client for external service interactions, including asset downloads and sending webhooks to Switch.
-- **sinatra-activerecord gem**: Facilitates database interactions with PostgreSQL.
-- **pg gem**: PostgreSQL adapter for Ruby.
-- **dotenv gem**: Manages environment variables for configuration.
-- **Chart.js**: JavaScript library used for rendering interactive charts in the analytics dashboard.
-- **FTP Server (Optional)**: For optional FTP-based order import, requiring `FTP_HOST`, `FTP_USER`, `FTP_PASS`, etc., environment variables.
+- **PostgreSQL**: Primary database for all application data
+- **Enfocus Switch**: External print automation software at http://192.168.1.162:51088
+- **http gem**: HTTP client for asset downloads and Switch webhooks
+- **sinatra-activerecord gem**: Database interactions
+- **pg gem**: PostgreSQL adapter
+- **dotenv gem**: Environment variable management
+- **Chart.js**: Interactive charts for analytics
+- **FTP Server**: Optional FTP-based order import

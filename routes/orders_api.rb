@@ -135,6 +135,10 @@ class PrintOrchestrator < Sinatra::Base
         }
       end
       
+      # Process autopilot for items with preprint enabled categories
+      order_after_download = Order.find(result[:order_id])
+      AutopilotService.process_order(order_after_download)
+      
       status 200
       { 
         success: true

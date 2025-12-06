@@ -20,7 +20,8 @@ class PrintOrchestrator < Sinatra::Base
     category = ProductCategory.new(
       name: params[:name],
       description: params[:description],
-      active: params[:active] == 'true'
+      active: params[:active] == 'true',
+      autopilot_preprint_enabled: params[:autopilot_preprint_enabled] == 'true'
     )
 
     if category.save
@@ -47,7 +48,8 @@ class PrintOrchestrator < Sinatra::Base
     category.update(
       name: params[:name],
       description: params[:description],
-      active: params[:active] == 'true'
+      active: params[:active] == 'true',
+      autopilot_preprint_enabled: params[:autopilot_preprint_enabled] == 'true'
     )
 
     if category.save
@@ -66,6 +68,17 @@ class PrintOrchestrator < Sinatra::Base
   delete '/product_categories/:id' do
     ProductCategory.destroy(params[:id])
     redirect '/product_categories?success=deleted'
+  rescue ActiveRecord::RecordNotFound
+    status 404
+  end
+
+  # POST /product_categories/:id/toggle_autopilot - Toggle autopilot preprint
+  post '/product_categories/:id/toggle_autopilot' do
+    category = ProductCategory.find(params[:id])
+    category.update(autopilot_preprint_enabled: !category.autopilot_preprint_enabled)
+    
+    status_text = category.autopilot_preprint_enabled ? "abilitato" : "disabilitato"
+    redirect "/product_categories?success=autopilot_#{status_text}"
   rescue ActiveRecord::RecordNotFound
     status 404
   end

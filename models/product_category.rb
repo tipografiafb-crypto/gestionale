@@ -13,4 +13,9 @@ class ProductCategory < ActiveRecord::Base
   def product_count
     products.count
   end
+
+  # Autopilot for preprint
+  def autopilot_preprint_status
+    autopilot_preprint_enabled ? "ABILITATO" : "disabilitato"
+  end
 end

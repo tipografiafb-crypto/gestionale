@@ -22,6 +22,7 @@
             <th>Descrizione</th>
             <th>Prodotti</th>
             <th>Status</th>
+            <th>Autopilot Preprint</th>
             <th>Azioni</th>
           </tr>
         </thead>
@@ -32,6 +33,15 @@
               <td><%= category.description %></td>
               <td><span class="badge bg-info"><%= category.product_count %></span></td>
               <td><%= category.active? ? '<i class="fas fa-check-circle"></i> Attiva' : '⏸️ Inattiva' %></td>
+              <td>
+                <form action="/product_categories/<%= category.id %>/toggle_autopilot" method="post" style="display:inline;">
+                  <% if category.autopilot_preprint_enabled %>
+                    <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-bolt"></i> ABILITATO</button>
+                  <% else %>
+                    <button type="submit" class="btn btn-sm btn-secondary"><i class="fas fa-bolt"></i> Disabilitato</button>
+                  <% end %>
+                </form>
+              </td>
               <td>
                 <a href="/product_categories/<%= category.id %>/edit" class="btn btn-sm btn-warning"><i class="fas fa-edit"></i> Modifica</a>
                 <form action="/product_categories/<%= category.id %>" method="post" style="display:inline;">

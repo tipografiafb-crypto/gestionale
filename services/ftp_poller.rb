@@ -200,6 +200,9 @@ class FTPPoller
       puts "[FTPPoller] ✓ Imported order: #{result[:external_order_code]} (ID: #{result[:order_id]}) - #{result[:items_count]} items, #{result[:assets_count]} assets"
       puts "[FTPPoller] ✓ Downloaded: #{download_results[:downloaded]}, Errors: #{download_results[:errors]}, Skipped: #{download_results[:skipped]}"
       
+      # Process autopilot for items with preprint enabled categories
+      AutopilotService.process_order(order)
+      
       # Move file to imported folder after successful import
       move_file_to_imported(ftp, filename)
       

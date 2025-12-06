@@ -52,6 +52,13 @@ ALTER TABLE print_flows
 SQLEOF
 echo -e "${GREEN}✓ Print flows columns verified${NC}"
 
+# Ensure categories has autopilot for preprint
+psql "$DATABASE_URL" << 'SQLEOF'
+ALTER TABLE categories 
+  ADD COLUMN IF NOT EXISTS autopilot_preprint_enabled boolean DEFAULT false;
+SQLEOF
+echo -e "${GREEN}✓ Categories autopilot columns verified${NC}"
+
 # Create backup_configs if missing
 psql "$DATABASE_URL" << 'SQLEOF'
 CREATE TABLE IF NOT EXISTS backup_configs (
