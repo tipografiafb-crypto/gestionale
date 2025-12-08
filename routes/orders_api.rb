@@ -137,8 +137,11 @@ class PrintOrchestrator < Sinatra::Base
       end
       
       # Process autopilot for items with preprint enabled categories
+      puts "[API] 🔷 About to find order #{result[:order_id]}"
       order_after_download = Order.find(result[:order_id])
+      puts "[API] 🔶 Order found, calling AutopilotService.process_order"
       AutopilotService.process_order(order_after_download)
+      puts "[API] 🔵 AutopilotService completed"
       
       status 200
       { 
@@ -146,12 +149,16 @@ class PrintOrchestrator < Sinatra::Base
       }.merge(result).to_json
       
     rescue JSON::ParserError => e
+      puts "[API] ❌ JSON Parse Error: #{e.message}"
       status 400
       { success: false, error: "Invalid JSON: #{e.message}" }.to_json
     rescue ActiveRecord::RecordInvalid => e
+      puts "[API] ❌ Record Invalid Error: #{e.message}"
       status 422
       { success: false, error: e.message }.to_json
     rescue StandardError => e
+      puts "[API] ❌ StandardError: #{e.class} - #{e.message}"
+      puts "[API] ❌ Backtrace: #{e.backtrace.first(5).join("\n")}"
       status 500
       { success: false, error: "Server error: #{e.message}" }.to_json
     end

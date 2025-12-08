@@ -21,6 +21,21 @@ The Print Order Orchestrator is a local print order management system designed t
 
 ## Recent Work
 
+### December 8, 2025 - Autopilot Debugging & Fixes
+- ✅ **Fixed Missing Database Column**: Added `autopilot_preprint_enabled` to product_categories for existing installations via SQL
+- ✅ **Fixed FTPPoller require**: Added `require_relative 'autopilot_service'` to services/ftp_poller.rb
+- ✅ **Fixed Orders API require**: Added `require_relative '../services/autopilot_service'` to routes/orders_api.rb (PRIMARY BUG)
+- ✅ **Enhanced AutopilotService logging**: Added detailed debug messages for troubleshooting:
+  - "[AutopilotService] ⏱ STARTING" - marks entry point
+  - "[AutopilotService] → Checking item" - item validation
+  - "[AutopilotService] Category: {name}, Autopilot: {status}" - category autopilot status
+  - "[AutopilotService] ✓ SUCCESS" or "[AutopilotService] ✗ FAILED" - outcome
+- ✅ **Enhanced API error logging**: Added [API] prefix messages to orders_api.rb:
+  - "[API] 🔷 About to find order" - before order lookup
+  - "[API] 🔶 Order found, calling AutopilotService" - before autopilot call
+  - "[API] 🔵 AutopilotService completed" - after successful completion
+  - "[API] ❌ StandardError/JSON/Record errors" - error tracking with backtrace
+
 ### December 6, 2025 - Autopilot Preprint System + Bug Fixes
 - ✅ **IMPLEMENTED AUTOPILOT PREPRINT FEATURE**:
   - Created `services/autopilot_service.rb` - automatically sends items to Switch preprint when category autopilot is enabled
@@ -97,3 +112,30 @@ Key tables:
 - **dotenv gem**: Environment variable management
 - **Chart.js**: Interactive charts for analytics
 - **FTP Server**: Optional FTP-based order import
+
+## Debugging Autopilot
+
+If autopilot is not working, check logs for these messages:
+
+**SUCCESS FLOW:**
+```
+[API] 🔷 About to find order {id}
+[API] 🔶 Order found, calling AutopilotService.process_order
+[AutopilotService] ⏱ STARTING: Processing order {code}
+[AutopilotService] → Checking item {id} (SKU: {sku})
+[AutopilotService] Category: {name}, Autopilot: true
+[AutopilotService] ✓ SUCCESS: Item {id} sent to preprint!
+[API] 🔵 AutopilotService completed
+```
+
+**FAILURE FLOW:**
+```
+[API] ❌ StandardError: {error_class} - {error_message}
+[API] ❌ Backtrace: {stack_trace}
+```
+
+**POSSIBLE ISSUES:**
+1. **No product found for item** - Check if order items have valid SKUs in products table
+2. **No category found for product** - Check if product has category assignment
+3. **Autopilot NOT enabled for this category** - Go to /product_categories and enable autopilot with ⚡ toggle
+4. **Item cannot be sent to preprint** - Check item status and preprint_status values
