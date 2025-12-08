@@ -62,11 +62,18 @@ class AutopilotService
 
     # Send to Switch for preprint
     begin
-      SwitchIntegration.new.send_to_preprint(item)
-      puts "[AutopilotService]   ✓ SUCCESS: Item #{item.id} sent to preprint!"
-      return true
+      result = SwitchIntegration.new.send_to_preprint(item)
+      
+      if result&.dig(:success)
+        puts "[AutopilotService]   ✓ SUCCESS: Item #{item.id} sent to preprint!"
+        return true
+      else
+        error_msg = result&.dig(:error) || "Unknown error"
+        puts "[AutopilotService]   ✗ Failed to send to Switch: #{error_msg}"
+        return false
+      end
     rescue => e
-      puts "[AutopilotService]   ✗ FAILED: #{e.message}"
+      puts "[AutopilotService]   ✗ FAILED with exception: #{e.message}"
       puts "[AutopilotService]   Backtrace: #{e.backtrace.first(3).join("\n")}"
       return false
     end

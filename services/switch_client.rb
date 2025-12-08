@@ -73,7 +73,9 @@ class SwitchClient
     generated_job_id = generate_job_id(job_data)
     
     # Simulation mode for testing
+    puts "[SWITCH_CLIENT] ENV['SWITCH_SIMULATION']: #{ENV['SWITCH_SIMULATION'].inspect}"
     if ENV['SWITCH_SIMULATION'] == 'true'
+      puts "[SWITCH_CLIENT] ✓ SIMULATION MODE - NOT connecting to real Switch"
       return load_simulation_response(generated_job_id)
     end
 
