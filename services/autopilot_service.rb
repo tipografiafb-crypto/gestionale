@@ -42,8 +42,16 @@ class AutopilotService
     end
 
     # Check if item can be sent to preprint
+    puts "[AutopilotService]   → Checking preprint readiness..."
+    puts "[AutopilotService]     • preprint_status: #{item.preprint_status}"
+    puts "[AutopilotService]     • assets count: #{item.assets.count}"
+    puts "[AutopilotService]     • assets details:"
+    item.assets.each do |asset|
+      puts "[AutopilotService]       - #{asset.asset_type}: local_path=#{asset.local_path.inspect}, file_exists=#{asset.local_path ? File.exist?(asset.local_path_full) : 'N/A'}"
+    end
+    
     unless item.can_send_to_preprint?
-      puts "[AutopilotService]   ✗ Item cannot be sent to preprint (status: #{item.preprint_status})"
+      puts "[AutopilotService]   ✗ Item cannot be sent to preprint (status: #{item.preprint_status}, assets_ready: #{item.assets.empty? || item.assets.any?(&:downloaded?)})"
       return false
     end
 
