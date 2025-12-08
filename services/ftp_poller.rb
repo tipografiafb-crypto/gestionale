@@ -4,6 +4,7 @@
 
 require 'net/ftp'
 require 'json'
+require_relative 'autopilot_service'
 
 class FTPPoller
   def initialize
