@@ -2,6 +2,7 @@
 # @domain api
 # Orders API routes - Handles order import and management
 require 'json'
+require_relative '../services/autopilot_service'
 
 class PrintOrchestrator < Sinatra::Base
   # POST /api/orders/import
