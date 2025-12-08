@@ -2,6 +2,8 @@
 # @domain service
 # Autopilot Service - Automatically sends items to Switch for preprint when category has autopilot enabled
 
+require_relative 'switch_integration'
+
 class AutopilotService
   def self.process_order(order)
     puts "[AutopilotService] ⏱ STARTING: Processing order #{order.external_order_code} for autopilot"
