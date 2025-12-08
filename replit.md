@@ -21,7 +21,33 @@ The Print Order Orchestrator is a local print order management system designed t
 
 ## Recent Work
 
-### December 8, 2025 - Autopilot Debugging & Fixes
+### December 8, 2025 - Autopilot System Complete & Fixed
+- ✅ **FIXED CRITICAL BUG**: Created missing `services/switch_integration.rb` class
+  - AutopilotService was calling `SwitchIntegration.send_to_preprint()` but class didn't exist
+  - Error: "uninitialized constant AutopilotService::SwitchIntegration"
+  - Solution: Created wrapper class with `send_to_preprint(order_item)` method
+  - Added `require_relative 'switch_integration'` to autopilot_service.rb
+  
+- ✅ **ENHANCED AUTOPILOT LOGGING**: Added detailed debug messages to understand flow:
+  - `[AutopilotService] → Checking preprint readiness...` - marks asset validation
+  - Shows `preprint_status`, asset count, and file existence for each asset
+  - New logs help diagnose why items don't send to preprint
+  
+- ✅ **FIXED PRODUCT CATEGORY ASSIGNMENT**: 
+  - Product SKU "TPH001-88" (ID 7) was missing `product_category_id`
+  - Manually assigned to category "Plettri" (ID 1) which has autopilot enabled
+  - Now autopilot can find category and check if autopilot is enabled
+  
+- ✅ **UPDATED quick_start_ubuntu_safe.sh**:
+  - Fixed table name from `categories` to `product_categories`
+  - Script now correctly adds `autopilot_preprint_enabled` column for new installations
+  
+- 🎯 **AUTOPILOT NOW FULLY FUNCTIONAL**:
+  - New orders via FTP with enabled category → automatically sent to Switch (or simulated)
+  - Preprint status updates from 'pending' to 'processing'
+  - Complete logging trail for debugging
+
+### December 8, 2025 - Earlier Autopilot Debugging & Fixes
 - ✅ **Fixed Missing Database Column**: Added `autopilot_preprint_enabled` to product_categories for existing installations via SQL
 - ✅ **Fixed FTPPoller require**: Added `require_relative 'autopilot_service'` to services/ftp_poller.rb
 - ✅ **Fixed Orders API require**: Added `require_relative '../services/autopilot_service'` to routes/orders_api.rb (PRIMARY BUG)
