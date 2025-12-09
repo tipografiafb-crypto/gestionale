@@ -1,14 +1,16 @@
 # @feature autopilot
 # @domain services
-# SwitchIntegration - Wrapper for sending OrderItems to Switch preprint
-# Uses the SAME payload format as manual send (build_payload in SwitchClient)
+# SwitchIntegration - Executes the SAME preprint logic as manual send_preprint route
 # Retrieves the preprint endpoint dynamically from the product's default print flow
+# Sends EACH print asset individually (same as manual route)
 
 require_relative 'switch_client'
 
 class SwitchIntegration
   def send_to_preprint(order_item)
     puts "[SwitchIntegration] Preparing to send item #{order_item.id} to Switch preprint"
+    
+    order = order_item.order
     
     # Get the preprint webhook endpoint from product's default print flow
     product = order_item.product
@@ -34,59 +36,76 @@ class SwitchIntegration
     webhook_path = preprint_webhook.hook_path
     puts "[SwitchIntegration] Using webhook endpoint: #{webhook_path} (from print flow: #{print_flow.name})"
     
-    # Build job payload for Switch - SAME FORMAT as manual send
-    job_data = build_preprint_payload(order_item)
-    
-    puts "[SwitchIntegration] Job data prepared: #{job_data.inspect}"
-    
-    # Send to Switch using the webhook endpoint from print flow
-    result = SwitchClient.send_to_switch(
-      webhook_path: webhook_path,
-      job_data: job_data
+    # Store print flow and campi_webhook (same as manual route does)
+    campi_webhook = { "percentuale" => "0" }
+    order_item.update(
+      preprint_print_flow_id: print_flow.id,
+      preprint_status: 'processing',
+      campi_webhook: campi_webhook
     )
     
-    if result[:success]
-      puts "[SwitchIntegration] ✓ Successfully sent to Switch: #{result[:message]}"
-      # Update order item status to 'processing' if successful
-      order_item.update(preprint_status: 'processing') if order_item.preprint_status == 'pending'
-    else
-      puts "[SwitchIntegration] ✗ Failed to send to Switch: #{result[:error]}"
+    # Get all print assets (same as manual route)
+    print_assets = order_item.switch_print_assets
+    unless print_assets.any?
+      puts "[SwitchIntegration] ✗ No print assets found for item #{order_item.id}"
+      order_item.update(preprint_status: 'failed')
+      return { success: false, error: 'No print assets found' }
     end
     
-    result
-  end
-
-  private
-
-  def build_preprint_payload(order_item)
-    order = order_item.order
-    product = order_item.product
-    primary_asset = order_item.assets.first
-    
-    # Use SAME payload format as manual send (from SwitchClient.build_payload)
-    {
-      id_riga: order_item.id,
-      codice_ordine: order.external_order_code,
-      product: product ? "#{product.sku} - #{product.name}" : order_item.sku,
-      operation_id: 1, # 1 = PREPRINT operation
-      job_operation_id: "autopilot-order-#{order.id}-item-#{order_item.id}",
-      url: "#{gestionale_base_url}/api/assets/#{primary_asset&.id}/download",
-      widegest_url: "#{server_base_url}/api/v1/reports_create",
-      filename: primary_asset&.filename_from_url || "#{order.external_order_code}_#{order_item.id}.png",
-      quantita: order_item.quantity,
-      materiale: product&.material || "N/A",
-      campi_custom: {},
-      opzioni_stampa: {},
-      campi_webhook: {}
-    }
-  end
-
-  def server_base_url
-    ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
-  end
-
-  def gestionale_base_url
-    # URL for downloading assets from Gestionale (external management system)
-    ENV['GESTIONALE_BASE_URL'] || 'http://192.168.1.55:5000'
+    # Send EACH asset individually (same as manual route - lines 66-97)
+    begin
+      errors = []
+      successful_assets = []
+      server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
+      
+      print_assets.each do |print_asset|
+        puts "[SwitchIntegration] Processing asset: #{print_asset.id}"
+        
+        # Build Switch payload EXACTLY as manual route does
+        job_data = {
+          id_riga: order_item.item_number,
+          codice_ordine: order.external_order_code,
+          product: "#{product&.sku} - #{product&.name}",
+          operation_id: 1,  # 1=prepress
+          job_operation_id: order_item.id.to_s,
+          url: "#{server_url}/api/assets/#{print_asset.id}/download",
+          widegest_url: "#{server_url}/api/v1/reports_create",
+          filename: order_item.switch_filename_for_asset(print_asset) || "#{order.external_order_code.downcase}-#{order_item.id}.png",
+          quantita: order_item.quantity,
+          materiale: product&.notes || 'N/A',
+          campi_custom: {},
+          opzioni_stampa: {},
+          campi_webhook: campi_webhook
+        }
+        
+        puts "[SwitchIntegration] Calling SwitchClient.send_to_switch with webhook_path: #{webhook_path.inspect}"
+        result = SwitchClient.send_to_switch(
+          webhook_path: webhook_path,
+          job_data: job_data
+        )
+        puts "[SwitchIntegration] Result: #{result.inspect}"
+        
+        if result[:success]
+          successful_assets << print_asset.id
+        else
+          errors << result[:error]
+        end
+      end
+      
+      if errors.any?
+        order_item.update(preprint_status: 'failed')
+        puts "[SwitchIntegration] ✗ Failed to send some assets: #{errors.join(', ')}"
+        return { success: false, error: errors.join(', ') }
+      else
+        order_item.update(preprint_status: 'processing', preprint_job_id: successful_assets.join(','))
+        puts "[SwitchIntegration] ✓ Successfully sent #{successful_assets.length} asset(s) to Switch"
+        return { success: true, message: "Sent #{successful_assets.length} asset(s) to Switch", job_ids: successful_assets }
+      end
+    rescue => e
+      order_item.update(preprint_status: 'failed')
+      puts "[SwitchIntegration] ✗ Exception: #{e.class}: #{e.message}"
+      puts "[SwitchIntegration] Backtrace: #{e.backtrace.first(3).join("\n")}"
+      return { success: false, error: "#{e.class}: #{e.message}" }
+    end
   end
 end

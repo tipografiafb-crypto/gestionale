@@ -21,11 +21,21 @@ The Print Order Orchestrator is a local print order management system designed t
 
 ## Recent Work
 
-### December 9, 2025 - Autopilot Payload Fixed (Dynamic Endpoint from Print Flow + Material Field)
-- ✅ **FIXED AUTOPILOT PAYLOAD**: Autopilot was using WRONG endpoint and INCOMPLETE payload
-  - **Previous**: Used hardcoded `/jobs/preprint` endpoint with minimal payload (operation_id, codice_ordine, id_riga, sku, quantity, product_name, category, print_files, timestamp)
-  - **Now**: Retrieves endpoint DYNAMICALLY from product's default print flow with COMPLETE payload
-  - **Complete payload includes**: job_operation_id, url (gestionale asset download), widegest_url (callback), filename, quantita, materiale, campi_custom, opzioni_stampa, campi_webhook
+### December 9, 2025 - Autopilot Payload Fixed (IDENTICAL to Manual Send)
+- ✅ **AUTOPILOT NOW EXECUTES IDENTICAL LOGIC TO MANUAL SEND**:
+  - Copies EXACT payload structure from `/orders/:order_id/items/:item_id/send_preprint` route
+  - Sends EACH print asset individually (not just first asset)
+  - Uses correct field mappings from manual route
+  
+- ✅ **FIXED PAYLOAD FIELDS**:
+  - `id_riga`: Uses `item.item_number` (not `item.id`)
+  - `job_operation_id`: Simple `item.id.to_s` (not prefixed)
+  - `filename`: Dynamic per asset via `item.switch_filename_for_asset(print_asset)` (not hardcoded)
+  - `materiale`: From `product&.notes || 'N/A'` (not custom `product.material()` method)
+  - `url`: Server base URL `/api/assets/#{asset.id}/download` (not gestionale)
+  - `campi_webhook`: Includes `{ "percentuale" => "0" }` (not empty)
+  - `preprint_print_flow_id`: Stored in order_item (same as manual)
+  - `preprint_job_id`: Comma-separated list of successful asset IDs
   
 - ✅ **DYNAMIC ENDPOINT RETRIEVAL**: 
   - For each order item, retrieves: `product.default_print_flow.preprint_webhook.hook_path`
@@ -33,21 +43,11 @@ The Print Order Orchestrator is a local print order management system designed t
   - Validates all steps: product → default_print_flow → preprint_webhook → hook_path
   - Graceful error handling if any step missing
   
-- ✅ **FIXED MATERIAL FIELD ERROR**: 
-  - Product model didn't have `material` field (was being accessed but undefined)
-  - Added `material()` method to Product model returning "N/A" as default
-  - Extensible for future: can add actual material DB column and update method
-  
-- ✅ **Updated switch_integration.rb**: 
-  - Dynamically retrieves webhook endpoint from product's default print flow
-  - Uses `build_preprint_payload()` that mirrors `SwitchClient.build_payload()` format exactly
-  - Uses correct URLs: Gestionale base URL for asset downloads + server base URL for Switch callbacks
-  
-- 🎯 **AUTOPILOT NOW FULLY COMPATIBLE WITH REAL SWITCH**: 
-  - Endpoint configurable per product/print-flow (dynamic, not hardcoded)
-  - Same payload format as manual send = guaranteed compatibility
-  - All required fields present and validated
-  - Dynamic endpoint retrieval supports multi-endpoint Switch environments
+- 🎯 **AUTOPILOT NOW 100% COMPATIBLE WITH MANUAL SEND**:
+  - Identical payload format = guaranteed Switch compatibility
+  - Sends multiple assets per item (same as manual)
+  - Same field mappings and URL structures
+  - Error handling mirrors manual route logic
 
 ### December 8, 2025 - Autopilot System Complete & Fixed
 - ✅ **FIXED CRITICAL BUG**: Created missing `services/switch_integration.rb` class
