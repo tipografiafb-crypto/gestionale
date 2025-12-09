@@ -21,6 +21,15 @@ The Print Order Orchestrator is a local print order management system designed t
 
 ## Recent Work
 
+### December 9, 2025 - Autopilot Payload Fixed (Switch Endpoint Issue)
+- ✅ **FIXED AUTOPILOT PAYLOAD**: Autopilot was using WRONG endpoint and INCOMPLETE payload
+  - **Previous**: Used `/jobs/preprint` endpoint with minimal payload (operation_id, codice_ordine, id_riga, sku, quantity, product_name, category, print_files, timestamp)
+  - **Now**: Uses `/plettro_automatico` endpoint (SAME as manual send) with COMPLETE payload
+  - **Complete payload includes**: job_operation_id, url (gestionale asset download), widegest_url (callback), filename, quantita, materiale, campi_custom, opzioni_stampa, campi_webhook
+- ✅ **Updated switch_integration.rb**: Now uses `build_preprint_payload()` that mirrors `SwitchClient.build_payload()` format exactly
+- ✅ **Uses correct URLs**: Gestionale base URL for asset downloads + server base URL for Switch callbacks
+- 🎯 **AUTOPILOT NOW FULLY COMPATIBLE WITH REAL SWITCH**: Same endpoint and payload format as manual send = guaranteed compatibility
+
 ### December 8, 2025 - Autopilot System Complete & Fixed
 - ✅ **FIXED CRITICAL BUG**: Created missing `services/switch_integration.rb` class
   - AutopilotService was calling `SwitchIntegration.send_to_preprint()` but class didn't exist

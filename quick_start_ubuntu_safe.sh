@@ -1,4 +1,4 @@
-#!/bin/bash
+sta#!/bin/bash
 # Safe database setup script - DOES NOT drop existing database
 # Only adds missing tables and columns
 
