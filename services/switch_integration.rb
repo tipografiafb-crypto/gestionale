@@ -2,6 +2,7 @@
 # @domain services
 # SwitchIntegration - Wrapper for sending OrderItems to Switch preprint
 # Uses the SAME payload format as manual send (build_payload in SwitchClient)
+# Retrieves the preprint endpoint dynamically from the product's default print flow
 
 require_relative 'switch_client'
 
@@ -9,14 +10,38 @@ class SwitchIntegration
   def send_to_preprint(order_item)
     puts "[SwitchIntegration] Preparing to send item #{order_item.id} to Switch preprint"
     
+    # Get the preprint webhook endpoint from product's default print flow
+    product = order_item.product
+    unless product
+      puts "[SwitchIntegration] ✗ No product found for item #{order_item.id}"
+      return { success: false, error: 'No product found' }
+    end
+    
+    # Get default print flow for this product
+    print_flow = product.default_print_flow
+    unless print_flow
+      puts "[SwitchIntegration] ✗ No default print flow configured for product #{product.sku}"
+      return { success: false, error: 'No default print flow configured' }
+    end
+    
+    # Get preprint webhook from print flow
+    preprint_webhook = print_flow.preprint_webhook
+    unless preprint_webhook
+      puts "[SwitchIntegration] ✗ No preprint webhook configured for print flow #{print_flow.name}"
+      return { success: false, error: 'No preprint webhook configured' }
+    end
+    
+    webhook_path = preprint_webhook.hook_path
+    puts "[SwitchIntegration] Using webhook endpoint: #{webhook_path} (from print flow: #{print_flow.name})"
+    
     # Build job payload for Switch - SAME FORMAT as manual send
     job_data = build_preprint_payload(order_item)
     
     puts "[SwitchIntegration] Job data prepared: #{job_data.inspect}"
     
-    # Send to Switch using SAME endpoint as manual send: /plettro_automatico
+    # Send to Switch using the webhook endpoint from print flow
     result = SwitchClient.send_to_switch(
-      webhook_path: '/plettro_automatico',
+      webhook_path: webhook_path,
       job_data: job_data
     )
     

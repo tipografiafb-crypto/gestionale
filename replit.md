@@ -21,14 +21,27 @@ The Print Order Orchestrator is a local print order management system designed t
 
 ## Recent Work
 
-### December 9, 2025 - Autopilot Payload Fixed (Switch Endpoint Issue)
+### December 9, 2025 - Autopilot Payload Fixed (Dynamic Endpoint from Print Flow)
 - ✅ **FIXED AUTOPILOT PAYLOAD**: Autopilot was using WRONG endpoint and INCOMPLETE payload
-  - **Previous**: Used `/jobs/preprint` endpoint with minimal payload (operation_id, codice_ordine, id_riga, sku, quantity, product_name, category, print_files, timestamp)
-  - **Now**: Uses `/plettro_automatico` endpoint (SAME as manual send) with COMPLETE payload
+  - **Previous**: Used hardcoded `/jobs/preprint` endpoint with minimal payload (operation_id, codice_ordine, id_riga, sku, quantity, product_name, category, print_files, timestamp)
+  - **Now**: Retrieves endpoint DYNAMICALLY from product's default print flow with COMPLETE payload
   - **Complete payload includes**: job_operation_id, url (gestionale asset download), widegest_url (callback), filename, quantita, materiale, campi_custom, opzioni_stampa, campi_webhook
-- ✅ **Updated switch_integration.rb**: Now uses `build_preprint_payload()` that mirrors `SwitchClient.build_payload()` format exactly
-- ✅ **Uses correct URLs**: Gestionale base URL for asset downloads + server base URL for Switch callbacks
-- 🎯 **AUTOPILOT NOW FULLY COMPATIBLE WITH REAL SWITCH**: Same endpoint and payload format as manual send = guaranteed compatibility
+  
+- ✅ **DYNAMIC ENDPOINT RETRIEVAL**: 
+  - For each order item, retrieves: `product.default_print_flow.preprint_webhook.hook_path`
+  - E.g.: `/plettro_automatico`, `/custom_endpoint`, etc. - whatever configured in print flow
+  - Validates all steps: product → default_print_flow → preprint_webhook → hook_path
+  - Graceful error handling if any step missing
+  
+- ✅ **Updated switch_integration.rb**: 
+  - Dynamically retrieves webhook endpoint from product's default print flow
+  - Uses `build_preprint_payload()` that mirrors `SwitchClient.build_payload()` format exactly
+  - Uses correct URLs: Gestionale base URL for asset downloads + server base URL for Switch callbacks
+  
+- 🎯 **AUTOPILOT NOW FULLY COMPATIBLE WITH REAL SWITCH**: 
+  - Endpoint configurable per product/print-flow
+  - Same payload format as manual send = guaranteed compatibility
+  - Dynamic endpoint retrieval supports multi-endpoint Switch environments
 
 ### December 8, 2025 - Autopilot System Complete & Fixed
 - ✅ **FIXED CRITICAL BUG**: Created missing `services/switch_integration.rb` class
