@@ -25,6 +25,12 @@ class Product < ActiveRecord::Base
     "#{sku} - #{name} → [#{flow_names}]"
   end
 
+  # Return material for this product (for Switch webhooks)
+  # Currently returns default value - can be extended if material field is added
+  def material
+    "N/A"
+  end
+
   # Duplicate product with all its configurations
   def duplicate
     new_product = self.dup

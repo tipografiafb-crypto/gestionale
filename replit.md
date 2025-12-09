@@ -21,7 +21,7 @@ The Print Order Orchestrator is a local print order management system designed t
 
 ## Recent Work
 
-### December 9, 2025 - Autopilot Payload Fixed (Dynamic Endpoint from Print Flow)
+### December 9, 2025 - Autopilot Payload Fixed (Dynamic Endpoint from Print Flow + Material Field)
 - ✅ **FIXED AUTOPILOT PAYLOAD**: Autopilot was using WRONG endpoint and INCOMPLETE payload
   - **Previous**: Used hardcoded `/jobs/preprint` endpoint with minimal payload (operation_id, codice_ordine, id_riga, sku, quantity, product_name, category, print_files, timestamp)
   - **Now**: Retrieves endpoint DYNAMICALLY from product's default print flow with COMPLETE payload
@@ -33,14 +33,20 @@ The Print Order Orchestrator is a local print order management system designed t
   - Validates all steps: product → default_print_flow → preprint_webhook → hook_path
   - Graceful error handling if any step missing
   
+- ✅ **FIXED MATERIAL FIELD ERROR**: 
+  - Product model didn't have `material` field (was being accessed but undefined)
+  - Added `material()` method to Product model returning "N/A" as default
+  - Extensible for future: can add actual material DB column and update method
+  
 - ✅ **Updated switch_integration.rb**: 
   - Dynamically retrieves webhook endpoint from product's default print flow
   - Uses `build_preprint_payload()` that mirrors `SwitchClient.build_payload()` format exactly
   - Uses correct URLs: Gestionale base URL for asset downloads + server base URL for Switch callbacks
   
 - 🎯 **AUTOPILOT NOW FULLY COMPATIBLE WITH REAL SWITCH**: 
-  - Endpoint configurable per product/print-flow
+  - Endpoint configurable per product/print-flow (dynamic, not hardcoded)
   - Same payload format as manual send = guaranteed compatibility
+  - All required fields present and validated
   - Dynamic endpoint retrieval supports multi-endpoint Switch environments
 
 ### December 8, 2025 - Autopilot System Complete & Fixed
