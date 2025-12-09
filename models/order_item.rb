@@ -91,26 +91,24 @@ class OrderItem < ActiveRecord::Base
   end
 
   # Generate Switch filename based on number of print stages
-  # Single file: {country_code}{order_id}-{item_number}.png (e.g., DE11273-1.png)
-  # Two files: {country_code}{order_id}-{item_number}_F.png (stage1) and _R.png (stage2)
+  # Uses external_order_code directly from JSON (e.g., "IT9395" becomes "IT9395-1.png")
+  # Single file: {external_order_code}-{item_number}.png (e.g., IT9395-1.png)
+  # Two files: {external_order_code}-{item_number}_F.png (stage1) and _R.png (stage2)
   def switch_filename_for_asset(asset)
     print_assets = switch_print_assets
     return nil unless print_assets.include?(asset)
     
-    # Extract country code (first 2 letters) and numeric part from order code
-    order_code_str = order.external_order_code.to_s
-    country_code = order_code_str[0, 2].upcase  # First 2 letters from order code (e.g., "DE" from "DE11273")
-    code_str = order_code_str.gsub(/[^0-9]/, '')
-    numeric_code = code_str.empty? ? order.id : code_str.to_i
+    # Use external_order_code directly (e.g., "IT9395" from JSON id field)
+    order_code = order.external_order_code.to_s
     
     if print_assets.count == 1
       # Single file: no suffix
-      "#{country_code}#{numeric_code}-#{item_number}.png"
+      "#{order_code}-#{item_number}.png"
     elsif print_assets.count == 2
       # Two files: add _F or _R based on position
       index = print_assets.find_index(asset)
       suffix = index == 0 ? 'F' : 'R'
-      "#{country_code}#{numeric_code}-#{item_number}_#{suffix}.png"
+      "#{order_code}-#{item_number}_#{suffix}.png"
     end
   end
 end

@@ -25,10 +25,11 @@ The Print Order Orchestrator is a local print order management system designed t
 - ✅ **FIXED FILENAME COUNTRY CODE BUG**: 
   - **Previous**: Files were always named "EU{number}" instead of using the actual country code from order
   - **Example**: Order "DE11273" became "EU11273-1.png" instead of "DE11273-1.png"
-  - **Root cause**: `switch_filename_for_asset()` hardcoded "eu" prefix instead of extracting first 2 letters from `external_order_code`
-  - **Fix**: Now extracts first 2 letters from order code (e.g., "DE" from "DE11273") and uses that as prefix
-  - **Result**: Files now correctly named per country code: "DE11273-1.png", "IT54321-2_F.png", etc.
+  - **Root cause**: `switch_filename_for_asset()` hardcoded "eu" prefix instead of reading from JSON `id` field
+  - **Fix**: Now uses `external_order_code` directly from JSON (e.g., "IT9395" from `id` field)
+  - **Result**: Files now correctly named with full order code: "IT9395-1.png", "DE11273-1_F.png", etc.
   - **Applies to**: Both manual send AND autopilot (they use same method)
+  - **Why safer**: Uses value directly from JSON instead of string manipulation - no parsing errors
 
 ### December 9, 2025 - Autopilot Payload Fixed (IDENTICAL to Manual Send + Order Status Update)
 - ✅ **AUTOPILOT NOW EXECUTES IDENTICAL LOGIC TO MANUAL SEND**:

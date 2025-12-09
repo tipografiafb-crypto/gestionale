@@ -1,0 +1,94 @@
+{
+    "id": "IT9395",
+    "number": "IT9395",
+    "site_name": "TPH IT",
+    "customer_note": "Traversa ex discoteca King",
+    "print_files_with_cart_id": [
+        {
+            "cart_id": "artwork_bdc593c99c11fd7eed3033e5aa95da2a",
+            "print_files": [
+                "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12709-1765227692055-stage1.png"
+            ]
+        }
+    ],
+    "screenshots_with_cart_id": [
+        {
+            "cart_id": "artwork_bdc593c99c11fd7eed3033e5aa95da2a",
+            "screenshots": [
+                "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12709-1765227692055-stage1.png"
+            ]
+        }
+    ],
+    "line_items": [
+        {
+            "quantity": 100,
+            "sku": "TPH001-88",
+            "image": {
+                "id": "12739",
+                "src": "https://it.thepickshouse.com/wp-content/uploads/2025/01/standard.webp"
+            },
+            "meta_data": {
+                "_wc_ai_customization": {
+                    "artwork_id": "artwork_bdc593c99c11fd7eed3033e5aa95da2a",
+                    "canvas_data": null,
+                    "canvas_screenshot": null,
+                    "preview_url": "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12709-1765227692055-stage1.png",
+                    "print_url": "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12709-1765227692055-stage1.png",
+                    "ai_image_url": null,
+                    "customization_method": "upload",
+                    "product_mode": "variant_bulk",
+                    "bulk_quantity": 100,
+                    "group_unit_price": 0.59999999999999997779553950749686919152736663818359375,
+                    "selected_variants": {
+                        "spessore": {
+                            "value": "0.88",
+                            "label": "0.88 Heavy",
+                            "sku_suffix": 88
+                        },
+                        "final_sku": "TPH001-88"
+                    },
+                    "variant_data": {
+                        "variants": {
+                            "spessore": {
+                                "value": "0.88",
+                                "label": "0.88 Heavy",
+                                "sku_suffix": 88
+                            }
+                        },
+                        "quantity": 100,
+                        "unitPrice": 0.59999999999999997779553950749686919152736663818359375,
+                        "totalPrice": 60,
+                        "tierIndex": 4,
+                        "final_sku": "TPH001-88"
+                    },
+                    "multicanvas_data": {
+                        "stage_previews": [
+                            "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12709-1765227692055-stage1.png"
+                        ],
+                        "stage_prints": [
+                            "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12709-1765227692055-stage1.png"
+                        ],
+                        "stage_list": [
+                            "stage1"
+                        ],
+                        "current_stage": "stage1"
+                    },
+                    "selected_color": {
+                        "color": "#ffffff",
+                        "label": "Bianco",
+                        "sku_suffix": "",
+                        "is_default": true
+                    },
+                    "final_sku": "TPH001-88",
+                    "bulk_data": {
+                        "price": 0.59999999999999997779553950749686919152736663818359375,
+                        "quantity": 100,
+                        "tier_index": 4
+                    }
+                },
+                "_wc_ai_preview_url": "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12709-1765227692055-stage1.png",
+                "_wc_ai_print_url": "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12709-1765227692055-stage1.png"
+            }
+        }
+    ]
+}
