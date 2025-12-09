@@ -59,11 +59,14 @@ The Print Order Orchestrator is a local print order management system designed t
   - Validates all steps: product → default_print_flow → preprint_webhook → hook_path
   - Graceful error handling if any step missing
   
-- ✅ **ADDED 60-SECOND DELAY BEFORE SWITCH SEND**:
-  - AutopilotService now waits 60 seconds before sending to Switch
+- ✅ **ADDED 60-SECOND DELAY BEFORE SWITCH SEND (ASYNC, NON-BLOCKING)**:
+  - AutopilotService schedules send to Switch in background thread (60 second delay)
+  - Non-blocking: import returns immediately, delay happens in background
   - Ensures all files are completely downloaded to the server
   - Prevents premature Switch send while files are still downloading
-  - Logged with timestamps: "⏳ Waiting 60 seconds..." and "✓ Wait complete..."
+  - Multiple orders can be imported simultaneously without interference
+  - Each order's thread waits 60 seconds independently before sending to Switch
+  - Logged with [ASYNC] prefix for background operations
 
 - 🎯 **AUTOPILOT NOW 100% COMPATIBLE WITH MANUAL SEND**:
   - Identical payload format = guaranteed Switch compatibility

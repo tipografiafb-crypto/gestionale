@@ -61,29 +61,32 @@ class AutopilotService
     end
 
     puts "[AutopilotService]   ✓ Autopilot enabled for category: #{category.name}"
-    puts "[AutopilotService]   → Sending item #{item.id} (SKU: #{item.sku}) to preprint automatically..."
+    puts "[AutopilotService]   → Scheduling item #{item.id} (SKU: #{item.sku}) to send to Switch (60s delay)..."
     
-    # Wait 60 seconds to ensure all files are downloaded to the server
-    puts "[AutopilotService]   ⏳ Waiting 60 seconds for files to be downloaded to server..."
-    sleep(60)
-    puts "[AutopilotService]   ✓ Wait complete, proceeding with Switch send"
-
-    # Send to Switch for preprint
-    begin
-      result = SwitchIntegration.new.send_to_preprint(item)
+    # Send to Switch in a background thread after 60 second delay
+    # This allows multiple orders to be processed without blocking import
+    Thread.new do
+      puts "[AutopilotService] [ASYNC] Starting 60 second delay for item #{item.id}..."
+      sleep(60)
+      puts "[AutopilotService] [ASYNC] 60 second delay complete, sending to Switch for item #{item.id}"
       
-      if result&.dig(:success)
-        puts "[AutopilotService]   ✓ SUCCESS: Item #{item.id} sent to preprint!"
-        return true
-      else
-        error_msg = result&.dig(:error) || "Unknown error"
-        puts "[AutopilotService]   ✗ Failed to send to Switch: #{error_msg}"
-        return false
+      begin
+        result = SwitchIntegration.new.send_to_preprint(item)
+        
+        if result&.dig(:success)
+          puts "[AutopilotService] [ASYNC] ✓ SUCCESS: Item #{item.id} sent to preprint!"
+        else
+          error_msg = result&.dig(:error) || "Unknown error"
+          puts "[AutopilotService] [ASYNC] ✗ Failed to send to Switch: #{error_msg}"
+        end
+      rescue => e
+        puts "[AutopilotService] [ASYNC] ✗ FAILED with exception: #{e.message}"
+        puts "[AutopilotService] [ASYNC] Backtrace: #{e.backtrace.first(3).join("\n")}"
       end
-    rescue => e
-      puts "[AutopilotService]   ✗ FAILED with exception: #{e.message}"
-      puts "[AutopilotService]   Backtrace: #{e.backtrace.first(3).join("\n")}"
-      return false
     end
+    
+    # Return immediately - order is scheduled for send, not sent yet
+    puts "[AutopilotService]   ✓ Item scheduled for async send (60s delay)"
+    return true
   end
 end
