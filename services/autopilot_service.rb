@@ -9,6 +9,9 @@ class AutopilotService
     puts "[AutopilotService] ⏱ STARTING: Processing order #{order.external_order_code} for autopilot"
     puts "[AutopilotService] Order has #{order.order_items.count} items"
     
+    # Mark order as in processing (same as manual route does)
+    order.update(status: 'processing') if order.status == 'new'
+    
     processed_count = 0
     order.order_items.each do |item|
       if process_item(item)

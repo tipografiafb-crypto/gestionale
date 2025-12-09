@@ -21,11 +21,12 @@ The Print Order Orchestrator is a local print order management system designed t
 
 ## Recent Work
 
-### December 9, 2025 - Autopilot Payload Fixed (IDENTICAL to Manual Send)
+### December 9, 2025 - Autopilot Payload Fixed (IDENTICAL to Manual Send + Order Status Update)
 - ✅ **AUTOPILOT NOW EXECUTES IDENTICAL LOGIC TO MANUAL SEND**:
   - Copies EXACT payload structure from `/orders/:order_id/items/:item_id/send_preprint` route
   - Sends EACH print asset individually (not just first asset)
   - Uses correct field mappings from manual route
+  - **Updates order status from 'new' → 'processing'** (same as manual route)
   
 - ✅ **FIXED PAYLOAD FIELDS**:
   - `id_riga`: Uses `item.item_number` (not `item.id`)
@@ -36,6 +37,11 @@ The Print Order Orchestrator is a local print order management system designed t
   - `campi_webhook`: Includes `{ "percentuale" => "0" }` (not empty)
   - `preprint_print_flow_id`: Stored in order_item (same as manual)
   - `preprint_job_id`: Comma-separated list of successful asset IDs
+  
+- ✅ **FIXED ORDER STATUS UPDATE**: 
+  - AutopilotService now updates order status to 'processing' when autopilot triggers
+  - Uses same logic as manual route: `order.update(status: 'processing') if order.status == 'new'`
+  - Order status now properly reflects that it's being worked on by autopilot
   
 - ✅ **DYNAMIC ENDPOINT RETRIEVAL**: 
   - For each order item, retrieves: `product.default_print_flow.preprint_webhook.hook_path`
@@ -48,6 +54,7 @@ The Print Order Orchestrator is a local print order management system designed t
   - Sends multiple assets per item (same as manual)
   - Same field mappings and URL structures
   - Error handling mirrors manual route logic
+  - Order status updates correctly ('new' → 'processing')
 
 ### December 8, 2025 - Autopilot System Complete & Fixed
 - ✅ **FIXED CRITICAL BUG**: Created missing `services/switch_integration.rb` class
