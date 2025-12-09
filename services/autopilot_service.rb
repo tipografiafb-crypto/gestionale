@@ -9,9 +9,6 @@ class AutopilotService
     puts "[AutopilotService] ⏱ STARTING: Processing order #{order.external_order_code} for autopilot"
     puts "[AutopilotService] Order has #{order.order_items.count} items"
     
-    # Mark order as in processing (same as manual route does)
-    order.update(status: 'processing') if order.status == 'new'
-    
     processed_count = 0
     order.order_items.each do |item|
       if process_item(item)
@@ -19,7 +16,14 @@ class AutopilotService
       end
     end
     
-    puts "[AutopilotService] ✓ DONE: #{processed_count} items sent to autopilot"
+    # Only mark order as processing if at least one item was actually sent to autopilot
+    # Otherwise keep it as 'new' for operators to see in the new orders tab
+    if processed_count > 0
+      order.update(status: 'processing') if order.status == 'new'
+      puts "[AutopilotService] ✓ DONE: #{processed_count} items sent to autopilot, order status updated to 'processing'"
+    else
+      puts "[AutopilotService] ✓ DONE: No items with autopilot enabled, order remains 'new'"
+    end
   end
 
   def self.process_item(item)

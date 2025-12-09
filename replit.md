@@ -49,9 +49,10 @@ The Print Order Orchestrator is a local print order management system designed t
   - `preprint_job_id`: Comma-separated list of successful asset IDs
   
 - ✅ **FIXED ORDER STATUS UPDATE**: 
-  - AutopilotService now updates order status to 'processing' when autopilot triggers
-  - Uses same logic as manual route: `order.update(status: 'processing') if order.status == 'new'`
-  - Order status now properly reflects that it's being worked on by autopilot
+  - AutopilotService updates order status to 'processing' ONLY if at least one item is actually sent
+  - Orders with NO items having autopilot enabled remain in status 'new'
+  - These stay visible in the "Nuovi" (new orders) tab for manual processing
+  - Uses logic: Check all items first, then update status only if `processed_count > 0`
   
 - ✅ **DYNAMIC ENDPOINT RETRIEVAL**: 
   - For each order item, retrieves: `product.default_print_flow.preprint_webhook.hook_path`
