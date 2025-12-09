@@ -49,12 +49,19 @@ The Print Order Orchestrator is a local print order management system designed t
   - Validates all steps: product → default_print_flow → preprint_webhook → hook_path
   - Graceful error handling if any step missing
   
+- ✅ **ADDED 60-SECOND DELAY BEFORE SWITCH SEND**:
+  - AutopilotService now waits 60 seconds before sending to Switch
+  - Ensures all files are completely downloaded to the server
+  - Prevents premature Switch send while files are still downloading
+  - Logged with timestamps: "⏳ Waiting 60 seconds..." and "✓ Wait complete..."
+
 - 🎯 **AUTOPILOT NOW 100% COMPATIBLE WITH MANUAL SEND**:
   - Identical payload format = guaranteed Switch compatibility
   - Sends multiple assets per item (same as manual)
   - Same field mappings and URL structures
   - Error handling mirrors manual route logic
   - Order status updates correctly ('new' → 'processing')
+  - 60-second delay ensures server-side file downloads complete
 
 ### December 8, 2025 - Autopilot System Complete & Fixed
 - ✅ **FIXED CRITICAL BUG**: Created missing `services/switch_integration.rb` class

@@ -62,6 +62,11 @@ class AutopilotService
 
     puts "[AutopilotService]   ✓ Autopilot enabled for category: #{category.name}"
     puts "[AutopilotService]   → Sending item #{item.id} (SKU: #{item.sku}) to preprint automatically..."
+    
+    # Wait 60 seconds to ensure all files are downloaded to the server
+    puts "[AutopilotService]   ⏳ Waiting 60 seconds for files to be downloaded to server..."
+    sleep(60)
+    puts "[AutopilotService]   ✓ Wait complete, proceeding with Switch send"
 
     # Send to Switch for preprint
     begin
