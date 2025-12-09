@@ -1,0 +1,29 @@
+[AutopilotService] ⏱ STARTING: Processing order DE11412 for autopilot
+[AutopilotService] Order has 1 items
+[AutopilotService] → Checking item 112 (SKU: TPH001-88)
+[AutopilotService]   ✓ Product found: standard bianchi 0.88-W
+[AutopilotService]   Category: plettri, Autopilot: true
+[AutopilotService]   → Checking preprint readiness...
+[AutopilotService]     • preprint_status: pending
+[AutopilotService]     • assets count: 3
+[AutopilotService]     • assets details:
+[AutopilotService]       - print_file_1: local_path="storage/TPH_DE/DE11412/TPH001-88/print_file_1_DdJGopMUxB-stage1.png", file_exists=true
+[AutopilotService]       - print_file_2: local_path="storage/TPH_DE/DE11412/TPH001-88/print_file_2_PIXYOd24D6-stage2.png", file_exists=true
+[AutopilotService]       - screenshot_1: local_path="storage/TPH_DE/DE11412/TPH001-88/screenshot_1_NzbsxhZtlY.png", file_exists=true
+[AutopilotService]   ✓ Autopilot enabled for category: plettri
+[AutopilotService]   → Sending item 112 (SKU: TPH001-88) to preprint automatically...
+[SwitchIntegration] Preparing to send item 112 to Switch preprint
+[SwitchIntegration] Using webhook endpoint: /plettro_automatico (from print flow: plettri automatici)
+[SwitchIntegration] Job data prepared: {:id_riga=>112, :codice_ordine=>"DE11412", :product=>"TPH001-88 - standard bianchi 0.88-W", :operation_id=>1, :job_operation_id=>"autopilot-order-98-item-112", :url=>"http://192.168.1.55:5000/api/assets/309/download", :widegest_url=>"http://192.168.1.55:5000/api/v1/reports_create", :filename=>"DdJGopMUxB-stage1.png", :quantita=>5, :materiale=>"N/A", :campi_custom=>{}, :opzioni_stampa=>{}, :campi_webhook=>{}}
+[SWITCH_CLIENT] ENV['SWITCH_SIMULATION']: "false"
+[SWITCH_CLIENT_DEBUG] ENV['SWITCH_WEBHOOK_BASE_URL']: "http://192.168.1.162:51088"
+[SWITCH_CLIENT_DEBUG] ENV['SWITCH_WEBHOOK_PREFIX']: "/scripting"
+[SWITCH_CLIENT_DEBUG] switch_base (after processing): http://192.168.1.162:51088
+[SWITCH_CLIENT_DEBUG] webhook_prefix (after processing): "/scripting"
+[SWITCH_CLIENT_DEBUG] Full URL: http://192.168.1.162:51088/scripting/plettro_automatico
+[SWITCH_CLIENT_DEBUG] Payload: {"id_riga":112,"codice_ordine":"DE11412","product":"TPH001-88 - standard bianchi 0.88-W","operation_id":1,"job_operation_id":"autopilot-order-98-item-112","url":"http://192.168.1.55:5000/api/assets/309/download","widegest_url":"http://192.168.1.55:5000/api/v1/reports_create","filename":"DdJGopMUxB-stage1.png","quantita":5,"materiale":"N/A","campi_custom":{},"opzioni_stampa":{},"campi_webhook":{}}
+[SWITCH_CLIENT_DEBUG] Response Status: 200 OK
+[SWITCH_CLIENT_DEBUG] Response Body: {"status":true}
+[SwitchIntegration] ✓ Successfully sent to Switch: Sent to Switch
+[AutopilotService]   ✓ SUCCESS: Item 112 sent to preprint!
+[AutopilotService] ✓ DONE: 1 items sent to autopilot

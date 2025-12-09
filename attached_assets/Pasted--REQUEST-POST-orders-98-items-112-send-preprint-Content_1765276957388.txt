@@ -1,0 +1,47 @@
+[REQUEST] POST /orders/98/items/112/send_preprint - Content-Type: application/x-www-form-urlencoded
+[REQUEST] Params keys: ["print_flow_id", "azione_photoshop", "percentuale"]
+[REQUEST] File param: 
+
+[DEBUG_PREPRINT_START] Order: 98, Item: 112
+[DEBUG_PREPRINT] print_flow_id: "1"
+[DEBUG_PREPRINT] print_flow found: true
+[DEBUG_PREPRINT] preprint_webhook: #<SwitchWebhook id: 1, name: "plettri automatico", hook_path: "/plettro_automatico", store_id: nil, active: true, created_at: "2025-11-30 13:49:27.748421000 +0000", updated_at: "2025-12-01 14:27:40.123423000 +0000">
+[DEBUG_PREPRINT] webhook_hook_path: "/plettro_automatico"
+[DEBUG_PREPRINT] Processing asset: 309
+[DEBUG_PREPRINT] Calling SwitchClient.send_to_switch with webhook_path: "/plettro_automatico"
+[SWITCH_CLIENT] ENV['SWITCH_SIMULATION']: "false"
+[SWITCH_CLIENT_DEBUG] ENV['SWITCH_WEBHOOK_BASE_URL']: "http://192.168.1.162:51088"
+[SWITCH_CLIENT_DEBUG] ENV['SWITCH_WEBHOOK_PREFIX']: "/scripting"
+[SWITCH_CLIENT_DEBUG] switch_base (after processing): http://192.168.1.162:51088
+[SWITCH_CLIENT_DEBUG] webhook_prefix (after processing): "/scripting"
+[SWITCH_CLIENT_DEBUG] Full URL: http://192.168.1.162:51088/scripting/plettro_automatico
+[SWITCH_CLIENT_DEBUG] Payload: {"id_riga":1,"codice_ordine":"DE11412","product":"TPH001-88 - standard bianchi 0.88-W","operation_id":1,"job_operation_id":"112","url":"http://192.168.1.55:5000/api/assets/309/download","widegest_url":"http://192.168.1.55:5000/api/v1/reports_create","filename":"eu11412-1_F.png","quantita":5,"materiale":"N/A","campi_custom":{},"opzioni_stampa":{},"campi_webhook":{"percentuale":"0"}}
+[SWITCH_CLIENT_DEBUG] Response Status: 200 OK
+[SWITCH_CLIENT_DEBUG] Response Body: {"status":true}
+[DEBUG_PREPRINT] Result: {:success=>true, :job_id=>"PREPRINT-DE11412-1-1765276914", :message=>"Sent to Switch"}
+[DEBUG_PREPRINT] Processing asset: 310
+[DEBUG_PREPRINT] Calling SwitchClient.send_to_switch with webhook_path: "/plettro_automatico"
+[SWITCH_CLIENT] ENV['SWITCH_SIMULATION']: "false"
+[SWITCH_CLIENT_DEBUG] ENV['SWITCH_WEBHOOK_BASE_URL']: "http://192.168.1.162:51088"
+[SWITCH_CLIENT_DEBUG] ENV['SWITCH_WEBHOOK_PREFIX']: "/scripting"
+[SWITCH_CLIENT_DEBUG] switch_base (after processing): http://192.168.1.162:51088
+[SWITCH_CLIENT_DEBUG] webhook_prefix (after processing): "/scripting"
+[SWITCH_CLIENT_DEBUG] Full URL: http://192.168.1.162:51088/scripting/plettro_automatico
+[SWITCH_CLIENT_DEBUG] Payload: {"id_riga":1,"codice_ordine":"DE11412","product":"TPH001-88 - standard bianchi 0.88-W","operation_id":1,"job_operation_id":"112","url":"http://192.168.1.55:5000/api/assets/310/download","widegest_url":"http://192.168.1.55:5000/api/v1/reports_create","filename":"eu11412-1_R.png","quantita":5,"materiale":"N/A","campi_custom":{},"opzioni_stampa":{},"campi_webhook":{"percentuale":"0"}}
+[SWITCH_CLIENT_DEBUG] Response Status: 200 OK
+[SWITCH_CLIENT_DEBUG] Response Body: {"status":true}
+[DEBUG_PREPRINT] Result: {:success=>true, :job_id=>"PREPRINT-DE11412-1-1765276915", :message=>"Sent to Switch"}
+[REQUEST] POST /api/v1/reports_create - Content-Type: application/json
+[REQUEST] Params keys: []
+[REQUEST] File param: 
+[SWITCH_REPORT_DEBUG] Received request
+[SWITCH_REPORT_DEBUG] kind: "controllo-file"
+[SWITCH_REPORT_DEBUG] filename: "eu11412-1_R.pdf"
+[SWITCH_REPORT_DEBUG] job-operation-id: "112"
+[SWITCH_REPORT_DEBUG] file size: 2028716 bytes
+[SWITCH_REPORT_DEBUG] Found OrderItem 112 from order 98
+[SWITCH_REPORT_DEBUG] Saving to order directory: storage/TPH_DE/DE11412/TPH001-88/eu11412-1_R.pdf
+[SWITCH_REPORT] PDF decoded and saved: storage/TPH_DE/DE11412/TPH001-88/eu11412-1_R.pdf
+[SWITCH_REPORT] Deleted previous print_output assets for item 112
+[SWITCH_REPORT] Asset created: 312 with local_path: storage/TPH_DE/DE11412/TPH001-88/eu11412-1_R.pdf
+[SWITCH_REPORT] Preview URL ready: /file/312
