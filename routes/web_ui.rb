@@ -201,8 +201,11 @@ class PrintOrchestrator < Sinatra::Base
       
       # Update items
       if params[:items].present?
-        # Remove existing items not in the update (destroy_all triggers dependent: :destroy callbacks)
-        @order.order_items.destroy_all
+        # Track which item IDs are in the update request
+        item_ids_in_request = params[:items].map { |ip| ip[:id].to_i }.select { |id| id.positive? }
+        
+        # Delete items that are NOT in the request (preserve items in request and their assets)
+        @order.order_items.where.not(id: item_ids_in_request).destroy_all
         
         params[:items].each_with_index do |item_params, index|
           next if item_params[:sku].blank?
@@ -213,16 +216,34 @@ class PrintOrchestrator < Sinatra::Base
           end
 
           quantity = item_params[:quantity].to_i
-          order_item = @order.order_items.build(
-            sku: item_params[:sku],
-            quantity: quantity,
-            raw_json: {
+          
+          # If item has an ID, update existing; otherwise create new
+          if item_params[:id].present? && item_params[:id].to_i.positive?
+            order_item = @order.order_items.find_by(id: item_params[:id].to_i)
+            if order_item
+              order_item.update(
+                sku: item_params[:sku],
+                quantity: quantity,
+                raw_json: {
+                  sku: item_params[:sku],
+                  quantity: quantity,
+                  product_name: product.name
+                }.to_json
+              )
+            end
+          else
+            # Create new item (added dynamically in form)
+            order_item = @order.order_items.build(
               sku: item_params[:sku],
               quantity: quantity,
-              product_name: product.name
-            }.to_json
-          )
-          order_item.save!
+              raw_json: {
+                sku: item_params[:sku],
+                quantity: quantity,
+                product_name: product.name
+              }.to_json
+            )
+            order_item.save!
+          end
 
           # Delete specific asset IDs if provided
           delete_asset_ids = item_params[:delete_asset_ids] || []

@@ -67,13 +67,18 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
 
 ### December 11, 2025 - Fixed Multiple Inventory & Order Edit Issues
 
-#### ✅ **FIXED FOREIGN KEY VIOLATION IN ORDER EDIT (ERR_RESPONSE_HEADERS_MULTIPLE_LOCATION)**
-  - **Problem**: PUT /orders/:id returned ERR_RESPONSE_HEADERS_MULTIPLE_LOCATION browser error - invalid response with multiple Location headers
-  - **Root cause**: Used `delete_all` which bypassed dependent destroy callbacks, causing foreign key constraint error when trying to delete OrderItems with linked Assets
-  - **Error**: `PG::ForeignKeyViolation: Key (id)=(48) is still referenced from table "assets"`
-  - **Fix**: Changed `@order.order_items.delete_all` to `@order.order_items.destroy_all` (line 208)
-  - **Logic**: `destroy_all` triggers `dependent: :destroy` callbacks in OrderItem model, cascading asset deletion before item deletion
-  - **Result**: Order edit form now saves successfully - items and assets properly deleted, no constraint violations, redirect works
+#### ✅ **FIXED ORDER ITEM UPDATE LOGIC - PRESERVE ASSETS WHEN SKU CHANGES**
+  - **Problem**: When editing an order and changing a product SKU, all attached files were destroyed
+  - **Root cause**: Route was using `destroy_all` which deleted ALL OrderItems and their Assets, then recreated them from scratch
+  - **Solution**: Added OrderItem ID tracking and smart update logic (lines 207-249)
+  - **Implementation**:
+    1. Added hidden field `<input type="hidden" name="items[][id]">` to form to track each OrderItem ID (views/new_order.erb line 46)
+    2. Changed logic to: extract item IDs from request, delete only items NOT in request, update existing items instead of recreating
+    3. Result: SKU/quantity changes now preserve all Assets - files are never destroyed unless explicitly deleted
+  - **Key changes**:
+    - `item_ids_in_request` = extract IDs from form submission
+    - `@order.order_items.where.not(id: item_ids_in_request).destroy_all` = delete only removed items
+    - Check `if item_params[:id].present?` and call `.update()` instead of creating new OrderItem
 
 #### ✅ **FIXED INVENTORY FILTER NIL COMPARISON**: 
   - **Problem**: Sottoscorta/Disponibili tabs crashed when min_stock_level was nil
