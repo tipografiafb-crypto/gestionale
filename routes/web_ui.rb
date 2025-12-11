@@ -688,9 +688,9 @@ class PrintOrchestrator < Sinatra::Base
         when 'finiti'
           inv.quantity_in_stock <= 0
         when 'sottoscorta'
-          inv.quantity_in_stock > 0 && inv.quantity_in_stock < inv.product.min_stock_level
+          inv.product.min_stock_level && inv.quantity_in_stock > 0 && inv.quantity_in_stock < inv.product.min_stock_level
         when 'disponibili'
-          inv.quantity_in_stock >= inv.product.min_stock_level
+          inv.product.min_stock_level && inv.quantity_in_stock >= inv.product.min_stock_level
         else
           true
         end
