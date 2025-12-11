@@ -66,19 +66,21 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
 ## Recent Work
 
 ### December 11, 2025 - Fixed Multiple Inventory & Order Edit Issues
-- ✅ **FIXED ERR_RESPONSE_HEADERS_MULTIPLE_LOCATION**: 
-  - **Problem**: PUT /orders/:id route sending two Location headers on redirect
-  - **Root cause**: Both success redirect and rescue redirect inside same begin block
-  - **Fix**: Moved final success redirect OUTSIDE begin...rescue (line 288)
-  - **Logic**: Error → rescue returns with redirect; Success → redirect after begin block ends
-  - **Result**: Order edit form saves successfully without double redirect error
 
-- ✅ **FIXED INVENTORY FILTER NIL COMPARISON**: 
+#### ✅ **FIXED FOREIGN KEY VIOLATION IN ORDER EDIT (ERR_RESPONSE_HEADERS_MULTIPLE_LOCATION)**
+  - **Problem**: PUT /orders/:id returned ERR_RESPONSE_HEADERS_MULTIPLE_LOCATION browser error - invalid response with multiple Location headers
+  - **Root cause**: Used `delete_all` which bypassed dependent destroy callbacks, causing foreign key constraint error when trying to delete OrderItems with linked Assets
+  - **Error**: `PG::ForeignKeyViolation: Key (id)=(48) is still referenced from table "assets"`
+  - **Fix**: Changed `@order.order_items.delete_all` to `@order.order_items.destroy_all` (line 208)
+  - **Logic**: `destroy_all` triggers `dependent: :destroy` callbacks in OrderItem model, cascading asset deletion before item deletion
+  - **Result**: Order edit form now saves successfully - items and assets properly deleted, no constraint violations, redirect works
+
+#### ✅ **FIXED INVENTORY FILTER NIL COMPARISON**: 
   - **Problem**: Sottoscorta/Disponibili tabs crashed when min_stock_level was nil
-  - **Fix**: Added `min_stock_level &&` check before all comparisons (lines 694, 696, 73, 78)
+  - **Fix**: Added `min_stock_level &&` check before all comparisons
   - **Result**: Filter buttons work correctly, safe display with 'Non impostato' fallback
 
-- ✅ **FIXED FTP POLLER RETRY LOGIC**: 
+#### ✅ **FIXED FTP POLLER RETRY LOGIC**: 
   - **Problem**: Failed imports marked as processed, preventing retry on re-upload
   - **Fix**: `process_file()` now returns true/false; only successful imports tracked
   - **Result**: Failed orders can be re-uploaded and reprocessed automatically
