@@ -193,19 +193,24 @@ class PrintOrchestrator < Sinatra::Base
 
   # PUT /orders/:id - Update order
   put '/orders/:id' do
+    puts "[PUT /orders/:id] START - order_id=#{params[:id]}"
     @order = Order.find(params[:id])
     store = Store.find(params[:store_id])
     
     begin
+      puts "[PUT] Updating order code..."
       @order.update(external_order_code: params[:order_code])
       
       # Update items
       if params[:items].present?
         # Remove existing items not in the update
+        puts "[PUT] Deleting old items..."
         @order.order_items.delete_all
         
+        puts "[PUT] Processing #{params[:items].count} items..."
         params[:items].each_with_index do |item_params, index|
           next if item_params[:sku].blank?
+          puts "[PUT] Processing item #{index}: SKU=#{item_params[:sku]}"
           
           product = Product.find_by(sku: item_params[:sku])
           if product.nil?
@@ -274,14 +279,19 @@ class PrintOrchestrator < Sinatra::Base
         end
       end
 
+      puts "[PUT] Checking if order has items..."
       if @order.order_items.empty?
+        puts "[PUT] ERROR: No items, redirecting to edit"
         return redirect "/orders/#{@order.id}/edit?error=Aggiungere almeno un item"
       end
+      puts "[PUT] Order has #{@order.order_items.count} items"
     rescue => e
+      puts "[PUT] RESCUE ERROR: #{e.message}"
       return redirect "/orders/#{@order.id}/edit?error=#{e.message}"
     end
     
     # Redirect only after all updates are successful
+    puts "[PUT] SUCCESS - Redirecting to order detail"
     redirect "/orders/#{@order.id}"
   end
 
