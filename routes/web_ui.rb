@@ -209,7 +209,7 @@ class PrintOrchestrator < Sinatra::Base
           
           product = Product.find_by(sku: item_params[:sku])
           if product.nil?
-            redirect "/orders/#{@order.id}/edit?error=SKU non trovato: #{item_params[:sku]}"
+            return redirect "/orders/#{@order.id}/edit?error=SKU non trovato: #{item_params[:sku]}"
           end
 
           quantity = item_params[:quantity].to_i
@@ -242,7 +242,7 @@ class PrintOrchestrator < Sinatra::Base
             
             begin
               unless valid_file_extension?(file[:filename])
-                redirect "/orders/#{@order.id}/edit?error=Tipo file non consentito per #{item_params[:sku]}. Solo PNG, JPG, JPEG, PDF"
+                return redirect "/orders/#{@order.id}/edit?error=Tipo file non consentito per #{item_params[:sku]}. Solo PNG, JPG, JPEG, PDF"
               end
 
               store_code = store.code || store.id.to_s
@@ -275,7 +275,7 @@ class PrintOrchestrator < Sinatra::Base
       end
 
       if @order.order_items.empty?
-        redirect "/orders/#{@order.id}/edit?error=Aggiungere almeno un item"
+        return redirect "/orders/#{@order.id}/edit?error=Aggiungere almeno un item"
       end
 
       redirect "/orders/#{@order.id}"
