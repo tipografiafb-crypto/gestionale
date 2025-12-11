@@ -68,8 +68,10 @@ class FTPPoller
         next if @processed_files.include?(filename)
         
         puts "[FTPPoller] Processing: #{filename}"
-        process_file(ftp, filename)
-        @processed_files.add(filename)
+        success = process_file(ftp, filename)
+        # Only mark as processed if import was successful
+        # Failed imports can be retried by re-uploading the file
+        @processed_files.add(filename) if success
       end
     rescue => e
       puts "[FTPPoller] Error during polling: #{e.message}"
@@ -206,16 +208,20 @@ class FTPPoller
       
       # Move file to imported folder after successful import
       move_file_to_imported(ftp, filename)
+      return true
       
     rescue JSON::ParserError => e
       puts "[FTPPoller] ✗ Invalid JSON in #{filename}: #{e.message}"
       move_file_to_failed(ftp, filename, "Invalid JSON: #{e.message}")
+      return false
     rescue ActiveRecord::RecordInvalid => e
       puts "[FTPPoller] ✗ Database error for #{filename}: #{e.message}"
       move_file_to_failed(ftp, filename, "Database error: #{e.message}")
+      return false
     rescue => e
       puts "[FTPPoller] ✗ Failed to process #{filename}: #{e.message}"
       move_file_to_failed(ftp, filename, e.message)
+      return false
     end
   end
 

@@ -21,6 +21,18 @@ The Print Order Orchestrator is a local print order management system designed t
 
 ## Recent Work
 
+### December 11, 2025 - Fixed FTP Polling Retry Logic for Failed Imports
+- ✅ **FIXED FTP POLLER RETRY LOGIC**: 
+  - **Previous**: Files marked as processed even if import failed, preventing retry
+  - **Problem**: If ordine failed and was re-uploaded for retry, poller would skip it
+  - **Root cause**: `@processed_files` Set was tracking ALL files, not just successful imports
+  - **Fix**: `process_file()` now returns `true/false` based on success
+  - **Result**: Only successful imports are added to `@processed_files`
+  - **Behavior**: Failed imports can be re-uploaded and will be processed again
+  - **Example**: Order fails → move to failed folder → fix issue → re-upload → poller processes it ✓
+
+## Recent Work (Autopilot Fixes)
+
 ### December 9, 2025 - Autopilot Payload Fixed (IDENTICAL to Manual Send) + Filename Bug Fixed
 - ✅ **FIXED FILENAME COUNTRY CODE BUG**: 
   - **Previous**: Files were always named "EU{number}" instead of using the actual country code from order
