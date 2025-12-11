@@ -62,3 +62,23 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
 - **dotenv gem**: Manages environment variables for configuration.
 - **Chart.js**: Utilized for rendering interactive charts in the analytics dashboard.
 - **FTP Server**: An optional component for FTP-based order imports.
+
+## Recent Work
+
+### December 11, 2025 - Fixed Multiple Inventory & Order Edit Issues
+- ✅ **FIXED ERR_RESPONSE_HEADERS_MULTIPLE_LOCATION**: 
+  - **Problem**: PUT /orders/:id route sending two Location headers on redirect
+  - **Root cause**: Both success redirect and rescue redirect inside same begin block
+  - **Fix**: Moved final success redirect OUTSIDE begin...rescue (line 288)
+  - **Logic**: Error → rescue returns with redirect; Success → redirect after begin block ends
+  - **Result**: Order edit form saves successfully without double redirect error
+
+- ✅ **FIXED INVENTORY FILTER NIL COMPARISON**: 
+  - **Problem**: Sottoscorta/Disponibili tabs crashed when min_stock_level was nil
+  - **Fix**: Added `min_stock_level &&` check before all comparisons (lines 694, 696, 73, 78)
+  - **Result**: Filter buttons work correctly, safe display with 'Non impostato' fallback
+
+- ✅ **FIXED FTP POLLER RETRY LOGIC**: 
+  - **Problem**: Failed imports marked as processed, preventing retry on re-upload
+  - **Fix**: `process_file()` now returns true/false; only successful imports tracked
+  - **Result**: Failed orders can be re-uploaded and reprocessed automatically

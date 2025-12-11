@@ -277,11 +277,12 @@ class PrintOrchestrator < Sinatra::Base
       if @order.order_items.empty?
         return redirect "/orders/#{@order.id}/edit?error=Aggiungere almeno un item"
       end
-
-      redirect "/orders/#{@order.id}"
     rescue => e
-      redirect "/orders/#{@order.id}/edit?error=#{e.message}"
+      return redirect "/orders/#{@order.id}/edit?error=#{e.message}"
     end
+    
+    # Redirect only after all updates are successful
+    redirect "/orders/#{@order.id}"
   end
 
   # PATCH /orders/:id/update_notes - Update order notes
