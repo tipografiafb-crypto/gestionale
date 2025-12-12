@@ -83,6 +83,12 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
   - **Why manual approach**: Kaminari gem is Rails-specific and caused dependency conflicts with Sinatra. Manual approach is lightweight and requires no external gems
   - **Result**: Better performance, cleaner UI with navigation controls, no loading delays
 
+#### ✅ **FIXED PAGINATION - SEPARATE PER TAB**:
+  - **Problem**: Pagination was applied to all orders first, then filtered by status, causing most tabs to be empty on first page
+  - **Solution**: Group orders by status BEFORE pagination, then paginate each group separately
+  - **Implementation**: Each tab (Nuovi, In Lavorazione, Completati, Errori) has independent pagination
+  - **Result**: Correct totals shown in badges, each tab navigable independently
+
 #### ✅ **UPDATED 7-DAY DELAY THRESHOLD**:
   - Changed from 1 day testing threshold to production 7 days
   - Updated route and view documentation

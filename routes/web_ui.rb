@@ -30,15 +30,36 @@ class PrintOrchestrator < Sinatra::Base
     @orders = @orders.sort_by(&:created_at)
     @orders = @orders.reverse if sort_order == 'desc'
     
-    # Manual pagination: 25 per page
-    page = (params[:page] || 1).to_i
-    per_page = 25
-    @total_pages = (@orders.length.to_f / per_page).ceil
-    @current_page = page
-    start_idx = (page - 1) * per_page
-    @orders = @orders[start_idx, per_page]
+    # Group by status BEFORE pagination
+    @new_orders = @orders.select { |o| o.status == 'new' }
+    @in_progress_orders = @orders.select { |o| %w[sent_to_switch processing].include?(o.status) }
+    @completed_orders = @orders.select { |o| %w[done error].include?(o.status) }
     
-    # Calculate delayed orders (created more than 7 days ago and not completed)
+    # Paginate each group separately (25 per page)
+    per_page = 25
+    
+    # New orders pagination
+    page = (params[:page] || 1).to_i
+    @new_total_pages = (@new_orders.length.to_f / per_page).ceil
+    @new_current_page = page
+    start_idx = (page - 1) * per_page
+    @new_orders_paginated = @new_orders[start_idx, per_page]
+    
+    # In Progress pagination
+    in_prog_page = (params[:in_prog_page] || 1).to_i
+    @in_prog_total_pages = (@in_progress_orders.length.to_f / per_page).ceil
+    @in_prog_current_page = in_prog_page
+    in_prog_start = (in_prog_page - 1) * per_page
+    @in_progress_orders_paginated = @in_progress_orders[in_prog_start, per_page]
+    
+    # Completed pagination
+    completed_page = (params[:completed_page] || 1).to_i
+    @completed_total_pages = (@completed_orders.length.to_f / per_page).ceil
+    @completed_current_page = completed_page
+    completed_start = (completed_page - 1) * per_page
+    @completed_orders_paginated = @completed_orders[completed_start, per_page]
+    
+    # Calculate delayed orders (from all orders, not just paginated)
     delay_threshold = 7.days
     @delayed_orders = @orders.select do |order|
       (Time.now - order.created_at) > delay_threshold && 

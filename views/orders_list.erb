@@ -59,21 +59,17 @@
       </div>
     </div>
   <% else %>
-    <% new_orders = @orders.select { |o| o.status == 'new' } %>
-    <% in_progress = @orders.select { |o| %w[sent_to_switch processing].include?(o.status) } %>
-    <% completed = @orders.select { |o| %w[done error].include?(o.status) } %>
-    
     <ul class="nav nav-tabs mb-4" role="tablist">
       <li class="nav-item" role="presentation">
         <button class="nav-link active" id="new-tab" data-bs-toggle="tab" data-bs-target="#new" type="button" role="tab" aria-controls="new" aria-selected="true">
           <i class="fas fa-inbox"></i> Nuovi
-          <span class="badge bg-info ms-2"><%= new_orders.count %></span>
+          <span class="badge bg-info ms-2"><%= @new_orders.count %></span>
         </button>
       </li>
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="in-progress-tab" data-bs-toggle="tab" data-bs-target="#in-progress" type="button" role="tab" aria-controls="in-progress" aria-selected="false">
           <i class="fas fa-hourglass-half"></i> In Lavorazione
-          <span class="badge bg-primary ms-2"><%= in_progress.count %></span>
+          <span class="badge bg-primary ms-2"><%= @in_progress_orders.count %></span>
         </button>
       </li>
       <li class="nav-item" role="presentation">
@@ -85,7 +81,7 @@
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab" aria-controls="completed" aria-selected="false">
           <i class="fas fa-check-circle"></i> Completati
-          <span class="badge bg-success ms-2"><%= completed.count %></span>
+          <span class="badge bg-success ms-2"><%= @completed_orders.count %></span>
         </button>
       </li>
       <li class="nav-item" role="presentation">
@@ -99,7 +95,7 @@
     <div class="tab-content">
       <!-- New Tab -->
       <div class="tab-pane fade show active" id="new" role="tabpanel" aria-labelledby="new-tab">
-        <% if new_orders.empty? %>
+        <% if @new_orders.empty? %>
           <div class="alert alert-info border-0 mb-0">
             <i class="fas fa-circle-info"></i> Nessun ordine nuovo
           </div>
@@ -120,7 +116,7 @@
 
                 </thead>
                 <tbody>
-                  <% new_orders.each do |order| %>
+                  <% @new_orders_paginated.each do |order| %>
                     <tr style="cursor: pointer;" onclick="window.location.href='/orders/<%= order.id %>';">
                       <td>
                         <span class="text-muted"><%= order.created_at.strftime('%d-%m-%y') %></span>
@@ -246,18 +242,18 @@
                 </tbody>
               </table>
             </div>
-            <% if @orders.any? && @total_pages > 1 %>
+            <% if @new_orders.any? && @new_total_pages > 1 %>
               <div class="card-footer bg-white text-center pt-3">
                 <nav>
                   <ul class="pagination pagination-sm mb-0 justify-content-center">
-                    <% if @current_page > 1 %>
-                      <li class="page-item"><a class="page-link" href="/orders?page=<%= @current_page - 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %><%= "&order_code=#{@filter_order_code}" if @filter_order_code.present? %><%= "&sort=#{@filter_sort}" if @filter_sort.present? %>">← Precedente</a></li>
+                    <% if @new_current_page > 1 %>
+                      <li class="page-item"><a class="page-link" href="/orders?page=<%= @new_current_page - 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %><%= "&order_code=#{@filter_order_code}" if @filter_order_code.present? %><%= "&sort=#{@filter_sort}" if @filter_sort.present? %>">← Precedente</a></li>
                     <% else %>
                       <li class="page-item disabled"><span class="page-link">← Precedente</span></li>
                     <% end %>
-                    <li class="page-item disabled"><span class="page-link"><%= @current_page %> / <%= @total_pages %></span></li>
-                    <% if @current_page < @total_pages %>
-                      <li class="page-item"><a class="page-link" href="/orders?page=<%= @current_page + 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %><%= "&order_code=#{@filter_order_code}" if @filter_order_code.present? %><%= "&sort=#{@filter_sort}" if @filter_sort.present? %>">Successivo →</a></li>
+                    <li class="page-item disabled"><span class="page-link"><%= @new_current_page %> / <%= @new_total_pages %></span></li>
+                    <% if @new_current_page < @new_total_pages %>
+                      <li class="page-item"><a class="page-link" href="/orders?page=<%= @new_current_page + 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %><%= "&order_code=#{@filter_order_code}" if @filter_order_code.present? %><%= "&sort=#{@filter_sort}" if @filter_sort.present? %>">Successivo →</a></li>
                     <% else %>
                       <li class="page-item disabled"><span class="page-link">Successivo →</span></li>
                     <% end %>
@@ -271,7 +267,7 @@
 
       <!-- In Progress Tab -->
       <div class="tab-pane fade" id="in-progress" role="tabpanel" aria-labelledby="in-progress-tab">
-        <% if in_progress.empty? %>
+        <% if @in_progress_orders.empty? %>
           <div class="alert alert-info border-0 mb-0">
             <i class="fas fa-circle-info"></i> Nessun ordine in lavorazione
           </div>
@@ -292,7 +288,7 @@
 
                 </thead>
                 <tbody>
-                  <% in_progress.each do |order| %>
+                  <% @in_progress_orders_paginated.each do |order| %>
                     <tr style="cursor: pointer;" onclick="window.location.href='/orders/<%= order.id %>';">
                       <td>
                         <span class="text-muted"><%= order.created_at.strftime('%d-%m-%y') %></span>
@@ -349,13 +345,32 @@
                 </tbody>
               </table>
             </div>
+            <% if @in_progress_orders.any? && @in_prog_total_pages > 1 %>
+              <div class="card-footer bg-white text-center pt-3">
+                <nav>
+                  <ul class="pagination pagination-sm mb-0 justify-content-center">
+                    <% if @in_prog_current_page > 1 %>
+                      <li class="page-item"><a class="page-link" href="/orders?in_prog_page=<%= @in_prog_current_page - 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %>">← Precedente</a></li>
+                    <% else %>
+                      <li class="page-item disabled"><span class="page-link">← Precedente</span></li>
+                    <% end %>
+                    <li class="page-item disabled"><span class="page-link"><%= @in_prog_current_page %> / <%= @in_prog_total_pages %></span></li>
+                    <% if @in_prog_current_page < @in_prog_total_pages %>
+                      <li class="page-item"><a class="page-link" href="/orders?in_prog_page=<%= @in_prog_current_page + 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %>">Successivo →</a></li>
+                    <% else %>
+                      <li class="page-item disabled"><span class="page-link">Successivo →</span></li>
+                    <% end %>
+                  </ul>
+                </nav>
+              </div>
+            <% end %>
           </div>
         <% end %>
       </div>
 
       <!-- Completed Tab -->
       <div class="tab-pane fade" id="completed" role="tabpanel" aria-labelledby="completed-tab">
-        <% if completed.empty? %>
+        <% if @completed_orders.empty? %>
           <div class="alert alert-info border-0 mb-0">
             <i class="fas fa-circle-info"></i> Nessun ordine completato
           </div>
@@ -376,7 +391,7 @@
 
                 </thead>
                 <tbody>
-                  <% completed.each do |order| %>
+                  <% @completed_orders_paginated.each do |order| %>
                     <tr style="cursor: pointer;" onclick="window.location.href='/orders/<%= order.id %>';">
                       <td>
                         <span class="text-muted"><%= order.created_at.strftime('%d-%m-%y') %></span>
@@ -430,6 +445,25 @@
                 </tbody>
               </table>
             </div>
+            <% if @completed_orders.any? && @completed_total_pages > 1 %>
+              <div class="card-footer bg-white text-center pt-3">
+                <nav>
+                  <ul class="pagination pagination-sm mb-0 justify-content-center">
+                    <% if @completed_current_page > 1 %>
+                      <li class="page-item"><a class="page-link" href="/orders?completed_page=<%= @completed_current_page - 1 %>">← Precedente</a></li>
+                    <% else %>
+                      <li class="page-item disabled"><span class="page-link">← Precedente</span></li>
+                    <% end %>
+                    <li class="page-item disabled"><span class="page-link"><%= @completed_current_page %> / <%= @completed_total_pages %></span></li>
+                    <% if @completed_current_page < @completed_total_pages %>
+                      <li class="page-item"><a class="page-link" href="/orders?completed_page=<%= @completed_current_page + 1 %>">Successivo →</a></li>
+                    <% else %>
+                      <li class="page-item disabled"><span class="page-link">Successivo →</span></li>
+                    <% end %>
+                  </ul>
+                </nav>
+              </div>
+            <% end %>
           </div>
         <% end %>
       </div>
@@ -493,6 +527,25 @@
                 </tbody>
               </table>
             </div>
+            <% if @import_errors.any? && @error_total_pages > 1 %>
+              <div class="card-footer bg-white text-center pt-3">
+                <nav>
+                  <ul class="pagination pagination-sm mb-0 justify-content-center">
+                    <% if @error_current_page > 1 %>
+                      <li class="page-item"><a class="page-link" href="/orders?error_page=<%= @error_current_page - 1 %>">← Precedente</a></li>
+                    <% else %>
+                      <li class="page-item disabled"><span class="page-link">← Precedente</span></li>
+                    <% end %>
+                    <li class="page-item disabled"><span class="page-link"><%= @error_current_page %> / <%= @error_total_pages %></span></li>
+                    <% if @error_current_page < @error_total_pages %>
+                      <li class="page-item"><a class="page-link" href="/orders?error_page=<%= @error_current_page + 1 %>">Successivo →</a></li>
+                    <% else %>
+                      <li class="page-item disabled"><span class="page-link">Successivo →</span></li>
+                    <% end %>
+                  </ul>
+                </nav>
+              </div>
+            <% end %>
           </div>
         <% end %>
       </div>
