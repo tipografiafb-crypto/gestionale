@@ -10,7 +10,7 @@
 set -e
 
 # Configuration
-APP_DIR="/home/paolo/apps/print-orchestrator"
+APP_DIR="$(pwd)"  # Uses current directory dynamically
 BACKUP_DIR="/tmp/print-orchestrator-backups"
 STORAGE_DIR="$APP_DIR/storage"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -80,8 +80,7 @@ if [ "$1" == "send" ]; then
   # Check if SSH key is configured
   if [ -z "$REMOTE_BACKUP_SSH_KEY" ]; then
     echo -e "${RED}✗${NC} REMOTE_BACKUP_SSH_KEY not set in .env"
-    echo "Please add to .env:"
-    echo "  REMOTE_BACKUP_SSH_KEY=/home/paolo/.ssh/backup_key"
+    echo "Please add to .env the path to your SSH key"
     exit 1
   fi
   
