@@ -740,6 +740,15 @@ class PrintOrchestrator < Sinatra::Base
       end
     end
     
+    # Manual pagination (25 per page)
+    per_page = 25
+    page = (params[:page] || 1).to_i
+    @total_line_items = @line_items.length
+    @total_pages = (@total_line_items.to_f / per_page).ceil
+    @current_page = page
+    start_idx = (page - 1) * per_page
+    @line_items_paginated = @line_items[start_idx, per_page]
+    
     erb :line_items
   end
 
@@ -773,6 +782,15 @@ class PrintOrchestrator < Sinatra::Base
       end
     end
     
+    # Manual pagination (25 per page)
+    per_page = 25
+    page = (params[:page] || 1).to_i
+    @total_inventory_items = @inventory_items.length
+    @inventory_total_pages = (@total_inventory_items.to_f / per_page).ceil
+    @inventory_current_page = page
+    start_idx = (page - 1) * per_page
+    @inventory_items_paginated = @inventory_items[start_idx, per_page]
+    
     @search_term = params[:search]
     erb :inventory
   end
@@ -784,12 +802,12 @@ class PrintOrchestrator < Sinatra::Base
     
     if quantity > 0
       inventory.add_stock(quantity)
-      redirect "/inventory?msg=success&text=Aggiunto%20#{quantity}%20prodotti"
+      redirect "/inventory?msg=success&text=Aggiunto%20#{quantity}%20prodotti%23inventory"
     else
-      redirect "/inventory?msg=error&text=Quantità%20non%20valida"
+      redirect "/inventory?msg=error&text=Quantità%20non%20valida%23inventory"
     end
   rescue => e
-    redirect "/inventory?msg=error&text=Errore%20nell'aggiunta"
+    redirect "/inventory?msg=error&text=Errore%20nell'aggiunta%23inventory"
   end
 
   # POST /inventory/:id/remove - Remove stock
@@ -798,12 +816,12 @@ class PrintOrchestrator < Sinatra::Base
     quantity = params[:quantity].to_i
     
     if quantity > 0 && inventory.remove_stock(quantity)
-      redirect "/inventory?msg=success&text=Rimosso%20#{quantity}%20prodotti"
+      redirect "/inventory?msg=success&text=Rimosso%20#{quantity}%20prodotti%23inventory"
     else
-      redirect "/inventory?msg=error&text=Quantità%20insufficiente%20o%20non%20valida"
+      redirect "/inventory?msg=error&text=Quantità%20insufficiente%20o%20non%20valida%23inventory"
     end
   rescue => e
-    redirect "/inventory?msg=error&text=Errore%20nella%20rimozione"
+    redirect "/inventory?msg=error&text=Errore%20nella%20rimozione%23inventory"
   end
 
   # POST /orders/:order_id/items/:item_id/reset - Reset item workflow

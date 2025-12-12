@@ -49,7 +49,7 @@
   </div>
 </div>
 
-<% if @inventory_items.empty? %>
+<% if @total_inventory_items == 0 %>
   <div class="alert alert-info">
     Nessun prodotto in magazzino
   </div>
@@ -66,7 +66,7 @@
         </tr>
       </thead>
       <tbody>
-        <% @inventory_items.each do |inv| %>
+        <% @inventory_items_paginated.each do |inv| %>
           <% row_bg = inv.quantity_in_stock <= 0 ? 'bg-danger bg-opacity-25' : (inv.product.min_stock_level && inv.quantity_in_stock < inv.product.min_stock_level ? 'bg-warning bg-opacity-25' : '') %>
           <tr class="<%= row_bg %>">
             <td><code><%= inv.product.sku %></code></td>
@@ -137,5 +137,20 @@
         <% end %>
       </tbody>
     </table>
+    <% if @total_inventory_items > 0 && @inventory_total_pages > 1 %>
+      <div style="display: flex; justify-content: center; gap: 10px; margin-top: 15px; padding: 10px; border-top: 1px solid #ddd;">
+        <% if @inventory_current_page > 1 %>
+          <a href="/inventory?page=<%= @inventory_current_page - 1 %><%= "&status=#{@status_filter}" if @status_filter.present? %><%= "&search=#{@search_term}" if @search_term.present? %>#inventory" class="btn btn-sm btn-outline-secondary">← Precedente</a>
+        <% else %>
+          <button class="btn btn-sm btn-outline-secondary" disabled>← Precedente</button>
+        <% end %>
+        <span class="btn btn-sm btn-light" style="pointer-events: none;">Pagina <%= @inventory_current_page %> / <%= @inventory_total_pages %></span>
+        <% if @inventory_current_page < @inventory_total_pages %>
+          <a href="/inventory?page=<%= @inventory_current_page + 1 %><%= "&status=#{@status_filter}" if @status_filter.present? %><%= "&search=#{@search_term}" if @search_term.present? %>#inventory" class="btn btn-sm btn-outline-secondary">Successivo →</a>
+        <% else %>
+          <button class="btn btn-sm btn-outline-secondary" disabled>Successivo →</button>
+        <% end %>
+      </div>
+    <% end %>
   </div>
 <% end %>

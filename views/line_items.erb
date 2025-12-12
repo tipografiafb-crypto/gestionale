@@ -21,7 +21,7 @@
   </div>
 </div>
 
-<% if @line_items.empty? %>
+<% if @total_line_items == 0 %>
   <div class="alert alert-info">
     <% if @search_term.present? %>
       Nessun article trovato con il nome "<%= @search_term %>"
@@ -92,7 +92,7 @@
         </tr>
       </thead>
       <tbody>
-        <% @line_items.each do |li| %>
+        <% @line_items_paginated.each do |li| %>
           <% can_select = li[:item].preprint_status == 'pending' || (li[:item].preprint_status == 'completed' && li[:item].print_status == 'pending') %>
           <tr>
             <td>
@@ -142,10 +142,25 @@
         <% end %>
       </tbody>
     </table>
+    <% if @total_line_items > 0 && @total_pages > 1 %>
+      <div style="display: flex; justify-content: center; gap: 10px; margin-top: 15px; padding: 10px; border-top: 1px solid #ddd;">
+        <% if @current_page > 1 %>
+          <a href="/line_items?page=<%= @current_page - 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %><%= "&order_code=#{@filter_order_code}" if @filter_order_code.present? %><%= "&order_date=#{@filter_order_date}" if @filter_order_date.present? %><%= "&category_id=#{@filter_category_id}" if @filter_category_id.present? %><%= "&product_name=#{@filter_product_name}" if @filter_product_name.present? %><%= "&sku=#{@filter_sku}" if @filter_sku.present? %><%= "&status_filter=#{@filter_status}" if @filter_status.present? %>#line-items" class="btn btn-sm btn-outline-secondary">← Precedente</a>
+        <% else %>
+          <button class="btn btn-sm btn-outline-secondary" disabled>← Precedente</button>
+        <% end %>
+        <span class="btn btn-sm btn-light" style="pointer-events: none;">Pagina <%= @current_page %> / <%= @total_pages %></span>
+        <% if @current_page < @total_pages %>
+          <a href="/line_items?page=<%= @current_page + 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %><%= "&order_code=#{@filter_order_code}" if @filter_order_code.present? %><%= "&order_date=#{@filter_order_date}" if @filter_order_date.present? %><%= "&category_id=#{@filter_category_id}" if @filter_category_id.present? %><%= "&product_name=#{@filter_product_name}" if @filter_product_name.present? %><%= "&sku=#{@filter_sku}" if @filter_sku.present? %><%= "&status_filter=#{@filter_status}" if @filter_status.present? %>#line-items" class="btn btn-sm btn-outline-secondary">Successivo →</a>
+        <% else %>
+          <button class="btn btn-sm btn-outline-secondary" disabled>Successivo →</button>
+        <% end %>
+      </div>
+    <% end %>
   </div>
   
   <div class="alert alert-info mt-4">
-    <strong>Totale:</strong> <%= @line_items.count %> article da elaborare
+    <strong>Totale:</strong> <%= @total_line_items %> article da elaborare
   </div>
 <% end %>
 

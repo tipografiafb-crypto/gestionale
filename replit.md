@@ -103,6 +103,26 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
   - Updated route and view documentation
   - "Ritardo" tab now shows orders stuck for more than 7 days
 
+#### ✅ **TAB PERSISTENCE WITH URL FRAGMENTS**:
+  - Implemented JavaScript-based tab state preservation using URL fragments (#new, #in-progress, #delayed, #completed, #errors)
+  - Each form submission automatically captures active tab ID and appends fragment to URL
+  - Tab automatically selected on page load via Bootstrap Tab API
+  - All filters + pagination state preserved across tab changes
+
+#### ✅ **PAGINATION ADDED TO /line_items AND /inventory**:
+  - **Manual pagination (25 per page)** added to both pages
+  - **Line Items** (`/line_items`): 
+    - Paginated with all filters preserved (date, order code, store, category, product name, SKU, status)
+    - Shows total count of items across all pages
+    - Navigation with "← Precedente" / "Successivo →" buttons
+    - URL fragment `#line-items` preserves tab on page reload
+  - **Inventory** (`/inventory`):
+    - Paginated with all filters preserved (search term, status filter)
+    - Shows total count of products across all pages
+    - Navigation with "← Precedente" / "Successivo →" buttons
+    - URL fragment `#inventory` preserves tab on page reload
+  - **Result**: Consistent 25-per-page experience across ALL major list views (orders, products, stores, webhooks, line_items, inventory)
+
 ### December 11, 2025 - Fixed Multiple Inventory & Order Edit Issues
 
 #### ✅ **FIXED ORDER ITEM UPDATE LOGIC - PRESERVE ASSETS WHEN SKU CHANGES**
