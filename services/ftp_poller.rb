@@ -126,13 +126,21 @@ class FTPPoller
       data = normalize_order_data(raw_data)
       puts "[FTPPoller DEBUG] After normalize - customer_note: #{data['customer_note'].inspect}"
       
+      # Check if order with this external_order_code already exists
+      if Order.exists?(external_order_code: data['external_order_code'])
+        error_msg = "Order already imported: #{data['external_order_code']}"
+        puts "[FTPPoller] ✗ #{error_msg}"
+        move_file_to_failed(ftp, filename, error_msg)
+        return false
+      end
+      
       # Validate store exists and is active
       store = Store.find_by_code(data['store_id'])
       unless store
         error_msg = "Store not found or inactive: #{data['store_id']}"
         puts "[FTPPoller] ✗ #{error_msg}"
         move_file_to_failed(ftp, filename, error_msg)
-        return
+        return false
       end
       
       # Validate all products exist before importing

@@ -89,3 +89,9 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
   - **Problem**: Failed imports marked as processed, preventing retry on re-upload
   - **Fix**: `process_file()` now returns true/false; only successful imports tracked
   - **Result**: Failed orders can be re-uploaded and reprocessed automatically
+
+#### ✅ **ADDED DUPLICATE ORDER DETECTION IN FTP POLLER**:
+  - **Problem**: FTP poller would attempt to import orders that had already been imported, causing duplicate entries
+  - **Solution**: Added check before processing - if `external_order_code` already exists in DB, file moved to failed folder (services/ftp_poller.rb lines 132-138)
+  - **Implementation**: Check `Order.exists?(external_order_code: data['external_order_code'])` before creating new order
+  - **Result**: Duplicate files automatically moved to `failed_orders_test/` with error reason "Order already imported: {code}"
