@@ -31,9 +31,8 @@ class PrintOrchestrator < Sinatra::Base
     @orders = @orders.sort_by(&:created_at)
     @orders = @orders.reverse if sort_order == 'desc'
     
-    # Calculate delayed orders (created more than 1 day ago and not completed)
-    # NOTE: For testing set to 1 day, will be changed to 7 days in production
-    delay_threshold = 1.day
+    # Calculate delayed orders (created more than 7 days ago and not completed)
+    delay_threshold = 7.days
     @delayed_orders = @orders.select do |order|
       (Time.now - order.created_at) > delay_threshold && 
       %w[new sent_to_switch processing].include?(order.status)

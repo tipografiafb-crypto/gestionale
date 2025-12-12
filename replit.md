@@ -98,12 +98,12 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
 
 #### ✅ **ADDED "RITARDO" (DELAYED) TAB TO /orders PAGE**:
   - **Problem**: Need to alert operators about orders that are taking too long to complete
-  - **Solution**: Added new "Ritardo" tab showing orders created more than 1 day ago (testing threshold) that haven't been completed
+  - **Solution**: Added new "Ritardo" tab showing orders created more than 7 days ago that haven't been completed
   - **Implementation**:
-    1. Route GET /orders (routes/web_ui.rb lines 37-43): Calculate @delayed_orders filtered by status ['new', 'sent_to_switch', 'processing']
+    1. Route GET /orders (routes/web_ui.rb lines 37-42): Calculate @delayed_orders filtered by status ['new', 'sent_to_switch', 'processing']
     2. View views/orders_list.erb (lines 82-87, 171-254): Add tab button with count badge, display delayed orders in yellow highlight table
   - **Key Details**: 
-    - Initial threshold: 1 day (for testing, will be changed to 7 days in production)
+    - Threshold: 7 days (configurable via `delay_threshold = 7.days` in route)
     - Orders keep their original status, only displayed separately as alert
-    - Threshold easily configurable in route: `delay_threshold = 1.day` (change to `7.days` later)
+    - Yellow header and light yellow row highlighting for visual distinction
   - **Result**: Operators see clear visual alert for orders needing attention, all orders preserve their original status
