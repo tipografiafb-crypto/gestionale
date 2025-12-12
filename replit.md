@@ -89,6 +89,15 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
   - **Implementation**: Each tab (Nuovi, In Lavorazione, Completati, Errori) has independent pagination
   - **Result**: Correct totals shown in badges, each tab navigable independently
 
+#### ✅ **FIXED IMPORT ERRORS TAB - BADGE AND PAGINATION**:
+  - **Problem**: Badge showed "25" (max per page) instead of total count, pagination disappeared when changing pages
+  - **Solution**: Save total count BEFORE pagination, use that for badge and paging checks
+  - **Implementation**: 
+    1. Save `@import_errors_total_count` before slicing the array
+    2. Use `@import_errors_total_count` in badge, not `@import_errors.count`
+    3. Show pagination only if `@import_errors_total_count > 0 && @error_total_pages > 1`
+  - **Result**: Badge shows actual total (e.g., "47"), pagination works across all pages
+
 #### ✅ **UPDATED 7-DAY DELAY THRESHOLD**:
   - Changed from 1 day testing threshold to production 7 days
   - Updated route and view documentation

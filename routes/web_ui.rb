@@ -68,13 +68,18 @@ class PrintOrchestrator < Sinatra::Base
     
     # Try to load import errors, but gracefully handle if table doesn't exist
     @import_errors = []
+    @import_errors_total_count = 0
     begin
       @import_errors = ImportError.recent
       @import_errors = @import_errors.where('external_order_code ILIKE ?', "%#{params[:error_order_code]}%") if params[:error_order_code].present?
       @import_errors = @import_errors.by_date(params[:error_date]) if params[:error_date].present?
+      
+      # Save total count BEFORE pagination
+      @import_errors_total_count = @import_errors.length
+      
       # Manual pagination for import errors
       error_page = (params[:error_page] || 1).to_i
-      @error_total_pages = (@import_errors.length.to_f / 25).ceil
+      @error_total_pages = (@import_errors_total_count.to_f / 25).ceil
       @error_current_page = error_page
       error_start = (error_page - 1) * 25
       @import_errors = @import_errors[error_start, 25]
