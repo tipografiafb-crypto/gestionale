@@ -5,7 +5,16 @@
 class PrintOrchestrator < Sinatra::Base
   # GET /webhooks - List all webhooks
   get '/webhooks' do
-    @webhooks = SwitchWebhook.all.order(created_at: :desc)
+    all_webhooks = SwitchWebhook.all.order(created_at: :desc)
+    
+    # Manual pagination
+    page = (params[:page] || 1).to_i
+    per_page = 25
+    @total_pages = (all_webhooks.length.to_f / per_page).ceil
+    @current_page = page
+    start_idx = (page - 1) * per_page
+    @webhooks = all_webhooks[start_idx, per_page]
+    
     erb :webhooks_list
   end
 

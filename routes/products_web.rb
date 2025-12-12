@@ -192,6 +192,15 @@ class PrintOrchestrator < Sinatra::Base
     end
     
     @products = @products.sort_by { |p| p.created_at }.reverse
+    
+    # Manual pagination
+    page = (params[:page] || 1).to_i
+    per_page = 25
+    @total_pages = (@products.length.to_f / per_page).ceil
+    @current_page = page
+    start_idx = (page - 1) * per_page
+    @products = @products[start_idx, per_page]
+    
     @categories = ProductCategory.ordered
     @search_term = params[:search]
     erb :products_list

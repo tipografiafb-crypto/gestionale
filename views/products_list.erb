@@ -92,6 +92,25 @@
           <% end %>
         </tbody>
       </table>
+      <% if @products.any? && @total_pages > 1 %>
+        <div class="card-footer bg-white text-center pt-3">
+          <nav>
+            <ul class="pagination pagination-sm mb-0 justify-content-center">
+              <% if @current_page > 1 %>
+                <li class="page-item"><a class="page-link" href="/products?page=<%= @current_page - 1 %><%= "&search=#{@search_term}" if @search_term.present? %>">← Precedente</a></li>
+              <% else %>
+                <li class="page-item disabled"><span class="page-link">← Precedente</span></li>
+              <% end %>
+              <li class="page-item disabled"><span class="page-link"><%= @current_page %> / <%= @total_pages %></span></li>
+              <% if @current_page < @total_pages %>
+                <li class="page-item"><a class="page-link" href="/products?page=<%= @current_page + 1 %><%= "&search=#{@search_term}" if @search_term.present? %>">Successivo →</a></li>
+              <% else %>
+                <li class="page-item disabled"><span class="page-link">Successivo →</span></li>
+              <% end %>
+            </ul>
+          </nav>
+        </div>
+      <% end %>
     </div>
   <% else %>
     <div class="alert alert-info">

@@ -65,6 +65,29 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
 
 ## Recent Work
 
+### December 12, 2025 - Added Manual Pagination to All Tables
+
+#### ✅ **IMPLEMENTED MANUAL PAGINATION (25 items per page)**:
+  - **Problem**: Tables were loading all records at once (.limit(100)) without pagination, causing performance issues
+  - **Solution**: Implemented manual, lightweight pagination across all list views
+  - **Routes updated**:
+    1. `/orders` - Orders list with 25 per page + preserve filter params (store, order_code, sort)
+    2. `/products` - Products list with 25 per page + search term preservation
+    3. `/stores` - Stores list with 25 per page
+    4. `/webhooks` - Webhooks list with 25 per page
+    5. `/orders` import errors tab - Separate pagination with 25 per page
+  - **Implementation**: 
+    - Manual calculation in routes: `@current_page`, `@total_pages`, array slicing
+    - Bootstrap pagination nav in views with Previous/Next buttons
+    - Query params preserved when clicking pagination links
+  - **Why manual approach**: Kaminari gem is Rails-specific and caused dependency conflicts with Sinatra. Manual approach is lightweight and requires no external gems
+  - **Result**: Better performance, cleaner UI with navigation controls, no loading delays
+
+#### ✅ **UPDATED 7-DAY DELAY THRESHOLD**:
+  - Changed from 1 day testing threshold to production 7 days
+  - Updated route and view documentation
+  - "Ritardo" tab now shows orders stuck for more than 7 days
+
 ### December 11, 2025 - Fixed Multiple Inventory & Order Edit Issues
 
 #### ✅ **FIXED ORDER ITEM UPDATE LOGIC - PRESERVE ASSETS WHEN SKU CHANGES**

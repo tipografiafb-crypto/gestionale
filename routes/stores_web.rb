@@ -5,7 +5,16 @@
 class PrintOrchestrator < Sinatra::Base
   # GET /stores - List all stores
   get '/stores' do
-    @stores = Store.order(code: :asc)
+    all_stores = Store.order(code: :asc)
+    
+    # Manual pagination
+    page = (params[:page] || 1).to_i
+    per_page = 25
+    @total_pages = (all_stores.length.to_f / per_page).ceil
+    @current_page = page
+    start_idx = (page - 1) * per_page
+    @stores = all_stores[start_idx, per_page]
+    
     erb :stores_list
   end
 

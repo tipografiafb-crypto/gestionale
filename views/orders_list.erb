@@ -246,6 +246,25 @@
                 </tbody>
               </table>
             </div>
+            <% if @orders.any? && @total_pages > 1 %>
+              <div class="card-footer bg-white text-center pt-3">
+                <nav>
+                  <ul class="pagination pagination-sm mb-0 justify-content-center">
+                    <% if @current_page > 1 %>
+                      <li class="page-item"><a class="page-link" href="/orders?page=<%= @current_page - 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %><%= "&order_code=#{@filter_order_code}" if @filter_order_code.present? %><%= "&sort=#{@filter_sort}" if @filter_sort.present? %>">← Precedente</a></li>
+                    <% else %>
+                      <li class="page-item disabled"><span class="page-link">← Precedente</span></li>
+                    <% end %>
+                    <li class="page-item disabled"><span class="page-link"><%= @current_page %> / <%= @total_pages %></span></li>
+                    <% if @current_page < @total_pages %>
+                      <li class="page-item"><a class="page-link" href="/orders?page=<%= @current_page + 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %><%= "&order_code=#{@filter_order_code}" if @filter_order_code.present? %><%= "&sort=#{@filter_sort}" if @filter_sort.present? %>">Successivo →</a></li>
+                    <% else %>
+                      <li class="page-item disabled"><span class="page-link">Successivo →</span></li>
+                    <% end %>
+                  </ul>
+                </nav>
+              </div>
+            <% end %>
           </div>
         <% end %>
       </div>

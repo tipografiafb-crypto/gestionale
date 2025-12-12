@@ -24,12 +24,19 @@ class PrintOrchestrator < Sinatra::Base
     @orders = @orders.by_store(params[:store_id]) if params[:store_id].present?
     @orders = @orders.by_order_code(params[:order_code]) if params[:order_code].present?
     @orders = @orders.by_date(params[:order_date]) if params[:order_date].present?
-    @orders = @orders.limit(100)
     
     # Sort by date
     sort_order = params[:sort] == 'desc' ? 'desc' : 'asc'
     @orders = @orders.sort_by(&:created_at)
     @orders = @orders.reverse if sort_order == 'desc'
+    
+    # Manual pagination: 25 per page
+    page = (params[:page] || 1).to_i
+    per_page = 25
+    @total_pages = (@orders.length.to_f / per_page).ceil
+    @current_page = page
+    start_idx = (page - 1) * per_page
+    @orders = @orders[start_idx, per_page]
     
     # Calculate delayed orders (created more than 7 days ago and not completed)
     delay_threshold = 7.days
@@ -44,7 +51,12 @@ class PrintOrchestrator < Sinatra::Base
       @import_errors = ImportError.recent
       @import_errors = @import_errors.where('external_order_code ILIKE ?', "%#{params[:error_order_code]}%") if params[:error_order_code].present?
       @import_errors = @import_errors.by_date(params[:error_date]) if params[:error_date].present?
-      @import_errors = @import_errors.limit(100)
+      # Manual pagination for import errors
+      error_page = (params[:error_page] || 1).to_i
+      @error_total_pages = (@import_errors.length.to_f / 25).ceil
+      @error_current_page = error_page
+      error_start = (error_page - 1) * 25
+      @import_errors = @import_errors[error_start, 25]
     rescue ActiveRecord::StatementInvalid => e
       # Table doesn't exist yet - migrations not run on this database
       puts "[WARNING] import_errors table not found. Run migrations: bundle exec rake db:migrate"
