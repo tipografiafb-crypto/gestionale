@@ -95,3 +95,15 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
   - **Solution**: Added check before processing - if `external_order_code` already exists in DB, file moved to failed folder (services/ftp_poller.rb lines 132-138)
   - **Implementation**: Check `Order.exists?(external_order_code: data['external_order_code'])` before creating new order
   - **Result**: Duplicate files automatically moved to `failed_orders_test/` with error reason "Order already imported: {code}"
+
+#### ✅ **ADDED "RITARDO" (DELAYED) TAB TO /orders PAGE**:
+  - **Problem**: Need to alert operators about orders that are taking too long to complete
+  - **Solution**: Added new "Ritardo" tab showing orders created more than 1 day ago (testing threshold) that haven't been completed
+  - **Implementation**:
+    1. Route GET /orders (routes/web_ui.rb lines 37-43): Calculate @delayed_orders filtered by status ['new', 'sent_to_switch', 'processing']
+    2. View views/orders_list.erb (lines 82-87, 171-254): Add tab button with count badge, display delayed orders in yellow highlight table
+  - **Key Details**: 
+    - Initial threshold: 1 day (for testing, will be changed to 7 days in production)
+    - Orders keep their original status, only displayed separately as alert
+    - Threshold easily configurable in route: `delay_threshold = 1.day` (change to `7.days` later)
+  - **Result**: Operators see clear visual alert for orders needing attention, all orders preserve their original status

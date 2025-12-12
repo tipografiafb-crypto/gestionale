@@ -77,6 +77,12 @@
         </button>
       </li>
       <li class="nav-item" role="presentation">
+        <button class="nav-link" id="delayed-tab" data-bs-toggle="tab" data-bs-target="#delayed" type="button" role="tab" aria-controls="delayed" aria-selected="false">
+          <i class="fas fa-clock"></i> Ritardo
+          <span class="badge bg-warning ms-2"><%= @delayed_orders.count %></span>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
         <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab" aria-controls="completed" aria-selected="false">
           <i class="fas fa-check-circle"></i> Completati
           <span class="badge bg-success ms-2"><%= completed.count %></span>
@@ -127,6 +133,91 @@
                       </td>
                       <td>
                         <span class="badge bg-info">NUOVO</span>
+                      </td>
+                      <td style="text-align: center;">
+                        <span class="badge bg-secondary"><%= order.order_items.count %></span>
+                      </td>
+                      <td style="text-align: center;">
+                        <% if order.assets_downloaded? %>
+                          <span class="badge bg-success"><i class="fas fa-check"></i> OK</span>
+                        <% else %>
+                          <span class="badge bg-warning">pending</span>
+                        <% end %>
+                      </td>
+                      <td style="text-align: right;">
+                        <div style="display: flex; gap: 4px; justify-content: flex-end;">
+                          <a href="/orders/<%= order.id %>" class="btn btn-sm btn-outline-secondary" title="Visualizza"><i class="fas fa-eye"></i></a>
+                          <form action="/orders/<%= order.id %>/duplicate" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Duplica"><i class="fas fa-copy"></i></button>
+                          </form>
+                          <form action="/orders/<%= order.id %>" method="post" class="d-inline" onsubmit="return confirm('Cancellare questo ordine?');" onclick="event.stopPropagation();">
+                            <input type="hidden" name="_method" value="DELETE">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Cancella"><i class="fas fa-trash"></i></button>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        <% end %>
+      </div>
+
+      <!-- Delayed Tab -->
+      <div class="tab-pane fade" id="delayed" role="tabpanel" aria-labelledby="delayed-tab">
+        <% if @delayed_orders.empty? %>
+          <div class="alert alert-info border-0 mb-0">
+            <i class="fas fa-circle-info"></i> Nessun ordine in ritardo
+          </div>
+        <% else %>
+          <div class="card border-0 shadow-sm">
+            <div class="card-header" style="background-color: #fff3cd;">
+              <strong><i class="fas fa-exclamation-circle"></i> Ordini in ritardo</strong>
+              <span class="ms-2 text-muted">Ordini non conclusi da più di 1 giorno</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-striped table-hover">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Negozio</th>
+                    <th>Codice Ordine</th>
+                    <th>Stato</th>
+                    <th style="text-align: center;">Item</th>
+                    <th style="text-align: center;">Asset</th>
+                    <th style="text-align: right; width: 120px;">Azioni</th>
+                  </tr>
+
+                </thead>
+                <tbody>
+                  <% @delayed_orders.each do |order| %>
+                    <tr style="cursor: pointer; background-color: #fffacd;" onclick="window.location.href='/orders/<%= order.id %>';">
+                      <td>
+                        <span class="text-muted"><%= order.created_at.strftime('%d-%m-%y') %></span>
+                      </td>
+                      <td>
+                        <strong><%= order.store.name %></strong>
+                      </td>
+                      <td>
+                        <strong style="color: var(--primary);"><%= order.external_order_code %></strong>
+                      </td>
+                      <td>
+                        <% wf_status = order.workflow_status %>
+                        <% wf_color = case wf_status
+                          when 'nuovo'
+                            'bg-info'
+                          when 'in-lavorazione'
+                            'bg-warning'
+                          when 'completato'
+                            'bg-success'
+                          else
+                            'bg-secondary'
+                          end %>
+                        <span class="badge <%= wf_color %>">
+                          <%= wf_status.upcase %>
+                        </span>
                       </td>
                       <td style="text-align: center;">
                         <span class="badge bg-secondary"><%= order.order_items.count %></span>
