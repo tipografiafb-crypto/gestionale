@@ -247,13 +247,13 @@
                 <nav>
                   <ul class="pagination pagination-sm mb-0 justify-content-center">
                     <% if @new_current_page > 1 %>
-                      <li class="page-item"><a class="page-link" href="/orders?page=<%= @new_current_page - 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %><%= "&order_code=#{@filter_order_code}" if @filter_order_code.present? %><%= "&sort=#{@filter_sort}" if @filter_sort.present? %>">← Precedente</a></li>
+                      <li class="page-item"><a class="page-link" href="/orders?page=<%= @new_current_page - 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %><%= "&order_code=#{@filter_order_code}" if @filter_order_code.present? %><%= "&sort=#{@filter_sort}" if @filter_sort.present? %>#new">← Precedente</a></li>
                     <% else %>
                       <li class="page-item disabled"><span class="page-link">← Precedente</span></li>
                     <% end %>
                     <li class="page-item disabled"><span class="page-link"><%= @new_current_page %> / <%= @new_total_pages %></span></li>
                     <% if @new_current_page < @new_total_pages %>
-                      <li class="page-item"><a class="page-link" href="/orders?page=<%= @new_current_page + 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %><%= "&order_code=#{@filter_order_code}" if @filter_order_code.present? %><%= "&sort=#{@filter_sort}" if @filter_sort.present? %>">Successivo →</a></li>
+                      <li class="page-item"><a class="page-link" href="/orders?page=<%= @new_current_page + 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %><%= "&order_code=#{@filter_order_code}" if @filter_order_code.present? %><%= "&sort=#{@filter_sort}" if @filter_sort.present? %>#new">Successivo →</a></li>
                     <% else %>
                       <li class="page-item disabled"><span class="page-link">Successivo →</span></li>
                     <% end %>
@@ -350,13 +350,13 @@
                 <nav>
                   <ul class="pagination pagination-sm mb-0 justify-content-center">
                     <% if @in_prog_current_page > 1 %>
-                      <li class="page-item"><a class="page-link" href="/orders?in_prog_page=<%= @in_prog_current_page - 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %>">← Precedente</a></li>
+                      <li class="page-item"><a class="page-link" href="/orders?in_prog_page=<%= @in_prog_current_page - 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %>#in-progress">← Precedente</a></li>
                     <% else %>
                       <li class="page-item disabled"><span class="page-link">← Precedente</span></li>
                     <% end %>
                     <li class="page-item disabled"><span class="page-link"><%= @in_prog_current_page %> / <%= @in_prog_total_pages %></span></li>
                     <% if @in_prog_current_page < @in_prog_total_pages %>
-                      <li class="page-item"><a class="page-link" href="/orders?in_prog_page=<%= @in_prog_current_page + 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %>">Successivo →</a></li>
+                      <li class="page-item"><a class="page-link" href="/orders?in_prog_page=<%= @in_prog_current_page + 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %>#in-progress">Successivo →</a></li>
                     <% else %>
                       <li class="page-item disabled"><span class="page-link">Successivo →</span></li>
                     <% end %>
@@ -450,13 +450,13 @@
                 <nav>
                   <ul class="pagination pagination-sm mb-0 justify-content-center">
                     <% if @completed_current_page > 1 %>
-                      <li class="page-item"><a class="page-link" href="/orders?completed_page=<%= @completed_current_page - 1 %>">← Precedente</a></li>
+                      <li class="page-item"><a class="page-link" href="/orders?completed_page=<%= @completed_current_page - 1 %>#completed">← Precedente</a></li>
                     <% else %>
                       <li class="page-item disabled"><span class="page-link">← Precedente</span></li>
                     <% end %>
                     <li class="page-item disabled"><span class="page-link"><%= @completed_current_page %> / <%= @completed_total_pages %></span></li>
                     <% if @completed_current_page < @completed_total_pages %>
-                      <li class="page-item"><a class="page-link" href="/orders?completed_page=<%= @completed_current_page + 1 %>">Successivo →</a></li>
+                      <li class="page-item"><a class="page-link" href="/orders?completed_page=<%= @completed_current_page + 1 %>#completed">Successivo →</a></li>
                     <% else %>
                       <li class="page-item disabled"><span class="page-link">Successivo →</span></li>
                     <% end %>
@@ -532,13 +532,13 @@
                 <nav>
                   <ul class="pagination pagination-sm mb-0 justify-content-center">
                     <% if @error_current_page > 1 %>
-                      <li class="page-item"><a class="page-link" href="/orders?error_page=<%= @error_current_page - 1 %>">← Precedente</a></li>
+                      <li class="page-item"><a class="page-link" href="/orders?error_page=<%= @error_current_page - 1 %>#errors">← Precedente</a></li>
                     <% else %>
                       <li class="page-item disabled"><span class="page-link">← Precedente</span></li>
                     <% end %>
                     <li class="page-item disabled"><span class="page-link"><%= @error_current_page %> / <%= @error_total_pages %></span></li>
                     <% if @error_current_page < @error_total_pages %>
-                      <li class="page-item"><a class="page-link" href="/orders?error_page=<%= @error_current_page + 1 %>">Successivo →</a></li>
+                      <li class="page-item"><a class="page-link" href="/orders?error_page=<%= @error_current_page + 1 %>#errors">Successivo →</a></li>
                     <% else %>
                       <li class="page-item disabled"><span class="page-link">Successivo →</span></li>
                     <% end %>
@@ -552,3 +552,27 @@
     </div>
   <% end %>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const hash = window.location.hash.substring(1);
+    if (hash && ['new', 'in-progress', 'delayed', 'completed', 'errors'].includes(hash)) {
+      const tabButton = document.getElementById(hash + '-tab');
+      if (tabButton) {
+        const tab = new bootstrap.Tab(tabButton);
+        tab.show();
+      }
+    }
+  });
+
+  document.addEventListener('submit', function(e) {
+    const form = e.target;
+    if (form.method.toUpperCase() === 'POST') {
+      const activeTab = document.querySelector('.nav-link.active');
+      if (activeTab) {
+        const tabId = activeTab.getAttribute('aria-controls');
+        form.action += '#' + tabId;
+      }
+    }
+  });
+</script>
