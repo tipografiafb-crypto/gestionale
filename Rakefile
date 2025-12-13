@@ -1,6 +1,9 @@
 require 'sinatra/activerecord/rake'
 require './app'
 
+# Load custom rake tasks
+Dir.glob('lib/tasks/*.rake').each { |r| import r }
+
 namespace :db do
   desc "Complete database setup - Creates all tables directly"
   task setup_complete: :environment do
