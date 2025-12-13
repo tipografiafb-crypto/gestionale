@@ -178,6 +178,12 @@ class FTPPoller
           order_item.store_json_data(item_data)
           order_item.save
           
+          # Deduct from inventory (same as API import)
+          product = Product.find_by(sku: item_data['sku'])
+          if product && product.inventory
+            product.inventory.remove_stock(item_data['quantity'])
+          end
+          
           # Create assets from print files (skip product_image)
           item_data['print_files'].each_with_index do |url, index|
             order_item.assets.create!(
