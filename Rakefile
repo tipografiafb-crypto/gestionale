@@ -4,6 +4,11 @@ require './app'
 # Load custom rake tasks
 Dir.glob('lib/tasks/*.rake').each { |r| import r }
 
+# Define environment task for Sinatra (required for custom rake tasks)
+task :environment do
+  # App is already loaded above
+end
+
 namespace :db do
   desc "Complete database setup - Creates all tables directly"
   task setup_complete: :environment do
