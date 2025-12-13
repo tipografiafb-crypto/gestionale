@@ -163,7 +163,8 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'routes/analytics'
   
   # Start FTP poller in background (if configured)
+  # Skip FTP poller when running rake tasks
   configure do
-    FTPPoller.new.start
+    FTPPoller.new.start unless $PROGRAM_NAME.include?('rake')
   end
 end
