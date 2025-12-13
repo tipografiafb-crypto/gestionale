@@ -65,6 +65,29 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
 
 ## Recent Work
 
+### December 13, 2025 - Fixed Automated Daily Backup System
+
+#### ✅ **FIXED BACKUP CRON JOB - NOW WORKING 24/7**:
+  - **Problem**: Cron was failing because script called non-existent `/usr/bin/bundle` and had hardcoded paths
+  - **Solution**: 
+    1. Modified `scripts/backup.sh` to use `APP_DIR="$(pwd)"` instead of hardcoded `/home/paolo/apps/print-orchestrator`
+    2. Updated `lib/tasks/backup.rake` to call `BackupManager.perform_backup()` directly (reads credentials from DATABASE, not .env)
+    3. Added task loading to `Rakefile`: `Dir.glob('lib/tasks/*.rake').each { |r| import r }`
+    4. Added `:environment` task to Rakefile for Sinatra compatibility
+    5. Modified `app.rb` to skip FTPPoller when running rake (prevents debug spam during backup execution)
+    6. Removed DEBUG_DOTENV logging from app.rb (was cluttering output)
+  - **Updated cron command**:
+    ```bash
+    0 2 * * * source ~/.bashrc && cd /home/magenta/apps/print-orchestrator && bundle exec rake backup:send >> /tmp/print-orchestrator-backup.log 2>&1
+    ```
+  - **Why this works**: 
+    - `source ~/.bashrc` loads rbenv environment so `bundle` command works
+    - `rake backup:send` executes Ruby task that reads SSH credentials from database (saved via `/admin/backup` page)
+    - No longer depends on server being online at 2 AM
+    - Backup is automatically sent to Switch server (192.168.1.162)
+  - **Tested**: ✅ Manual test successful - backup created and sent to `/Users/switch/backup_magenta/`
+  - **Result**: Daily backup now runs automatically at 2 AM with zero manual intervention
+
 ### December 12, 2025 - Added Manual Pagination to All Tables
 
 #### ✅ **IMPLEMENTED MANUAL PAGINATION (25 items per page)**:

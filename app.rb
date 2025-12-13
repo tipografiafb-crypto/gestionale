@@ -7,12 +7,7 @@ require 'time'
 
 # Load environment variables from .env file
 dotenv_path = File.expand_path('.env', __dir__)
-puts "[DEBUG_DOTENV] Loading .env from: #{dotenv_path}"
-puts "[DEBUG_DOTENV] File exists: #{File.exist?(dotenv_path)}"
 Dotenv.load(dotenv_path)
-puts "[DEBUG_DOTENV] GESTIONALE_BASE_URL: #{ENV['GESTIONALE_BASE_URL'].inspect}"
-puts "[DEBUG_DOTENV] SWITCH_WEBHOOK_BASE_URL: #{ENV['SWITCH_WEBHOOK_BASE_URL'].inspect}"
-puts "[DEBUG_DOTENV] SWITCH_WEBHOOK_PREFIX: #{ENV['SWITCH_WEBHOOK_PREFIX'].inspect}"
 
 class PrintOrchestrator < Sinatra::Base
   register Sinatra::ActiveRecordExtension
