@@ -180,6 +180,12 @@
                     <div class="btn-group btn-group-sm mt-2" role="group">
                       <% if asset.downloaded? %>
                         <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Scarica"><i class="fas fa-download"></i></a>
+                        <% if asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) %>
+                          <button type="button" class="btn btn-sm btn-outline-warning btn-adjust-image" 
+                                  data-asset-id="<%= asset.id %>" 
+                                  data-file-url="/file/<%= asset.id %>"
+                                  title="Modifica Offset"><i class="fas fa-arrows-alt"></i></button>
+                        <% end %>
                         <form action="/assets/<%= asset.id %>/delete" method="post" class="d-inline">
                           <input type="hidden" name="order_id" value="<%= @order.id %>">
                           <input type="hidden" name="item_id" value="<%= @item.id %>">
@@ -415,6 +421,60 @@
   </div>
 </div>
 
+<!-- Modal: Image Offset Editor -->
+<div class="modal fade" id="imageAdjustModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-arrows-alt"></i> Modifica Offset Immagine</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-md-9">
+            <div style="border: 1px solid #ddd; border-radius: 4px; overflow: hidden; background: #f8f9fa; text-align: center;">
+              <canvas id="adjustCanvas" style="max-width: 100%; display: block; margin: 0 auto;"></canvas>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="mb-4">
+              <label class="form-label"><strong>Offset X (px)</strong></label>
+              <input type="range" class="form-range" id="offsetXSlider" min="-200" max="200" value="0">
+              <div class="d-flex gap-2 align-items-center mt-1">
+                <input type="number" class="form-control form-control-sm" id="offsetXInput" value="0" min="-500" max="500" style="width: 80px;">
+                <span class="text-muted">px</span>
+              </div>
+            </div>
+            <div class="mb-4">
+              <label class="form-label"><strong>Offset Y (px)</strong></label>
+              <input type="range" class="form-range" id="offsetYSlider" min="-200" max="200" value="0">
+              <div class="d-flex gap-2 align-items-center mt-1">
+                <input type="number" class="form-control form-control-sm" id="offsetYInput" value="0" min="-500" max="500" style="width: 80px;">
+                <span class="text-muted">px</span>
+              </div>
+            </div>
+            <div class="mb-3">
+              <button type="button" class="btn btn-outline-secondary w-100" id="resetOffsetBtn">
+                <i class="fas fa-undo"></i> Reset (0, 0)
+              </button>
+            </div>
+            <hr>
+            <p class="text-muted small">
+              <i class="fas fa-info-circle"></i> Usa gli slider o i campi numerici per spostare l'immagine. Lo sfondo bianco riempie le aree vuote.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-success" id="saveAdjustedImageBtn">
+          <i class="fas fa-save"></i> Salva Immagine
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -514,6 +574,141 @@
     }
   }
 </style>
+
+<!-- Image Offset Editor Script -->
+<script>
+(function() {
+  let adjustAssetId = null;
+  let originalImage = null;
+  let currentOffsetX = 0;
+  let currentOffsetY = 0;
+  
+  const adjustModal = document.getElementById('imageAdjustModal');
+  const adjustCanvas = document.getElementById('adjustCanvas');
+  const ctx = adjustCanvas ? adjustCanvas.getContext('2d') : null;
+  const offsetXSlider = document.getElementById('offsetXSlider');
+  const offsetYSlider = document.getElementById('offsetYSlider');
+  const offsetXInput = document.getElementById('offsetXInput');
+  const offsetYInput = document.getElementById('offsetYInput');
+  const resetOffsetBtn = document.getElementById('resetOffsetBtn');
+  const saveAdjustedImageBtn = document.getElementById('saveAdjustedImageBtn');
+  
+  function redrawCanvas() {
+    if (!originalImage || !ctx) return;
+    
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, adjustCanvas.width, adjustCanvas.height);
+    ctx.drawImage(originalImage, currentOffsetX, currentOffsetY);
+  }
+  
+  function updateOffsets(x, y) {
+    currentOffsetX = parseInt(x) || 0;
+    currentOffsetY = parseInt(y) || 0;
+    
+    offsetXSlider.value = Math.max(-200, Math.min(200, currentOffsetX));
+    offsetYSlider.value = Math.max(-200, Math.min(200, currentOffsetY));
+    offsetXInput.value = currentOffsetX;
+    offsetYInput.value = currentOffsetY;
+    
+    redrawCanvas();
+  }
+  
+  document.querySelectorAll('.btn-adjust-image').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      adjustAssetId = this.getAttribute('data-asset-id');
+      const fileUrl = this.getAttribute('data-file-url');
+      
+      currentOffsetX = 0;
+      currentOffsetY = 0;
+      updateOffsets(0, 0);
+      
+      originalImage = new Image();
+      originalImage.crossOrigin = 'anonymous';
+      originalImage.onload = function() {
+        adjustCanvas.width = originalImage.width;
+        adjustCanvas.height = originalImage.height;
+        redrawCanvas();
+        
+        const modal = new bootstrap.Modal(adjustModal);
+        modal.show();
+      };
+      originalImage.onerror = function() {
+        alert('Errore nel caricamento dell\'immagine');
+      };
+      originalImage.src = fileUrl;
+    });
+  });
+  
+  if (offsetXSlider) {
+    offsetXSlider.addEventListener('input', function() {
+      updateOffsets(this.value, currentOffsetY);
+    });
+  }
+  
+  if (offsetYSlider) {
+    offsetYSlider.addEventListener('input', function() {
+      updateOffsets(currentOffsetX, this.value);
+    });
+  }
+  
+  if (offsetXInput) {
+    offsetXInput.addEventListener('change', function() {
+      updateOffsets(this.value, currentOffsetY);
+    });
+  }
+  
+  if (offsetYInput) {
+    offsetYInput.addEventListener('change', function() {
+      updateOffsets(currentOffsetX, this.value);
+    });
+  }
+  
+  if (resetOffsetBtn) {
+    resetOffsetBtn.addEventListener('click', function() {
+      updateOffsets(0, 0);
+    });
+  }
+  
+  if (saveAdjustedImageBtn) {
+    saveAdjustedImageBtn.addEventListener('click', function() {
+      if (!adjustAssetId || !adjustCanvas) return;
+      
+      this.disabled = true;
+      this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+      
+      const imageData = adjustCanvas.toDataURL('image/png');
+      
+      fetch('/assets/' + adjustAssetId + '/adjust', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          image_data: imageData,
+          offset_x: currentOffsetX,
+          offset_y: currentOffsetY
+        })
+      })
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
+        if (data.success) {
+          bootstrap.Modal.getInstance(adjustModal).hide();
+          window.location.reload();
+        } else {
+          alert('Errore: ' + (data.error || 'Salvataggio fallito'));
+          saveAdjustedImageBtn.disabled = false;
+          saveAdjustedImageBtn.innerHTML = '<i class="fas fa-save"></i> Salva Immagine';
+        }
+      })
+      .catch(function(error) {
+        alert('Errore di rete: ' + error.message);
+        saveAdjustedImageBtn.disabled = false;
+        saveAdjustedImageBtn.innerHTML = '<i class="fas fa-save"></i> Salva Immagine';
+      });
+    });
+  }
+})();
+</script>
 
 <!-- Auto-refresh preprint result section -->
 <script>

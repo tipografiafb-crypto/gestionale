@@ -616,6 +616,66 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
+  # POST /assets/:id/adjust - Save adjusted image with offset
+  post '/assets/:id/adjust' do
+    content_type :json
+    
+    begin
+      asset = Asset.find(params[:id])
+      
+      # Parse JSON body
+      request.body.rewind
+      data = JSON.parse(request.body.read)
+      image_data = data['image_data']
+      offset_x = data['offset_x'].to_i
+      offset_y = data['offset_y'].to_i
+      
+      unless image_data && image_data.start_with?('data:image/png;base64,')
+        return { success: false, error: 'Invalid image data' }.to_json
+      end
+      
+      # Decode base64 image
+      base64_data = image_data.sub('data:image/png;base64,', '')
+      image_binary = Base64.decode64(base64_data)
+      
+      # Get original file path and create new filename
+      original_path = asset.local_path_full
+      dir = File.dirname(original_path)
+      original_filename = File.basename(original_path, '.*')
+      
+      # Create new filename with timestamp to avoid caching issues
+      new_filename = "#{original_filename}_adjusted_#{Time.now.to_i}.png"
+      new_path = File.join(dir, new_filename)
+      new_local_path = "#{File.dirname(asset.local_path)}/#{new_filename}"
+      
+      # Save adjusted image
+      File.open(new_path, 'wb') { |f| f.write(image_binary) }
+      
+      # Delete old file if it exists and is different from new file
+      if File.exist?(original_path) && original_path != new_path
+        File.delete(original_path)
+      end
+      
+      # Update asset record with new path
+      asset.update(
+        local_path: new_local_path,
+        original_url: new_filename
+      )
+      
+      puts "[ADJUST] Image adjusted with offset (#{offset_x}, #{offset_y}) - saved to #{new_path}"
+      
+      { success: true, message: 'Image saved', new_path: new_local_path }.to_json
+    rescue ActiveRecord::RecordNotFound
+      status 404
+      { success: false, error: 'Asset not found' }.to_json
+    rescue => e
+      puts "[ADJUST] Error: #{e.message}"
+      puts e.backtrace.take(3)
+      status 500
+      { success: false, error: e.message }.to_json
+    end
+  end
+
   # DELETE /orders/:id - Delete order
   delete '/orders/:id' do
     order = Order.find(params[:id])
