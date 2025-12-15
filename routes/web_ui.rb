@@ -648,13 +648,8 @@ class PrintOrchestrator < Sinatra::Base
       new_path = File.join(dir, new_filename)
       new_local_path = "#{File.dirname(asset.local_path)}/#{new_filename}"
       
-      # Save adjusted image
+      # Save adjusted image (original file is preserved as backup)
       File.open(new_path, 'wb') { |f| f.write(image_binary) }
-      
-      # Delete old file if it exists and is different from new file
-      if File.exist?(original_path) && original_path != new_path
-        File.delete(original_path)
-      end
       
       # Update asset record with new path
       asset.update(

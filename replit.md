@@ -64,3 +64,30 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
 - **dotenv gem**: Manages environment variables for configuration.
 - **Chart.js**: Utilized for rendering interactive charts in the analytics dashboard.
 - **FTP Server**: An optional component for FTP-based order imports.
+
+## Recent Work
+
+### December 15, 2025 - Image Offset Editor
+
+#### ✅ **ADDED IMAGE OFFSET EDITOR FOR PRINT FILES**:
+  - **Feature**: Operators can adjust the position of print file images using X/Y offset sliders
+  - **Location**: Order Item Detail page (`/orders/:order_id/items/:item_id`) - new "Modifica Offset" button (arrows icon) on print file images
+  - **How to use**: 
+    1. Open an order and click on a job
+    2. In "File di Stampa", find an image file (PNG, JPG, etc.)
+    3. Click the yellow arrows button to open the editor
+    4. Adjust X/Y offset with sliders or number inputs
+    5. Click "Salva Immagine" to save
+  - **Backup Strategy**:
+    - Original file is **preserved on disk** (never deleted)
+    - Modified version saved as `filename_adjusted_<timestamp>.png`
+    - Database asset points to new modified version
+    - If needed, original can be recovered from filesystem
+  - **Implementation**:
+    1. Added `#imageAdjustModal` modal with HTML5 Canvas for real-time preview
+    2. X and Y offset sliders (-200 to +200 px) with number inputs for precise values
+    3. JavaScript draws image with offset on canvas, fills background with white
+    4. POST `/assets/:id/adjust` route saves adjusted image with unique timestamp
+  - **Files Modified**:
+    - `views/order_item_detail.erb` - Added modal, button, and JavaScript
+    - `routes/web_ui.rb` - Added POST `/assets/:id/adjust` endpoint
