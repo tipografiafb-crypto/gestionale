@@ -68,17 +68,23 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
 
 ## Recent Work
 
-### December 15, 2025 - Image Offset Editor with Transparency Support
+### December 15, 2025 - Image Offset & Zoom Editor with Transparency Support
 
-#### ✅ **ADDED IMAGE OFFSET EDITOR FOR PRINT FILES**:
-  - **Feature**: Operators can adjust the position of print file images using X/Y offset sliders while preserving transparency
-  - **Location**: Order Item Detail page (`/orders/:order_id/items/:item_id`) - "Modifica Offset" button on print file images
+#### ✅ **ADDED IMAGE OFFSET & ZOOM EDITOR FOR PRINT FILES**:
+  - **Feature**: Operators can adjust the position and scale of print file images using offset sliders and zoom control while preserving transparency
+  - **Location**: Order Item Detail page (`/orders/:order_id/items/:item_id`) - "Modifica Offset" button (yellow arrows icon) on print file images
+  - **Controls**:
+    - **Zoom**: 0.5x to 2x magnification (slider + number input)
+    - **Offset X**: -200 to +200 px horizontal position
+    - **Offset Y**: -200 to +200 px vertical position
+    - **Reset button**: Resets both zoom and offsets to defaults (1x, 0, 0)
   - **How to use**: 
     1. Open an order and click on a job
     2. In "File di Stampa", find an image file (PNG, JPG, etc.)
     3. Click the yellow arrows button (Modifica Offset)
-    4. Adjust X/Y offset with sliders or number inputs (-200 to +200 px)
-    5. Click "Salva Immagine" to save
+    4. Adjust zoom with slider or number input (0.5x - 2x)
+    5. Adjust X/Y offset with sliders or number inputs (-200 to +200 px)
+    6. Click "Salva Immagine" to save
   - **Restore Feature**:
     - Click the history/back button to restore the original image from backup
     - Requires confirmation to prevent accidental overwrites
@@ -88,14 +94,15 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
     - Database asset record stays unchanged
     - Transparency is fully preserved in PNG exports
   - **Technical Implementation**:
-    1. Canvas displays image with white background for preview (`destination-over` composite)
-    2. When saving, a temporary canvas is created WITHOUT the white background
-    3. Only the image with offsets is drawn on the temporary canvas
-    4. Exported as PNG which fully preserves transparency channels
-    5. JavaScript syncs sliders ↔ number inputs in real-time
-    6. POST `/assets/:id/adjust` saves base64 PNG to disk with backup
-    7. POST `/assets/:id/restore` recovers from backup
+    1. Canvas displays image with white background for preview (zoom + offset applied with `destination-over` composite)
+    2. Zoom is applied via `ctx.scale(currentZoom, currentZoom)` for smooth scaling
+    3. When saving, a temporary canvas is created WITHOUT the white background
+    4. Only the image with zoom and offset is drawn on the temporary canvas
+    5. Exported as PNG which fully preserves transparency channels
+    6. JavaScript syncs sliders ↔ number inputs in real-time
+    7. POST `/assets/:id/adjust` saves base64 PNG to disk with backup (only offset saved, not zoom)
+    8. POST `/assets/:id/restore` recovers from backup
   - **Files Modified**:
-    - `views/order_item_detail.erb` - Modal UI, buttons, Canvas preview, sync logic, **FIXED save function to use temporary canvas without background**
+    - `views/order_item_detail.erb` - Modal UI with zoom controls, Canvas preview, sync logic for both zoom and offset, temporary canvas without background for saving
     - `routes/web_ui.rb` - Two endpoints: /adjust (save with backup) and /restore (recover)
-  - **Result**: Operators can visually shift images before printing, with full transparency support and one-click restore. Transparency is now correctly preserved in saved PNG files.
+  - **Result**: Operators can visually scale and position images before printing, with full transparency support and one-click restore. Transparency is correctly preserved in saved PNG files.

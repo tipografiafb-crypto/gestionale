@@ -443,6 +443,15 @@
           </div>
           <div class="col-md-3">
             <div class="mb-4">
+              <label class="form-label"><strong>Zoom</strong></label>
+              <input type="range" class="form-range" id="zoomSlider" min="0.5" max="2" step="0.1" value="1">
+              <div class="d-flex gap-2 align-items-center mt-1">
+                <input type="number" class="form-control form-control-sm" id="zoomInput" value="1" min="0.5" max="2" step="0.1" style="width: 80px;">
+                <span class="text-muted">x</span>
+              </div>
+              <small class="text-muted d-block mt-1">0.5x - 2x</small>
+            </div>
+            <div class="mb-4">
               <label class="form-label"><strong>Offset X (px)</strong></label>
               <input type="range" class="form-range" id="offsetXSlider" min="-200" max="200" value="0">
               <div class="d-flex gap-2 align-items-center mt-1">
@@ -460,12 +469,12 @@
             </div>
             <div class="mb-3">
               <button type="button" class="btn btn-outline-secondary w-100" id="resetOffsetBtn">
-                <i class="fas fa-undo"></i> Reset (0, 0)
+                <i class="fas fa-undo"></i> Reset
               </button>
             </div>
             <hr>
             <p class="text-muted small">
-              <i class="fas fa-info-circle"></i> Usa gli slider o i campi numerici per spostare l'immagine. Lo sfondo bianco riempie le aree vuote.
+              <i class="fas fa-info-circle"></i> Usa zoom per ingrandire/rimpicciolire. Offset per spostare. Lo sfondo bianco riempie le aree vuote.
             </p>
           </div>
         </div>
@@ -587,10 +596,13 @@
   let originalImage = null;
   let currentOffsetX = 0;
   let currentOffsetY = 0;
+  let currentZoom = 1;
   
   const adjustModal = document.getElementById('imageAdjustModal');
   const adjustCanvas = document.getElementById('adjustCanvas');
   const ctx = adjustCanvas ? adjustCanvas.getContext('2d') : null;
+  const zoomSlider = document.getElementById('zoomSlider');
+  const zoomInput = document.getElementById('zoomInput');
   const offsetXSlider = document.getElementById('offsetXSlider');
   const offsetYSlider = document.getElementById('offsetYSlider');
   const offsetXInput = document.getElementById('offsetXInput');
@@ -604,16 +616,33 @@
     // Clear canvas with transparency
     ctx.clearRect(0, 0, adjustCanvas.width, adjustCanvas.height);
     
+    // Save context state
+    ctx.save();
+    
+    // Apply zoom transformation
+    ctx.scale(currentZoom, currentZoom);
+    
     // Draw image with offset (preserves transparency)
-    ctx.drawImage(originalImage, currentOffsetX, currentOffsetY);
+    ctx.drawImage(originalImage, currentOffsetX / currentZoom, currentOffsetY / currentZoom);
     
     // Draw white background BEHIND image (doesn't overwrite transparency)
     ctx.globalCompositeOperation = 'destination-over';
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, adjustCanvas.width, adjustCanvas.height);
+    ctx.fillRect(0, 0, adjustCanvas.width / currentZoom, adjustCanvas.height / currentZoom);
     
     // Reset composite operation
     ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
+  }
+  
+  function updateZoom(z) {
+    currentZoom = parseFloat(z) || 1;
+    currentZoom = Math.max(0.5, Math.min(2, currentZoom));
+    
+    zoomSlider.value = currentZoom;
+    zoomInput.value = currentZoom.toFixed(1);
+    
+    redrawCanvas();
   }
   
   function updateOffsets(x, y) {
@@ -633,9 +662,12 @@
       adjustAssetId = this.getAttribute('data-asset-id');
       const fileUrl = this.getAttribute('data-file-url');
       
+      // Reset all values when opening modal
       currentOffsetX = 0;
       currentOffsetY = 0;
+      currentZoom = 1;
       updateOffsets(0, 0);
+      updateZoom(1);
       
       originalImage = new Image();
       originalImage.crossOrigin = 'anonymous';
@@ -653,6 +685,18 @@
       originalImage.src = fileUrl;
     });
   });
+  
+  if (zoomSlider) {
+    zoomSlider.addEventListener('input', function() {
+      updateZoom(this.value);
+    });
+  }
+  
+  if (zoomInput) {
+    zoomInput.addEventListener('change', function() {
+      updateZoom(this.value);
+    });
+  }
   
   if (offsetXSlider) {
     offsetXSlider.addEventListener('input', function() {
@@ -681,6 +725,7 @@
   if (resetOffsetBtn) {
     resetOffsetBtn.addEventListener('click', function() {
       updateOffsets(0, 0);
+      updateZoom(1);
     });
   }
   
