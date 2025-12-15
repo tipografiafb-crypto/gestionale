@@ -74,7 +74,7 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
   - **Feature**: Operators can adjust the position and scale of print file images using offset sliders and zoom control while preserving transparency
   - **Location**: Order Item Detail page (`/orders/:order_id/items/:item_id`) - "Modifica Offset" button (yellow arrows icon) on print file images
   - **Controls**:
-    - **Zoom**: 0.5x to 2x magnification (slider + number input)
+    - **Zoom**: 0.5x to 2x magnification (slider with 0.01 step + number input)
     - **Offset X**: -200 to +200 px horizontal position
     - **Offset Y**: -200 to +200 px vertical position
     - **Reset button**: Resets both zoom and offsets to defaults (1x, 0, 0)
