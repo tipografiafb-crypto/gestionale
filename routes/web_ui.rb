@@ -616,6 +616,45 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
+  # POST /assets/:id/restore - Restore original image from backup
+  post '/assets/:id/restore' do
+    begin
+      asset = Asset.find(params[:id])
+      order_id = params[:order_id]
+      item_id = params[:item_id]
+      
+      original_path = asset.local_path_full
+      dir = File.dirname(original_path)
+      original_filename = File.basename(original_path, '.*')
+      extension = File.extname(original_path)
+      
+      # Check if backup exists
+      backup_filename = "#{original_filename}_original_backup#{extension}"
+      backup_path = File.join(dir, backup_filename)
+      
+      unless File.exist?(backup_path)
+        redirect "/orders/#{order_id}/items/#{item_id}?error=No backup available for this image"
+        return
+      end
+      
+      # Restore backup by copying it back to original path
+      FileUtils.copy(backup_path, original_path)
+      
+      puts "[RESTORE] ✅ Image restored from backup: #{original_path}"
+      
+      # Redirect back to item page
+      if order_id.present? && item_id.present?
+        redirect "/orders/#{order_id}/items/#{item_id}?success=Image restored to original"
+      else
+        redirect '/orders'
+      end
+    rescue => e
+      puts "[RESTORE] ❌ Error restoring image: #{e.message}"
+      puts e.backtrace.take(3)
+      redirect '/orders?error=Failed to restore image'
+    end
+  end
+
   # POST /assets/:id/adjust - Save adjusted image with offset
   post '/assets/:id/adjust' do
     content_type :json

@@ -185,6 +185,11 @@
                                   data-asset-id="<%= asset.id %>" 
                                   data-file-url="/file/<%= asset.id %>"
                                   title="Modifica Offset"><i class="fas fa-arrows-alt"></i></button>
+                          <form action="/assets/<%= asset.id %>/restore" method="post" class="d-inline" onsubmit="return confirm('Ripristinare la versione originale dell\'immagine?');">
+                            <input type="hidden" name="order_id" value="<%= @order.id %>">
+                            <input type="hidden" name="item_id" value="<%= @item.id %>">
+                            <button type="submit" class="btn btn-sm btn-outline-info" title="Ripristina originale"><i class="fas fa-history"></i></button>
+                          </form>
                         <% end %>
                         <form action="/assets/<%= asset.id %>/delete" method="post" class="d-inline">
                           <input type="hidden" name="order_id" value="<%= @order.id %>">
