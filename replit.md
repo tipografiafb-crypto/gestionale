@@ -47,7 +47,7 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
 ### API Endpoints
 - `POST /api/orders/import`: Imports new orders, triggering autopilot processing if configured.
 - `POST /product_categories/:id/toggle_autopilot`: Toggles the autopilot preprint feature for a specific product category.
-- `POST /assets/:id/adjust`: Saves adjusted image offsets for assets.
+- `POST /assets/:id/adjust`: Saves adjusted image offsets for assets (receives base64 PNG, saves to disk).
 
 ### Configuration Files
 - `quick_start_ubuntu_safe.sh`: Script for safe database setup on Ubuntu.
