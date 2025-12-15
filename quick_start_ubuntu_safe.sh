@@ -1,4 +1,4 @@
-sta#!/bin/bash
+#!/bin/bash
 # Safe database setup script - DOES NOT drop existing database
 # Only adds missing tables and columns
 
@@ -28,9 +28,10 @@ psql "$DATABASE_URL" -c "SELECT version();" > /dev/null 2>&1 || {
 echo -e "${GREEN}✓ Connected to database${NC}"
 
 echo -e "\n${YELLOW}[Step 2]${NC} Running migrations to add missing tables (preserving existing data)..."
+echo -e "${YELLOW}   - Creating logs table for system monitoring${NC}"
 bundle exec rake db:migrate
 
-echo -e "${GREEN}✓ All migrations completed${NC}"
+echo -e "${GREEN}✓ All migrations completed (including logs table)${NC}"
 
 echo -e "\n${YELLOW}[Step 3]${NC} Adding missing columns to existing tables..."
 
