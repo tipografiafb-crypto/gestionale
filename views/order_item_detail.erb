@@ -619,16 +619,28 @@
     // Save context state
     ctx.save();
     
-    // Apply zoom transformation
+    // Calculate centers
+    const imgCenterX = originalImage.width / 2;
+    const imgCenterY = originalImage.height / 2;
+    const canvasCenterX = adjustCanvas.width / 2;
+    const canvasCenterY = adjustCanvas.height / 2;
+    
+    // Translate to canvas center (pivot point for zoom)
+    ctx.translate(canvasCenterX, canvasCenterY);
+    
+    // Apply zoom from center
     ctx.scale(currentZoom, currentZoom);
     
-    // Draw image with offset (preserves transparency)
-    ctx.drawImage(originalImage, currentOffsetX / currentZoom, currentOffsetY / currentZoom);
+    // Translate to image center and apply offset
+    ctx.translate(-imgCenterX + currentOffsetX / currentZoom, -imgCenterY + currentOffsetY / currentZoom);
+    
+    // Draw image (preserves transparency)
+    ctx.drawImage(originalImage, 0, 0);
     
     // Draw white background BEHIND image (doesn't overwrite transparency)
     ctx.globalCompositeOperation = 'destination-over';
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, adjustCanvas.width / currentZoom, adjustCanvas.height / currentZoom);
+    ctx.fillRect(0, 0, originalImage.width, originalImage.height);
     
     // Reset composite operation
     ctx.globalCompositeOperation = 'source-over';
