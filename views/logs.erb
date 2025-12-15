@@ -1,0 +1,112 @@
+<div class="mb-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/orders">Home</a></li>
+      <li class="breadcrumb-item active">Log di Sistema</li>
+    </ol>
+  </nav>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <strong><i class="fas fa-file-alt"></i> Log di Sistema</strong>
+    <small class="text-muted float-end">Ultimi 500 log</small>
+  </div>
+  <div class="card-body">
+    <!-- Filters -->
+    <form method="get" action="/logs" class="mb-3">
+      <div class="row">
+        <div class="col-md-4">
+          <label class="form-label"><strong>Livello</strong></label>
+          <select name="level" class="form-select form-select-sm">
+            <option value="">-- Tutti --</option>
+            <option value="info" <%= 'selected' if params[:level] == 'info' %>>Info</option>
+            <option value="warn" <%= 'selected' if params[:level] == 'warn' %>>Avviso</option>
+            <option value="error" <%= 'selected' if params[:level] == 'error' %>>Errore</option>
+            <option value="debug" <%= 'selected' if params[:level] == 'debug' %>>Debug</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label"><strong>Categoria</strong></label>
+          <select name="category" class="form-select form-select-sm">
+            <option value="">-- Tutte --</option>
+            <option value="ftp" <%= 'selected' if params[:category] == 'ftp' %>>FTP</option>
+            <option value="order" <%= 'selected' if params[:category] == 'order' %>>Ordini</option>
+            <option value="switch" <%= 'selected' if params[:category] == 'switch' %>>Switch</option>
+            <option value="asset" <%= 'selected' if params[:category] == 'asset' %>>Asset</option>
+            <option value="import" <%= 'selected' if params[:category] == 'import' %>>Import</option>
+            <option value="system" <%= 'selected' if params[:category] == 'system' %>>Sistema</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">&nbsp;</label>
+          <button type="submit" class="btn btn-primary w-100">Filtra</button>
+          <a href="/logs" class="btn btn-secondary w-100 mt-2">Pulisci filtri</a>
+        </div>
+      </div>
+    </form>
+
+    <!-- Logs Table -->
+    <% if @logs.any? %>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 180px;">Data/Ora</th>
+              <th style="width: 80px;">Livello</th>
+              <th style="width: 100px;">Categoria</th>
+              <th>Messaggio</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @logs.each do |log| %>
+              <tr class="<%= log.level == 'error' ? 'table-danger' : (log.level == 'warn' ? 'table-warning' : '') %>">
+                <td>
+                  <small class="text-muted">
+                    <%= log.created_at.strftime('%d-%m %H:%M:%S') %>
+                  </small>
+                </td>
+                <td>
+                  <span class="badge <%= case log.level
+                    when 'error' then 'bg-danger'
+                    when 'warn' then 'bg-warning text-dark'
+                    when 'debug' then 'bg-secondary'
+                    else 'bg-info'
+                  end %>">
+                    <%= log.level&.upcase %>
+                  </span>
+                </td>
+                <td>
+                  <span class="badge bg-light text-dark"><%= log.category %></span>
+                </td>
+                <td>
+                  <strong><%= log.message %></strong>
+                  <% if log.details %>
+                    <br><small class="text-muted"><%= truncate(log.details, length: 200) %></small>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <div class="alert alert-info">Nessun log trovato con i filtri selezionati</div>
+    <% end %>
+  </div>
+  <div class="card-footer text-muted">
+    <small>
+      <i class="fas fa-info-circle"></i>
+      Totale log: <%= @total_logs %> | 
+      Ultimi 24h: <%= @logs_24h %> |
+      Auto-refresh ogni 30 secondi
+    </small>
+  </div>
+</div>
+
+<script>
+  // Auto-refresh page ogni 30 secondi
+  setInterval(function() {
+    location.reload();
+  }, 30000);
+</script>

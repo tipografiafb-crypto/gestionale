@@ -16,6 +16,17 @@ class PrintOrchestrator < Sinatra::Base
     redirect '/orders'
   end
 
+  # GET /logs - System logs viewer
+  get '/logs' do
+    @logs = Log.recent.limit(500)
+    @logs = @logs.by_level(params[:level]) if params[:level].present?
+    @logs = @logs.by_category(params[:category]) if params[:category].present?
+    @total_logs = Log.count
+    @logs_24h = Log.last_24h.count
+    
+    erb :logs
+  end
+
   # GET /orders - List all orders with filtering
   get '/orders' do
     @stores = Store.where(active: true).ordered

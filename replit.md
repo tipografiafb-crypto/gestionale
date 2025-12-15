@@ -68,6 +68,39 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
 
 ## Recent Work
 
+### December 15, 2025 - System Logging Dashboard
+
+#### ✅ **ADDED SYSTEM LOGS PAGE**:
+  - **Feature**: Real-time system logging page to monitor all application events
+  - **Location**: New route `/logs` - visible in web UI
+  - **Capabilities**:
+    - View last 500 log entries with auto-refresh every 30 seconds
+    - Filter by log level (Info, Warn, Error, Debug)
+    - Filter by category (FTP, Order, Switch, Asset, Import, System)
+    - Shows total log count and last 24h entries
+    - Color-coded badges (red for errors, yellow for warnings)
+    - Timestamps and detailed messages
+  - **Technical Details**:
+    - New `Log` model with `level`, `category`, `message`, `details` fields
+    - `AppLogger` utility class for simple logging throughout app: `AppLogger.info(category, message, details)`
+    - Indexes on `level`, `category`, `created_at` for performance
+    - PostgreSQL logs table with auto-pagination
+  - **How to Use**:
+    1. Click "Log di Sistema" in navbar or visit `/logs`
+    2. View real-time events as they happen
+    3. Filter by level or category to find specific issues
+    4. Page auto-refreshes every 30 seconds
+  - **Files Added**:
+    - `models/log.rb` - Log model with scopes for filtering
+    - `lib/app_logger.rb` - Simple logging utility
+    - `views/logs.erb` - Responsive log viewer UI
+    - `routes/web_ui.rb` - GET /logs route
+  - **Integration Points**: 
+    - FTP poller can call: `AppLogger.warn('ftp', 'Connection failed', error_details)`
+    - Order import can call: `AppLogger.info('order', 'Order imported', order_code)`
+    - Switch callbacks can call: `AppLogger.error('switch', 'Job failed', job_error)`
+  - **Ready for Extension**: Use AppLogger throughout codebase to track system health
+
 ### December 15, 2025 - Image Offset & Zoom Editor with Transparency Support
 
 #### ✅ **ADDED IMAGE OFFSET & ZOOM EDITOR FOR PRINT FILES**:
