@@ -686,12 +686,22 @@
   
   if (saveAdjustedImageBtn) {
     saveAdjustedImageBtn.addEventListener('click', function() {
-      if (!adjustAssetId || !adjustCanvas) return;
+      if (!adjustAssetId || !adjustCanvas || !originalImage) return;
       
       this.disabled = true;
       this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
       
-      const imageData = adjustCanvas.toDataURL('image/png');
+      // Create temporary canvas WITHOUT white background (preserves transparency)
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = adjustCanvas.width;
+      tempCanvas.height = adjustCanvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      
+      // Draw ONLY the image with offset (no background)
+      tempCtx.drawImage(originalImage, currentOffsetX, currentOffsetY);
+      
+      // Export as PNG (preserves alpha transparency)
+      const imageData = tempCanvas.toDataURL('image/png');
       
       fetch('/assets/' + adjustAssetId + '/adjust', {
         method: 'POST',

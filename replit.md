@@ -88,12 +88,14 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
     - Database asset record stays unchanged
     - Transparency is fully preserved in PNG exports
   - **Technical Implementation**:
-    1. Canvas draws image FIRST, then white background BEHIND (using `destination-over` composite)
-    2. This preserves all transparency channels of PNG files
-    3. JavaScript syncs sliders ↔ number inputs in real-time
-    4. POST `/assets/:id/adjust` saves base64 PNG to disk with backup
-    5. POST `/assets/:id/restore` recovers from backup
+    1. Canvas displays image with white background for preview (`destination-over` composite)
+    2. When saving, a temporary canvas is created WITHOUT the white background
+    3. Only the image with offsets is drawn on the temporary canvas
+    4. Exported as PNG which fully preserves transparency channels
+    5. JavaScript syncs sliders ↔ number inputs in real-time
+    6. POST `/assets/:id/adjust` saves base64 PNG to disk with backup
+    7. POST `/assets/:id/restore` recovers from backup
   - **Files Modified**:
-    - `views/order_item_detail.erb` - Modal UI, buttons, Canvas preview, sync logic
+    - `views/order_item_detail.erb` - Modal UI, buttons, Canvas preview, sync logic, **FIXED save function to use temporary canvas without background**
     - `routes/web_ui.rb` - Two endpoints: /adjust (save with backup) and /restore (recover)
-  - **Result**: Operators can visually shift images before printing, with full transparency support and one-click restore
+  - **Result**: Operators can visually shift images before printing, with full transparency support and one-click restore. Transparency is now correctly preserved in saved PNG files.
