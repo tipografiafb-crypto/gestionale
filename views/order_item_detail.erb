@@ -640,7 +640,7 @@
     currentZoom = Math.max(0.5, Math.min(2, currentZoom));
     
     zoomSlider.value = currentZoom;
-    zoomInput.value = currentZoom.toFixed(1);
+    zoomInput.value = currentZoom.toFixed(2);
     
     redrawCanvas();
   }
@@ -693,6 +693,9 @@
   }
   
   if (zoomInput) {
+    zoomInput.addEventListener('input', function() {
+      updateZoom(this.value);
+    });
     zoomInput.addEventListener('change', function() {
       updateZoom(this.value);
     });
