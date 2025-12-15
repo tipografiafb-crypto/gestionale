@@ -601,9 +601,19 @@
   function redrawCanvas() {
     if (!originalImage || !ctx) return;
     
+    // Clear canvas with transparency
+    ctx.clearRect(0, 0, adjustCanvas.width, adjustCanvas.height);
+    
+    // Draw image with offset (preserves transparency)
+    ctx.drawImage(originalImage, currentOffsetX, currentOffsetY);
+    
+    // Draw white background BEHIND image (doesn't overwrite transparency)
+    ctx.globalCompositeOperation = 'destination-over';
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, adjustCanvas.width, adjustCanvas.height);
-    ctx.drawImage(originalImage, currentOffsetX, currentOffsetY);
+    
+    // Reset composite operation
+    ctx.globalCompositeOperation = 'source-over';
   }
   
   function updateOffsets(x, y) {

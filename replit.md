@@ -32,7 +32,7 @@ The project utilizes an Enterprise-Grade Module Routing System with a feature-ba
 ### Key Features
 - **Autopilot Preprint System**: Configurable categories for automatic job submission to Switch preprint upon order arrival.
 - **Order Management**: Supports order import via API and FTP, with mapping for WooCommerce JSON format. Includes duplicate order detection and improved inventory deduction for FTP imports.
-- **Asset Management**: Handles local download and organization of product images, tracked in a dedicated `assets` table. Features an image offset editor for print files.
+- **Asset Management**: Handles local download and organization of product images, tracked in a dedicated `assets` table. Features an image offset editor for print files with transparency preservation.
 - **Switch Integration**: Facilitates automated print workflows (preprint, print, label) through communication with Enfocus Switch.
 - **Aggregated Jobs System**: Provides batch processing capabilities for multiple order items.
 - **Print Workflow**: Manages print statuses and supports bulk print operations.
@@ -48,6 +48,7 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
 - `POST /api/orders/import`: Imports new orders, triggering autopilot processing if configured.
 - `POST /product_categories/:id/toggle_autopilot`: Toggles the autopilot preprint feature for a specific product category.
 - `POST /assets/:id/adjust`: Saves adjusted image offsets for assets (receives base64 PNG, saves to disk).
+- `POST /assets/:id/restore`: Restores original image from backup.
 
 ### Configuration Files
 - `quick_start_ubuntu_safe.sh`: Script for safe database setup on Ubuntu.
@@ -67,28 +68,32 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
 
 ## Recent Work
 
-### December 15, 2025 - Image Offset Editor
+### December 15, 2025 - Image Offset Editor with Transparency Support
 
 #### ✅ **ADDED IMAGE OFFSET EDITOR FOR PRINT FILES**:
-  - **Feature**: Operators can adjust the position of print file images using X/Y offset sliders
-  - **Location**: Order Item Detail page (`/orders/:order_id/items/:item_id`) - new "Modifica Offset" button (arrows icon) on print file images
+  - **Feature**: Operators can adjust the position of print file images using X/Y offset sliders while preserving transparency
+  - **Location**: Order Item Detail page (`/orders/:order_id/items/:item_id`) - "Modifica Offset" button on print file images
   - **How to use**: 
     1. Open an order and click on a job
     2. In "File di Stampa", find an image file (PNG, JPG, etc.)
-    3. Click the yellow arrows button to open the editor
-    4. Adjust X/Y offset with sliders or number inputs
+    3. Click the yellow arrows button (Modifica Offset)
+    4. Adjust X/Y offset with sliders or number inputs (-200 to +200 px)
     5. Click "Salva Immagine" to save
+  - **Restore Feature**:
+    - Click the history/back button to restore the original image from backup
+    - Requires confirmation to prevent accidental overwrites
   - **Backup Strategy**:
-    - Original file is **preserved on disk** as `filename_original_backup.png`
-    - Modified version **overwrites the original file** (same path, same name)
-    - Database asset record stays unchanged (same ID, same path)
-    - If needed, original can be recovered from filesystem with `_original_backup` suffix
-  - **Implementation**:
-    1. Added `#imageAdjustModal` modal with HTML5 Canvas for real-time preview
-    2. X and Y offset sliders (-200 to +200 px) with number inputs for precise values
-    3. JavaScript draws image with offset on canvas, fills background with white
-    4. POST `/assets/:id/adjust` route creates backup then overwrites file
+    - Original file preserved as `filename_original_backup.png` (created once per image)
+    - Modified version overwrites original (same filename, same asset ID)
+    - Database asset record stays unchanged
+    - Transparency is fully preserved in PNG exports
+  - **Technical Implementation**:
+    1. Canvas draws image FIRST, then white background BEHIND (using `destination-over` composite)
+    2. This preserves all transparency channels of PNG files
+    3. JavaScript syncs sliders ↔ number inputs in real-time
+    4. POST `/assets/:id/adjust` saves base64 PNG to disk with backup
+    5. POST `/assets/:id/restore` recovers from backup
   - **Files Modified**:
-    - `views/order_item_detail.erb` - Added modal, button, and JavaScript (lines 186-713)
-    - `routes/web_ui.rb` - Added POST `/assets/:id/adjust` endpoint (lines 622-680)
-  - **Result**: Operators can visually shift images before sending to print, with automatic backup preserved on disk
+    - `views/order_item_detail.erb` - Modal UI, buttons, Canvas preview, sync logic
+    - `routes/web_ui.rb` - Two endpoints: /adjust (save with backup) and /restore (recover)
+  - **Result**: Operators can visually shift images before printing, with full transparency support and one-click restore
