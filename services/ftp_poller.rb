@@ -178,12 +178,10 @@ class FTPPoller
           order_item.store_json_data(item_data)
           order_item.save
           
-          # Deduct from inventory (check stock availability)
+          # Deduct from inventory (same as API import)
           product = Product.find_by(sku: item_data['sku'])
           if product && product.inventory
-            unless product.inventory.remove_stock(item_data['quantity'])
-              raise "Insufficient stock for SKU #{item_data['sku']}: need #{item_data['quantity']}, have #{product.inventory.quantity_in_stock}"
-            end
+            product.inventory.remove_stock(item_data['quantity'])
           end
           
           # Create assets from print files (skip product_image)

@@ -92,12 +92,10 @@ class PrintOrchestrator < Sinatra::Base
           order_item.store_json_data(item_data) if item_data.keys.length > 2
           order_item.save
           
-          # Deduct from inventory (check stock availability)
+          # Deduct from inventory
           product = Product.find_by(sku: item_data['sku'])
           if product && product.inventory
-            unless product.inventory.remove_stock(item_data['quantity'])
-              raise "Insufficient stock for SKU #{item_data['sku']}: need #{item_data['quantity']}, have #{product.inventory.quantity_in_stock}"
-            end
+            product.inventory.remove_stock(item_data['quantity'])
           end
           
           # Get cart_id from meta_data for file mapping

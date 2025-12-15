@@ -14,14 +14,10 @@ class Inventory < ActiveRecord::Base
     update(quantity_in_stock: quantity_in_stock + quantity)
   end
 
-  # Decrease stock (prevents negative values - checks available stock)
+  # Decrease stock (allows negative values for backorders)
   def remove_stock(quantity)
-    if quantity_in_stock >= quantity
-      update(quantity_in_stock: quantity_in_stock - quantity)
-      true
-    else
-      false
-    end
+    update(quantity_in_stock: quantity_in_stock - quantity)
+    true
   end
 
   # Check if enough stock
