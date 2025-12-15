@@ -51,6 +51,7 @@
           <td></td>
           <td>
             <form method="get" action="/line_items" style="display: contents;">
+              <input type="hidden" name="status_filter" value="<%= @filter_status %>">
               <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>">
           </td>
           <td>

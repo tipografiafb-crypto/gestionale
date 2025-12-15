@@ -65,6 +65,19 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
 
 ## Recent Work
 
+### December 15, 2025 - Fixed Inventory & Filter Bugs
+
+#### ✅ **FIXED FTP IMPORT INVENTORY DEDUCTION**:
+  - **Problem**: Orders imported via FTP poller were not deducting from warehouse inventory (stock was only deducted for API imports)
+  - **Solution**: Added inventory subtraction logic to FTPPoller (same as API import in routes/orders_api.rb)
+  - **Code**: Added `product.inventory.remove_stock()` call when creating order items via FTP
+  - **Result**: Stock now correctly decreased for both API and FTP order imports
+
+#### ✅ **FIXED /line_items STATUS FILTER RESET BUG**:
+  - **Problem**: When filtering by status (nuovo, pre-stampa, stampa, rippato) and then using another filter (date, store, category, SKU), the status filter was reset/lost
+  - **Solution**: Added hidden input field `<input type="hidden" name="status_filter" value="<%= @filter_status %>">` in the filter form
+  - **Result**: All filters now work together - can filter by status AND store/category/date simultaneously
+
 ### December 13, 2025 - Fixed Automated Daily Backup System
 
 #### ✅ **FIXED BACKUP CRON JOB - NOW WORKING 24/7**:
