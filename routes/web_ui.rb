@@ -638,28 +638,29 @@ class PrintOrchestrator < Sinatra::Base
       base64_data = image_data.sub('data:image/png;base64,', '')
       image_binary = Base64.decode64(base64_data)
       
-      # Get original file path and create new filename
+      # Get original file path
       original_path = asset.local_path_full
       dir = File.dirname(original_path)
       original_filename = File.basename(original_path, '.*')
+      extension = File.extname(original_path)
       
-      # Create new filename with timestamp to avoid caching issues
-      new_filename = "#{original_filename}_adjusted_#{Time.now.to_i}.png"
-      new_path = File.join(dir, new_filename)
-      new_local_path = "#{File.dirname(asset.local_path)}/#{new_filename}"
+      # Create backup of original (only if backup doesn't exist yet)
+      backup_filename = "#{original_filename}_original_backup#{extension}"
+      backup_path = File.join(dir, backup_filename)
       
-      # Save adjusted image (original file is preserved as backup)
-      File.open(new_path, 'wb') { |f| f.write(image_binary) }
+      unless File.exist?(backup_path)
+        FileUtils.copy(original_path, backup_path)
+        puts "[ADJUST] Backup created: #{backup_path}"
+      end
       
-      # Update asset record with new path
-      asset.update(
-        local_path: new_local_path,
-        original_url: new_filename
-      )
+      # Overwrite the original file with adjusted image
+      File.open(original_path, 'wb') { |f| f.write(image_binary) }
       
-      puts "[ADJUST] Image adjusted with offset (#{offset_x}, #{offset_y}) - saved to #{new_path}"
+      puts "[ADJUST] Image adjusted with offset (#{offset_x}, #{offset_y}) - saved to #{original_path}"
+      puts "[ADJUST] Backup available at: #{backup_path}"
       
-      { success: true, message: 'Image saved', new_path: new_local_path }.to_json
+      # Asset record stays unchanged (same path, same ID)
+      { success: true, message: 'Image saved', backup_available: true }.to_json
     rescue ActiveRecord::RecordNotFound
       status 404
       { success: false, error: 'Asset not found' }.to_json

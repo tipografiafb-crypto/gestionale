@@ -79,15 +79,16 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
     4. Adjust X/Y offset with sliders or number inputs
     5. Click "Salva Immagine" to save
   - **Backup Strategy**:
-    - Original file is **preserved on disk** (never deleted)
-    - Modified version saved as `filename_adjusted_<timestamp>.png`
-    - Database asset points to new modified version
-    - If needed, original can be recovered from filesystem
+    - Original file is **preserved on disk** as `filename_original_backup.png`
+    - Modified version **overwrites the original file** (same path, same name)
+    - Database asset record stays unchanged (same ID, same path)
+    - If needed, original can be recovered from filesystem with `_original_backup` suffix
   - **Implementation**:
     1. Added `#imageAdjustModal` modal with HTML5 Canvas for real-time preview
     2. X and Y offset sliders (-200 to +200 px) with number inputs for precise values
     3. JavaScript draws image with offset on canvas, fills background with white
-    4. POST `/assets/:id/adjust` route saves adjusted image with unique timestamp
+    4. POST `/assets/:id/adjust` route creates backup then overwrites file
   - **Files Modified**:
-    - `views/order_item_detail.erb` - Added modal, button, and JavaScript
-    - `routes/web_ui.rb` - Added POST `/assets/:id/adjust` endpoint
+    - `views/order_item_detail.erb` - Added modal, button, and JavaScript (lines 186-713)
+    - `routes/web_ui.rb` - Added POST `/assets/:id/adjust` endpoint (lines 622-680)
+  - **Result**: Operators can visually shift images before sending to print, with automatic backup preserved on disk
