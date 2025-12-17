@@ -1,6 +1,6 @@
 # Guida Migrazioni Database
 
-## Stato Attuale (25 Nov 2025)
+## Stato Attuale (25 Novembre 2025)
 
 La migrazione consolidata `db/migrate/001_create_all_tables.rb` contiene TUTTE le colonne necessarie per:
 
