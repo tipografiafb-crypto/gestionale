@@ -29,9 +29,10 @@ echo -e "${GREEN}✓ Connected to database${NC}"
 
 echo -e "\n${YELLOW}[Step 2]${NC} Running migrations to add missing tables (preserving existing data)..."
 echo -e "${YELLOW}   - Creating logs table for system monitoring${NC}"
+echo -e "${YELLOW}   - Adding position column to order_items for correct ordering${NC}"
 bundle exec rake db:migrate
 
-echo -e "${GREEN}✓ All migrations completed (including logs table)${NC}"
+echo -e "${GREEN}✓ All migrations completed (including logs table and order_items position)${NC}"
 
 echo -e "\n${YELLOW}[Step 3]${NC} Adding missing columns to existing tables..."
 
@@ -59,6 +60,15 @@ ALTER TABLE product_categories
   ADD COLUMN IF NOT EXISTS autopilot_preprint_enabled boolean DEFAULT false;
 SQLEOF
 echo -e "${GREEN}✓ Product categories autopilot columns verified${NC}"
+
+# Ensure order_items has position column for correct ordering
+psql "$DATABASE_URL" << 'SQLEOF'
+ALTER TABLE order_items 
+  ADD COLUMN IF NOT EXISTS position integer DEFAULT 0;
+
+CREATE INDEX IF NOT EXISTS idx_order_items_position ON order_items(order_id, position);
+SQLEOF
+echo -e "${GREEN}✓ Order items position column verified${NC}"
 
 # Create backup_configs if missing
 psql "$DATABASE_URL" << 'SQLEOF'
