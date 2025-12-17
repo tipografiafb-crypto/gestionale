@@ -18,6 +18,7 @@
 # Database
 *.sqlite3
 *.db
+/db/schema.rb
 
 # Storage (local files)
 /storage/*
