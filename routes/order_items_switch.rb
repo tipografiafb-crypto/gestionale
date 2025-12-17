@@ -243,6 +243,12 @@ class PrintOrchestrator < Sinatra::Base
     end
 
     item.update(print_status: 'completed', print_completed_at: Time.now)
+    
+    # Check if all items are now completed
+    if order.order_items.all? { |oi| oi.print_status == 'completed' }
+      order.update(status: 'done')
+    end
+    
     redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=Stampa+confermata,+item+completato"
   rescue => e
     redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore conferma: ' + e.message)}"

@@ -139,3 +139,17 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
     - `views/order_item_detail.erb` - Modal UI with zoom controls, Canvas preview, sync logic for both zoom and offset, temporary canvas without background for saving
     - `routes/web_ui.rb` - Two endpoints: /adjust (save with backup) and /restore (recover)
   - **Result**: Operators can visually scale and position images before printing, with full transparency support and one-click restore. Transparency is correctly preserved in saved PNG files.
+
+### December 17, 2025 - Auto-Close Order When All Items Completed
+
+#### ✅ **FIXED: ORDER AUTO-COMPLETES WHEN ALL ITEMS PRINT-CONFIRMED**:
+  - **Issue**: Order remained in 'processing' status even after all line items were print-confirmed. Required manual "forza chiusura" to mark order as done.
+  - **Fix**: Added automatic order status update in POST `/orders/:order_id/items/:item_id/confirm_print` route
+  - **How it works**:
+    1. When operator confirms print completion on an item (click "Stampa confermata")
+    2. Item is marked as `print_status: 'completed'`
+    3. System checks if ALL items in the order are now completed
+    4. If yes, order is automatically updated to `status: 'done'`
+  - **Result**: Orders now automatically transition to completed status without manual intervention
+  - **Files Modified**:
+    - `routes/order_items_switch.rb` - Added check in confirm_print route to auto-complete order
