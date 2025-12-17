@@ -666,7 +666,7 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
-  # POST /assets/:id/adjust - Save adjusted image with offset
+  # POST /assets/:id/adjust - Save adjusted image with offset and zoom
   post '/assets/:id/adjust' do
     content_type :json
     
@@ -679,6 +679,7 @@ class PrintOrchestrator < Sinatra::Base
       image_data = data['image_data']
       offset_x = data['offset_x'].to_i
       offset_y = data['offset_y'].to_i
+      zoom = data['zoom'].to_f || 1.0
       
       unless image_data && image_data.start_with?('data:image/png;base64,')
         return { success: false, error: 'Invalid image data' }.to_json
@@ -706,7 +707,7 @@ class PrintOrchestrator < Sinatra::Base
       # Overwrite the original file with adjusted image
       File.open(original_path, 'wb') { |f| f.write(image_binary) }
       
-      puts "[ADJUST] Image adjusted with offset (#{offset_x}, #{offset_y}) - saved to #{original_path}"
+      puts "[ADJUST] Image adjusted with zoom: #{zoom.round(2)}x, offset (#{offset_x}, #{offset_y}) - saved to #{original_path}"
       puts "[ADJUST] Backup available at: #{backup_path}"
       
       # Asset record stays unchanged (same path, same ID)

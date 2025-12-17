@@ -757,8 +757,11 @@
       tempCanvas.height = adjustCanvas.height;
       const tempCtx = tempCanvas.getContext('2d');
       
-      // Draw ONLY the image with offset (no background)
-      tempCtx.drawImage(originalImage, currentOffsetX, currentOffsetY);
+      // Apply zoom transformation to canvas
+      tempCtx.scale(currentZoom, currentZoom);
+      
+      // Draw the image with offset and zoom applied
+      tempCtx.drawImage(originalImage, currentOffsetX / currentZoom, currentOffsetY / currentZoom);
       
       // Export as PNG (preserves alpha transparency)
       const imageData = tempCanvas.toDataURL('image/png');
@@ -771,7 +774,8 @@
         body: JSON.stringify({
           image_data: imageData,
           offset_x: currentOffsetX,
-          offset_y: currentOffsetY
+          offset_y: currentOffsetY,
+          zoom: currentZoom
         })
       })
       .then(function(response) { return response.json(); })
