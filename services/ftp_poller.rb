@@ -172,7 +172,8 @@ class FTPPoller
         data['items'].each_with_index do |item_data, idx|
           order_item = order.order_items.create!(
             sku: item_data['sku'],
-            quantity: item_data['quantity']
+            quantity: item_data['quantity'],
+            position: idx + 1
           )
           
           order_item.store_json_data(item_data)

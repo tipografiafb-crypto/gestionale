@@ -153,3 +153,23 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
   - **Result**: Orders now automatically transition to completed status without manual intervention
   - **Files Modified**:
     - `routes/order_items_switch.rb` - Added check in confirm_print route to auto-complete order
+
+### December 17, 2025 - Item Numbering Fix: Position-Based Ordering
+
+#### ✅ **FIXED: ORDER ITEMS NOW DISPLAY & NUMBER IN CORRECT JSON IMPORT ORDER**:
+  - **Issue**: Order items were displayed in mismatched order compared to JSON import. Item numbering (used for file naming: `IT9410-1.png`, `IT9410-2.png`, etc.) was based on database ID order, not JSON array position order.
+  - **Root Cause**: `item_number` method counted items with `id <= current_id` (ID-based ordering), causing mismatch when items had non-sequential IDs. Views used `.each` without explicit ordering.
+  - **Solution**: Added `position` field to track JSON import order, with fallback to legacy ID-based logic for existing orders.
+  - **How it works**:
+    1. **Database**: New `position` integer field (created via migration `20251217100300_add_position_to_order_items.rb`) stores position (1, 2, 3...) based on JSON array index
+    2. **Import Logic**: FTP poller and manual order creation now save `position: idx + 1` when creating order items
+    3. **Item Numbering**: `item_number` method returns position if set, falls back to ID-based counting for legacy data
+    4. **Display Order**: Views now use `.ordered` scope (orders by position ASC) to display items in correct sequence
+    5. **File Naming**: Switch filenames now correctly match visual order: `IT9410-1.png`, `IT9410-2.png`, etc.
+  - **Files Modified**:
+    - `db/migrate/20251217100300_add_position_to_order_items.rb` - New migration adding position column with index
+    - `models/order_item.rb` - Updated `item_number` method with fallback, added `.ordered` scope
+    - `routes/web_ui.rb` - Save position when creating order items (2 locations: POST /orders, PATCH /orders/:id)
+    - `services/ftp_poller.rb` - Save position during FTP JSON import
+    - `views/order_detail.erb` - Use `.ordered` scope to display items by position
+  - **Migration Status**: Migration file `20251217100300_add_position_to_order_items.rb` ready to run. If position field doesn't exist yet, fallback logic ensures backward compatibility with existing orders.

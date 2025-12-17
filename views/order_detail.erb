@@ -139,7 +139,7 @@
       </tr>
     </thead>
     <tbody>
-      <% @order.order_items.each do |item| %>
+      <% @order.order_items.ordered.each do |item| %>
         <tr onclick="window.location.href='/orders/<%= @order.id %>/items/<%= item.id %>';" style="cursor: pointer;">
           <td>
             <strong><%= item.product&.name || item.sku %></strong><br>

@@ -147,6 +147,7 @@ class PrintOrchestrator < Sinatra::Base
           order_item = order.order_items.build(
             sku: item_params[:sku],
             quantity: quantity,
+            position: index + 1,
             raw_json: {
               sku: item_params[:sku],
               quantity: quantity,
@@ -289,9 +290,12 @@ class PrintOrchestrator < Sinatra::Base
             end
           else
             # Create new item (added dynamically in form)
+            # Position is: last position + 1
+            next_position = @order.order_items.maximum(:position).to_i + 1
             order_item = @order.order_items.build(
               sku: item_params[:sku],
               quantity: quantity,
+              position: next_position,
               raw_json: {
                 sku: item_params[:sku],
                 quantity: quantity,

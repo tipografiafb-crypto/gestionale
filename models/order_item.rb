@@ -70,9 +70,19 @@ class OrderItem < ActiveRecord::Base
   end
 
   # Get the item number (position in order)
+  # Uses position field (set at import time) with fallback to legacy ID-based counting
   def item_number
-    order.order_items.where("id <= ?", id).count
+    # If position field exists and is set, use it
+    if respond_to?(:position) && position && position > 0
+      position
+    else
+      # Fallback to legacy behavior: count IDs up to this item (for existing orders)
+      order.order_items.where("id <= ?", id).count
+    end
   end
+  
+  # Always order by position for consistent display and numbering
+  scope :ordered, -> { order(:position) }
 
   # Determine workflow status based on preprint and print completion
   # Returns: 'nuovo', 'pre-stampa', 'stampa', 'rippato', 'completato'

@@ -1,0 +1,411 @@
+{
+    "id": "IT9410",
+    "number": "IT9410",
+    "site_name": "TPH IT",
+    "customer_note": "",
+    "print_files_with_cart_id": [
+        {
+            "cart_id": "artwork_c154268cee18ea43431b88bb6e01d401",
+            "print_files": [
+                "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12984-1765491417496-stage1.png",
+                "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12984-1765491417496-stage2.png"
+            ]
+        },
+        {
+            "cart_id": "artwork_4c957ffb676ad13e8a5ec1c7a935fe6a",
+            "print_files": [
+                "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12985-1765491810891-stage1.png",
+                "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12985-1765491810891-stage2.png"
+            ]
+        },
+        {
+            "cart_id": "MJ17CWNT",
+            "print_files": [
+                "https://it.thepickshouse.com/wp-content/uploads/lumise_data/orders/2025/12/o8qL5B7yKb-stage1.png"
+            ]
+        },
+        {
+            "cart_id": "MJ1E8Y0X",
+            "print_files": [
+                "https://it.thepickshouse.com/wp-content/uploads/lumise_data/orders/2025/12/jbWVn0G29Z-stage1.png"
+            ]
+        },
+        {
+            "cart_id": "MJ1RYV93",
+            "print_files": [
+                "https://it.thepickshouse.com/wp-content/uploads/lumise_data/orders/2025/12/Rg1yeqBtC2-stage1.png"
+            ]
+        },
+        {
+            "cart_id": "MJ1ZXESZ",
+            "print_files": [
+                "https://it.thepickshouse.com/wp-content/uploads/lumise_data/orders/2025/12/oqT42Leawh-stage1.png"
+            ]
+        }
+    ],
+    "screenshots_with_cart_id": [
+        {
+            "cart_id": "artwork_c154268cee18ea43431b88bb6e01d401",
+            "screenshots": [
+                "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12984-1765491417496-stage1.png",
+                "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12984-1765491417496-stage2.png"
+            ]
+        },
+        {
+            "cart_id": "artwork_4c957ffb676ad13e8a5ec1c7a935fe6a",
+            "screenshots": [
+                "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12985-1765491810891-stage1.png",
+                "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12985-1765491810891-stage2.png"
+            ]
+        },
+        {
+            "cart_id": "MJ17CWNT",
+            "screenshots": [
+                "https://it.thepickshouse.com/wp-content/uploads/lumise_data/orders/2025/12/Qxnz5X401h.png"
+            ]
+        },
+        {
+            "cart_id": "MJ1E8Y0X",
+            "screenshots": [
+                "https://it.thepickshouse.com/wp-content/uploads/lumise_data/orders/2025/12/IOhBMKzavQ.png"
+            ]
+        },
+        {
+            "cart_id": "MJ1RYV93",
+            "screenshots": [
+                "https://it.thepickshouse.com/wp-content/uploads/lumise_data/orders/2025/12/EX3o29gduk.png"
+            ]
+        },
+        {
+            "cart_id": "MJ1ZXESZ",
+            "screenshots": [
+                "https://it.thepickshouse.com/wp-content/uploads/lumise_data/orders/2025/12/fabVYAuvNR.png"
+            ]
+        }
+    ],
+    "line_items": [
+        {
+            "quantity": 5,
+            "sku": "TPH101-71",
+            "image": {
+                "id": "13013",
+                "src": "https://it.thepickshouse.com/wp-content/uploads/2025/01/standard-black-1.webp"
+            },
+            "meta_data": {
+                "_wc_ai_customization": {
+                    "artwork_id": "artwork_c154268cee18ea43431b88bb6e01d401",
+                    "canvas_data": null,
+                    "canvas_screenshot": null,
+                    "preview_url": "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12984-1765491417496-stage1.png",
+                    "print_url": "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12984-1765491417496-stage1.png",
+                    "ai_image_url": null,
+                    "customization_method": "upload",
+                    "product_mode": "variant_bulk",
+                    "bulk_quantity": 5,
+                    "group_unit_price": 4.4000000000000003552713678800500929355621337890625,
+                    "selected_variants": {
+                        "spessore": {
+                            "value": "0.71",
+                            "label": "0.71 Medium",
+                            "sku_suffix": 71
+                        },
+                        "final_sku": "TPH101-71"
+                    },
+                    "variant_data": {
+                        "variants": {
+                            "spessore": {
+                                "value": "0.71",
+                                "label": "0.71 Medium",
+                                "sku_suffix": 71
+                            }
+                        },
+                        "quantity": 5,
+                        "unitPrice": 4.4000000000000003552713678800500929355621337890625,
+                        "totalPrice": 22,
+                        "tierIndex": 0,
+                        "final_sku": "TPH101-71"
+                    },
+                    "multicanvas_data": {
+                        "stage_previews": [
+                            "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12984-1765491417496-stage1.png",
+                            "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12984-1765491417496-stage2.png"
+                        ],
+                        "stage_prints": [
+                            "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12984-1765491417496-stage1.png",
+                            "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12984-1765491417496-stage2.png"
+                        ],
+                        "stage_list": [
+                            "stage1",
+                            "stage2"
+                        ],
+                        "current_stage": "stage2"
+                    },
+                    "selected_color": {
+                        "color": "#292929",
+                        "label": "Nero",
+                        "sku_suffix": "",
+                        "is_default": true
+                    },
+                    "final_sku": "TPH101-71",
+                    "bulk_data": {
+                        "price": 4.4000000000000003552713678800500929355621337890625,
+                        "quantity": 5,
+                        "tier_index": 0
+                    }
+                },
+                "_wc_ai_preview_url": "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12984-1765491417496-stage1.png",
+                "_wc_ai_print_url": "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12984-1765491417496-stage1.png"
+            }
+        },
+        {
+            "quantity": 5,
+            "sku": "TPH100-71",
+            "image": {
+                "id": "13018",
+                "src": "https://it.thepickshouse.com/wp-content/uploads/2025/01/standard-1.webp"
+            },
+            "meta_data": {
+                "_wc_ai_customization": {
+                    "artwork_id": "artwork_4c957ffb676ad13e8a5ec1c7a935fe6a",
+                    "canvas_data": null,
+                    "canvas_screenshot": null,
+                    "preview_url": "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12985-1765491810891-stage1.png",
+                    "print_url": "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12985-1765491810891-stage1.png",
+                    "ai_image_url": null,
+                    "customization_method": "upload",
+                    "product_mode": "variant_bulk",
+                    "bulk_quantity": 5,
+                    "group_unit_price": 4.4000000000000003552713678800500929355621337890625,
+                    "selected_variants": {
+                        "spessore": {
+                            "value": "0.71",
+                            "label": "0.71 Medium",
+                            "sku_suffix": 71
+                        },
+                        "final_sku": "TPH100-71"
+                    },
+                    "variant_data": {
+                        "variants": {
+                            "spessore": {
+                                "value": "0.71",
+                                "label": "0.71 Medium",
+                                "sku_suffix": 71
+                            }
+                        },
+                        "quantity": 5,
+                        "unitPrice": 4.4000000000000003552713678800500929355621337890625,
+                        "totalPrice": 22,
+                        "tierIndex": 0,
+                        "final_sku": "TPH100-71"
+                    },
+                    "multicanvas_data": {
+                        "stage_previews": [
+                            "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12985-1765491810891-stage1.png",
+                            "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12985-1765491810891-stage2.png"
+                        ],
+                        "stage_prints": [
+                            "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12985-1765491810891-stage1.png",
+                            "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12985-1765491810891-stage2.png"
+                        ],
+                        "stage_list": [
+                            "stage1",
+                            "stage2"
+                        ],
+                        "current_stage": "stage2"
+                    },
+                    "selected_color": {
+                        "color": "#ffffff",
+                        "label": "Bianco",
+                        "sku_suffix": "",
+                        "is_default": true
+                    },
+                    "final_sku": "TPH100-71",
+                    "bulk_data": {
+                        "price": 4.4000000000000003552713678800500929355621337890625,
+                        "quantity": 5,
+                        "tier_index": 0
+                    }
+                },
+                "_wc_ai_preview_url": "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/screenshot-12985-1765491810891-stage1.png",
+                "_wc_ai_print_url": "https://tph-order.s3.eu-west-3.amazonaws.com/wc-ai-customizer/2025/12/print-12985-1765491810891-stage1.png"
+            }
+        },
+        {
+            "quantity": 9,
+            "sku": "TPH206P-114",
+            "image": {
+                "id": 12655,
+                "src": "https://it.thepickshouse.com/wp-content/uploads/2025/01/jazzXL114.webp"
+            },
+            "meta_data": {
+                "lumise_data": {
+                    "id": "variable:13287",
+                    "cart_id": "MJ17CWNT",
+                    "qty": 9,
+                    "product_id": "variable:13287",
+                    "product_cms": 13267,
+                    "product_name": "Dunlop JAZZ XL - 1.14 - Extra Heavy",
+                    "price": {
+                        "total": 19.998000000000001108446667785756289958953857421875,
+                        "fixed": 0,
+                        "resource": 0,
+                        "template": 0,
+                        "base": 1,
+                        "printing_price": 1.221999999999999975131004248396493494510650634765625
+                    },
+                    "options": {
+                        "quantity": "9"
+                    },
+                    "variation": null,
+                    "attributes": {
+                        "quantity": {
+                            "id": "quantity",
+                            "name": "Quantità",
+                            "value": "9",
+                            "type": "quantity"
+                        }
+                    },
+                    "ext_attributes": {
+                        "pa_spessore": "1-14-extra-heavy"
+                    },
+                    "printing": 13,
+                    "resource": [],
+                    "template": false,
+                    "file": "2025/12/MJ17CWNT_fc3p9FxBse"
+                }
+            }
+        },
+        {
+            "quantity": 50,
+            "sku": "TPH651-50",
+            "image": {
+                "id": 12937,
+                "src": "https://it.thepickshouse.com/wp-content/uploads/2025/01/adesivi10.webp"
+            },
+            "meta_data": {
+                "lumise_data": {
+                    "id": "variable:12929",
+                    "cart_id": "MJ1E8Y0X",
+                    "qty": 50,
+                    "product_id": "variable:12929",
+                    "product_cms": 12913,
+                    "product_name": "Adesivi Personalizzati Rotondi - 5x5 cm",
+                    "price": {
+                        "total": 52,
+                        "fixed": 0,
+                        "resource": 0,
+                        "template": 0,
+                        "base": 1.04000000000000003552713678800500929355621337890625,
+                        "printing_price": 0
+                    },
+                    "options": {
+                        "quantity": "50"
+                    },
+                    "variation": null,
+                    "attributes": {
+                        "quantity": {
+                            "id": "quantity",
+                            "name": "Quantità",
+                            "value": "50",
+                            "type": "quantity"
+                        }
+                    },
+                    "ext_attributes": {
+                        "pa_size": "5x5-cm"
+                    },
+                    "printing": 14,
+                    "resource": [],
+                    "template": false,
+                    "file": "2025/12/MJ1E8Y0X_TilFuDPq1U"
+                }
+            }
+        },
+        {
+            "quantity": 9,
+            "sku": "TPH203A-100",
+            "image": {
+                "id": 12638,
+                "src": "https://it.thepickshouse.com/wp-content/uploads/2025/01/tortex1.webp"
+            },
+            "meta_data": {
+                "lumise_data": {
+                    "id": "variable:13270",
+                    "cart_id": "MJ1RYV93",
+                    "qty": 9,
+                    "product_id": "variable:13270",
+                    "product_cms": 13264,
+                    "product_name": "Dunlop tortex Standard - 1.00 - Heavy",
+                    "price": {
+                        "total": 19.998000000000001108446667785756289958953857421875,
+                        "fixed": 0,
+                        "resource": 0,
+                        "template": 0,
+                        "base": 1,
+                        "printing_price": 1.221999999999999975131004248396493494510650634765625
+                    },
+                    "options": {
+                        "quantity": "9"
+                    },
+                    "variation": null,
+                    "attributes": {
+                        "quantity": {
+                            "id": "quantity",
+                            "name": "Quantità",
+                            "value": "9",
+                            "type": "quantity"
+                        }
+                    },
+                    "ext_attributes": {
+                        "pa_spessore": "1-00-heavy"
+                    },
+                    "printing": 13,
+                    "resource": [],
+                    "template": false,
+                    "file": "2025/12/MJ1RYV93_afvBpiquNL"
+                }
+            }
+        },
+        {
+            "quantity": 1,
+            "sku": "TPH660",
+            "image": {
+                "id": "",
+                "src": false
+            },
+            "meta_data": {
+                "lumise_data": {
+                    "id": "25",
+                    "cart_id": "MJ1ZXESZ",
+                    "qty": 1,
+                    "product_id": "25",
+                    "product_cms": "723",
+                    "product_name": "Custom Drumstick Hickory",
+                    "price": {
+                        "total": 24,
+                        "fixed": 0,
+                        "resource": 0,
+                        "template": 0,
+                        "base": 8,
+                        "printing_price": 16
+                    },
+                    "options": {
+                        "quantity": "1"
+                    },
+                    "variation": null,
+                    "attributes": {
+                        "quantity": {
+                            "id": "quantity",
+                            "name": "Quantità",
+                            "value": "1",
+                            "type": "quantity"
+                        }
+                    },
+                    "printing": 3,
+                    "resource": [],
+                    "template": false,
+                    "file": "2025/12/MJ1ZXESZ_FpoeoQF1LD"
+                }
+            }
+        }
+    ]
+}
