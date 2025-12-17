@@ -751,17 +751,38 @@
       this.disabled = true;
       this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
       
+      // Calculate final canvas dimensions based on zoom and offset
+      // Canvas must be large enough to contain the zoomed and offset image
+      const zoomedImageWidth = originalImage.width * currentZoom;
+      const zoomedImageHeight = originalImage.height * currentZoom;
+      
+      // Calculate bounds considering offset
+      const minX = Math.min(0, currentOffsetX);
+      const minY = Math.min(0, currentOffsetY);
+      const maxX = Math.max(zoomedImageWidth, zoomedImageWidth + currentOffsetX);
+      const maxY = Math.max(zoomedImageHeight, zoomedImageHeight + currentOffsetY);
+      
+      const finalCanvasWidth = maxX - minX;
+      const finalCanvasHeight = maxY - minY;
+      
       // Create temporary canvas WITHOUT white background (preserves transparency)
       const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = adjustCanvas.width;
-      tempCanvas.height = adjustCanvas.height;
+      tempCanvas.width = finalCanvasWidth;
+      tempCanvas.height = finalCanvasHeight;
       const tempCtx = tempCanvas.getContext('2d');
       
-      // Apply zoom transformation to canvas
-      tempCtx.scale(currentZoom, currentZoom);
+      // Translate to handle negative offsets and center the image
+      tempCtx.translate(-minX, -minY);
       
-      // Draw the image with offset and zoom applied
-      tempCtx.drawImage(originalImage, currentOffsetX / currentZoom, currentOffsetY / currentZoom);
+      // Draw the image with zoom and offset applied
+      // drawImage params: (image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+      tempCtx.drawImage(
+        originalImage,
+        0, 0,  // source position
+        originalImage.width, originalImage.height,  // source size
+        currentOffsetX, currentOffsetY,  // destination position
+        zoomedImageWidth, zoomedImageHeight  // destination size (zoomed)
+      );
       
       // Export as PNG (preserves alpha transparency)
       const imageData = tempCanvas.toDataURL('image/png');
