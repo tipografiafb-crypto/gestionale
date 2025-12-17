@@ -14,6 +14,34 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_23_120002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
+  create_table "aggregated_job_items", id: :serial, force: :cascade do |t|
+    t.integer "aggregated_job_id", null: false
+    t.integer "order_item_id", null: false
+    t.datetime "created_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
+    t.datetime "updated_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
+    t.index ["aggregated_job_id"], name: "idx_aggregated_job_items_job_id"
+    t.index ["order_item_id"], name: "idx_aggregated_job_items_item_id"
+    t.unique_constraint ["aggregated_job_id", "order_item_id"], name: "aggregated_job_items_aggregated_job_id_order_item_id_key"
+  end
+
+  create_table "aggregated_jobs", id: :serial, force: :cascade do |t|
+    t.string "name", limit: 255, null: false
+    t.string "status", limit: 50, default: "pending"
+    t.integer "nr_files", default: 0
+    t.integer "print_flow_id"
+    t.integer "aggregation_job_id"
+    t.datetime "sent_at", precision: nil
+    t.datetime "created_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
+    t.datetime "updated_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
+    t.text "aggregated_file_url"
+    t.string "aggregated_filename", limit: 255
+    t.datetime "aggregated_at", precision: nil
+    t.datetime "completed_at", precision: nil
+    t.text "notes"
+    t.datetime "preprint_sent_at", precision: nil
+    t.index ["status"], name: "idx_aggregated_jobs_status"
+  end
+
   create_table "assets", force: :cascade do |t|
     t.bigint "order_item_id", null: false
     t.string "original_url", null: false
@@ -21,7 +49,49 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_23_120002) do
     t.string "asset_type"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "deleted_at"
     t.index ["order_item_id"], name: "index_assets_on_order_item_id"
+  end
+
+  create_table "backup_configs", id: :serial, force: :cascade do |t|
+    t.string "remote_ip", limit: 255
+    t.string "remote_path", limit: 1024
+    t.datetime "created_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
+    t.datetime "updated_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
+    t.string "ssh_username", limit: 255
+    t.string "ssh_password", limit: 1024
+    t.integer "ssh_port", default: 22
+  end
+
+  create_table "import_errors", force: :cascade do |t|
+    t.bigint "store_id"
+    t.string "filename"
+    t.string "external_order_code"
+    t.text "error_message"
+    t.datetime "import_date"
+    t.datetime "created_at", default: -> { "now()" }, null: false
+    t.datetime "updated_at", default: -> { "now()" }, null: false
+  end
+
+  create_table "inventories", id: :serial, force: :cascade do |t|
+    t.integer "product_id", null: false
+    t.integer "quantity_in_stock", default: 0
+    t.datetime "created_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
+    t.datetime "updated_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
+
+    t.unique_constraint ["product_id"], name: "inventories_product_id_key"
+  end
+
+  create_table "logs", force: :cascade do |t|
+    t.string "level"
+    t.string "category"
+    t.text "message"
+    t.text "details"
+    t.datetime "created_at", precision: nil
+    t.datetime "updated_at", precision: nil
+    t.index ["category"], name: "index_logs_on_category"
+    t.index ["created_at"], name: "index_logs_on_created_at"
+    t.index ["level"], name: "index_logs_on_level"
   end
 
   create_table "order_items", force: :cascade do |t|
@@ -59,6 +129,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_23_120002) do
     t.string "source", default: "api"
     t.string "customer_name"
     t.text "customer_note"
+    t.text "notes"
     t.index ["store_id", "external_order_code"], name: "index_orders_on_store_id_and_external_order_code", unique: true
     t.index ["store_id"], name: "index_orders_on_store_id"
   end
@@ -84,6 +155,9 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_23_120002) do
     t.bigint "label_webhook_id"
     t.integer "operation_id"
     t.json "opzioni_stampa", default: {}
+    t.boolean "azione_photoshop_enabled", default: false
+    t.text "azione_photoshop_options"
+    t.string "default_azione_photoshop"
     t.index ["label_webhook_id"], name: "index_print_flows_on_label_webhook_id"
     t.index ["name"], name: "index_print_flows_on_name", unique: true
     t.index ["preprint_webhook_id"], name: "index_print_flows_on_preprint_webhook_id"
@@ -105,6 +179,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_23_120002) do
     t.boolean "active", default: true
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "autopilot_preprint_enabled", default: false
     t.index ["name"], name: "index_product_categories_on_name", unique: true
   end
 
@@ -127,6 +202,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_23_120002) do
     t.string "name", null: false
     t.bigint "product_category_id"
     t.bigint "default_print_flow_id"
+    t.integer "min_stock_level", default: 0
     t.index ["default_print_flow_id"], name: "index_products_on_default_print_flow_id"
     t.index ["product_category_id"], name: "index_products_on_product_category_id"
     t.index ["sku"], name: "index_products_on_sku", unique: true
@@ -165,7 +241,11 @@ ActiveRecord::Schema[7.2].define(version: 2025_11_23_120002) do
     t.index ["store_id"], name: "index_switch_webhooks_on_store_id"
   end
 
+  add_foreign_key "aggregated_job_items", "aggregated_jobs", name: "aggregated_job_items_aggregated_job_id_fkey", on_delete: :cascade
+  add_foreign_key "aggregated_job_items", "order_items", name: "aggregated_job_items_order_item_id_fkey", on_delete: :cascade
+  add_foreign_key "aggregated_jobs", "print_flows", name: "aggregated_jobs_print_flow_id_fkey", on_delete: :nullify
   add_foreign_key "assets", "order_items"
+  add_foreign_key "inventories", "products", name: "inventories_product_id_fkey"
   add_foreign_key "order_items", "orders"
   add_foreign_key "order_items", "print_flows", column: "preprint_print_flow_id"
   add_foreign_key "order_items", "print_machines"
