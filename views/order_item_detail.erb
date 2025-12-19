@@ -474,7 +474,7 @@
             </div>
             <hr>
             <p class="text-muted small">
-              <i class="fas fa-info-circle"></i> Usa zoom per ingrandire/rimpicciolire. Offset per spostare. Lo sfondo bianco riempie le aree vuote.
+              <i class="fas fa-info-circle"></i> Usa zoom per ingrandire/rimpicciolire. Offset per spostare. Lo sfondo grigio riempie le aree vuote.
             </p>
           </div>
         </div>
@@ -637,9 +637,9 @@
     // Draw image (preserves transparency)
     ctx.drawImage(originalImage, 0, 0);
     
-    // Draw white background BEHIND image (doesn't overwrite transparency)
+    // Draw grey background BEHIND image (doesn't overwrite transparency)
     ctx.globalCompositeOperation = 'destination-over';
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = '#CCCCCC';
     ctx.fillRect(0, 0, originalImage.width, originalImage.height);
     
     // Reset composite operation
