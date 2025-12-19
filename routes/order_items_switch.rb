@@ -276,55 +276,37 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Webhook+etichetta+non+configurato"
     end
 
-    # Get all print assets (assets are auto-downloaded during import)
-    print_assets = item.switch_print_assets
-    unless print_assets.any?
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
-    end
-
     product = item.product
     server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
     
-    # Send each print asset to label webhook
+    # Send single label payload (label flow only needs codice_ordine)
     begin
-      errors = []
-      successful_assets = []
-      
-      print_assets.each do |print_asset|
-        # Build Switch payload according to SWITCH_WORKFLOW.md
-        job_data = {
-          id_riga: item.item_number,
-          codice_ordine: order.external_order_code,
-          product: "#{product&.sku} - #{product&.name}",
-          operation_id: 3,  # 1=prepress, 2=stampa, 3=etichetta
-          job_operation_id: item.id.to_s,
-          url: "#{server_url}/api/assets/#{print_asset.id}/download",
-          widegest_url: "#{server_url}/api/v1/reports_create",
-          filename: item.switch_filename_for_asset(print_asset) || "#{order.external_order_code.downcase}-#{item.id}.png",
-          nome_macchina: print_machine.name,
-          quantita: item.quantity,
-          materiale: product&.notes || 'N/A',
-          campi_custom: {},
-          opzioni_stampa: {},
-          campi_webhook: item.campi_webhook || {}
-        }
+      # Build Switch payload according to SWITCH_WORKFLOW.md
+      job_data = {
+        id_riga: item.item_number,
+        codice_ordine: order.external_order_code,
+        product: "#{product&.sku} - #{product&.name}",
+        operation_id: 3,  # 1=prepress, 2=stampa, 3=etichetta
+        job_operation_id: item.id.to_s,
+        widegest_url: "#{server_url}/api/v1/reports_create",
+        filename: "#{order.external_order_code.downcase}-#{item.id}-label",
+        nome_macchina: print_machine.name,
+        quantita: item.quantity,
+        materiale: product&.notes || 'N/A',
+        campi_custom: {},
+        opzioni_stampa: {},
+        campi_webhook: item.campi_webhook || {}
+      }
 
-        result = SwitchClient.send_to_switch(
-          webhook_path: print_flow.label_webhook&.hook_path,
-          job_data: job_data
-        )
-        
-        if result[:success]
-          successful_assets << print_asset.id
-        else
-          errors << result[:error]
-        end
-      end
+      result = SwitchClient.send_to_switch(
+        webhook_path: print_flow.label_webhook&.hook_path,
+        job_data: job_data
+      )
       
-      if errors.any?
-        redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + errors.join(', '))}"
+      if result[:success]
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=Etichetta+inviata+con+successo"
       else
-        redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=#{successful_assets.length}+etichetta+inviate+con+successo"
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + result[:error].to_s)}"
       end
     rescue => e
       error_msg = e.message.length > 50 ? e.message[0..50] + "..." : e.message
