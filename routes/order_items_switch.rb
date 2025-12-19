@@ -218,7 +218,7 @@ class PrintOrchestrator < Sinatra::Base
       )
       
       if result[:success]
-        item.update(print_status: 'processing')
+        item.update(print_status: 'ripped')
         redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=PDF+inviato+in+stampa"
       else
         item.update(print_status: 'failed')
