@@ -276,11 +276,20 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Webhook+etichetta+non+configurato"
     end
 
+    # Get all print assets (assets are auto-downloaded during import)
+    print_assets = item.switch_print_assets
+    unless print_assets.any?
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
+    end
+
     product = item.product
     server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
     
-    # Send single label payload (label flow only needs codice_ordine)
+    # Send single label payload (same structure as before, just send once)
     begin
+      # Get first print asset for the URL
+      first_asset = print_assets.first
+      
       # Build Switch payload according to SWITCH_WORKFLOW.md
       job_data = {
         id_riga: item.item_number,
@@ -288,8 +297,9 @@ class PrintOrchestrator < Sinatra::Base
         product: "#{product&.sku} - #{product&.name}",
         operation_id: 3,  # 1=prepress, 2=stampa, 3=etichetta
         job_operation_id: item.id.to_s,
+        url: "#{server_url}/api/assets/#{first_asset.id}/download",
         widegest_url: "#{server_url}/api/v1/reports_create",
-        filename: "#{order.external_order_code.downcase}-#{item.id}-label",
+        filename: item.switch_filename_for_asset(first_asset) || "#{order.external_order_code.downcase}-#{item.id}.png",
         nome_macchina: print_machine.name,
         quantita: item.quantity,
         materiale: product&.notes || 'N/A',
