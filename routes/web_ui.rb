@@ -71,10 +71,12 @@ class PrintOrchestrator < Sinatra::Base
     @completed_orders_paginated = @completed_orders[completed_start, per_page]
     
     # Calculate delayed orders (from all orders, not just paginated)
+    # Exclude completed orders (done/error) even if they were delayed
     delay_threshold = 7.days
     @delayed_orders = @orders.select do |order|
       (Time.now - order.created_at) > delay_threshold && 
-      %w[new sent_to_switch processing].include?(order.status)
+      %w[new sent_to_switch processing].include?(order.status) &&
+      !%w[done error].include?(order.status)
     end
     
     # Try to load import errors, but gracefully handle if table doesn't exist
