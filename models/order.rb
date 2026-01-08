@@ -65,12 +65,18 @@ class Order < ActiveRecord::Base
       new_item.order_id = new_order.id
       new_item.preprint_status = 'pending'
       new_item.preprint_job_id = nil
+      new_item.preprint_completed_at = nil
+      new_item.preprint_preview_url = nil
       new_item.print_status = 'pending'
       new_item.print_job_id = nil
+      new_item.print_completed_at = nil
+      new_item.print_machine_id = nil
+      new_item.campi_webhook = nil
       new_item.save!
       
-      # Duplicate assets
+      # Duplicate only 'print' and 'screenshot' assets, skip results
       item.assets.each do |asset|
+        next if %w[print_output print_result label_result].include?(asset.asset_type)
         new_asset = asset.dup
         new_asset.order_item_id = new_item.id
         new_asset.save!
