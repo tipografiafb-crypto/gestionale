@@ -75,10 +75,10 @@
                       <div class="file-input-group mb-2 existing-file-group" data-asset-id="<%= asset.id %>">
                         <div class="input-group">
                           <input type="text" class="form-control" value="<%= asset.original_url %>" disabled>
+                          <input type="hidden" class="delete-asset-id" name="items[][delete_asset_ids][]" value="">
                           <button type="button" class="btn btn-outline-danger btn-sm delete-file-btn" title="Cancella questo file">
                             <i class="fas fa-times"></i>
                           </button>
-                          <input type="hidden" class="delete-asset-id" name="items[][delete_asset_ids][]" value="">
                           <small class="text-muted ms-2 mt-2">(file esistente)</small>
                         </div>
                       </div>
@@ -224,6 +224,18 @@ document.addEventListener('DOMContentLoaded', function() {
     container.appendChild(row);
     updateRemoveButtons();
   }
+
+  // Handle removal of existing items
+  container.addEventListener('click', function(e) {
+    if (e.target.closest('.remove-item-btn')) {
+      const btn = e.target.closest('.remove-item-btn');
+      const rows = container.querySelectorAll('.item-row');
+      if (rows.length > 1) {
+        btn.closest('.item-row').remove();
+        updateRemoveButtons();
+      }
+    }
+  });
   
   function updateRemoveButtons() {
     const rows = container.querySelectorAll('.item-row');

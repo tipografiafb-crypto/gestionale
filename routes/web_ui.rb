@@ -309,11 +309,14 @@ class PrintOrchestrator < Sinatra::Base
 
           # Delete specific asset IDs if provided
           delete_asset_ids = item_params[:delete_asset_ids] || []
+          delete_asset_ids = delete_asset_ids.first if delete_asset_ids.is_a?(Array) && delete_asset_ids.first.is_a?(Array) # Handle nested arrays if any
+          
           delete_asset_ids.each do |asset_id|
             next if asset_id.blank?
             asset = Asset.find_by(id: asset_id)
             if asset && asset.order_item_id == order_item.id
-              File.delete(File.join(Dir.pwd, asset.local_path)) if File.exist?(File.join(Dir.pwd, asset.local_path))
+              full_asset_path = File.join(Dir.pwd, asset.local_path)
+              File.delete(full_asset_path) if asset.local_path.present? && File.exist?(full_asset_path)
               asset.destroy
             end
           end
