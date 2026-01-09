@@ -119,6 +119,10 @@ class OrderItem < ActiveRecord::Base
       index = print_assets.find_index(asset)
       suffix = index == 0 ? 'F' : 'R'
       "#{order_code}-#{item_number}_#{suffix}.png"
+    else
+      # More than two files: add _stage1, _stage2, etc. based on position
+      index = print_assets.find_index(asset)
+      "#{order_code}-#{item_number}_stage#{index + 1}.png"
     end
   end
 end
