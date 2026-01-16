@@ -159,8 +159,11 @@ class PrintOrchestrator < Sinatra::Base
           order_item.save!
 
           # Deduct from inventory
-          if product.inventory
-            product.inventory.remove_stock(quantity)
+          if product
+            inventory_product = product.is_dependent && product.master_product ? product.master_product : product
+            if inventory_product.inventory
+              inventory_product.inventory.remove_stock(quantity)
+            end
           end
 
           # Handle multiple file uploads
