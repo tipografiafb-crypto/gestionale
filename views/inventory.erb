@@ -67,6 +67,7 @@
       </thead>
       <tbody>
         <% @inventory_items_paginated.each do |inv| %>
+          <% next if inv.product.is_dependent %>
           <% row_bg = inv.quantity_in_stock <= 0 ? 'bg-danger bg-opacity-25' : (inv.product.min_stock_level && inv.quantity_in_stock < inv.product.min_stock_level ? 'bg-warning bg-opacity-25' : '') %>
           <tr class="<%= row_bg %>">
             <td><code><%= inv.product.sku %></code></td>

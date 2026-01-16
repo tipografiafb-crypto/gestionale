@@ -94,8 +94,11 @@ class PrintOrchestrator < Sinatra::Base
           
           # Deduct from inventory
           product = Product.find_by(sku: item_data['sku'])
-          if product && product.inventory
-            product.inventory.remove_stock(item_data['quantity'])
+          if product
+            inventory_product = product.is_dependent && product.master_product ? product.master_product : product
+            if inventory_product.inventory
+              inventory_product.inventory.remove_stock(item_data['quantity'])
+            end
           end
           
           # Get cart_id from meta_data for file mapping

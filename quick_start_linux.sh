@@ -192,6 +192,10 @@ fi
 echo -e "\n${YELLOW}[5.8/7]${NC} Adding SSH port column to backup_configs..."
 psql "$DATABASE_URL" << 'SQLEOF'
 ALTER TABLE backup_configs ADD COLUMN IF NOT EXISTS ssh_port INTEGER DEFAULT 22;
+
+-- Add Product dependency columns
+ALTER TABLE products ADD COLUMN IF NOT EXISTS master_product_id INTEGER REFERENCES products(id);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS is_dependent BOOLEAN DEFAULT false;
 SQLEOF
 if [ $? -eq 0 ]; then
   echo -e "${GREEN}✓ SSH port column added${NC}"

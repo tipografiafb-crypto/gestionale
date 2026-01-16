@@ -65,6 +65,40 @@
           </div>
         </div>
 
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="is_dependent" class="form-label">Tipo Prodotto</label>
+              <select id="is_dependent" name="is_dependent" class="form-select" onchange="toggleMasterProduct()">
+                <option value="false" <%= 'selected' unless @product&.is_dependent %>>Prodotto Principale (Gestito in magazzino)</option>
+                <option value="true" <%= 'selected' if @product&.is_dependent %>>Prodotto Dipendente (Usa magazzino del principale)</option>
+              </select>
+              <small class="text-muted">I prodotti dipendenti non compaiono in magazzino.</small>
+            </div>
+          </div>
+          <div class="col-md-6" id="master_product_container" style="<%= @product&.is_dependent ? '' : 'display: none;' %>">
+            <div class="mb-3">
+              <label for="master_product_id" class="form-label">Prodotto Principale Associato</label>
+              <select id="master_product_id" name="master_product_id" class="form-select">
+                <option value="">-- Seleziona prodotto principale --</option>
+                <% Product.where(is_dependent: false).where.not(id: @product&.id).order(:sku).each do |p| %>
+                  <option value="<%= p.id %>" <%= 'selected' if @product&.master_product_id == p.id %>>
+                    <%= p.sku %> - <%= p.name %>
+                  </option>
+                <% end %>
+              </select>
+              <small class="text-muted">Le vendite di questo prodotto scaleranno il magazzino del principale.</small>
+            </div>
+          </div>
+        </div>
+
+        <script>
+          function toggleMasterProduct() {
+            const isDependent = document.getElementById('is_dependent').value === 'true';
+            document.getElementById('master_product_container').style.display = isDependent ? '' : 'none';
+          }
+        </script>
+
         <div class="mb-3">
           <label class="form-label">Flussi di Stampa <span class="text-danger">*</span></label>
           <div class="card bg-light p-3">

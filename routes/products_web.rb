@@ -228,7 +228,9 @@ class PrintOrchestrator < Sinatra::Base
       default_print_flow_id: default_flow_id,
       product_category_id: params[:product_category_id].presence,
       notes: params[:notes],
-      min_stock_level: params[:min_stock_level].to_i.presence
+      min_stock_level: params[:min_stock_level].to_i.presence,
+      is_dependent: params[:is_dependent] == 'true',
+      master_product_id: params[:is_dependent] == 'true' ? params[:master_product_id].presence : nil
     )
 
     if product.save
@@ -273,7 +275,9 @@ class PrintOrchestrator < Sinatra::Base
       default_print_flow_id: default_flow_id,
       product_category_id: params[:product_category_id].presence,
       notes: params[:notes],
-      min_stock_level: params[:min_stock_level].to_i.presence
+      min_stock_level: params[:min_stock_level].to_i.presence,
+      is_dependent: params[:is_dependent] == 'true',
+      master_product_id: params[:is_dependent] == 'true' ? params[:master_product_id].presence : nil
     )
 
     if product.save
