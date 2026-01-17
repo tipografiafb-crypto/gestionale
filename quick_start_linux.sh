@@ -38,7 +38,7 @@ if [ ! -f ".env" ]; then
   else
     echo -e "${YELLOW}⚠ .env not found. Creating template...${NC}"
     cat > .env << 'ENVEOF'
-DATABASE_URL=postgresql://orchestrator_user:paolo@localhost:5432/print_orchestrator_dev
+DATABASE_URL=postgresql://orchestrator_user:Paolo_Strong_123@localhost:5432/print_orchestrator_dev
 RACK_ENV=production
 PORT=5000
 SERVER_BASE_URL=http://192.168.1.100:5000
@@ -59,8 +59,8 @@ echo -e "${GREEN}✓ Environment configuration ready${NC}"
 
 # Step 3.5: Create PostgreSQL user if not exists
 echo -e "\n${YELLOW}[3.5/7]${NC} Setting up PostgreSQL user..."
-# Try to create user with a stronger password and SSL requirement if needed
-sudo -u postgres psql -c "CREATE USER orchestrator_user WITH ENCRYPTED PASSWORD 'Paolo_Strong_123!';" 2>/dev/null || true
+# Try to create user with a stronger password
+sudo -u postgres psql -c "CREATE USER orchestrator_user WITH ENCRYPTED PASSWORD 'Paolo_Strong_123';" 2>/dev/null || true
 sudo -u postgres psql -c "ALTER USER orchestrator_user CREATEDB;" 2>/dev/null || true
 echo -e "${GREEN}✓ PostgreSQL user ready${NC}"
 
