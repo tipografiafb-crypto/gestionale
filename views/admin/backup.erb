@@ -1,0 +1,66 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="/orders">Home</a></li>
+        <li class="breadcrumb-item active">Backup</li>
+      </ol>
+    </nav>
+    <h1 class="h2 mb-0"><i class="fas fa-database text-primary me-2"></i>Gestione Backup</h1>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h5 class="card-title mb-0">Backup Istantaneo</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-4">
+          Cliccando il pulsante qui sotto, verrà generato un dump completo del database SQL (schema e dati) 
+          che verrà scaricato direttamente sul tuo computer.
+        </p>
+        
+        <% if params[:error] %>
+          <div class="alert alert-danger mb-4">
+            <i class="fas fa-exclamation-circle me-2"></i><%= params[:error] %>
+          </div>
+        <% end %>
+
+        <form action="/admin/backup/download" method="post">
+          <button type="submit" class="btn btn-primary btn-lg w-100">
+            <i class="fas fa-download me-2"></i>Scarica Backup SQL
+          </button>
+        </form>
+      </div>
+      <div class="card-footer bg-light py-3">
+        <small class="text-muted">
+          <i class="fas fa-info-circle me-1"></i> 
+          Il file conterrà tutte le tabelle, i prodotti, gli ordini e le configurazioni del sistema.
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h5 class="card-title mb-0">Informazioni Utili</h5>
+      </div>
+      <div class="card-body">
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item px-0 border-0">
+            <strong>Sicurezza:</strong> Il backup viene generato al volo e inviato direttamente al tuo browser. Nessun file rimane memorizzato permanentemente sul server.
+          </li>
+          <li class="list-group-item px-0 border-0">
+            <strong>Ripristino:</strong> Il file .sql scaricato può essere utilizzato per ripristinare il sistema in caso di emergenza utilizzando il comando <code>psql</code> o tool come pgAdmin.
+          </li>
+          <li class="list-group-item px-0 border-0">
+            <strong>Frequenza:</strong> Si consiglia di scaricare un backup prima di effettuare operazioni di manutenzione importanti o aggiornamenti di sistema.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

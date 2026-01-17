@@ -536,6 +536,33 @@ class PrintOrchestrator < Sinatra::Base
     ''
   end
 
+  # GET /admin/backup - Backup management page
+  get '/admin/backup' do
+    erb :'admin/backup'
+  end
+
+  # POST /admin/backup/download - Generate and download database backup
+  post '/admin/backup/download' do
+    timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
+    filename = "backup_orchestrator_#{timestamp}.sql"
+    temp_file = "/tmp/#{filename}"
+
+    # Get DB credentials from environment
+    db_url = ENV['DATABASE_URL']
+    
+    # Execute pg_dump
+    # Using --no-owner and --no-privileges to make it more portable
+    success = system("pg_dump \"#{db_url}\" --no-owner --no-privileges -f #{temp_file}")
+
+    if success && File.exist?(temp_file)
+      AppLogger.info('system', "Backup manuale generato: #{filename}")
+      send_file temp_file, filename: filename, type: 'application/sql', disposition: 'attachment'
+    else
+      AppLogger.error('system', "Errore durante la generazione del backup manuale")
+      redirect '/admin/backup?error=Errore durante la generazione del backup'
+    end
+  end
+
   # POST /orders/:id/download - Trigger asset download (web form)
   post '/orders/:id/download' do
     order = Order.find(params[:id])
