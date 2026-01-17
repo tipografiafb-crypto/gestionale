@@ -1,7 +1,7 @@
 class CreateInitialBaseTables < ActiveRecord::Migration[7.0]
   def change
     # STORES
-    create_table :stores unless table_exists?(:stores) do |t|
+    create_table :stores do |t|
       t.string :name, null: false
       t.string :api_url
       t.string :consumer_key
@@ -11,7 +11,7 @@ class CreateInitialBaseTables < ActiveRecord::Migration[7.0]
     end
 
     # ORDERS
-    create_table :orders unless table_exists?(:orders) do |t|
+    create_table :orders do |t|
       t.integer :store_id
       t.string :order_number, null: false
       t.string :status, default: 'pending'
@@ -21,10 +21,10 @@ class CreateInitialBaseTables < ActiveRecord::Migration[7.0]
       t.text :customer_note
       t.timestamps
     end
-    add_index :orders, :store_id unless index_exists?(:orders, :store_id)
+    add_index :orders, :store_id
 
     # ORDER ITEMS
-    create_table :order_items unless table_exists?(:order_items) do |t|
+    create_table :order_items do |t|
       t.integer :order_id
       t.string :sku
       t.string :name
@@ -37,10 +37,10 @@ class CreateInitialBaseTables < ActiveRecord::Migration[7.0]
       t.json :campi_webhook, default: {}
       t.timestamps
     end
-    add_index :order_items, :order_id unless index_exists?(:order_items, :order_id)
+    add_index :order_items, :order_id
 
     # ASSETS
-    create_table :assets unless table_exists?(:assets) do |t|
+    create_table :assets do |t|
       t.integer :order_item_id
       t.string :file_path
       t.string :asset_type
@@ -48,16 +48,16 @@ class CreateInitialBaseTables < ActiveRecord::Migration[7.0]
       t.timestamp :deleted_at
       t.timestamps
     end
-    add_index :assets, :order_item_id unless index_exists?(:assets, :order_item_id)
+    add_index :assets, :order_item_id
 
     # SWITCH JOBS
-    create_table :switch_jobs unless table_exists?(:switch_jobs) do |t|
+    create_table :switch_jobs do |t|
       t.integer :order_item_id
       t.string :switch_job_id
       t.string :status
       t.integer :job_operation_id
       t.timestamps
     end
-    add_index :switch_jobs, :order_item_id unless index_exists?(:switch_jobs, :order_item_id)
+    add_index :switch_jobs, :order_item_id
   end
 end
