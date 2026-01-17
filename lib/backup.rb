@@ -125,7 +125,14 @@ class BackupManager
       # Extract ZIP
       Zip::File.open(zip_path) do |zipfile|
         zipfile.each do |entry|
-          entry.extract(File.join(extract_dir, entry.name))
+          # Ignora file di sistema macOS e directory nascoste
+          next if entry.name.include?('__MACOSX') || entry.name.start_with?('.') || entry.name.include?('/.')
+          
+          # Crea la sottodirectory se necessario
+          dest_path = File.join(extract_dir, entry.name)
+          FileUtils.mkdir_p(File.dirname(dest_path))
+          
+          entry.extract(dest_path) unless File.exist?(dest_path)
         end
       end
 
