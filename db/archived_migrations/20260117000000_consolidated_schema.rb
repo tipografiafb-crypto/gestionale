@@ -118,6 +118,7 @@ class ConsolidatedSchema < ActiveRecord::Migration[7.0]
     create_table :print_machines, if_not_exists: true do |t|
       t.string :name, null: false
       t.string :ip_address
+      t.boolean :active, default: true
       t.timestamps
     end
 
