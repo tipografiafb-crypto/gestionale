@@ -536,60 +536,6 @@ class PrintOrchestrator < Sinatra::Base
     ''
   end
 
-  # GET /admin/backup - Backup management page
-  get '/admin/backup' do
-    erb :'admin/backup'
-  end
-
-  # POST /admin/backup/config - Save remote backup configuration
-  post '/admin/backup/config' do
-    config = BackupConfig.current
-    if config.update(
-      remote_ip: params[:remote_ip],
-      remote_path: params[:remote_path],
-      ssh_username: params[:ssh_username],
-      ssh_password: params[:ssh_password],
-      ssh_port: params[:ssh_port]
-    )
-      redirect '/admin/backup?success=Configurazione salvata'
-    else
-      redirect "/admin/backup?error=#{config.errors.full_messages.join(', ')}"
-    end
-  end
-
-  # POST /admin/backup/run_remote - Run remote backup manually
-  post '/admin/backup/run_remote' do
-    result = BackupManager.perform_backup
-    if result[:success]
-      AppLogger.info('system', "Backup remoto eseguito con successo")
-      redirect "/admin/backup?success=#{result[:message]}"
-    else
-      AppLogger.error('system', "Errore backup remoto: #{result[:error]}")
-      redirect "/admin/backup?error=#{result[:error]}"
-    end
-  end
-
-  # POST /admin/backup/download - Generate and download database backup
-  post '/admin/backup/download' do
-    timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
-    filename = "backup_orchestrator_#{timestamp}.sql"
-    temp_file = "/tmp/#{filename}"
-
-    # Get DB credentials from environment
-    db_url = ENV['DATABASE_URL']
-    
-    # Execute pg_dump
-    success = system("pg_dump \"#{db_url}\" --no-owner --no-privileges -f #{temp_file}")
-
-    if success && File.exist?(temp_file)
-      AppLogger.info('system', "Backup manuale scaricato: #{filename}")
-      send_file temp_file, filename: filename, type: 'application/sql', disposition: 'attachment'
-    else
-      AppLogger.error('system', "Errore download backup manuale")
-      redirect '/admin/backup?error=Errore durante la generazione del backup'
-    end
-  end
-
   # POST /orders/:id/download - Trigger asset download (web form)
   post '/orders/:id/download' do
     order = Order.find(params[:id])
