@@ -1,40 +1,28 @@
 #!/bin/bash
-# Portable Installer for Print Orchestrator (Ubuntu)
+# Reset Database and Install (Development/Replit Environment)
+# WARNING: This script is for development and will reset the local database.
 
-echo "Resetting database..."
-# If we are in a Replit environment, we use PG env vars directly
-if [ -n "$PGHOST" ]; then
-  psql -c "DROP TABLE IF EXISTS schema_migrations CASCADE;"
-  # We don't drop the whole DB in Replit as it's managed, just clean it
-  psql -c "DROP TABLE IF EXISTS stores, orders, order_items, products, inventories, assets, switch_webhooks, print_flows, product_categories, switch_jobs, print_machines, print_flow_machines, logs, import_errors CASCADE;"
-else
-  # Ubuntu portable path
-  sudo -u postgres psql -c "DROP DATABASE IF EXISTS print_orchestrator_dev;" 2>/dev/null
-  sudo -u postgres psql -c "DROP USER IF EXISTS orchestrator_user;" 2>/dev/null
-  sudo -u postgres psql -c "CREATE USER orchestrator_user WITH ENCRYPTED PASSWORD 'Paolo_Strong_123' CREATEDB;"
-  sudo -u postgres psql -c "CREATE DATABASE print_orchestrator_dev OWNER orchestrator_user;"
+set -e
+
+echo "⚠️  RESET DATABASE & RE-INSTALL (Development Mode)"
+echo "================================================="
+
+if [ -f .env ]; then
+  # Estraiamo DATABASE_URL se presente
+  DB_URL=$(grep '^DATABASE_URL=' .env | cut -d '=' -f2-)
 fi
 
-echo "Configuring environment..."
-if [ -z "$PGHOST" ]; then
-  cat > .env << 'ENVEOF'
-DATABASE_URL=postgresql://orchestrator_user:Paolo_Strong_123@localhost:5432/print_orchestrator_dev
-RACK_ENV=production
-PORT=5000
-SERVER_BASE_URL=http://localhost:5000
-ENVEOF
+# In Replit, DATABASE_URL is managed by the system
+if [ -z "$DB_URL" ]; then
+    echo "❌ DATABASE_URL not set. Are you in a Replit environment with a database?"
+    exit 1
 fi
 
-echo "Installing dependencies..."
-bundle install
+echo "Step 1: Dropping and recreating schema (Clean start)..."
+# We don't drop the whole database in Replit, we just clear the public schema
+psql "$DB_URL" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 
-echo "Running migrations..."
-rm -f db/schema.rb
-if [ -n "$DATABASE_URL" ]; then
-  bundle exec rake db:migrate
-else
-  export DATABASE_URL=postgresql://orchestrator_user:Paolo_Strong_123@localhost:5432/print_orchestrator_dev
-  bundle exec rake db:migrate
-fi
+echo "Step 2: Running consolidated migrations..."
+bundle exec rake db:migrate
 
-echo "Installation complete!"
+echo "✅ Reset completed successfully."
