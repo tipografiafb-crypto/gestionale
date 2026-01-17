@@ -1,0 +1,148 @@
+[5/7] Setting up database...
+  → Creating database...
+  → Running migrations...
+== 20251117000000 CreateInitialBaseTables: migrating ==========================
+-- table_exists?(:stores)
+   -> 0.0020s
+-- create_table(:stores)
+   -> 0.0072s
+-- table_exists?(:orders)
+   -> 0.0013s
+-- create_table(:orders)
+   -> 0.0068s
+-- table_exists?(:order_items)
+   -> 0.0013s
+-- create_table(:order_items)
+   -> 0.0064s
+-- table_exists?(:assets)
+   -> 0.0014s
+-- create_table(:assets)
+   -> 0.0067s
+== 20251117000000 CreateInitialBaseTables: migrated (0.0340s) =================
+
+== 20251119000001 CreateSwitchWebhooks: migrating =============================
+-- table_exists?(:switch_webhooks)
+   -> 0.0022s
+-- create_table(:switch_webhooks)
+   -> 0.0194s
+-- index_exists?(:switch_webhooks, [:name, :store_id])
+   -> 0.0098s
+-- add_index(:switch_webhooks, [:name, :store_id], {:unique=>true})
+   -> 0.0047s
+== 20251119000001 CreateSwitchWebhooks: migrated (0.0368s) ====================
+
+== 20251119000002 RenameWebhookUrlToHookPath: migrating =======================
+-- column_exists?(:switch_webhooks, :webhook_url)
+   -> 0.0080s
+== 20251119000002 RenameWebhookUrlToHookPath: migrated (0.0082s) ==============
+
+== 20251119000003 CreateProductCategories: migrating ==========================
+-- create_table(:product_categories)
+   -> 0.0149s
+-- add_index(:product_categories, :name, {:unique=>true, :name=>"index_product_categories_on_name"})
+   -> 0.0051s
+== 20251119000003 CreateProductCategories: migrated (0.0207s) =================
+
+== 20251119000004 CreateProducts: migrating ===================================
+-- table_exists?(:products)
+   -> 0.0026s
+-- create_table(:products)
+   -> 0.0161s
+-- add_index(:products, :sku, {:unique=>true, :name=>"index_products_on_sku"})
+   -> 0.0056s
+-- add_index(:products, :master_product_id, {:name=>"index_products_on_master_product_id"})
+   -> 0.0054s
+== 20251119000004 CreateProducts: migrated (0.0309s) ==========================
+
+== 20251120000004 AddNameToProducts: migrating ================================
+-- column_exists?(:products, :name)
+   -> 0.0076s
+== 20251120000004 AddNameToProducts: migrated (0.0079s) =======================
+
+== 20251121000001 CreatePrintFlows: migrating =================================
+-- create_table(:print_flows)
+   -> 0.0154s
+-- add_index(:print_flows, :name, {:unique=>true, :name=>"index_print_flows_on_name"})
+   -> 0.0053s
+== 20251121000001 CreatePrintFlows: migrated (0.0213s) ========================
+
+== 20251121000002 UpdateProductsForPrintFlows: migrating ======================
+-- column_exists?(:products, :print_flow_id)
+   -> 0.0062s
+-- add_reference(:products, :print_flow, {:foreign_key=>true, :null=>true})
+   -> 0.0129s
+-- foreign_key_exists?(:products, :switch_webhooks)
+   -> 0.0119s
+-- column_exists?(:products, :switch_webhook_id)
+   -> 0.0062s
+== 20251121000002 UpdateProductsForPrintFlows: migrated (0.0381s) =============
+
+== 20251121000003 UpdatePrintFlowsToUseWebhooks: migrating ====================
+-- add_reference(:print_flows, :preprint_webhook, {:foreign_key=>{:to_table=>:switch_webhooks}, :null=>true})
+   -> 0.0115s
+-- add_reference(:print_flows, :print_webhook, {:foreign_key=>{:to_table=>:switch_webhooks}, :null=>true})
+   -> 0.0103s
+-- remove_column(:print_flows, :preprint_hook_path, :string)
+   -> 0.0019s
+-- remove_column(:print_flows, :print_hook_path, :string)
+   -> 0.0013s
+== 20251121000003 UpdatePrintFlowsToUseWebhooks: migrated (0.0261s) ===========
+
+== 20251121000005 AddCategoryToProducts: migrating ============================
+-- column_exists?(:products, :product_category_id)
+   -> 0.0064s
+-- add_reference(:products, :product_category, {:foreign_key=>true, :null=>true})
+   -> 0.0111s
+== 20251121000005 AddCategoryToProducts: migrated (0.0180s) ===================
+
+== 20251121182018 AddSourceToOrders: migrating ================================
+-- add_column(:orders, :source, :string, {:default=>"api"})
+   -> 0.0087s
+== 20251121182018 AddSourceToOrders: migrated (0.0090s) =======================
+
+== 20251121185221 AddCustomerInfoToOrders: migrating ==========================
+-- add_column(:orders, :customer_name, :string)
+   -> 0.0030s
+-- add_column(:orders, :customer_note, :text)
+   -> 0.0013s
+== 20251121185221 AddCustomerInfoToOrders: migrated (0.0046s) =================
+
+== 20251121193045 AddTimestampsToAssets: migrating ============================
+-- add_column(:assets, :imported_at, :timestamp, {:default=>#<Proc:0x00007f17d5f3c750 /home/paolo/apps/print-orchestrator/db/migrate/20251121193045_add_timestamps_to_assets.rb:3 (lambda)>, :null=>false, :precision=>nil})
+   -> 0.0031s
+-- add_column(:assets, :deleted_at, :timestamp, {:precision=>nil})
+   -> 0.0014s
+-- add_index(:assets, :imported_at, {:name=>"index_assets_on_imported_at"})
+   -> 0.0053s
+-- add_index(:assets, :deleted_at, {:name=>"index_assets_on_deleted_at"})
+   -> 0.0050s
+== 20251121193045 AddTimestampsToAssets: migrated (0.0162s) ===================
+
+== 20251121193046 AddAzionePhotoshopToPrintFlows: migrating ===================
+-- add_column(:print_flows, :azione_photoshop_enabled, :boolean, {:default=>false})
+   -> 0.0041s
+-- add_column(:print_flows, :azione_photoshop_options, :text, {:default=>nil})
+   -> 0.0026s
+-- add_column(:print_flows, :default_azione_photoshop, :string, {:default=>nil})
+   -> 0.0024s
+== 20251121193046 AddAzionePhotoshopToPrintFlows: migrated (0.0097s) ==========
+
+== 20251121193047 AddSwitchPayloadFields: migrating ===========================
+-- add_column(:order_items, :scala, :string, {:default=>"1:1"})
+   -> 0.0085s
+-- add_column(:order_items, :materiale, :string)
+   -> 0.0016s
+-- add_column(:order_items, :campi_custom, :json, {:default=>{}})
+   -> 0.0032s
+-- add_column(:order_items, :campi_webhook, :json, {:default=>{}})
+   -> 0.0028s
+-- add_column(:print_flows, :operation_id, :integer)
+   -> 0.0017s
+-- add_column(:print_flows, :opzioni_stampa, :json, {:default=>{}})
+   -> 0.0029s
+-- add_column(:switch_jobs, :job_operation_id, :integer)
+rake aborted!
+StandardError: An error has occurred, this and all later migrations canceled: (StandardError)
+
+PG::UndefinedTable: ERROR:  relation "switch_jobs" does not exist
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/postgresql/database_statements.rb:56:in `exec'

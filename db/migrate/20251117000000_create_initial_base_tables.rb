@@ -15,9 +15,10 @@ class CreateInitialBaseTables < ActiveRecord::Migration[7.0]
       t.references :store, foreign_key: true
       t.string :order_number, null: false
       t.string :status, default: 'pending'
-      t.string :source
+      t.string :source, default: 'api'
       t.string :customer_name
       t.string :customer_email
+      t.text :customer_note
       t.timestamps
     end
 
@@ -29,6 +30,10 @@ class CreateInitialBaseTables < ActiveRecord::Migration[7.0]
       t.integer :quantity, default: 1
       t.string :print_status, default: 'pending'
       t.integer :position
+      t.string :scala, default: '1:1'
+      t.string :materiale
+      t.json :campi_custom, default: {}
+      t.json :campi_webhook, default: {}
       t.timestamps
     end
 
@@ -37,6 +42,19 @@ class CreateInitialBaseTables < ActiveRecord::Migration[7.0]
       t.references :order_item, foreign_key: true
       t.string :file_path
       t.string :asset_type
+      t.timestamp :imported_at, null: false, default: -> { 'CURRENT_TIMESTAMP' }
+      t.timestamp :deleted_at
+      t.timestamps
+    end
+    add_index :assets, :imported_at unless index_exists?(:assets, :imported_at)
+    add_index :assets, :deleted_at unless index_exists?(:assets, :deleted_at)
+
+    # SWITCH JOBS
+    create_table :switch_jobs unless table_exists?(:switch_jobs) do |t|
+      t.references :order_item, foreign_key: true
+      t.string :switch_job_id
+      t.string :status
+      t.integer :job_operation_id
       t.timestamps
     end
   end
