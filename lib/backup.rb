@@ -122,31 +122,22 @@ class BackupManager
       FileUtils.rm_rf(extract_dir)
       FileUtils.mkdir_p(extract_dir)
 
-      # Extract ZIP using system unzip for speed (much faster for large archives)
-      puts "[RESTORE] Extracting ZIP: #{zip_path} to #{extract_dir}..."
-      
-      # Use system unzip if available, fallback to rubyzip
-      if system("unzip -v > /dev/null 2>&1")
-        # -q: quiet, -o: overwrite, -d: destination, -x: exclude patterns
-        unzip_cmd = "unzip -q -o \"#{zip_path}\" -d \"#{extract_dir}\" -x \"__MACOSX/*\" \"*/.*\" \".*\" 2>&1"
-        puts "[RESTORE] Using system unzip: #{unzip_cmd}"
-        unzip_output = `#{unzip_cmd}`
-        puts "[RESTORE] Unzip Output: #{unzip_output}" unless unzip_output.empty?
-      else
-        puts "[RESTORE] system unzip not found, falling back to RubyZip (slower)..."
-        Zip::File.open(zip_path) do |zipfile|
-          zipfile.each do |entry|
-            next if entry.name.include?('__MACOSX') || entry.name.start_with?('.') || entry.name.include?('/.')
-            dest_path = File.join(extract_dir, entry.name)
-            FileUtils.mkdir_p(File.dirname(dest_path))
-            entry.extract(dest_path) unless File.exist?(dest_path)
-          end
+      # Extract ZIP
+      Zip::File.open(zip_path) do |zipfile|
+        zipfile.each do |entry|
+          # Ignora file di sistema macOS e directory nascoste
+          next if entry.name.include?('__MACOSX') || entry.name.start_with?('.') || entry.name.include?('/.')
+          
+          # Crea la sottodirectory se necessario
+          dest_path = File.join(extract_dir, entry.name)
+          FileUtils.mkdir_p(File.dirname(dest_path))
+          
+          puts "[RESTORE] Extracting #{entry.name} to #{dest_path}..."
+          entry.extract(dest_path) unless File.exist?(dest_path)
         end
       end
 
       # Find database and storage files
-      # ... (rest of search logic)
-
       db_file = Dir.glob(File.join(extract_dir, "database_*.sql")).first
       storage_tar = Dir.glob(File.join(extract_dir, "storage_*.tar.gz")).first
       
@@ -222,27 +213,7 @@ class BackupManager
 
       # Restore storage files
       if storage_tar && File.exist?(storage_tar)
-        puts "[RESTORE] Storage file found: #{storage_tar}"
-        storage_dest = File.join(Dir.pwd, 'storage')
-        
-        # Elimina file attuali prima del ripristino per evitare conflitti e liberare spazio
-        puts "[RESTORE] Cleaning current storage directory..."
-        FileUtils.rm_rf(Dir.glob(File.join(storage_dest, '*')))
-        
-        # Estrazione tar.gz (molto più veloce con comando di sistema)
-        # AGGIUNTO: & per eseguire in background non bloccare Puma? No, Puma aspetta.
-        # AGGIUNTO: verbose per vedere progresso nei log
-        puts "[RESTORE] Extracting storage tarball: #{storage_tar}"
-        
-        # Usiamo un approccio più robusto per l'esecuzione
-        success = system("tar -xzf \"#{storage_tar}\" -C \"#{storage_dest}\"")
-        
-        if success
-          puts "[RESTORE] Storage extraction completed successfully."
-        else
-          puts "[RESTORE] ❌ Storage extraction FAILED!"
-          raise "Storage restore failed"
-        end
+        system("cd #{Dir.pwd} && tar -xzf #{storage_tar}") || raise("Storage restore failed")
       end
 
       # Cleanup
