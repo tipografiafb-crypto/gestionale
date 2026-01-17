@@ -5,8 +5,12 @@ require 'shellwords'
 
 class BackupManager
   def self.perform_backup(config = nil)
-    config ||= BackupConfig.current
-    return { success: false, error: 'Configurazione backup non trovata' } unless config&.remote_ip.present?
+    is_local = (config == :local)
+    config = BackupConfig.current if config.nil? || config == :local
+    
+    unless is_local || (config&.remote_ip.present?)
+      return { success: false, error: 'Configurazione backup non trovata' }
+    end
 
     begin
       timestamp = Time.current.strftime('%Y%m%d_%H%M%S')
@@ -33,7 +37,7 @@ class BackupManager
       end
 
       # Return the local path for immediate download if requested
-      if config == :local
+      if is_local
         return { 
           success: true, 
           file_path: zip_file,
