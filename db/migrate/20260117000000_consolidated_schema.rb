@@ -19,7 +19,6 @@ class ConsolidatedSchema < ActiveRecord::Migration[7.0]
       t.text :customer_note
       t.timestamps
     end
-    add_index :orders, :store_id if !index_exists?(:orders, :store_id)
 
     create_table :order_items, if_not_exists: true do |t|
       t.integer :order_id
@@ -37,8 +36,6 @@ class ConsolidatedSchema < ActiveRecord::Migration[7.0]
       t.integer :print_machine_id
       t.timestamps
     end
-    add_index :order_items, :order_id if !index_exists?(:order_items, :order_id)
-    add_index :order_items, [:order_id, :position] if !index_exists?(:order_items, [:order_id, :position])
 
     create_table :products, if_not_exists: true do |t|
       t.string :sku, null: false
@@ -53,16 +50,12 @@ class ConsolidatedSchema < ActiveRecord::Migration[7.0]
       t.integer :print_flow_id
       t.timestamps
     end
-    add_index :products, :sku, unique: true if !index_exists?(:products, :sku)
-    add_index :products, :master_product_id if !index_exists?(:products, :master_product_id)
-    add_index :products, :product_category_id if !index_exists?(:products, :product_category_id)
 
     create_table :inventories, if_not_exists: true do |t|
       t.integer :product_id, null: false
       t.integer :quantity_in_stock, default: 0, null: false
       t.timestamps
     end
-    add_index :inventories, :product_id, unique: true if !index_exists?(:inventories, :product_id)
 
     create_table :assets, if_not_exists: true do |t|
       t.integer :order_item_id
@@ -72,9 +65,6 @@ class ConsolidatedSchema < ActiveRecord::Migration[7.0]
       t.timestamp :deleted_at
       t.timestamps
     end
-    add_index :assets, :order_item_id if !index_exists?(:assets, :order_item_id)
-    add_index :assets, :imported_at if !index_exists?(:assets, :imported_at)
-    add_index :assets, :deleted_at if !index_exists?(:assets, :deleted_at)
 
     create_table :switch_webhooks, if_not_exists: true do |t|
       t.string :name, null: false
@@ -83,8 +73,6 @@ class ConsolidatedSchema < ActiveRecord::Migration[7.0]
       t.boolean :active, default: true
       t.timestamps
     end
-    add_index :switch_webhooks, :store_id if !index_exists?(:switch_webhooks, :store_id)
-    add_index :switch_webhooks, [:name, :store_id], unique: true if !index_exists?(:switch_webhooks, [:name, :store_id])
 
     create_table :print_flows, if_not_exists: true do |t|
       t.string :name, null: false
@@ -97,14 +85,13 @@ class ConsolidatedSchema < ActiveRecord::Migration[7.0]
       t.json :opzioni_stampa, default: {}
       t.timestamps
     end
-    add_index :print_flows, :name, unique: true if !index_exists?(:print_flows, :name)
 
     create_table :product_categories, if_not_exists: true do |t|
       t.string :name, null: false
+      t.text :description
       t.boolean :autopilot_preprint_enabled, default: false
       t.timestamps
     end
-    add_index :product_categories, :name, unique: true if !index_exists?(:product_categories, :name)
 
     create_table :switch_jobs, if_not_exists: true do |t|
       t.integer :order_item_id
@@ -113,10 +100,10 @@ class ConsolidatedSchema < ActiveRecord::Migration[7.0]
       t.integer :job_operation_id
       t.timestamps
     end
-    add_index :switch_jobs, :order_item_id if !index_exists?(:switch_jobs, :order_item_id)
 
     create_table :print_machines, if_not_exists: true do |t|
       t.string :name, null: false
+      t.text :description
       t.string :ip_address
       t.boolean :active, default: true
       t.timestamps
@@ -135,9 +122,6 @@ class ConsolidatedSchema < ActiveRecord::Migration[7.0]
       t.text :details
       t.timestamps
     end
-    add_index :logs, :level if !index_exists?(:logs, :level)
-    add_index :logs, :category if !index_exists?(:logs, :category)
-    add_index :logs, :created_at if !index_exists?(:logs, :created_at)
 
     create_table :import_errors, if_not_exists: true do |t|
       t.string :order_number

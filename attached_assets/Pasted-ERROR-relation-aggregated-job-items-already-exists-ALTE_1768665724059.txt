@@ -1,0 +1,120 @@
+ERROR:  relation "aggregated_job_items" already exists
+ALTER TABLE
+ERROR:  relation "aggregated_job_items_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "aggregated_jobs" already exists
+ALTER TABLE
+ERROR:  relation "aggregated_jobs_id_seq" already exists
+ALTER SEQUENCE
+cALTER SEQUENCE
+ERROR:  relation "ar_internal_metadata" already exists
+ALTER TABLE
+ERROR:  relation "assets" already exists
+dALTER TABLE
+ERROR:  relation "assets_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "backup_configs" already exists
+ALTER TABLE
+ERROR:  relation "backup_configs_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "import_errors" already exists
+ALTER TABLE
+ERROR:  relation "import_errors_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "inventories" already exists
+ALTER TABLE
+ERROR:  relation "inventories_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "logs" already exists
+ALTER TABLE
+ERROR:  relation "logs_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "order_items" already exists
+ALTER TABLE
+ERROR:  relation "order_items_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "orders" already exists
+ALTER TABLE
+ERROR:  relation "orders_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "print_flow_machines" already exists
+ALTER TABLE
+ERROR:  relation "print_flow_machines_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "print_flows" already exists
+ALTER TABLE
+ERROR:  relation "print_flows_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "print_machines" already exists
+ALTER TABLE
+ERROR:  relation "print_machines_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "product_categories" already exists
+ALTER TABLE
+ERROR:  relation "product_categories_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+CREATE TABLE
+ALTER TABLE
+CREATE SEQUENCE
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "products" already exists
+ALTER TABLE
+ERROR:  relation "products_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "schema_migrations" already exists
+ALTER TABLE
+ERROR:  relation "stores" already exists
+ALTER TABLE
+ERROR:  relation "stores_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "switch_jobs" already exists
+ALTER TABLE
+ERROR:  relation "switch_jobs_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ERROR:  relation "switch_webhooks" already exists
+ALTER TABLE
+ERROR:  relation "switch_webhooks_id_seq" already exists
+ALTER SEQUENCE
+ALTER SEQUENCE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ERROR:  insert or update on table "aggregated_job_items" violates foreign key constraint "aggregated_job_items_aggregated_job_id_fkey"
+DETAIL:  Key (aggregated_job_id)=(40) is not present in table "aggregated_jobs".
+ERROR:  insert or update on table "aggregated_jobs" violates foreign key constraint "aggregated_jobs_print_flow_id_fkey"
+DETAIL:  Key (print_flow_id)=(5) is not present in table "print_flows".
+ERROR:  duplicate key value violates unique constraint "ar_internal_metadata_pkey"
+DETAIL:  Key (key)=(environment) already exists.
+CONTEXT:  COPY ar_internal_metadata, line 1
+ERROR:  column "original_url" of relation "assets" does not exist

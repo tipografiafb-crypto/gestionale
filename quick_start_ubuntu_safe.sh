@@ -54,12 +54,21 @@ ALTER TABLE print_flows
 SQLEOF
 echo -e "${GREEN}✓ Print flows columns verified${NC}"
 
-# Ensure product_categories has autopilot for preprint
+# Ensure product_categories has autopilot for preprint and description
 psql "$DATABASE_URL" << 'SQLEOF'
 ALTER TABLE product_categories 
-  ADD COLUMN IF NOT EXISTS autopilot_preprint_enabled boolean DEFAULT false;
+  ADD COLUMN IF NOT EXISTS autopilot_preprint_enabled boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS description text;
 SQLEOF
-echo -e "${GREEN}✓ Product categories autopilot columns verified${NC}"
+echo -e "${GREEN}✓ Product categories columns verified${NC}"
+
+# Ensure print_machines has description and active
+psql "$DATABASE_URL" << 'SQLEOF'
+ALTER TABLE print_machines 
+  ADD COLUMN IF NOT EXISTS description text,
+  ADD COLUMN IF NOT EXISTS active boolean DEFAULT true;
+SQLEOF
+echo -e "${GREEN}✓ Print machines columns verified${NC}"
 
 # Ensure order_items has position column for correct ordering
 psql "$DATABASE_URL" << 'SQLEOF'
