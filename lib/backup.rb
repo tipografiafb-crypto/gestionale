@@ -32,6 +32,15 @@ class BackupManager
         zipfile.add("storage_#{timestamp}.tar.gz", storage_tar) if File.exist?(storage_tar)
       end
 
+      # Return the local path for immediate download if requested
+      if config == :local
+        return { 
+          success: true, 
+          file_path: zip_file,
+          filename: "backup_#{timestamp}.zip"
+        }
+      end
+
       # 4. Copy to remote (required)
       unless config.remote_ip.present? && config.remote_path.present? && config.ssh_username.present? && config.ssh_password.present?
         raise "Configurazione SSH incompleta (IP, percorso, username e password richiesti)"

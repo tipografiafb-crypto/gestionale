@@ -213,6 +213,24 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
+  # POST /admin/backup/download - Create and download backup immediately
+  post '/admin/backup/download' do
+    begin
+      result = BackupManager.perform_backup(:local)
+      
+      if result[:success]
+        send_file result[:file_path], 
+                  filename: result[:filename], 
+                  type: 'application/zip',
+                  disposition: 'attachment'
+      else
+        redirect "/admin/backup?msg=error&text=#{URI.encode_www_form_component(result[:error])}"
+      end
+    rescue => e
+      redirect "/admin/backup?msg=error&text=#{URI.encode_www_form_component("Errore download backup: #{e.message}")}"
+    end
+  end
+
   # POST /admin/backup/restore - Restore from backup
   post '/admin/backup/restore' do
     begin
