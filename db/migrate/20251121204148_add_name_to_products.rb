@@ -1,6 +1,7 @@
-class AddNameToProducts < ActiveRecord::Migration[7.2]
+class AddNameToProducts < ActiveRecord::Migration[7.0]
   def change
-    add_column :products, :name, :string, null: false, default: ""
-    change_column_default :products, :name, nil
+    unless column_exists?(:products, :name)
+      add_column :products, :name, :string
+    end
   end
 end
