@@ -128,20 +128,79 @@
   </div>
   <div class="card-body">
     <p class="text-muted mb-3">Carica un backup salvato su Switch per ripristinarlo in caso di crash. ATTENZIONE: Sovrascriverà completamente il database e tutti i file nella cartella storage/!</p>
-    <form action="/admin/backup/restore_upload" method="post" enctype="multipart/form-data">
+    <form action="/admin/backup/restore_upload" method="post" enctype="multipart/form-data" id="restoreForm">
       <div class="mb-3">
         <label for="backup_file" class="form-label">Seleziona file backup (.zip)</label>
         <input type="file" class="form-control" id="backup_file" name="backup_file" 
                accept=".zip" required>
+        <div class="progress mt-2 d-none" id="uploadProgressContainer">
+          <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" id="uploadProgressBar" style="width: 0%">0%</div>
+        </div>
         <small class="text-muted">Solo file .zip (backup_YYYYMMDD_HHMMSS.zip)</small>
       </div>
-      <button type="submit" class="btn btn-danger w-100" 
-              onclick="return confirm('⚠️ ATTENZIONE CRITICO!\n\nQuesto sovrascriverà:\n✗ Database PostgreSQL COMPLETO\n✗ Tutti i file nella cartella storage/\n✗ L\'intero sistema tornerà allo stato del backup\n\nSei VERAMENTE SICURO? Questa operazione non è reversibile!!')">
+      <button type="submit" class="btn btn-danger w-100" id="restoreSubmitBtn"
+              onclick="return handleRestore(event)">
         <i class="fas fa-exclamation-triangle"></i> Ripristina Backup da Esterno
       </button>
     </form>
   </div>
 </div>
+
+<script>
+function handleRestore(e) {
+  const confirmed = confirm('⚠️ ATTENZIONE CRITICO!\n\nQuesto sovrascriverà:\n✗ Database PostgreSQL COMPLETO\n✗ Tutti i file nella cartella storage/\n✗ L\'intero sistema tornerà allo stato del backup\n\nSei VERAMENTE SICURO? Questa operazione non è reversibile!!');
+  
+  if (!confirmed) {
+    e.preventDefault();
+    return false;
+  }
+
+  const form = document.getElementById('restoreForm');
+  const fileInput = document.getElementById('backup_file');
+  const btn = document.getElementById('restoreSubmitBtn');
+  const progressContainer = document.getElementById('uploadProgressContainer');
+  const progressBar = document.getElementById('uploadProgressBar');
+
+  if (fileInput.files.length === 0) return;
+
+  e.preventDefault();
+  
+  const formData = new FormData(form);
+  const xhr = new XMLHttpRequest();
+
+  xhr.open('POST', '/admin/backup/restore_upload', true);
+
+  xhr.upload.onprogress = function(e) {
+    if (e.lengthComputable) {
+      const percentComplete = Math.round((e.loaded / e.total) * 100);
+      progressContainer.classList.remove('d-none');
+      progressBar.style.width = percentComplete + '%';
+      progressBar.textContent = percentComplete + '%';
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Caricamento in corso...';
+    }
+  };
+
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      // Reindirizza all'URL restituito o ricarica con successo
+      window.location.href = xhr.responseURL || '/admin/backup?msg=success&text=Ripristino+completato';
+    } else {
+      alert('Errore durante l\'upload o il ripristino. Verifica i log del server.');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Ripristina Backup da Esterno';
+    }
+  };
+
+  xhr.onerror = function() {
+    alert('Errore di rete durante l\'upload.');
+    btn.disabled = false;
+  };
+
+  xhr.send(formData);
+  return false;
+}
+</script>
 
 <!-- Documentazione Cron -->
 <div class="card">
