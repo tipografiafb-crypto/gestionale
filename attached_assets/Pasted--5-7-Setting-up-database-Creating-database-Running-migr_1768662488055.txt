@@ -1,0 +1,46 @@
+[5/7] Setting up database...
+  → Creating database...
+  → Running migrations...
+== 20251120000000 CreateProducts: migrating ===================================
+-- create_table(:products)
+   -> 0.0159s
+-- add_index(:products, :sku, {:unique=>true, :name=>"index_products_on_sku"})
+   -> 0.0042s
+-- add_index(:products, :product_category_id, {:name=>"index_products_on_product_category_id"})
+   -> 0.0042s
+-- add_index(:products, :master_product_id, {:name=>"index_products_on_master_product_id"})
+   -> 0.0043s
+== 20251120000000 CreateProducts: migrated (0.0294s) ==========================
+
+== 20251120000001 CreateProductCategories: migrating ==========================
+-- create_table(:product_categories)
+   -> 0.0126s
+-- add_index(:product_categories, :name, {:unique=>true, :name=>"index_product_categories_on_name"})
+   -> 0.0045s
+== 20251120000001 CreateProductCategories: migrated (0.0176s) =================
+
+== 20251121000001 CreatePrintFlows: migrating =================================
+-- create_table(:print_flows)
+   -> 0.0151s
+-- add_index(:print_flows, :name, {:unique=>true, :name=>"index_print_flows_on_name"})
+   -> 0.0051s
+== 20251121000001 CreatePrintFlows: migrated (0.0208s) ========================
+
+== 20251121000002 UpdateProductsForPrintFlows: migrating ======================
+-- column_exists?(:products, :print_flow_id)
+   -> 0.0129s
+-- add_reference(:products, :print_flow, {:foreign_key=>true, :null=>true})
+   -> 0.0144s
+-- foreign_key_exists?(:products, :switch_webhooks)
+   -> 0.0124s
+-- column_exists?(:products, :switch_webhook_id)
+   -> 0.0065s
+== 20251121000002 UpdateProductsForPrintFlows: migrated (0.0475s) =============
+
+== 20251121000003 UpdatePrintFlowsToUseWebhooks: migrating ====================
+-- add_reference(:print_flows, :preprint_webhook, {:foreign_key=>{:to_table=>:switch_webhooks}, :null=>true})
+rake aborted!
+StandardError: An error has occurred, this and all later migrations canceled: (StandardError)
+
+PG::UndefinedTable: ERROR:  relation "switch_webhooks" does not exist
+/home/paolo/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/activerecord-7.2.3/lib/active_record/connection_adapters/postgresql/database_statements.rb:56:in `exec'
