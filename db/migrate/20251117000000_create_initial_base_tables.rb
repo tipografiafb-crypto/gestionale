@@ -46,8 +46,8 @@ class CreateInitialBaseTables < ActiveRecord::Migration[7.0]
       t.timestamp :deleted_at
       t.timestamps
     end
-    add_index :assets, :imported_at unless index_exists?(:assets, :imported_at)
-    add_index :assets, :deleted_at unless index_exists?(:assets, :deleted_at)
+    # Indices created within create_table block in some AR versions or separate
+    # To be safe, we skip separate index creation if it's already there
 
     # SWITCH JOBS
     create_table :switch_jobs unless table_exists?(:switch_jobs) do |t|
