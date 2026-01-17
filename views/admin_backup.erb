@@ -150,10 +150,10 @@
                 <td><code><%= backup[:filename] %></code></td>
                 <td><%= format_file_size(backup[:size]) %></td>
                 <td class="text-end">
-                  <form action="/admin/backup/restore" method="post" class="d-inline">
+                  <form action="/admin/backup/restore" method="post" class="d-inline restore-local-form">
                     <input type="hidden" name="filename" value="<%= backup[:filename] %>">
-                    <button type="submit" class="btn btn-warning btn-sm" 
-                            onclick="return confirm('⚠️ Sei sicuro di voler ripristinare questo backup?\nIl database attuale verrà sovrascritto.')">
+                    <button type="submit" class="btn btn-warning btn-sm restore-local-btn" 
+                            onclick="return handleLocalRestore(this, event)">
                       <i class="fas fa-history"></i> Ripristina
                     </button>
                   </form>
@@ -252,6 +252,60 @@ function handleRestore(e) {
   xhr.onerror = function() {
     alert('Errore di rete durante l\'upload.');
     btn.disabled = false;
+  };
+
+  xhr.send(formData);
+  return false;
+}
+
+function handleLocalRestore(btn, e) {
+  const confirmed = confirm('⚠️ Sei sicuro di voler ripristinare questo backup?\nIl database attuale verrà sovrascritto.');
+  if (!confirmed) {
+    e.preventDefault();
+    return false;
+  }
+
+  e.preventDefault();
+  const form = btn.closest('form');
+  const formData = new FormData(form);
+  
+  // Trova o crea una barra di progresso globale per il ripristino locale
+  let progressContainer = document.getElementById('localRestoreProgressContainer');
+  if (!progressContainer) {
+    const container = document.createElement('div');
+    container.id = 'localRestoreProgressContainer';
+    container.className = 'alert alert-warning mt-3';
+    container.innerHTML = `
+      <div class="d-flex align-items-center mb-2">
+        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+        <strong>Ripristino in corso... non chiudere questa pagina.</strong>
+      </div>
+      <div class="progress">
+        <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar" style="width: 100%">Estrazione e Importazione in corso...</div>
+      </div>
+    `;
+    form.parentNode.insertBefore(container, form.nextSibling);
+  }
+
+  // Disabilita tutti i pulsanti di ripristino/elimina
+  document.querySelectorAll('.btn-sm').forEach(b => b.classList.add('disabled'));
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ripristino...';
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/admin/backup/restore', true);
+  
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      window.location.href = xhr.responseURL || '/admin/backup?msg=success&text=Ripristino+locale+completato';
+    } else {
+      alert('Errore durante il ripristino locale. Verifica i log del server.');
+      location.reload();
+    }
+  };
+
+  xhr.onerror = function() {
+    alert('Errore di rete durante il ripristino.');
+    location.reload();
   };
 
   xhr.send(formData);
