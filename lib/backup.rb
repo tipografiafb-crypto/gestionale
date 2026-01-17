@@ -142,8 +142,22 @@ class BackupManager
 
       # Restore database
       if db_file && File.exist?(db_file)
+        puts "[RESTORE] Database file found: #{db_file}"
         db_url = ENV['DATABASE_URL'] || 'postgresql://localhost/print_orchestrator_development'
-        system("psql #{db_url} < #{db_file}") || raise("Database restore failed")
+        
+        # In Replit/Production we might need to clear the schema first or use --clean if the dump supports it
+        # But for simplicity and safety with pg_dump files, we try to run it directly.
+        # If the dump was created with --schema-only or has CREATE TABLE, it might fail if they exist.
+        
+        # Option: try to drop and recreate public schema if we want a FULL restore
+        system("psql #{db_url} -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'")
+        
+        restore_cmd = "psql #{db_url} < #{db_file} 2>&1"
+        output = `#{restore_cmd}`
+        success = $?.success?
+        
+        puts "[RESTORE] Output: #{output}"
+        raise "Database restore failed: #{output}" unless success
       end
 
       # Restore storage files
