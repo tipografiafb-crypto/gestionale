@@ -132,6 +132,7 @@ class BackupManager
           dest_path = File.join(extract_dir, entry.name)
           FileUtils.mkdir_p(File.dirname(dest_path))
           
+          puts "[RESTORE] Extracting #{entry.name} to #{dest_path}..."
           entry.extract(dest_path) unless File.exist?(dest_path)
         end
       end
@@ -139,6 +140,14 @@ class BackupManager
       # Find database and storage files
       db_file = Dir.glob(File.join(extract_dir, "database_*.sql")).first
       storage_tar = Dir.glob(File.join(extract_dir, "storage_*.tar.gz")).first
+      
+      puts "[RESTORE] Files found after extraction: DB=#{db_file || 'NONE'}, Storage=#{storage_tar || 'NONE'}"
+      
+      if db_file.nil?
+        # Prova a cercare qualsiasi file .sql se il pattern database_*.sql fallisce
+        db_file = Dir.glob(File.join(extract_dir, "**", "*.sql")).first
+        puts "[RESTORE] Secondary search for SQL: #{db_file || 'NONE'}"
+      end
 
       # Restore database
       if db_file && File.exist?(db_file)
