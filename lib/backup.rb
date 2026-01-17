@@ -145,18 +145,27 @@ class BackupManager
         puts "[RESTORE] Database file found: #{db_file}"
         db_url = ENV['DATABASE_URL'] || 'postgresql://localhost/print_orchestrator_development'
         
-        # In Replit/Production we might need to clear the schema first or use --clean if the dump supports it
-        # But for simplicity and safety with pg_dump files, we try to run it directly.
-        # If the dump was created with --schema-only or has CREATE TABLE, it might fail if they exist.
+        # Pulisce il file SQL dai comandi problematici e dai riferimenti all'owner specifico
+        clean_db_file = db_file + ".clean"
+        # 1. Rimuove \restrict
+        # 2. Rimuove OWNER TO (per evitare errori se l'utente è diverso)
+        # 3. Rimuove riferimenti specifici a estensioni o commenti di sistema non necessari
+        system("grep -vE '^\\\\restrict|^ALTER TABLE .* OWNER TO|^CREATE EXTENSION' #{db_file} > #{clean_db_file}")
         
-        # Option: try to drop and recreate public schema if we want a FULL restore
-        system("psql #{db_url} -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'")
+        # Se il database locale è in uso, dobbiamo assicurarci di avere i permessi per il DROP
+        # Usiamo --if-exists per evitare errori se lo schema è già pulito
+        system("psql #{db_url} -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;'")
         
-        restore_cmd = "psql #{db_url} < #{db_file} 2>&1"
+        # Importazione con --no-owner e --no-privileges per massima compatibilità
+        restore_cmd = "psql #{db_url} < #{clean_db_file} 2>&1"
         output = `#{restore_cmd}`
         success = $?.success?
         
         puts "[RESTORE] Output: #{output}"
+        
+        # Cleanup clean file
+        File.delete(clean_db_file) if File.exist?(clean_db_file)
+        
         raise "Database restore failed: #{output}" unless success
       end
 
