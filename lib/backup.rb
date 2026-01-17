@@ -5,12 +5,8 @@ require 'shellwords'
 
 class BackupManager
   def self.perform_backup(config = nil)
-    is_local = (config == :local)
-    config = BackupConfig.current if config.nil? || config == :local
-    
-    unless is_local || (config&.remote_ip.present?)
-      return { success: false, error: 'Configurazione backup non trovata' }
-    end
+    config ||= BackupConfig.current
+    return { success: false, error: 'Configurazione backup non trovata' } unless config&.remote_ip.present?
 
     begin
       timestamp = Time.current.strftime('%Y%m%d_%H%M%S')
@@ -34,15 +30,6 @@ class BackupManager
       Zip::File.open(zip_file, Zip::File::CREATE) do |zipfile|
         zipfile.add("database_#{timestamp}.sql", db_file) if File.exist?(db_file)
         zipfile.add("storage_#{timestamp}.tar.gz", storage_tar) if File.exist?(storage_tar)
-      end
-
-      # Return the local path for immediate download if requested
-      if is_local
-        return { 
-          success: true, 
-          file_path: zip_file,
-          filename: "backup_#{timestamp}.zip"
-        }
       end
 
       # 4. Copy to remote (required)
