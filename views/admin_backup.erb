@@ -121,6 +121,56 @@
   </div>
 </div>
 
+<!-- Elenco Backup Locali -->
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <strong><i class="fas fa-list"></i> Backup Disponibili sul Server</strong>
+    <span class="badge bg-secondary">Percorso: <code>tmp/backups/</code></span>
+  </div>
+  <div class="card-body">
+    <p class="text-muted mb-3 small">
+      <i class="fas fa-info-circle"></i> 
+      Per ripristinare file giganti (es. 12GB), copiali manualmente nella cartella <code>tmp/backups/</code> del progetto e appariranno qui sotto.
+    </p>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Nome File</th>
+            <th>Dimensione</th>
+            <th class="text-end">Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if @backups && @backups.any? %>
+            <% @backups.each do |backup| %>
+              <tr>
+                <td><%= backup[:created_at].strftime("%d/%m/%Y %H:%M") %></td>
+                <td><code><%= backup[:filename] %></code></td>
+                <td><%= format_file_size(backup[:size]) %></td>
+                <td class="text-end">
+                  <form action="/admin/backup/restore" method="post" class="d-inline">
+                    <input type="hidden" name="filename" value="<%= backup[:filename] %>">
+                    <button type="submit" class="btn btn-warning btn-sm" 
+                            onclick="return confirm('⚠️ Sei sicuro di voler ripristinare questo backup?\nIl database attuale verrà sovrascritto.')">
+                      <i class="fas fa-history"></i> Ripristina
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            <% end %>
+          <% else %>
+            <tr>
+              <td colspan="4" class="text-center text-muted">Nessun backup trovato in <code>tmp/backups/</code></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- Disaster Recovery - Upload backup -->
 <div class="card mb-4">
   <div class="card-header">

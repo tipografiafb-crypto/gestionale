@@ -164,6 +164,7 @@ class PrintOrchestrator < Sinatra::Base
   # GET /admin/backup - Show backup configuration page
   get '/admin/backup' do
     @backup_config = BackupConfig.current
+    @backups = BackupManager.list_backups
     erb :admin_backup
   end
 
