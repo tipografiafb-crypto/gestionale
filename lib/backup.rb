@@ -155,12 +155,12 @@ class BackupManager
         # Se il database locale è in uso, dobbiamo assicurarci di avere i permessi per il DROP
         # Usiamo --if-exists per evitare errori se lo schema è già pulito
         # AGGIUNTO: Reindirizzamento dell'errore per capire se il DROP fallisce
-        drop_cmd = "psql #{db_url} -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' 2>&1"
+        drop_cmd = "psql \"#{db_url}\" -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' 2>&1"
         drop_output = `#{drop_cmd}`
         puts "[RESTORE] Drop Output: #{drop_output}"
         
         # Importazione con --no-owner e --no-privileges per massima compatibilità
-        restore_cmd = "psql #{db_url} < #{clean_db_file} 2>&1"
+        restore_cmd = "psql \"#{db_url}\" < \"#{clean_db_file}\" 2>&1"
         output = `#{restore_cmd}`
         success = $?.success?
         
