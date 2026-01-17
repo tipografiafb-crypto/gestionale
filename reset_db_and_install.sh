@@ -1,31 +1,33 @@
 #!/bin/bash
-# Script to reset database and run fresh installation
+# Consolidated Installer for Print Orchestrator
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-echo -e "${YELLOW}Aggiornamento script di installazione...${NC}"
-# Assicuriamoci che la password sia corretta nel quick_start_linux.sh
-sed -i "s/Paolo_Strong_123!/Paolo_Strong_123/g" quick_start_linux.sh
-sed -i "s/password 'paolo'/password 'Paolo_Strong_123'/g" quick_start_linux.sh
-
-# Aggiornamento .env per riflettere la password corretta
-if [ -f ".env" ]; then
-  sed -i "s/:paolo@/:Paolo_Strong_123@/g" .env
-  sed -i "s/:Paolo_Strong_123!@/:Paolo_Strong_123@/g" .env
-  sed -i "s/password=paolo/password=Paolo_Strong_123/g" .env
+echo -e "${YELLOW}Aggiornamento configurazione...${NC}"
+if [ -f "quick_start_linux.sh" ]; then
+    sed -i "s/Paolo_Strong_123!/Paolo_Strong_123/g" quick_start_linux.sh
 fi
 
-echo -e "${YELLOW}Reset del database in corso...${NC}"
+echo -e "${YELLOW}Reset del database...${NC}"
 sudo -u postgres psql -c "DROP DATABASE IF EXISTS print_orchestrator_dev;"
 sudo -u postgres psql -c "DROP USER IF EXISTS orchestrator_user;"
-
-echo -e "${YELLOW}Creazione nuovo utente e database...${NC}"
 sudo -u postgres psql -c "CREATE USER orchestrator_user WITH ENCRYPTED PASSWORD 'Paolo_Strong_123';"
 sudo -u postgres psql -c "ALTER USER orchestrator_user CREATEDB;"
 sudo -u postgres psql -c "CREATE DATABASE print_orchestrator_dev OWNER orchestrator_user;"
 
-echo -e "${YELLOW}Avvio installazione pulita...${NC}"
-bash quick_start_linux.sh
+echo -e "${YELLOW}Generazione file .env...${NC}"
+cat > .env << 'ENVEOF'
+DATABASE_URL=postgresql://orchestrator_user:Paolo_Strong_123@localhost:5432/print_orchestrator_dev
+RACK_ENV=production
+PORT=5000
+SERVER_BASE_URL=http://localhost:5000
+ENVEOF
+
+echo -e "${YELLOW}Installazione dipendenze e migrazione...${NC}"
+bundle install
+bundle exec rake db:migrate
+
+echo -e "${GREEN}Installazione completata con successo!${NC}"
