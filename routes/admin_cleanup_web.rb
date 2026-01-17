@@ -230,6 +230,24 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
+  # POST /admin/backup/delete - Delete local backup file
+  post '/admin/backup/delete' do
+    begin
+      filename = params[:filename]
+      backup_dir = File.join(Dir.pwd, 'tmp', 'backups')
+      file_path = File.join(backup_dir, filename)
+
+      if File.exist?(file_path) && filename.start_with?('backup_') && filename.end_with?('.zip')
+        File.delete(file_path)
+        redirect "/admin/backup?msg=success&text=Backup+eliminato+correttamente"
+      else
+        redirect "/admin/backup?msg=error&text=File+non+trovato+o+non+valido"
+      end
+    rescue => e
+      redirect "/admin/backup?msg=error&text=Errore+durante+l'eliminazione:+#{e.message}"
+    end
+  end
+
   # POST /admin/backup/restore_upload - Restore from uploaded file (disaster recovery)
   post '/admin/backup/restore_upload' do
     begin

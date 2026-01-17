@@ -157,6 +157,13 @@
                       <i class="fas fa-history"></i> Ripristina
                     </button>
                   </form>
+                  <form action="/admin/backup/delete" method="post" class="d-inline ms-1">
+                    <input type="hidden" name="filename" value="<%= backup[:filename] %>">
+                    <button type="submit" class="btn btn-outline-danger btn-sm" 
+                            onclick="return confirm('Sei sicuro di voler eliminare questo file di backup dal server?')">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </form>
                 </td>
               </tr>
             <% end %>
