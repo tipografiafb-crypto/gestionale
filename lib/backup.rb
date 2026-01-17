@@ -230,9 +230,19 @@ class BackupManager
         FileUtils.rm_rf(Dir.glob(File.join(storage_dest, '*')))
         
         # Estrazione tar.gz (molto più veloce con comando di sistema)
-        puts "[RESTORE] Extracting storage tarball..."
-        tar_cmd = "tar -xzf \"#{storage_tar}\" -C \"#{storage_dest}\" 2>&1"
-        system(tar_cmd) || raise("Storage restore failed: #{tar_cmd}")
+        # AGGIUNTO: & per eseguire in background non bloccare Puma? No, Puma aspetta.
+        # AGGIUNTO: verbose per vedere progresso nei log
+        puts "[RESTORE] Extracting storage tarball: #{storage_tar}"
+        
+        # Usiamo un approccio più robusto per l'esecuzione
+        success = system("tar -xzf \"#{storage_tar}\" -C \"#{storage_dest}\"")
+        
+        if success
+          puts "[RESTORE] Storage extraction completed successfully."
+        else
+          puts "[RESTORE] ❌ Storage extraction FAILED!"
+          raise "Storage restore failed"
+        end
       end
 
       # Cleanup
