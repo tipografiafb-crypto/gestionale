@@ -1,5 +1,5 @@
 class ConsolidatedSchema < ActiveRecord::Migration[7.0]
-  def up
+  def change
     create_table :stores, if_not_exists: true do |t|
       t.string :name, null: false
       t.string :api_url
@@ -143,9 +143,5 @@ class ConsolidatedSchema < ActiveRecord::Migration[7.0]
       t.text :error_message
       t.timestamps
     end
-  end
-
-  def down
-    # No-op to avoid accidental data loss during development
   end
 end
