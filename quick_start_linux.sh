@@ -62,6 +62,8 @@ echo -e "\n${YELLOW}[3.5/7]${NC} Setting up PostgreSQL user..."
 # Try to create user with a stronger password
 sudo -u postgres psql -c "CREATE USER orchestrator_user WITH ENCRYPTED PASSWORD 'Paolo_Strong_123';" 2>/dev/null || true
 sudo -u postgres psql -c "ALTER USER orchestrator_user CREATEDB;" 2>/dev/null || true
+# Ensure password is set correctly for existing user
+sudo -u postgres psql -c "ALTER USER orchestrator_user WITH PASSWORD 'Paolo_Strong_123';" 2>/dev/null || true
 echo -e "${GREEN}✓ PostgreSQL user ready${NC}"
 
 # Step 4: Create storage directory
