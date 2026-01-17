@@ -11,6 +11,13 @@ echo -e "${YELLOW}Aggiornamento script di installazione...${NC}"
 sed -i "s/Paolo_Strong_123!/Paolo_Strong_123/g" quick_start_linux.sh
 sed -i "s/password 'paolo'/password 'Paolo_Strong_123'/g" quick_start_linux.sh
 
+# Aggiornamento .env per riflettere la password corretta
+if [ -f ".env" ]; then
+  sed -i "s/:paolo@/:Paolo_Strong_123@/g" .env
+  sed -i "s/:Paolo_Strong_123!@/:Paolo_Strong_123@/g" .env
+  sed -i "s/password=paolo/password=Paolo_Strong_123/g" .env
+fi
+
 echo -e "${YELLOW}Reset del database in corso...${NC}"
 sudo -u postgres psql -c "DROP DATABASE IF EXISTS print_orchestrator_dev;"
 sudo -u postgres psql -c "DROP USER IF EXISTS orchestrator_user;"
