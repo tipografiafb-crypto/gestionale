@@ -541,6 +541,34 @@ class PrintOrchestrator < Sinatra::Base
     erb :'admin/backup'
   end
 
+  # POST /admin/backup/config - Save remote backup configuration
+  post '/admin/backup/config' do
+    config = BackupConfig.current
+    if config.update(
+      remote_ip: params[:remote_ip],
+      remote_path: params[:remote_path],
+      ssh_username: params[:ssh_username],
+      ssh_password: params[:ssh_password],
+      ssh_port: params[:ssh_port]
+    )
+      redirect '/admin/backup?success=Configurazione salvata'
+    else
+      redirect "/admin/backup?error=#{config.errors.full_messages.join(', ')}"
+    end
+  end
+
+  # POST /admin/backup/run_remote - Run remote backup manually
+  post '/admin/backup/run_remote' do
+    result = BackupManager.perform_backup
+    if result[:success]
+      AppLogger.info('system', "Backup remoto eseguito con successo")
+      redirect "/admin/backup?success=#{result[:message]}"
+    else
+      AppLogger.error('system', "Errore backup remoto: #{result[:error]}")
+      redirect "/admin/backup?error=#{result[:error]}"
+    end
+  end
+
   # POST /admin/backup/download - Generate and download database backup
   post '/admin/backup/download' do
     timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
@@ -551,14 +579,13 @@ class PrintOrchestrator < Sinatra::Base
     db_url = ENV['DATABASE_URL']
     
     # Execute pg_dump
-    # Using --no-owner and --no-privileges to make it more portable
     success = system("pg_dump \"#{db_url}\" --no-owner --no-privileges -f #{temp_file}")
 
     if success && File.exist?(temp_file)
-      AppLogger.info('system', "Backup manuale generato: #{filename}")
+      AppLogger.info('system', "Backup manuale scaricato: #{filename}")
       send_file temp_file, filename: filename, type: 'application/sql', disposition: 'attachment'
     else
-      AppLogger.error('system', "Errore durante la generazione del backup manuale")
+      AppLogger.error('system', "Errore download backup manuale")
       redirect '/admin/backup?error=Errore durante la generazione del backup'
     end
   end

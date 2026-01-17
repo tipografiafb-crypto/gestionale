@@ -12,19 +12,25 @@
 
 <div class="row">
   <div class="col-md-6">
-    <div class="card border-0 shadow-sm">
+    <!-- Backup Istantaneo (Nuova funzione) -->
+    <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-white py-3">
-        <h5 class="card-title mb-0">Backup Istantaneo</h5>
+        <h5 class="card-title mb-0">Backup Locale (Download)</h5>
       </div>
       <div class="card-body">
         <p class="text-muted mb-4">
-          Cliccando il pulsante qui sotto, verrà generato un dump completo del database SQL (schema e dati) 
-          che verrà scaricato direttamente sul tuo computer.
+          Genera un dump SQL completo e scaricalo direttamente sul tuo computer.
         </p>
         
         <% if params[:error] %>
           <div class="alert alert-danger mb-4">
             <i class="fas fa-exclamation-circle me-2"></i><%= params[:error] %>
+          </div>
+        <% end %>
+
+        <% if params[:success] %>
+          <div class="alert alert-success mb-4">
+            <i class="fas fa-check-circle me-2"></i><%= params[:success] %>
           </div>
         <% end %>
 
@@ -34,11 +40,48 @@
           </button>
         </form>
       </div>
-      <div class="card-footer bg-light py-3">
-        <small class="text-muted">
-          <i class="fas fa-info-circle me-1"></i> 
-          Il file conterrà tutte le tabelle, i prodotti, gli ordini e le configurazioni del sistema.
-        </small>
+    </div>
+
+    <!-- Backup Remoto (Sistema Originale) -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h5 class="card-title mb-0">Configurazione Backup Remoto (Switch)</h5>
+      </div>
+      <div class="card-body">
+        <form action="/admin/backup/config" method="post">
+          <% config = BackupConfig.current %>
+          <div class="mb-3">
+            <label class="form-label">IP Server Remoto (Switch PC)</label>
+            <input type="text" name="remote_ip" class="form-control" value="<%= config.remote_ip %>" placeholder="es. 192.168.1.162">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Percorso Remoto</label>
+            <input type="text" name="remote_path" class="form-control" value="<%= config.remote_path %>" placeholder="es. /C:/backups">
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">SSH Username</label>
+              <input type="text" name="ssh_username" class="form-control" value="<%= config.ssh_username %>">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">SSH Password</label>
+              <input type="password" name="ssh_password" class="form-control" value="<%= config.ssh_password %>">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">SSH Port</label>
+            <input type="number" name="ssh_port" class="form-control" value="<%= config.ssh_port || 22 %>">
+          </div>
+          <button type="submit" class="btn btn-secondary w-100 mb-3">
+            <i class="fas fa-save me-2"></i>Salva Configurazione
+          </button>
+        </form>
+
+        <form action="/admin/backup/run_remote" method="post">
+          <button type="submit" class="btn btn-outline-primary w-100" <%= 'disabled' unless config.remote_ip.present? %>>
+            <i class="fas fa-paper-plane me-2"></i>Esegui e Invia Ora al Server Remoto
+          </button>
+        </form>
       </div>
     </div>
   </div>
@@ -51,13 +94,13 @@
       <div class="card-body">
         <ul class="list-group list-group-flush">
           <li class="list-group-item px-0 border-0">
-            <strong>Sicurezza:</strong> Il backup viene generato al volo e inviato direttamente al tuo browser. Nessun file rimane memorizzato permanentemente sul server.
+            <strong>Backup Locale:</strong> Viene scaricato via browser. Ideale per copie veloci prima di modifiche manuali.
           </li>
           <li class="list-group-item px-0 border-0">
-            <strong>Ripristino:</strong> Il file .sql scaricato può essere utilizzato per ripristinare il sistema in caso di emergenza utilizzando il comando <code>psql</code> o tool come pgAdmin.
+            <strong>Backup Remoto:</strong> Invia un file ZIP (DB + Immagini) al server Switch. Utilizzato per il backup automatico giornaliero.
           </li>
           <li class="list-group-item px-0 border-0">
-            <strong>Frequenza:</strong> Si consiglia di scaricare un backup prima di effettuare operazioni di manutenzione importanti o aggiornamenti di sistema.
+            <strong>Ripristino:</strong> Il file .sql scaricato può essere ripristinato con <code>psql</code> o tool grafici come pgAdmin.
           </li>
         </ul>
       </div>
