@@ -232,6 +232,22 @@ class PrintOrchestrator < Sinatra::Base
   # POST /admin/backup/restore_upload - Restore from uploaded file (disaster recovery)
   post '/admin/backup/restore_upload' do
     begin
+      # Debug logging
+      puts "[RESTORE_UPLOAD] === INIZIO RICHIESTA ==="
+      puts "[RESTORE_UPLOAD] params.keys: #{params.keys.inspect}"
+      puts "[RESTORE_UPLOAD] backup_file present?: #{params[:backup_file].present?}"
+      
+      if params[:backup_file]
+        puts "[RESTORE_UPLOAD] backup_file class: #{params[:backup_file].class}"
+        puts "[RESTORE_UPLOAD] backup_file keys: #{params[:backup_file].keys.inspect rescue 'N/A'}"
+        puts "[RESTORE_UPLOAD] filename: #{params[:backup_file][:filename] rescue 'N/A'}"
+        puts "[RESTORE_UPLOAD] tempfile: #{params[:backup_file][:tempfile] rescue 'N/A'}"
+        puts "[RESTORE_UPLOAD] tempfile.path: #{params[:backup_file][:tempfile]&.path rescue 'N/A'}"
+        puts "[RESTORE_UPLOAD] tempfile.size: #{params[:backup_file][:tempfile]&.size rescue 'N/A'}"
+      else
+        puts "[RESTORE_UPLOAD] ⚠️ params[:backup_file] is nil/false!"
+      end
+      
       return redirect("/admin/backup?msg=error&text=Nessun+file+caricato") unless params[:backup_file]
 
       result = BackupManager.restore_from_uploaded_file(params[:backup_file])
@@ -242,6 +258,8 @@ class PrintOrchestrator < Sinatra::Base
         redirect "/admin/backup?msg=error&text=#{URI.encode_www_form_component("Ripristino fallito: #{result[:error]}")}"
       end
     rescue => e
+      puts "[RESTORE_UPLOAD] ❌ ERRORE: #{e.message}"
+      puts "[RESTORE_UPLOAD] Backtrace: #{e.backtrace.first(5).join("\n")}"
       redirect "/admin/backup?msg=error&text=#{URI.encode_www_form_component("Errore ripristino: #{e.message}")}"
     end
   end
