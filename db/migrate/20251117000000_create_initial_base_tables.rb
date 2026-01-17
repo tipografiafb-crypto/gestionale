@@ -12,7 +12,7 @@ class CreateInitialBaseTables < ActiveRecord::Migration[7.0]
 
     # ORDERS
     create_table :orders unless table_exists?(:orders) do |t|
-      t.references :store, foreign_key: true
+      t.integer :store_id
       t.string :order_number, null: false
       t.string :status, default: 'pending'
       t.string :source, default: 'api'
@@ -21,10 +21,11 @@ class CreateInitialBaseTables < ActiveRecord::Migration[7.0]
       t.text :customer_note
       t.timestamps
     end
+    add_index :orders, :store_id unless index_exists?(:orders, :store_id)
 
     # ORDER ITEMS
     create_table :order_items unless table_exists?(:order_items) do |t|
-      t.references :order, foreign_key: true
+      t.integer :order_id
       t.string :sku
       t.string :name
       t.integer :quantity, default: 1
@@ -36,24 +37,27 @@ class CreateInitialBaseTables < ActiveRecord::Migration[7.0]
       t.json :campi_webhook, default: {}
       t.timestamps
     end
+    add_index :order_items, :order_id unless index_exists?(:order_items, :order_id)
 
     # ASSETS
     create_table :assets unless table_exists?(:assets) do |t|
-      t.references :order_item, foreign_key: true
+      t.integer :order_item_id
       t.string :file_path
       t.string :asset_type
       t.timestamp :imported_at, null: false, default: -> { 'CURRENT_TIMESTAMP' }
       t.timestamp :deleted_at
       t.timestamps
     end
+    add_index :assets, :order_item_id unless index_exists?(:assets, :order_item_id)
 
     # SWITCH JOBS
     create_table :switch_jobs unless table_exists?(:switch_jobs) do |t|
-      t.references :order_item, foreign_key: true
+      t.integer :order_item_id
       t.string :switch_job_id
       t.string :status
       t.integer :job_operation_id
       t.timestamps
     end
+    add_index :switch_jobs, :order_item_id unless index_exists?(:switch_jobs, :order_item_id)
   end
 end
