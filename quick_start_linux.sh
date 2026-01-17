@@ -98,6 +98,13 @@ echo -e "${GREEN}✓ Database ready${NC}"
 # Step 5.5: Verify and add all missing columns to orders
 echo -e "\n${YELLOW}[5.5/7]${NC} Ensuring all orders columns exist..."
 psql "$DATABASE_URL" << 'SQLEOF'
+# Step 5.4: Add dependency columns to products
+psql "$DATABASE_URL" << 'SQLEOF'
+ALTER TABLE products 
+  ADD COLUMN IF NOT EXISTS master_product_id INTEGER,
+  ADD COLUMN IF NOT EXISTS is_dependent BOOLEAN DEFAULT false;
+SQLEOF
+
 ALTER TABLE orders 
   ADD COLUMN IF NOT EXISTS customer_name VARCHAR,
   ADD COLUMN IF NOT EXISTS customer_note text,
