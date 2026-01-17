@@ -150,26 +150,37 @@ class BackupManager
         # 1. Rimuove \restrict
         # 2. Rimuove OWNER TO (per evitare errori se l'utente è diverso)
         # 3. Rimuove riferimenti specifici a estensioni o commenti di sistema non necessari
-        system("grep -vE '^\\\\restrict|^ALTER TABLE .* OWNER TO|^CREATE EXTENSION' #{db_file} > #{clean_db_file}")
+        system("grep -vE '^\\\\restrict|^ALTER TABLE .* OWNER TO|^CREATE EXTENSION' \"#{db_file}\" > \"#{clean_db_file}\"")
         
         # Se il database locale è in uso, dobbiamo assicurarci di avere i permessi per il DROP
         # Usiamo --if-exists per evitare errori se lo schema è già pulito
         # AGGIUNTO: Reindirizzamento dell'errore per capire se il DROP fallisce
-        drop_cmd = "psql \"#{db_url}\" -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' 2>&1"
+        # AGGIUNTO: Forza chiusura connessioni attive per permettere il DROP
+        cleanup_sql = <<-SQL
+          SELECT pg_terminate_backend(pid) FROM pg_stat_activity 
+          WHERE datname = current_database() AND pid <> pg_backend_pid();
+          DROP SCHEMA IF EXISTS public CASCADE; 
+          CREATE SCHEMA public;
+        SQL
+        
+        puts "[RESTORE] Cleaning up database schema..."
+        drop_cmd = "psql \"#{db_url}\" -c \"#{cleanup_sql}\" 2>&1"
         drop_output = `#{drop_cmd}`
-        puts "[RESTORE] Drop Output: #{drop_output}"
+        puts "[RESTORE] Drop/Cleanup Output: #{drop_output}"
         
         # Importazione con --no-owner e --no-privileges per massima compatibilità
+        puts "[RESTORE] Importing clean SQL file..."
         restore_cmd = "psql \"#{db_url}\" < \"#{clean_db_file}\" 2>&1"
         output = `#{restore_cmd}`
         success = $?.success?
         
-        puts "[RESTORE] Output: #{output}"
+        puts "[RESTORE] Restore Output: #{output}"
         
         # Cleanup clean file
         File.delete(clean_db_file) if File.exist?(clean_db_file)
         
         raise "Database restore failed: #{output}" unless success
+        puts "[RESTORE] Database import completed successfully"
       end
 
       # Restore storage files
