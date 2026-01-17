@@ -154,7 +154,6 @@ class BackupManager
         
         # Se il database locale è in uso, dobbiamo assicurarci di avere i permessi per il DROP
         # Usiamo --if-exists per evitare errori se lo schema è già pulito
-        # AGGIUNTO: Reindirizzamento dell'errore per capire se il DROP fallisce
         # AGGIUNTO: Forza chiusura connessioni attive per permettere il DROP
         cleanup_sql = <<-SQL
           SELECT pg_terminate_backend(pid) FROM pg_stat_activity 
@@ -164,12 +163,20 @@ class BackupManager
         SQL
         
         puts "[RESTORE] Cleaning up database schema..."
+        # Utilizziamo la variabile d'ambiente PGPASSWORD se presente nell'URL per psql
+        # In Replit DATABASE_URL contiene già tutto, ma psql a volte preferisce l'URL completo tra virgolette
         drop_cmd = "psql \"#{db_url}\" -c \"#{cleanup_sql}\" 2>&1"
         drop_output = `#{drop_cmd}`
         puts "[RESTORE] Drop/Cleanup Output: #{drop_output}"
         
         # Importazione con --no-owner e --no-privileges per massima compatibilità
-        puts "[RESTORE] Importing clean SQL file..."
+        # AGGIUNTO: check preliminare del file pulito
+        if File.size(clean_db_file) == 0
+          puts "[RESTORE] ⚠️ ERROR: Clean SQL file is empty!"
+          raise "Clean SQL file is empty"
+        end
+
+        puts "[RESTORE] Importing clean SQL file (#{File.size(clean_db_file)} bytes)..."
         restore_cmd = "psql \"#{db_url}\" < \"#{clean_db_file}\" 2>&1"
         output = `#{restore_cmd}`
         success = $?.success?
@@ -179,7 +186,19 @@ class BackupManager
         # Cleanup clean file
         File.delete(clean_db_file) if File.exist?(clean_db_file)
         
-        raise "Database restore failed: #{output}" unless success
+        if success
+          # Verifica finale: conta le tabelle create
+          count_tables_cmd = "psql \"#{db_url}\" -t -c \"SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';\" 2>&1"
+          tables_count = `#{count_tables_cmd}`.strip
+          puts "[RESTORE] Post-restore check: Found #{tables_count} tables in public schema."
+          
+          if tables_count.to_i == 0
+            raise "Database import finished with success status but NO TABLES were created. Check the SQL dump content."
+          end
+        else
+          raise "Database restore failed: #{output}"
+        end
+        
         puts "[RESTORE] Database import completed successfully"
       end
 
