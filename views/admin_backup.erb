@@ -145,25 +145,30 @@
         <tbody>
           <% if @backups && @backups.any? %>
             <% @backups.each do |backup| %>
+              <% safe_id = backup[:filename].gsub(/[^a-zA-Z0-9]/, '-') %>
               <tr>
                 <td><%= backup[:created_at].strftime("%d/%m/%Y %H:%M") %></td>
                 <td><code><%= backup[:filename] %></code></td>
                 <td><%= format_file_size(backup[:size]) %></td>
                 <td class="text-end">
-                  <form action="/admin/backup/restore" method="post" class="d-inline">
-                    <input type="hidden" name="filename" value="<%= backup[:filename] %>">
-                    <button type="submit" class="btn btn-warning btn-sm" 
-                            onclick="return confirm('⚠️ Sei sicuro di voler ripristinare questo backup?\nIl database attuale verrà sovrascritto.')">
+                  <div class="d-flex align-items-center justify-content-end">
+                    <div class="progress me-2 d-none" id="progress-<%= safe_id %>" style="width: 100px; height: 10px;">
+                      <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar" style="width: 100%"></div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-warning btn-sm" id="btn-restore-<%= safe_id %>"
+                            onclick="handleLocalRestore('<%= backup[:filename] %>', '<%= safe_id %>')">
                       <i class="fas fa-history"></i> Ripristina
                     </button>
-                  </form>
-                  <form action="/admin/backup/delete" method="post" class="d-inline ms-1">
-                    <input type="hidden" name="filename" value="<%= backup[:filename] %>">
-                    <button type="submit" class="btn btn-outline-danger btn-sm" 
-                            onclick="return confirm('Sei sicuro di voler eliminare questo file di backup dal server?')">
-                      <i class="fas fa-trash"></i>
-                    </button>
-                  </form>
+                    
+                    <form action="/admin/backup/delete" method="post" class="d-inline ms-1" id="form-delete-<%= safe_id %>">
+                      <input type="hidden" name="filename" value="<%= backup[:filename] %>">
+                      <button type="submit" class="btn btn-outline-danger btn-sm" 
+                              onclick="return confirm('Sei sicuro di voler eliminare questo file di backup dal server?')">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             <% end %>
@@ -204,6 +209,39 @@
 </div>
 
 <script>
+function handleLocalRestore(filename, safeId) {
+  const confirmed = confirm('⚠️ Sei sicuro di voler ripristinare questo backup?\nIl database attuale verrà sovrascritto.');
+  if (!confirmed) return;
+
+  const progressDiv = document.getElementById('progress-' + safeId);
+  const restoreBtn = document.getElementById('btn-restore-' + safeId);
+  const deleteForm = document.getElementById('form-delete-' + safeId);
+  const allButtons = document.querySelectorAll('.btn');
+
+  // UI Feedback
+  allButtons.forEach(b => b.classList.add('disabled'));
+  if (progressDiv) progressDiv.classList.remove('d-none');
+  if (restoreBtn) {
+    restoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Attendere...';
+  }
+
+  const formData = new FormData();
+  formData.append('filename', filename);
+
+  fetch('/admin/backup/restore', {
+    method: 'POST',
+    body: formData
+  }).then(response => {
+    // Il server reindirizza con i parametri msg=success/error
+    window.location.href = response.url || '/admin/backup?msg=success&text=Ripristino+avviato';
+  }).catch(error => {
+    alert('Errore durante il ripristino locale.');
+    allButtons.forEach(b => b.classList.remove('disabled'));
+    if (progressDiv) progressDiv.classList.add('d-none');
+    if (restoreBtn) restoreBtn.innerHTML = '<i class="fas fa-history"></i> Ripristina';
+  });
+}
+
 function handleRestore(e) {
   const confirmed = confirm('⚠️ ATTENZIONE CRITICO!\n\nQuesto sovrascriverà:\n✗ Database PostgreSQL COMPLETO\n✗ Tutti i file nella cartella storage/\n✗ L\'intero sistema tornerà allo stato del backup\n\nSei VERAMENTE SICURO? Questa operazione non è reversibile!!');
   
