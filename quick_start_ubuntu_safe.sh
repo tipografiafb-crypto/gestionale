@@ -39,6 +39,9 @@ ALTER TABLE stores ADD COLUMN IF NOT EXISTS code VARCHAR;
 -- Cut file management for products
 ALTER TABLE products ADD COLUMN IF NOT EXISTS has_cut_file BOOLEAN DEFAULT FALSE;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS cut_file_path VARCHAR;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS is_dependent BOOLEAN DEFAULT FALSE;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS master_product_id INTEGER;
+CREATE INDEX IF NOT EXISTS index_products_on_master_product_id ON products(master_product_id);
 SQLEOF
 
 echo "✅ Aggiornamento completato con successo."
