@@ -73,7 +73,7 @@ class PrintOrchestrator < Sinatra::Base
       end
       
       (data['cut_with_cart_id'] || []).each do |entry|
-        cut_files_map[entry['cart_id']] = entry['cut_with_cart_id'] || []
+        cut_files_map[entry['cart_id']] = entry['cut_files'] || []
       end
       
       # Wrap all database operations in a transaction for data integrity
