@@ -173,3 +173,34 @@ Core tables include: `stores`, `orders`, `order_items`, `assets`, `switch_jobs`,
     - `services/ftp_poller.rb` - Save position during FTP JSON import
     - `views/order_detail.erb` - Use `.ordered` scope to display items by position
   - **Migration Status**: Migration file `20251217100300_add_position_to_order_items.rb` ready to run. If position field doesn't exist yet, fallback logic ensures backward compatibility with existing orders.
+
+### February 02, 2026 - Cut File Management for Products
+
+#### ✅ **ADDED CUT FILE MANAGEMENT FEATURE**:
+  - **Feature**: Products can now have associated cut files (vector files for cutting machines). When enabled, the system automatically downloads cut files from incoming orders and displays them in a dedicated section.
+  - **Database Changes**:
+    - New `has_cut_file` boolean field on `products` table (default: false)
+    - New `cut_file_path` string field on `products` table
+    - Assets with `asset_type: 'cut'` store cut file references
+  - **Product Configuration**:
+    - New checkbox "Abilita File di Taglio" in product form
+    - When enabled, the system processes `cut_with_cart_id` data from incoming orders
+  - **Order Import**:
+    - API endpoint processes `cut_with_cart_id` array containing `{ cart_id, cut_files: [...] }`
+    - Cut files are only created as assets when the associated product has `has_cut_file: true`
+    - Assets are created with `asset_type: 'cut'`
+  - **Order Item Detail View**:
+    - New "File di Taglio" section (purple-themed) displays all cut files
+    - Download button for each cut file
+    - Delete button with confirmation
+    - Upload form for manually adding cut files (SVG, PDF, DXF, AI, EPS formats)
+  - **Supported Formats**: SVG, PDF, DXF, AI, EPS
+  - **Files Modified**:
+    - `db/migrate/20260202000001_add_cut_file_fields.rb` - Migration for new columns
+    - `models/product.rb` - Added documentation for new fields
+    - `routes/products_web.rb` - Handle `has_cut_file` in create/update
+    - `routes/orders_api.rb` - Process `cut_with_cart_id` during import
+    - `routes/web_ui.rb` - New `/orders/:order_id/items/:item_id/upload_cut` route
+    - `views/product_form.erb` - Checkbox for enabling cut files
+    - `views/order_item_detail.erb` - Cut files section with upload/download/delete
+    - `quick_start_ubuntu_safe.sh` - IF NOT EXISTS statements for new columns
