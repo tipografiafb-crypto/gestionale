@@ -59,9 +59,10 @@ class PrintOrchestrator < Sinatra::Base
         return { success: false, error: "Products not found: #{products_not_found.join(', ')}" }.to_json
       end
       
-      # Build lookup maps for print files and screenshots by cart_id
+      # Build lookup maps for print files, screenshots, and cut files by cart_id
       print_files_map = {}
       screenshots_map = {}
+      cut_files_map = {}
       
       (data['print_files_with_cart_id'] || []).each do |entry|
         print_files_map[entry['cart_id']] = entry['print_files'] || []
@@ -69,6 +70,10 @@ class PrintOrchestrator < Sinatra::Base
       
       (data['screenshots_with_cart_id'] || []).each do |entry|
         screenshots_map[entry['cart_id']] = entry['screenshots'] || []
+      end
+      
+      (data['cut_with_cart_id'] || []).each do |entry|
+        cut_files_map[entry['cart_id']] = entry['cut_with_cart_id'] || []
       end
       
       # Wrap all database operations in a transaction for data integrity
@@ -118,6 +123,16 @@ class PrintOrchestrator < Sinatra::Base
               original_url: url,
               asset_type: 'screenshot'
             )
+          end
+          
+          # Create cut file assets (only if product has_cut_file enabled)
+          if product&.has_cut_file
+            (cut_files_map[cart_id] || []).each do |url|
+              order_item.assets.create!(
+                original_url: url,
+                asset_type: 'cut'
+              )
+            end
           end
           
           # Create assets from legacy image_urls if present

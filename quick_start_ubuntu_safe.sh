@@ -35,6 +35,10 @@ psql "$DB_URL" << 'SQLEOF'
 -- Esempio di colonna critica che deve esserci
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS external_order_code VARCHAR;
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS code VARCHAR;
+
+-- Cut file management for products
+ALTER TABLE products ADD COLUMN IF NOT EXISTS has_cut_file BOOLEAN DEFAULT FALSE;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS cut_file_path VARCHAR;
 SQLEOF
 
 echo "✅ Aggiornamento completato con successo."

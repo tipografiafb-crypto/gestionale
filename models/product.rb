@@ -7,6 +7,10 @@ class Product < ActiveRecord::Base
   has_many :print_flows, through: :product_print_flows
   has_one :inventory, dependent: :destroy
   belongs_to :default_print_flow, class_name: 'PrintFlow', optional: true
+
+  # Cut file management
+  # has_cut_file: boolean - Flag to enable cut file download
+  # cut_file_path: string - Local path of downloaded cut file
   belongs_to :product_category, optional: true
   belongs_to :master_product, class_name: 'Product', optional: true
   has_many :dependent_products, class_name: 'Product', foreign_key: 'master_product_id'

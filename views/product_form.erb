@@ -138,6 +138,17 @@
           <textarea id="notes" name="notes" class="form-control" rows="3" placeholder="es. Cliente personalizzato, QA speciale..."><%= @product&.notes %></textarea>
           <small class="text-muted">Note interne per il tuo team</small>
         </div>
+
+        <div class="mb-3">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="has_cut_file" name="has_cut_file" value="true"
+                   <%= 'checked' if @product&.has_cut_file %>>
+            <label class="form-check-label" for="has_cut_file">
+              <strong><i class="fas fa-cut"></i> Abilita File di Taglio</strong>
+            </label>
+          </div>
+          <small class="text-muted">Se attivo, il sistema cercherà e scaricherà automaticamente i file di taglio (SVG) per questo prodotto</small>
+        </div>
       </div>
 
       <div class="card-footer bg-light">

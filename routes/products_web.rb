@@ -230,7 +230,8 @@ class PrintOrchestrator < Sinatra::Base
       notes: params[:notes],
       min_stock_level: params[:min_stock_level].to_i.presence,
       is_dependent: params[:is_dependent] == 'true',
-      master_product_id: params[:is_dependent] == 'true' ? params[:master_product_id].presence : nil
+      master_product_id: params[:is_dependent] == 'true' ? params[:master_product_id].presence : nil,
+      has_cut_file: params[:has_cut_file] == 'true'
     )
 
     if product.save
@@ -277,7 +278,8 @@ class PrintOrchestrator < Sinatra::Base
       notes: params[:notes],
       min_stock_level: params[:min_stock_level].to_i.presence,
       is_dependent: params[:is_dependent] == 'true',
-      master_product_id: params[:is_dependent] == 'true' ? params[:master_product_id].presence : nil
+      master_product_id: params[:is_dependent] == 'true' ? params[:master_product_id].presence : nil,
+      has_cut_file: params[:has_cut_file] == 'true'
     )
 
     if product.save

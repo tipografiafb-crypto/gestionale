@@ -222,6 +222,64 @@
             <small class="text-muted d-block mt-2">PNG, JPG, PDF, GIF, WebP (max 50MB)</small>
           </div>
         </div>
+
+        <!-- Cut Files Section (File di Taglio) -->
+        <% cut_files = @item.assets.select { |a| a.asset_type == 'cut' } %>
+        <% if cut_files.any? || @item.product&.has_cut_file %>
+          <div class="mt-4">
+            <h6><i class="fas fa-cut"></i> File di Taglio:</h6>
+            
+            <% if cut_files.any? %>
+              <div class="row mb-3">
+                <% cut_files.each do |asset| %>
+                  <div class="col-md-3 mb-3">
+                    <div class="card">
+                      <div class="card-body text-center">
+                        <div style="background-color: #f0f0f0; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 4px; margin-bottom: 8px;">
+                          <i class="fas fa-vector-square" style="font-size: 32px; color: #6f42c1;"></i>
+                        </div>
+                        <small class="d-block"><strong>File di Taglio</strong></small>
+                        <small class="text-muted d-block text-truncate" title="<%= File.basename(asset.original_url || '') %>">
+                          <%= File.basename(asset.original_url || 'cut-file.svg') %>
+                        </small>
+                        <div class="btn-group btn-group-sm mt-2" role="group">
+                          <% if asset.downloaded? %>
+                            <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Scarica"><i class="fas fa-download"></i></a>
+                          <% else %>
+                            <a href="<%= asset.original_url %>" class="btn btn-sm btn-outline-primary" title="Scarica da URL" target="_blank"><i class="fas fa-external-link-alt"></i></a>
+                          <% end %>
+                          <form action="/assets/<%= asset.id %>/delete" method="post" class="d-inline">
+                            <input type="hidden" name="order_id" value="<%= @order.id %>">
+                            <input type="hidden" name="item_id" value="<%= @item.id %>">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Elimina" onclick="return confirm('Cancellare questo file di taglio?');"><i class="fas fa-trash"></i></button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            <% else %>
+              <p class="text-muted">Nessun file di taglio disponibile per questo lavoro.</p>
+            <% end %>
+
+            <!-- Upload Cut File Form -->
+            <div class="card" style="background-color: #f8f5ff; border: 2px dashed #6f42c1;">
+              <div class="card-body">
+                <h6 class="mb-3"><i class="fas fa-cloud-upload-alt"></i> Carica File di Taglio</h6>
+                <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/upload_cut" method="post" enctype="multipart/form-data">
+                  <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="file" name="file" accept=".svg,.pdf,.dxf,.ai,.eps" required style="flex: 1;">
+                    <button type="submit" class="btn btn-outline-primary" style="border-color: #6f42c1; color: #6f42c1;">
+                      <i class="fas fa-upload"></i> Carica
+                    </button>
+                  </div>
+                </form>
+                <small class="text-muted d-block mt-2">SVG, PDF, DXF, AI, EPS (max 50MB)</small>
+              </div>
+            </div>
+          </div>
+        <% end %>
       </div>
     </div>
   </div>

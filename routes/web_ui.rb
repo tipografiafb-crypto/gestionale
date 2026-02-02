@@ -607,6 +607,55 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/orders/#{order.id}/items/#{item.id}"
   end
 
+  # POST /orders/:order_id/items/:item_id/upload_cut - Upload cut file
+  post '/orders/:order_id/items/:item_id/upload_cut' do
+    puts "[UPLOAD_CUT] Route called! Order: #{params[:order_id]}, Item: #{params[:item_id]}"
+    
+    begin
+      order = Order.find(params[:order_id])
+      item = order.order_items.find(params[:item_id])
+      file = params[:file]
+      
+      valid_cut_extensions = %w[svg pdf dxf ai eps].freeze
+      
+      if file && file[:filename]
+        puts "[UPLOAD_CUT] Processing file: #{file[:filename]}"
+        
+        ext = File.extname(file[:filename]).downcase.sub(/^\./, '')
+        unless valid_cut_extensions.include?(ext)
+          puts "[UPLOAD_CUT] Invalid extension: #{ext}"
+          return redirect "/orders/#{order.id}/items/#{item.id}?error=invalid_cut_file"
+        end
+        
+        store_code = order.store.code || order.store.id.to_s
+        order_code = order.external_order_code
+        sku = item.sku
+        upload_dir = File.join(Dir.pwd, 'storage', store_code, order_code, sku)
+        FileUtils.mkdir_p(upload_dir)
+        
+        filename = File.basename(file[:filename])
+        local_path = "storage/#{store_code}/#{order_code}/#{sku}/#{filename}"
+        full_path = File.join(Dir.pwd, local_path)
+        
+        File.binwrite(full_path, file[:tempfile].read)
+        
+        # Create new cut asset
+        asset = item.assets.create(
+          asset_type: 'cut',
+          original_url: "file:#{filename}",
+          local_path: local_path
+        )
+        
+        puts "[UPLOAD_CUT] Cut asset #{asset.id} created for item #{item.id}"
+      end
+    rescue => e
+      puts "[UPLOAD_CUT] ERROR: #{e.message}"
+      puts e.backtrace.take(3)
+    end
+    
+    redirect "/orders/#{order.id}/items/#{item.id}"
+  end
+
   # POST /assets/:id/delete - Delete asset file
   post '/assets/:id/delete' do
     begin
