@@ -1,8 +1,0 @@
-# Feature: integration
-# Forbidden files for core integration feature
-
-# Generally, integration can touch most files
-# but should be careful with:
-
-# Do not modify individual feature implementations
-# without consulting feature-specific scope files
