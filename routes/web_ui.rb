@@ -4,7 +4,7 @@
 require 'json'
 
 class PrintOrchestrator < Sinatra::Base
-  VALID_FILE_EXTENSIONS = %w[png jpg jpeg pdf].freeze
+  VALID_FILE_EXTENSIONS = %w[png jpg jpeg pdf svg dxf ai eps].freeze
 
   def valid_file_extension?(filename)
     ext = File.extname(filename).downcase.sub(/^\./, '')
@@ -194,17 +194,27 @@ class PrintOrchestrator < Sinatra::Base
               content = file[:tempfile].read
               File.open(full_path, 'wb') { |f| f.write(content) }
               
-              # Create Asset record (manual orders only have print assets)
-              # Tag with print_file_1, print_file_2, etc. to match FTPPoller convention
-              existing_print_files = order_item.assets.select { |a| a.asset_type&.start_with?('print_file') }.count
-              asset_index = existing_print_files + 1
-              
-              asset = order_item.assets.build(
-                original_url: filename,
-                local_path: local_path,
-                asset_type: "print_file_#{asset_index}"
-              )
-              asset.save!
+              # Handle cut file upload
+              if item_params[:cut_file_upload] == 'true'
+                asset = order_item.assets.build(
+                  original_url: filename,
+                  local_path: local_path,
+                  asset_type: 'cut'
+                )
+                asset.save!
+              else
+                # Create Asset record (manual orders only have print assets)
+                # Tag with print_file_1, print_file_2, etc. to match FTPPoller convention
+                existing_print_files = order_item.assets.select { |a| a.asset_type&.start_with?('print_file') }.count
+                asset_index = existing_print_files + 1
+                
+                asset = order_item.assets.build(
+                  original_url: filename,
+                  local_path: local_path,
+                  asset_type: "print_file_#{asset_index}"
+                )
+                asset.save!
+              end
             rescue => e
               # Log error but continue
               warn "File upload error for #{item_params[:sku]}: #{e.message}"
@@ -347,15 +357,25 @@ class PrintOrchestrator < Sinatra::Base
               content = file[:tempfile].read
               File.open(full_path, 'wb') { |f| f.write(content) }
               
-              existing_print_files = order_item.assets.select { |a| a.asset_type&.start_with?('print_file') }.count
-              asset_index = existing_print_files + 1
-              
-              asset = order_item.assets.build(
-                original_url: filename,
-                local_path: local_path,
-                asset_type: "print_file_#{asset_index}"
-              )
-              asset.save!
+              # Handle cut file upload
+              if item_params[:cut_file_upload] == 'true'
+                asset = order_item.assets.build(
+                  original_url: filename,
+                  local_path: local_path,
+                  asset_type: 'cut'
+                )
+                asset.save!
+              else
+                existing_print_files = order_item.assets.select { |a| a.asset_type&.start_with?('print_file') }.count
+                asset_index = existing_print_files + 1
+                
+                asset = order_item.assets.build(
+                  original_url: filename,
+                  local_path: local_path,
+                  asset_type: "print_file_#{asset_index}"
+                )
+                asset.save!
+              end
             rescue => e
               warn "File upload error for #{item_params[:sku]}: #{e.message}"
             end

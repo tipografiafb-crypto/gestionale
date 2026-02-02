@@ -66,34 +66,45 @@
                 </button>
               </div>
             </div>
-            <div class="row">
-              <div class="col-md-12">
-                <label class="form-label"><i class="fas fa-paperclip"></i> File (immagine/PDF) - Multipli</label>
-                <div class="files-container">
-                  <% if item.assets.any? %>
-                    <% item.assets.each do |asset| %>
-                      <div class="file-input-group mb-2 existing-file-group" data-asset-id="<%= asset.id %>">
-                        <div class="input-group">
-                          <input type="text" class="form-control" value="<%= asset.original_url %>" disabled>
-                          <input type="hidden" class="delete-asset-id" name="items[][delete_asset_ids][]" value="">
-                          <button type="button" class="btn btn-outline-danger btn-sm delete-file-btn" title="Cancella questo file">
-                            <i class="fas fa-times"></i>
-                          </button>
-                          <small class="text-muted ms-2 mt-2">(file esistente)</small>
-                        </div>
+          <div class="row">
+            <div class="col-md-12">
+              <label class="form-label"><i class="fas fa-paperclip"></i> File (immagine/PDF) - Multipli</label>
+              <div class="files-container">
+                <% if item.assets.any? %>
+                  <% item.assets.each do |asset| %>
+                    <div class="file-input-group mb-2 existing-file-group" data-asset-id="<%= asset.id %>">
+                      <div class="input-group">
+                        <span class="input-group-text <%= asset.asset_type == 'cut' ? 'bg-info text-white' : '' %>">
+                          <i class="fas <%= asset.asset_type == 'cut' ? 'fa-cut' : 'fa-image' %>"></i>
+                        </span>
+                        <input type="text" class="form-control" value="<%= asset.original_url %>" disabled>
+                        <input type="hidden" class="delete-asset-id" name="items[][delete_asset_ids][]" value="">
+                        <button type="button" class="btn btn-outline-danger btn-sm delete-file-btn" title="Cancella questo file">
+                          <i class="fas fa-times"></i>
+                        </button>
+                        <small class="text-muted ms-2 mt-2">(<%= asset.asset_type == 'cut' ? 'file taglio' : 'file stampa' %>)</small>
                       </div>
-                    <% end %>
+                    </div>
                   <% end %>
-                  <div class="file-input-group mb-2">
-                    <input type="file" class="form-control" name="items[][files][]" accept=".png,.jpg,.jpeg,.pdf">
+                <% end %>
+                <div class="file-input-group mb-2">
+                  <div class="input-group">
+                    <input type="file" class="form-control" name="items[][files][]" accept=".png,.jpg,.jpeg,.pdf,.svg,.dxf,.ai,.eps">
+                    <div class="input-group-text">
+                      <div class="form-check form-check-inline mb-0">
+                        <input class="form-check-input" type="checkbox" name="items[][cut_file_upload]" value="true">
+                        <label class="form-check-label small">File Taglio</label>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary add-file-btn">
-                  <i class="fas fa-plus"></i> Aggiungi File
-                </button>
-                <small class="text-muted d-block mt-2">Opzionale - PNG, JPG, JPEG, PDF - Puoi caricare più file</small>
               </div>
+              <button type="button" class="btn btn-sm btn-outline-secondary add-file-btn">
+                <i class="fas fa-plus"></i> Aggiungi File
+              </button>
+              <small class="text-muted d-block mt-2">Opzionale - PNG, JPG, JPEG, PDF, SVG, DXF, AI, EPS - Spunta "File Taglio" se il file è un tracciato di taglio</small>
             </div>
+          </div>
           </div>
         <% end %>
       <% else %>
@@ -128,13 +139,21 @@
               <label class="form-label"><i class="fas fa-paperclip"></i> File (immagine/PDF) - Multipli</label>
               <div class="files-container">
                 <div class="file-input-group mb-2">
-                  <input type="file" class="form-control" name="items[][files][]" accept=".png,.jpg,.jpeg,.pdf">
+                  <div class="input-group">
+                    <input type="file" class="form-control" name="items[][files][]" accept=".png,.jpg,.jpeg,.pdf,.svg,.dxf,.ai,.eps">
+                    <div class="input-group-text">
+                      <div class="form-check form-check-inline mb-0">
+                        <input class="form-check-input" type="checkbox" name="items[][cut_file_upload]" value="true">
+                        <label class="form-check-label small">File Taglio</label>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               <button type="button" class="btn btn-sm btn-outline-secondary add-file-btn">
                 <i class="fas fa-plus"></i> Aggiungi File
               </button>
-              <small class="text-muted d-block mt-2">Opzionale - PNG, JPG, JPEG, PDF - Puoi caricare più file</small>
+              <small class="text-muted d-block mt-2">Opzionale - PNG, JPG, JPEG, PDF, SVG, DXF, AI, EPS - Spunta "File Taglio" se il file è un tracciato di taglio</small>
             </div>
           </div>
         </div>
@@ -204,13 +223,21 @@ document.addEventListener('DOMContentLoaded', function() {
           <label class="form-label"><i class="fas fa-paperclip"></i> File (immagine/PDF) - Multipli</label>
           <div class="files-container">
             <div class="file-input-group mb-2">
-              <input type="file" class="form-control" name="items[][files][]" accept=".png,.jpg,.jpeg,.pdf">
+              <div class="input-group">
+                <input type="file" class="form-control" name="items[][files][]" accept=".png,.jpg,.jpeg,.pdf,.svg,.dxf,.ai,.eps">
+                <div class="input-group-text">
+                  <div class="form-check form-check-inline mb-0">
+                    <input class="form-check-input" type="checkbox" name="items[][cut_file_upload]" value="true">
+                    <label class="form-check-label small">File Taglio</label>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <button type="button" class="btn btn-sm btn-outline-secondary add-file-btn">
             <i class="fas fa-plus"></i> Aggiungi File
           </button>
-          <small class="text-muted d-block mt-2">Opzionale - PNG, JPG, JPEG, PDF - Puoi caricare più file</small>
+          <small class="text-muted d-block mt-2">Opzionale - PNG, JPG, JPEG, PDF, SVG, DXF, AI, EPS - Spunta "File Taglio" se il file è un tracciato di taglio</small>
         </div>
       </div>
     `;
@@ -259,7 +286,13 @@ document.addEventListener('DOMContentLoaded', function() {
       fileGroup.className = 'file-input-group mb-2';
       fileGroup.innerHTML = `
         <div class="input-group">
-          <input type="file" class="form-control" name="items[][files][]" accept=".png,.jpg,.jpeg,.pdf">
+          <input type="file" class="form-control" name="items[][files][]" accept=".png,.jpg,.jpeg,.pdf,.svg,.dxf,.ai,.eps">
+          <div class="input-group-text">
+            <div class="form-check form-check-inline mb-0">
+              <input class="form-check-input" type="checkbox" name="items[][cut_file_upload]" value="true">
+              <label class="form-check-label small">File Taglio</label>
+            </div>
+          </div>
           <button type="button" class="btn btn-outline-danger remove-file-btn">
             <i class="fas fa-trash"></i>
           </button>
