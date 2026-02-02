@@ -1,0 +1,78 @@
+{
+  "modules": [
+    {
+      "module": "AdminMediaHandler",
+      "path": "admin/js/core/media-handler.js",
+      "domain": [
+        "admin",
+        "media-management"
+      ],
+      "feature": "media-handler",
+      "purpose": "Media management: WordPress Media Library integration, mask upload/removal, stage detection, file handling",
+      "exports": [
+        "AdminCore.MediaHandler object",
+        "upload/removal methods",
+        "stage detection"
+      ],
+      "consumes": [
+        "WordPress Media Library",
+        "jQuery",
+        "AdminCore namespace"
+      ],
+      "events": [
+        "media:uploaded",
+        "media:removed",
+        "mask:uploaded",
+        "mask:removed"
+      ],
+      "touches": [
+        "WordPress Media Library",
+        "File uploads",
+        "Mask management",
+        "Multi-stage file handling"
+      ],
+      "owner": "admin-media",
+      "risk": "MEDIUM",
+      "tests": [
+        "Media library integration",
+        "File upload/removal",
+        "Stage detection",
+        "Mask handling"
+      ]
+    }
+  ],
+  "hooks": [],
+  "events": [
+    {
+      "event": "click",
+      "file": "admin/js/core/media-handler.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/core/media-handler.js",
+      "type": "listen"
+    },
+    {
+      "event": "select",
+      "file": "admin/js/core/media-handler.js",
+      "type": "listen"
+    }
+  ],
+  "dependencies": [
+    {
+      "file": "admin/js/core/media-handler.js",
+      "dependency": "Media",
+      "type": "internal"
+    }
+  ],
+  "stats": {
+    "moduleCount": 1,
+    "hookCount": 0,
+    "eventCount": 3,
+    "depCount": 1,
+    "riskLevels": {
+      "MEDIUM": 1
+    }
+  }
+}

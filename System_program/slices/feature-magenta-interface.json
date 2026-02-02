@@ -1,0 +1,392 @@
+{
+  "modules": [
+    {
+      "module": "AdminMagentaTab",
+      "path": "admin/js/features/magenta-tab.js",
+      "domain": [
+        "admin",
+        "magenta-interface"
+      ],
+      "feature": "magenta-interface",
+      "purpose": "Magenta product configuration admin interface and multi-stage management",
+      "capabilities": [
+        "manage_stages",
+        "toggle_masks",
+        "handle_interface_changes",
+        "init_states"
+      ],
+      "deps_internal": [
+        "AdminCore"
+      ],
+      "deps_external": [
+        "jQuery",
+        "WordPress-admin"
+      ],
+      "hooks": [
+        "None"
+      ],
+      "contracts": [
+        "on(interface_change) => toggle_multi_stage_controls; on(mask_toggle) => sync_backend_state"
+      ],
+      "exports": [
+        "Magenta tab handlers",
+        "stage management",
+        "mask controls"
+      ],
+      "consumes": [
+        "Magenta product settings",
+        "Stage configurations",
+        "Backend state data"
+      ],
+      "events": [
+        "interface-changed",
+        "stage-added",
+        "mask-toggled"
+      ],
+      "touches": [
+        "Magenta admin interface",
+        "Multi-stage configuration",
+        "Mask overlay settings"
+      ],
+      "owner": "magenta-core",
+      "risk": "MEDIUM",
+      "severity": "MEDIUM",
+      "stability": "HIGH",
+      "tests": [
+        "Interface switching",
+        "Stage management",
+        "Mask toggle",
+        "State synchronization"
+      ]
+    },
+    {
+      "module": "MagentaHandler",
+      "path": "includes/interfaces/class-wc-ai-magenta-handler.php",
+      "domain": [
+        "interface",
+        "magenta"
+      ],
+      "feature": "magenta-interface",
+      "purpose": "Handler per interfaccia Magenta full-screen: routing, asset loading, multicanvas order integration",
+      "exports": [
+        "enqueue_magenta_assets",
+        "is_magenta_customizer_page",
+        "add_magenta_print_files",
+        "add_magenta_screenshots"
+      ],
+      "consumes": [
+        "WordPress enqueue system",
+        "Magenta assets",
+        "Order multicanvas data"
+      ],
+      "events": [
+        "wp_enqueue_scripts",
+        "wc_ai_order_print_files",
+        "wc_ai_order_screenshots"
+      ],
+      "touches": [
+        "Magenta asset loading",
+        "CSS/JS enqueuing",
+        "Template loading",
+        "Page routing",
+        "Multicanvas file exposure"
+      ],
+      "owner": "magenta-core",
+      "risk": "LOW",
+      "tests": [
+        "Asset enqueuing",
+        "Page detection",
+        "Template loading",
+        "Multicanvas file integration"
+      ]
+    },
+    {
+      "module": "MagentaCustomizer",
+      "path": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "domain": [
+        "ui",
+        "customizer"
+      ],
+      "feature": "magenta-interface",
+      "purpose": "Controller principale Magenta: stage switch, canvas management, orchestrazione UI",
+      "exports": [
+        "init",
+        "switchStage",
+        "getCurrentStage",
+        "getCanvasDelegate"
+      ],
+      "consumes": [
+        "CanvasDelegate.js",
+        "PanelManager.js",
+        "SidebarManager.js",
+        "WorkspaceManager.js"
+      ],
+      "events": [
+        "stage-switch",
+        "canvas-ready",
+        "magenta-initialized"
+      ],
+      "touches": [
+        "Multi-stage UI",
+        "Canvas viewport",
+        "Panel switching"
+      ],
+      "owner": "ui-core",
+      "risk": "MEDIUM",
+      "tests": [
+        "Stage switch preserva objects",
+        "Canvas reset corretto",
+        "Multi-stage navigation"
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "hook": "wp_enqueue_scripts",
+      "file": "includes/interfaces/class-wc-ai-magenta-handler.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wc_ai_order_print_files",
+      "file": "includes/interfaces/class-wc-ai-magenta-handler.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wc_ai_order_screenshots",
+      "file": "includes/interfaces/class-wc-ai-magenta-handler.php",
+      "function": "anonymous",
+      "type": "php"
+    }
+  ],
+  "events": [
+    {
+      "event": "change",
+      "file": "admin/js/features/magenta-tab.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "admin/js/features/magenta-tab.js",
+      "type": "listen"
+    },
+    {
+      "event": "input",
+      "file": "admin/js/features/magenta-tab.js",
+      "type": "listen"
+    },
+    {
+      "event": "input",
+      "file": "admin/js/features/magenta-tab.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/magenta-tab.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/magenta-tab.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/magenta-tab.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/magenta-tab.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/magenta-tab.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/magenta-tab.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/magenta-tab.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "admin/js/features/magenta-tab.js",
+      "type": "listen"
+    },
+    {
+      "event": "DOMContentLoaded",
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "type": "listen"
+    },
+    {
+      "event": "keydown",
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "type": "listen"
+    },
+    {
+      "event": "resize",
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "type": "listen"
+    },
+    {
+      "event": "beforeunload",
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "type": "listen"
+    }
+  ],
+  "dependencies": [
+    {
+      "file": "includes/interfaces/class-wc-ai-magenta-handler.php",
+      "dependency": "Font",
+      "type": "internal"
+    },
+    {
+      "file": "includes/interfaces/class-wc-ai-magenta-handler.php",
+      "dependency": "DesignLibrary",
+      "type": "internal"
+    },
+    {
+      "file": "includes/interfaces/class-wc-ai-magenta-handler.php",
+      "dependency": "CanvasTransfer",
+      "type": "internal"
+    },
+    {
+      "file": "includes/interfaces/class-wc-ai-magenta-handler.php",
+      "dependency": "CategoryUI",
+      "type": "internal"
+    },
+    {
+      "file": "includes/interfaces/class-wc-ai-magenta-handler.php",
+      "dependency": "Layout",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Instance",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Instance",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Font",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "AI",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "AI",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "AI",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Layout",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Layout",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Sidebar",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Panel",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Workspace",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Product",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Help",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "AI",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Font",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Layout",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "To",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Font",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Font",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "Font",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "CanvasTransfer",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js",
+      "dependency": "CanvasTransfer",
+      "type": "internal"
+    }
+  ],
+  "stats": {
+    "moduleCount": 3,
+    "hookCount": 3,
+    "eventCount": 16,
+    "depCount": 27,
+    "riskLevels": {
+      "MEDIUM": 2,
+      "LOW": 1
+    }
+  }
+}

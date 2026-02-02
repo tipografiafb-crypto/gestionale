@@ -1,0 +1,15 @@
+# SCOPE LOCK: UI-THEME-CUSTOMIZATION
+# Generated for ui-theme-customization feature
+# Allowed files for AI modifications in ui-theme-customization feature
+
+# Primary module files (SAFE to modify)
+admin/dashboard/tabs/class-wc-ai-ui-theme-customization-tab.php
+admin/ajax/class-wc-ai-ui-theme-ajax.php
+includes/class-wc-ai-ui-theme-loader.php
+
+# Related files (PROCEED WITH CAUTION)
+admin/dashboard/class-wc-ai-dashboard-controller.php
+wc-ai-product-customizer.php
+
+# Usage: AI should work ONLY within primary module files
+# Related files require explicit permission and risk assessment

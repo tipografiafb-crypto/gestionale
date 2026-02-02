@@ -1,0 +1,135 @@
+{
+  "modules": [
+    {
+      "module": "OrderZipGenerator",
+      "path": "includes/class-wc-ai-order-zip-generator.php",
+      "domain": [
+        "orders",
+        "export"
+      ],
+      "feature": "export",
+      "purpose": "Generazione ZIP con tutti i file di customizzazione di un ordine",
+      "capabilities": [
+        "generate_order_zip",
+        "collect_order_files",
+        "serve_zip_download"
+      ],
+      "deps_internal": [
+        "WC_AI_File_Archiver"
+      ],
+      "deps_external": [
+        "WordPress filesystem",
+        "WooCommerce",
+        "ZipArchive"
+      ],
+      "hooks": [
+        "wp_ajax_wc_ai_download_order_zip",
+        "wp_ajax_nopriv_wc_ai_download_order_zip"
+      ],
+      "contracts": [
+        "on(generate_zip) => create_zip_with_all_files; on(download_zip) => serve_file"
+      ],
+      "exports": [
+        "WC_AI_Order_Zip_Generator",
+        "generate_order_zip",
+        "serve_download"
+      ],
+      "consumes": [
+        "Order metadata",
+        "archive URLs"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "ZIP generation",
+        "File download",
+        "Temporary files"
+      ],
+      "owner": "export-admin",
+      "risk": "MEDIUM",
+      "severity": "MEDIUM",
+      "stability": "HIGH",
+      "tests": [
+        "ZIP creation",
+        "File collection",
+        "Download serving",
+        "Cleanup"
+      ]
+    },
+    {
+      "module": "ExportIdempotencyManager",
+      "path": "public/js/core/canvas/export/IdempotencyManager.js",
+      "domain": [
+        "canvas",
+        "export"
+      ],
+      "feature": "export",
+      "purpose": "Idempotency manager per export: previene duplicazioni, cache risultati, mutex per race conditions",
+      "exports": [
+        "generateExportJobId",
+        "checkExistingJob",
+        "cacheResult",
+        "preventDuplicateExport"
+      ],
+      "consumes": [
+        "ExportService",
+        "canvas contenuti",
+        "hash generation"
+      ],
+      "events": [
+        "export:duplicate-prevented",
+        "export:cache-hit",
+        "export:mutex-acquired"
+      ],
+      "touches": [
+        "Export job management",
+        "Cache management",
+        "Mutex coordination",
+        "Duplicate prevention"
+      ],
+      "owner": "canvas-export",
+      "risk": "MEDIUM",
+      "tests": [
+        "Job ID generation",
+        "Cache functionality",
+        "Mutex behavior",
+        "Duplicate detection"
+      ]
+    }
+  ],
+  "hooks": [],
+  "events": [
+    {
+      "event": "mutex",
+      "file": "public/js/core/canvas/export/IdempotencyManager.js",
+      "type": "emit"
+    }
+  ],
+  "dependencies": [
+    {
+      "file": "public/js/core/canvas/export/IdempotencyManager.js",
+      "dependency": "ExportIdempotency",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/core/canvas/export/IdempotencyManager.js",
+      "dependency": "ExportIdempotency",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/core/canvas/export/IdempotencyManager.js",
+      "dependency": "ExportIdempotency",
+      "type": "internal"
+    }
+  ],
+  "stats": {
+    "moduleCount": 2,
+    "hookCount": 0,
+    "eventCount": 1,
+    "depCount": 3,
+    "riskLevels": {
+      "MEDIUM": 2
+    }
+  }
+}

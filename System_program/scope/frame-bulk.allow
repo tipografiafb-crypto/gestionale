@@ -1,0 +1,11 @@
+# SCOPE LOCK: FRAME-BULK
+# Generated automatically by tools/build-universal-mapping.mjs
+# Allowed files for AI modifications in frame-bulk feature
+
+# Primary module files (SAFE to modify)
+includes/product-modes/class-wc-ai-frames-range-mode.php
+
+# Related files (PROCEED WITH CAUTION)
+
+# Usage: AI should work ONLY within primary module files
+# Related files require explicit permission and risk assessment

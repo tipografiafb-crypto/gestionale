@@ -1,0 +1,12 @@
+# SCOPE LOCK: EXPORT
+# Generated automatically by tools/build-universal-mapping.mjs
+# Allowed files for AI modifications in export feature
+
+# Primary module files (SAFE to modify)
+includes/class-wc-ai-order-zip-generator.php
+public/js/core/canvas/export/IdempotencyManager.js
+
+# Related files (PROCEED WITH CAUTION)
+
+# Usage: AI should work ONLY within primary module files
+# Related files require explicit permission and risk assessment

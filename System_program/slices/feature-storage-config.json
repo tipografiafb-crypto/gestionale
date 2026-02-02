@@ -1,0 +1,60 @@
+{
+  "modules": [
+    {
+      "module": "AdminStorageConfig",
+      "path": "admin/js/config/storage-config.js",
+      "domain": [
+        "admin",
+        "storage-configuration"
+      ],
+      "feature": "storage-config",
+      "purpose": "Storage configuration: AWS S3/Local storage toggle, S3 fields management, storage method selection",
+      "exports": [
+        "AdminCore.StorageConfig object",
+        "storage toggle methods",
+        "field management"
+      ],
+      "consumes": [
+        "Storage configuration fields",
+        "S3 settings",
+        "toggle controls"
+      ],
+      "events": [
+        "storage:changed",
+        "s3:toggled",
+        "config:updated"
+      ],
+      "touches": [
+        "Storage method configuration",
+        "S3 field visibility",
+        "Storage toggle",
+        "Configuration management"
+      ],
+      "owner": "admin-storage",
+      "risk": "MEDIUM",
+      "tests": [
+        "Storage method toggle",
+        "S3 field visibility",
+        "Configuration persistence"
+      ]
+    }
+  ],
+  "hooks": [],
+  "events": [
+    {
+      "event": "change",
+      "file": "admin/js/config/storage-config.js",
+      "type": "listen"
+    }
+  ],
+  "dependencies": [],
+  "stats": {
+    "moduleCount": 1,
+    "hookCount": 0,
+    "eventCount": 1,
+    "depCount": 0,
+    "riskLevels": {
+      "MEDIUM": 1
+    }
+  }
+}

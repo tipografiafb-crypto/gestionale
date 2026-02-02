@@ -1,0 +1,19 @@
+# Feature: ui
+# Allowed files for web interface feature
+
+# Routes
+routes/web_ui.rb
+
+# Views
+views/layout.erb
+views/orders_list.erb
+views/order_detail.erb
+views/not_found.erb
+
+# Public assets (future)
+# public/css/**
+# public/js/**
+# public/images/**
+
+# Tests (future)
+# test/routes/web_ui_test.rb

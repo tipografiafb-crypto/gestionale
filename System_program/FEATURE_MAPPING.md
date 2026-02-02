@@ -1,112 +1,123 @@
-# Feature Mapping
+# Feature Mapping - Canonical Feature Set
 
-> **Auto-generated**: Last updated 2025-11-20
-> 
-> **Purpose**: Map features to their corresponding files and modules
+> Standardized feature tags for universal AI targeting
 
-## Feature: `orders`
+## 🎯 Canonical Feature Set
 
-**Description**: Order management, import, and data models
+Use ONLY these standardized feature names in MODULE headers:
 
-**Files**:
-- `models/store.rb` - Store model
-- `models/order.rb` - Order model
-- `models/order_item.rb` - OrderItem model
-- `routes/orders_api.rb` - Orders API endpoints
-- `db/migrate/001_create_stores.rb` - Store migration
-- `db/migrate/002_create_orders.rb` - Order migration
-- `db/migrate/003_create_order_items.rb` - OrderItem migration
+### Core Features
+- **bulk-price**: Bulk quantity pricing logic and cart calculations
+- **frame-bulk**: Frames-specific bulk pricing with aggregation  
+- **canvas**: Canvas engine, Fabric.js integration, and manipulation
+- **ai**: AI image generation, OpenAI integration, and processing
+- **stage**: Multi-stage workflow management and coordination
+- **cart**: Shopping cart operations and checkout integration
+- **admin**: Admin interface, dashboard, and configuration
+- **ui**: User interface components and interactions
+- **validation**: Data validation, integrity checks, and verification
+- **export**: File export, HD generation, and download operations
 
-**API Endpoints**:
-- `POST /api/orders/import` - Import new order
-- `POST /api/orders/:id/download_assets` - Download assets
-- `POST /api/orders/:id/send_to_switch` - Send to Switch
+### Specialized Features  
+- **font-management**: Font loading, storage, and CSS generation
+- **file-cleanup**: File maintenance, cleanup, and storage management
+- **pricing-orchestrator**: Core pricing delegation and mode resolution
+- **interface-routing**: Interface selection and routing logic
+- **s3-integration**: AWS S3 storage and cloud operations
+- **magenta-interface**: Magenta full-screen customizer interface
+- **frames-interface**: Frames multi-step customizer interface  
+- **page-interface**: Page-based customizer interface
+- **diecut-interface**: Standalone die-cut sticker customization (Canvas HTML5 native + OpenCV, NO Fabric.js)
 
-## Feature: `storage`
+## 🔄 Feature Normalization Status
 
-**Description**: Asset management and image downloads
+### ✅ Normalized (Using Canonical Tags)
+- All admin modules → `admin`
+- Pricing core modules → `bulk-price` 
+- Canvas engine → `canvas`
+- AI generation → `ai`
 
-**Files**:
-- `models/asset.rb` - Asset model
-- `services/asset_downloader.rb` - Asset download service
-- `db/migrate/004_create_assets.rb` - Asset migration
-- `storage/` - Local file storage directory
+### 🔄 To Normalize (Legacy Tags)
+- `pricing-orchestrator` → `bulk-price`
+- `ai-image-generation` → `ai`
+- `fabric-engine` → `canvas`
+- `magenta-*` → `ui` (for components) or `magenta-interface` (for core)
 
-**Responsibilities**:
-- Download images from URLs
-- Store files locally
-- Track download status
-- Manage file paths
+## 📊 Feature Module Count
 
-## Feature: `switch`
+| Feature | Module Count | Primary Domains |
+|---------|-------------|-----------------|
+| bulk-price | 12 | pricing, backend |
+| canvas | 25 | canvas, export |
+| ai | 18 | ai, generation |
+| admin | 14 | admin, configuration |
+| ui | 35 | ui, components |
+| magenta-interface | 28 | interface, customizer |
+| frames-interface | 20 | interface, workflow |
+| diecut-interface | 5 | interface, opencv |
 
-**Description**: Enfocus Switch integration
+## 🎯 Quick Feature Targeting
 
-**Files**:
-- `models/switch_job.rb` - SwitchJob model
-- `services/switch_client.rb` - Switch API client
-- `routes/switch_api.rb` - Switch webhook handler
-- `db/migrate/005_create_switch_jobs.rb` - SwitchJob migration
+### Bulk Pricing Issues
+```
+Feature: bulk-price
+Entrypoints: [PricingManager, BulkMode, FramesBulkPricingManager]
+```
 
-**API Endpoints**:
-- `POST /api/switch/callback` - Receive Switch callbacks
+### Canvas Problems  
+```
+Feature: canvas
+Entrypoints: [CanvasEngine, CanvasExportService, CanvasInstanceManager]
+```
 
-**Responsibilities**:
-- Send jobs to Switch
-- Receive job results
-- Track job status
-- Handle callbacks
+### AI Generation Issues
+```
+Feature: ai
+Entrypoints: [AIOrchestrator, AIImageGenerator, OpenAIIntegration]
+```
 
-## Feature: `ui`
+### UI Component Issues
+```
+Feature: ui
+Entrypoints: [MagentaButtonComponent, MagentaLayoutManager, PanelManager]
+```
 
-**Description**: Web interface for operators
+## 🔧 Migration Script
 
-**Files**:
-- `routes/web_ui.rb` - Web UI routes
-- `views/layout.erb` - Layout template
-- `views/orders_list.erb` - Orders list view
-- `views/order_detail.erb` - Order detail view
-- `views/not_found.erb` - 404 page
+To normalize all feature tags to canonical set:
 
-**Routes**:
-- `GET /` - Redirect to orders
-- `GET /orders` - List all orders
-- `GET /orders/:id` - Order detail
-- `POST /orders/:id/download` - Download trigger
-- `POST /orders/:id/send` - Send to Switch trigger
+```bash
+# Update legacy feature tags
+cd wc-ai-product-customizer
+find . -name "*.php" -o -name "*.js" | xargs sed -i 's/@feature: pricing-orchestrator/@feature: bulk-price/g'
+find . -name "*.php" -o -name "*.js" | xargs sed -i 's/@feature: ai-image-generation/@feature: ai/g'
+find . -name "*.php" -o -name "*.js" | xargs sed -i 's/@feature: fabric-engine/@feature: canvas/g'
 
-## Feature: `integration`
+# Regenerate mapping
+node tools/build-universal-mapping.mjs .
+```
 
-**Description**: External integrations and core application
+## 📋 Feature Validation Rules
 
-**Files**:
-- `app.rb` - Main application
-- `config.ru` - Rack configuration
-- `config/database.yml` - Database config
-- `Gemfile` - Ruby dependencies
+1. **Single Feature Per Module**: Each module should have exactly one @feature tag
+2. **Canonical Names Only**: Use only features from the canonical set above
+3. **Consistent Naming**: No variations (e.g., `bulk_price` vs `bulk-price`)
+4. **Hierarchical Logic**: Sub-features use parent feature (e.g., all pricing → `bulk-price`)
 
-## Feature: `quality`
+## 🚀 AI Request Examples
 
-**Description**: Code quality, testing, and documentation
+### Standardized Feature Request
+```
+Feature: bulk-price
+Goal: Fix cart recalculation after item removal
+Entrypoint: PricingManager → resolve_mode capability
+Files: includes/class-wc-ai-pricing-manager.php
+```
 
-**Files**:
-- `README.md` - Project documentation
-- `replit.md` - Replit-specific info
-- `AGENT_WORKFLOW.md` - Agent workflow guide
-- `System_program/` - System documentation
-
-## Cross-Feature Dependencies
-
-### Database Models
-All features depend on the database models:
-- `orders` → `storage` (Order has many Assets through OrderItems)
-- `orders` → `switch` (Order has one SwitchJob)
-- `storage` → `orders` (Asset belongs to OrderItem)
-- `switch` → `orders` (SwitchJob belongs to Order)
-
-### Services
-- `storage.AssetDownloader` uses `orders.Order`, `storage.Asset`
-- `switch.SwitchClient` uses `orders.Order`, `switch.SwitchJob`
-
-### Views
-- UI features depend on all models for display
+### Multi-Feature Coordination
+```
+Feature: canvas + ai
+Goal: AI image integration with canvas positioning
+Entrypoints: AIOrchestrator + CanvasEngine
+Coordination: AI generates → Canvas positions → Export handles
+```

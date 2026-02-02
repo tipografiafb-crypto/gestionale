@@ -1,0 +1,15 @@
+# SCOPE LOCK: FILE-CLEANUP
+# Generated automatically by tools/build-universal-mapping.mjs
+# Allowed files for AI modifications in file-cleanup feature
+
+# Primary module files (SAFE to modify)
+admin/dashboard/tabs/class-wc-ai-file-management-tab.php
+admin/js/features/file-management.js
+admin/js/features/file-upload-settings.js
+includes/class-wc-ai-file-archiver.php
+includes/class-wc-ai-file-manager.php
+
+# Related files (PROCEED WITH CAUTION)
+
+# Usage: AI should work ONLY within primary module files
+# Related files require explicit permission and risk assessment

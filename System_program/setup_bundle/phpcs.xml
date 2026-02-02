@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<ruleset name="EnterpriseRoutingPHPCS">
+  <description>PHPCS baseline with WordPress standards and basic path restrictions.</description>
+
+  <file>./</file>
+  <exclude-pattern>vendor/*</exclude-pattern>
+  <exclude-pattern>node_modules/*</exclude-pattern>
+
+  <rule ref="WordPress-Extra"/>
+  <rule ref="WordPress-Docs"/>
+
+  <!-- Example: prevent includes from legacy without adapter -->
+  <rule ref="Generic.PHP.ForbiddenFunctions">
+    <properties>
+      <property name="forbiddenFunctions" type="array">
+        <element key="include" value="include"/>
+        <element key="require" value="require"/>
+      </property>
+    </properties>
+    <severity>0</severity>
+  </rule>
+</ruleset>

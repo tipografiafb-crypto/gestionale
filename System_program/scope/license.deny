@@ -1,0 +1,15 @@
+# License Feature - Forbidden Files
+# Feature: license
+# Description: Files that license feature should NEVER modify
+
+## Core Plugin Files
+magenta-product-customizer/magenta-product-customizer.php
+magenta-product-customizer/includes/class-wc-ai-product-customizer.php
+
+## Other Features
+magenta-product-customizer/includes/canvas/**
+magenta-product-customizer/includes/ai/**
+magenta-product-customizer/public/js/interfaces-v2/**
+
+## Legacy Code
+magenta-product-customizer/legacy/**

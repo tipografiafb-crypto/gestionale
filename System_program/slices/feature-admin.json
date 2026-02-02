@@ -1,0 +1,504 @@
+{
+  "modules": [
+    {
+      "module": "DashboardCoordinator",
+      "path": "admin/dashboard/js/dashboard.js",
+      "domain": [
+        "admin",
+        "ui"
+      ],
+      "feature": "admin",
+      "purpose": "Lightweight dashboard coordination and tab management for unified admin interface",
+      "capabilities": [
+        "init_tabs",
+        "handle_notifications",
+        "coordinate_modules",
+        "manage_ui_state"
+      ],
+      "deps_internal": [
+        "Tab handlers",
+        "Module coordinators"
+      ],
+      "deps_external": [
+        "jQuery",
+        "WordPress-admin"
+      ],
+      "hooks": [
+        "None"
+      ],
+      "contracts": [
+        "on(tab_switch) => coordinate_modules; on(notification) => display_feedback"
+      ],
+      "exports": [
+        "WCAIDashboard",
+        "tab coordination",
+        "notification system"
+      ],
+      "consumes": [
+        "Tab elements",
+        "Module states",
+        "UI events"
+      ],
+      "events": [
+        "tab-switch",
+        "module-ready",
+        "notification-show"
+      ],
+      "touches": [
+        "Tab navigation",
+        "Module coordination",
+        "UI state management",
+        "Notifications"
+      ],
+      "owner": "admin-core",
+      "risk": "LOW",
+      "severity": "LOW",
+      "stability": "HIGH",
+      "tests": [
+        "Tab switching",
+        "Module coordination",
+        "Notification display",
+        "UI responsiveness"
+      ]
+    },
+    {
+      "module": "ClipArtManagementTab",
+      "path": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "domain": [
+        "admin",
+        "clipart-management"
+      ],
+      "feature": "admin",
+      "purpose": "Admin clipart management tab for SVG upload, categorization, and library management",
+      "capabilities": [
+        "upload_svg",
+        "manage_categories",
+        "sanitize_svg",
+        "ajax_handlers"
+      ],
+      "deps_internal": [
+        "DashboardController",
+        "SVGSanitizer"
+      ],
+      "deps_external": [
+        "WordPress",
+        "File-system"
+      ],
+      "hooks": [
+        "wp_ajax_wc_ai_upload_clipart",
+        "wp_ajax_wc_ai_delete_clipart",
+        "wp_ajax_wc_ai_toggle_clipart"
+      ],
+      "contracts": [
+        "on(upload_svg) => sanitize_and_validate; on(delete_clipart) => cleanup_files_and_db"
+      ],
+      "exports": [
+        "WC_AI_ClipArt_Management_Tab",
+        "clipart CRUD operations",
+        "admin interface"
+      ],
+      "consumes": [
+        "SVG files",
+        "ClipArt database",
+        "Upload system"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "SVG file management",
+        "ClipArt database",
+        "Upload operations",
+        "Category management"
+      ],
+      "owner": "clipart-admin",
+      "risk": "MEDIUM",
+      "severity": "MEDIUM",
+      "stability": "HIGH",
+      "tests": [
+        "SVG upload",
+        "Sanitization",
+        "Database operations",
+        "Category management"
+      ]
+    },
+    {
+      "module": "GeneralSettingsTab",
+      "path": "admin/dashboard/tabs/class-wc-ai-general-settings-tab.php",
+      "domain": [
+        "admin",
+        "configuration"
+      ],
+      "feature": "admin",
+      "purpose": "General settings tab handler for unified dashboard configuration",
+      "capabilities": [
+        "handle_settings",
+        "ajax_handlers",
+        "validate_config",
+        "save_settings"
+      ],
+      "deps_internal": [
+        "DashboardController"
+      ],
+      "deps_external": [
+        "WordPress",
+        "WooCommerce"
+      ],
+      "hooks": [
+        "wp_ajax_wc_ai_save_general_settings"
+      ],
+      "contracts": [
+        "on(save_settings) => validate_and_store; on(ajax_request) => return_status_response"
+      ],
+      "exports": [
+        "WC_AI_General_Settings_Tab",
+        "settings handlers",
+        "validation methods"
+      ],
+      "consumes": [
+        "WordPress options",
+        "Admin settings",
+        "Configuration data"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "General plugin settings",
+        "Configuration validation",
+        "Options storage"
+      ],
+      "owner": "admin-core",
+      "risk": "MEDIUM",
+      "severity": "MEDIUM",
+      "stability": "HIGH",
+      "tests": [
+        "Settings save",
+        "Validation",
+        "AJAX response",
+        "Options storage"
+      ]
+    },
+    {
+      "module": "AdminClipArtManager",
+      "path": "admin/js/features/clipart-manager.js",
+      "domain": [
+        "admin",
+        "clipart-management"
+      ],
+      "feature": "admin",
+      "purpose": "Admin clipart management: CRUD operations, category management, upload handling",
+      "exports": [
+        "AdminCore.ClipArtManager object",
+        "clipart management methods"
+      ],
+      "consumes": [
+        "Clipart upload forms",
+        "file validation",
+        "category controls"
+      ],
+      "events": [
+        "clipart:uploaded",
+        "clipart:deleted",
+        "clipart:toggled",
+        "category:changed"
+      ],
+      "touches": [
+        "Clipart upload system",
+        "Category management",
+        "Admin dashboard"
+      ],
+      "owner": "clipart-admin",
+      "risk": "MEDIUM",
+      "tests": [
+        "Upload/delete",
+        "Category management",
+        "Toggle functionality",
+        "File validation"
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "hook": "wp_ajax_wc_ai_upload_clipart",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_toggle_clipart",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_delete_clipart",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_update_clipart_category",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_create_clipart_category",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_update_clipart_category_name",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_delete_clipart_category",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_toggle_clipart_category",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_get_active_cliparts",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_nopriv_wc_ai_get_active_cliparts",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_get_clipart_categories",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_nopriv_wc_ai_get_clipart_categories",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_import_clipart_zip",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_change_clipart_category",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_bulk_clipart_action",
+      "file": "admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_grant_existing_credits",
+      "file": "admin/dashboard/tabs/class-wc-ai-general-settings-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_test_aws_connection",
+      "file": "admin/dashboard/tabs/class-wc-ai-general-settings-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    }
+  ],
+  "events": [
+    {
+      "event": "click",
+      "file": "admin/dashboard/js/dashboard.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/dashboard/js/dashboard.js",
+      "type": "listen"
+    },
+    {
+      "event": "select",
+      "file": "admin/dashboard/js/dashboard.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/dashboard/js/dashboard.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/dashboard/js/dashboard.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/dashboard/js/dashboard.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "admin/dashboard/js/dashboard.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/dashboard/js/dashboard.js",
+      "type": "listen"
+    },
+    {
+      "event": "submit",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "dragover",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "dragleave",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "drop",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    },
+    {
+      "event": "progress",
+      "file": "admin/js/features/clipart-manager.js",
+      "type": "listen"
+    }
+  ],
+  "dependencies": [
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-general-settings-tab.php",
+      "dependency": "WC_AI_Credits_",
+      "type": "internal"
+    },
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-general-settings-tab.php",
+      "dependency": "WC_AI_AWS_S3_",
+      "type": "internal"
+    },
+    {
+      "file": "admin/js/features/clipart-manager.js",
+      "dependency": "ClipArt",
+      "type": "internal"
+    },
+    {
+      "file": "admin/js/features/clipart-manager.js",
+      "dependency": "ClipArt",
+      "type": "internal"
+    },
+    {
+      "file": "admin/js/features/clipart-manager.js",
+      "dependency": "ClipArt",
+      "type": "internal"
+    },
+    {
+      "file": "admin/js/features/clipart-manager.js",
+      "dependency": "ClipArt",
+      "type": "internal"
+    },
+    {
+      "file": "admin/js/features/clipart-manager.js",
+      "dependency": "ClipArt",
+      "type": "internal"
+    },
+    {
+      "file": "admin/js/features/clipart-manager.js",
+      "dependency": "ClipArt",
+      "type": "internal"
+    },
+    {
+      "file": "admin/js/features/clipart-manager.js",
+      "dependency": "ClipArt",
+      "type": "internal"
+    }
+  ],
+  "stats": {
+    "moduleCount": 4,
+    "hookCount": 17,
+    "eventCount": 24,
+    "depCount": 9,
+    "riskLevels": {
+      "LOW": 1,
+      "MEDIUM": 3
+    }
+  }
+}

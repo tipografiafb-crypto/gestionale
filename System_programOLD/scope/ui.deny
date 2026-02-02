@@ -1,0 +1,16 @@
+# Feature: ui
+# Forbidden files for web interface feature
+
+# Do not modify models
+models/**
+
+# Do not modify services
+services/**
+
+# Do not modify API routes
+routes/orders_api.rb
+routes/switch_api.rb
+
+# Do not modify database
+db/migrate/**
+config/database.yml

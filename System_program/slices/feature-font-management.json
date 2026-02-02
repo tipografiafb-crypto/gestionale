@@ -1,0 +1,273 @@
+{
+  "modules": [
+    {
+      "module": "FontManagementTab",
+      "path": "admin/dashboard/tabs/class-wc-ai-font-management-tab.php",
+      "domain": [
+        "admin",
+        "font-management"
+      ],
+      "feature": "font-management",
+      "purpose": "Admin font management tab for font upload, preview, and database management",
+      "capabilities": [
+        "upload_fonts",
+        "preview_fonts",
+        "manage_font_database",
+        "ajax_handlers"
+      ],
+      "deps_internal": [
+        "FontManager",
+        "FontInstaller",
+        "DashboardController"
+      ],
+      "deps_external": [
+        "WordPress",
+        "File-system"
+      ],
+      "hooks": [
+        "wp_ajax_wc_ai_upload_font",
+        "wp_ajax_wc_ai_delete_font",
+        "wp_ajax_wc_ai_preview_font"
+      ],
+      "contracts": [
+        "on(upload_font) => validate_and_store; on(delete_font) => cleanup_files_and_db"
+      ],
+      "exports": [
+        "WC_AI_Font_Management_Tab",
+        "font CRUD operations",
+        "admin interface"
+      ],
+      "consumes": [
+        "Font files",
+        "Font database",
+        "Upload system"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "Font file management",
+        "Font database",
+        "Upload operations",
+        "Preview generation"
+      ],
+      "owner": "font-core",
+      "risk": "MEDIUM",
+      "severity": "MEDIUM",
+      "stability": "HIGH",
+      "tests": [
+        "Font upload",
+        "File validation",
+        "Database operations",
+        "Preview generation"
+      ]
+    },
+    {
+      "module": "FontCSSHandler",
+      "path": "includes/class-wc-ai-font-css-handler.php",
+      "domain": [
+        "font-management",
+        "frontend"
+      ],
+      "feature": "font-management",
+      "purpose": "CSS generation and frontend enqueuing for font system integration",
+      "capabilities": [
+        "generate_css",
+        "enqueue_fonts",
+        "cache_css",
+        "optimize_loading"
+      ],
+      "deps_internal": [
+        "FontManager",
+        "FontInstaller"
+      ],
+      "deps_external": [
+        "WordPress"
+      ],
+      "hooks": [
+        "wp_enqueue_scripts",
+        "wp_head"
+      ],
+      "contracts": [
+        "on(generate_css) => create_font_css; on(enqueue) => load_frontend_fonts"
+      ],
+      "exports": [
+        "WC_AI_Font_CSS_Handler",
+        "generate_font_css",
+        "enqueue methods"
+      ],
+      "consumes": [
+        "Font Manager data",
+        "CSS templates",
+        "Font files"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "CSS generation",
+        "Font loading",
+        "Frontend performance"
+      ],
+      "owner": "font-core",
+      "risk": "LOW",
+      "severity": "LOW",
+      "stability": "HIGH",
+      "tests": [
+        "CSS generation",
+        "Font loading",
+        "Performance impact",
+        "Cache efficiency"
+      ]
+    },
+    {
+      "module": "FontInstaller",
+      "path": "includes/class-wc-ai-font-installer.php",
+      "domain": [
+        "font-management",
+        "installation"
+      ],
+      "feature": "font-management",
+      "purpose": "Font installation and setup system for default fonts and font manager initialization",
+      "capabilities": [
+        "install_default_fonts",
+        "setup_font_system",
+        "validate_fonts"
+      ],
+      "deps_internal": [
+        "FontManager",
+        "FontCSSHandler"
+      ],
+      "deps_external": [
+        "WordPress",
+        "Font files"
+      ],
+      "hooks": [
+        "wp_loaded",
+        "admin_init"
+      ],
+      "contracts": [
+        "on(install) => setup_default_fonts; on(validate) => check_font_availability"
+      ],
+      "exports": [
+        "WC_AI_Font_Installer",
+        "install_default_fonts",
+        "setup_system"
+      ],
+      "consumes": [
+        "Font Manager",
+        "Font files",
+        "System configuration"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "Font installation",
+        "System setup",
+        "Default font configuration"
+      ],
+      "owner": "font-core",
+      "risk": "LOW",
+      "severity": "LOW",
+      "stability": "HIGH",
+      "tests": [
+        "Installation success",
+        "Font availability",
+        "System setup validation"
+      ]
+    },
+    {
+      "module": "FontManager",
+      "path": "includes/class-wc-ai-font-manager.php",
+      "domain": [
+        "fonts",
+        "assets"
+      ],
+      "feature": "font-management",
+      "purpose": "Gestione locale fonts: storage, processamento, CSS generation, font loading",
+      "exports": [
+        "install_font",
+        "get_font_url",
+        "generate_font_css",
+        "get_available_fonts"
+      ],
+      "consumes": [
+        "WordPress filesystem API",
+        "CSS generation"
+      ],
+      "events": [
+        "wp_ajax_install_font"
+      ],
+      "touches": [
+        "Font storage",
+        "CSS files",
+        "Font loading",
+        "Typography system"
+      ],
+      "owner": "font-core",
+      "risk": "LOW",
+      "tests": [
+        "Font installation",
+        "CSS generation",
+        "Font loading",
+        "Storage management"
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "hook": "wp_ajax_wc_ai_upload_font",
+      "file": "admin/dashboard/tabs/class-wc-ai-font-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_toggle_font",
+      "file": "admin/dashboard/tabs/class-wc-ai-font-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_delete_font",
+      "file": "admin/dashboard/tabs/class-wc-ai-font-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_get_active_fonts",
+      "file": "admin/dashboard/tabs/class-wc-ai-font-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_nopriv_wc_ai_get_active_fonts",
+      "file": "admin/dashboard/tabs/class-wc-ai-font-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    }
+  ],
+  "events": [],
+  "dependencies": [
+    {
+      "file": "includes/class-wc-ai-font-css-handler.php",
+      "dependency": "WC_AI_Font_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/class-wc-ai-font-installer.php",
+      "dependency": "WC_AI_Font_",
+      "type": "internal"
+    }
+  ],
+  "stats": {
+    "moduleCount": 4,
+    "hookCount": 5,
+    "eventCount": 0,
+    "depCount": 2,
+    "riskLevels": {
+      "MEDIUM": 1,
+      "LOW": 3
+    }
+  }
+}

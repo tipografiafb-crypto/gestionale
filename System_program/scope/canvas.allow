@@ -1,0 +1,14 @@
+# SCOPE LOCK: CANVAS
+# Generated automatically by tools/build-universal-mapping.mjs
+# Allowed files for AI modifications in canvas feature
+
+# Primary module files (SAFE to modify)
+public/js/core/canvas/positioning/GuidelinesManager.js
+public/js/core/canvas/positioning/PositioningManager.js
+public/js/interfaces-v2/frames-customizer/managers/ImageFiltersManager.js
+public/js/interfaces-v2/magenta-customizer/utils/CanvasTransferManager.js
+
+# Related files (PROCEED WITH CAUTION)
+
+# Usage: AI should work ONLY within primary module files
+# Related files require explicit permission and risk assessment

@@ -1,0 +1,303 @@
+{
+  "modules": [
+    {
+      "module": "GuidelinesManager",
+      "path": "public/js/core/canvas/positioning/GuidelinesManager.js",
+      "domain": [
+        "canvas",
+        "positioning"
+      ],
+      "feature": "canvas",
+      "purpose": "Sistema snap to center con guide lines: linee guida tratteggiate, magnetismo oggetti al centro canvas, feedback visivo",
+      "exports": [
+        "enableGuidelines",
+        "disableGuidelines",
+        "toggleSnapToCenter",
+        "isSnapEnabled",
+        "updateCanvasCenter",
+        "setupGuidelineEvents"
+      ],
+      "consumes": [
+        "Engine",
+        "getFabricCanvas",
+        "getCanvasInstance",
+        "markAsChanged",
+        "Fabric.js"
+      ],
+      "events": [
+        "guidelines:enabled",
+        "guidelines:disabled",
+        "object:snapped",
+        "center:updated"
+      ],
+      "touches": [
+        "Object positioning",
+        "Canvas center calculation",
+        "Visual guidelines",
+        "Snap magnetism"
+      ],
+      "owner": "canvas-positioning",
+      "risk": "MEDIUM",
+      "tests": [
+        "Guidelines visibility",
+        "Snap functionality",
+        "Center calculation",
+        "Multi-object support"
+      ]
+    },
+    {
+      "module": "PositioningManager",
+      "path": "public/js/core/canvas/positioning/PositioningManager.js",
+      "domain": [
+        "canvas",
+        "positioning"
+      ],
+      "feature": "canvas",
+      "purpose": "Calcoli posizionamento immagini: trasformazioni iniziali, fit scale, print area positioning",
+      "exports": [
+        "calculateInitialImageTransformations",
+        "calculateFitScale",
+        "getPrintAreaBounds",
+        "centerInPrintArea"
+      ],
+      "consumes": [
+        "PrintAreaManager",
+        "InstanceManager",
+        "Fabric.js image objects"
+      ],
+      "events": [
+        "position:calculated",
+        "scale:determined",
+        "transform:applied"
+      ],
+      "touches": [
+        "Image positioning",
+        "Scale calculation",
+        "Print area fitting",
+        "Transform calculations"
+      ],
+      "owner": "canvas-positioning",
+      "risk": "MEDIUM",
+      "tests": [
+        "Position calculation",
+        "Scale determination",
+        "Print area fitting",
+        "Transform accuracy"
+      ]
+    },
+    {
+      "module": "ImageFiltersManager",
+      "path": "public/js/interfaces-v2/frames-customizer/managers/ImageFiltersManager.js",
+      "domain": [
+        "frames-interface",
+        "image-processing"
+      ],
+      "feature": "canvas",
+      "purpose": "Image filters using Fabric.js native filters: cross-browser, no position/layering bugs",
+      "exports": [
+        "init",
+        "applyFilter",
+        "getCurrentFilter",
+        "clearFilter",
+        "getAvailableFilters"
+      ],
+      "consumes": [
+        "CanvasManager",
+        "StateManager",
+        "fabric.js"
+      ],
+      "events": [
+        "filter:applied",
+        "filter:cleared"
+      ],
+      "touches": [
+        "Fabric.js filters",
+        "Filter persistence",
+        "Position preservation",
+        "Mask layering"
+      ],
+      "owner": "frames-interface",
+      "risk": "MEDIUM",
+      "tests": [
+        "Filter application",
+        "Position preservation",
+        "Layering integrity",
+        "Safari compatibility"
+      ]
+    },
+    {
+      "module": "CanvasTransferManager",
+      "path": "public/js/interfaces-v2/magenta-customizer/utils/CanvasTransferManager.js",
+      "domain": [
+        "canvas",
+        "storage"
+      ],
+      "feature": "canvas",
+      "purpose": "Trasferimento stato canvas tra prodotti servant usando coordinate normalizzate",
+      "exports": [
+        "saveCanvasForTransfer",
+        "restoreCanvasFromTransfer",
+        "clearTransfer"
+      ],
+      "consumes": [
+        "CoordinateNormalizer",
+        "ImageStorage"
+      ],
+      "events": [
+        "canvas:transfer:saved",
+        "canvas:transfer:restored"
+      ],
+      "touches": [
+        "Canvas serialization",
+        "IndexedDB storage"
+      ],
+      "owner": "magenta-customizer",
+      "risk": "LOW",
+      "tests": [
+        "Canvas transfer",
+        "Coordinate normalization",
+        "Storage cleanup"
+      ]
+    }
+  ],
+  "hooks": [],
+  "events": [
+    {
+      "event": "canvasDimensionsChanged",
+      "file": "public/js/core/canvas/positioning/PositioningManager.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/interfaces-v2/frames-customizer/managers/ImageFiltersManager.js",
+      "type": "listen"
+    }
+  ],
+  "dependencies": [
+    {
+      "file": "public/js/core/canvas/positioning/GuidelinesManager.js",
+      "dependency": "Guidelines",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/core/canvas/positioning/GuidelinesManager.js",
+      "dependency": "Guidelines",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/core/canvas/positioning/GuidelinesManager.js",
+      "dependency": "Guidelines",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/core/canvas/positioning/GuidelinesManager.js",
+      "dependency": "Guidelines",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/core/canvas/positioning/GuidelinesManager.js",
+      "dependency": "Guidelines",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/core/canvas/positioning/GuidelinesManager.js",
+      "dependency": "Guidelines",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/core/canvas/positioning/GuidelinesManager.js",
+      "dependency": "Guidelines",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/core/canvas/positioning/PositioningManager.js",
+      "dependency": "Instance",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/core/canvas/positioning/PositioningManager.js",
+      "dependency": "Positioning",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/core/canvas/positioning/PositioningManager.js",
+      "dependency": "Positioning",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/frames-customizer/managers/ImageFiltersManager.js",
+      "dependency": "ImageFilters",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/frames-customizer/managers/ImageFiltersManager.js",
+      "dependency": "Event",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/frames-customizer/managers/ImageFiltersManager.js",
+      "dependency": "State",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/utils/CanvasTransferManager.js",
+      "dependency": "CanvasTransfer",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/utils/CanvasTransferManager.js",
+      "dependency": "CanvasTransfer",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/utils/CanvasTransferManager.js",
+      "dependency": "CanvasTransfer",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/utils/CanvasTransferManager.js",
+      "dependency": "CanvasTransfer",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/utils/CanvasTransferManager.js",
+      "dependency": "CanvasTransfer",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/utils/CanvasTransferManager.js",
+      "dependency": "CanvasTransfer",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/utils/CanvasTransferManager.js",
+      "dependency": "CanvasTransfer",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/utils/CanvasTransferManager.js",
+      "dependency": "CanvasTransfer",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/utils/CanvasTransferManager.js",
+      "dependency": "CanvasTransfer",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/utils/CanvasTransferManager.js",
+      "dependency": "CanvasTransfer",
+      "type": "internal"
+    }
+  ],
+  "stats": {
+    "moduleCount": 4,
+    "hookCount": 0,
+    "eventCount": 2,
+    "depCount": 23,
+    "riskLevels": {
+      "MEDIUM": 3,
+      "LOW": 1
+    }
+  }
+}

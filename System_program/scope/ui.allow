@@ -1,19 +1,20 @@
-# Feature: ui
-# Allowed files for web interface feature
+# SCOPE LOCK: UI
+# Generated automatically by tools/build-universal-mapping.mjs
+# Allowed files for AI modifications in ui feature
 
-# Routes
-routes/web_ui.rb
+# Primary module files (SAFE to modify)
+includes/interfaces/class-wc-ai-canva-handler.php
+includes/interfaces/class-wc-ai-modal-handler.php
+public/css/magenta/stage-select-modal.css
+public/js/variant-selector.js
+public/js/components/PreCheckoutSelector.js
+public/js/core/client-error-modal.js
+public/js/interfaces-v2/magenta-customizer/ui/components/ConfirmModal.js
+public/js/interfaces-v2/magenta-customizer/ui/components/StageSelectModal.js
+public/js/interfaces-v2/magenta-customizer/ui/panels/ClipArtPanel.js
+public/js/utils/price-formatter.js
 
-# Views
-views/layout.erb
-views/orders_list.erb
-views/order_detail.erb
-views/not_found.erb
+# Related files (PROCEED WITH CAUTION)
 
-# Public assets (future)
-# public/css/**
-# public/js/**
-# public/images/**
-
-# Tests (future)
-# test/routes/web_ui_test.rb
+# Usage: AI should work ONLY within primary module files
+# Related files require explicit permission and risk assessment

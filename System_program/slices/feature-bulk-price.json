@@ -1,0 +1,513 @@
+{
+  "modules": [
+    {
+      "module": "PricingManagementTab",
+      "path": "admin/dashboard/tabs/class-wc-ai-pricing-management-tab.php",
+      "domain": [
+        "admin",
+        "pricing"
+      ],
+      "feature": "bulk-price",
+      "purpose": "Admin pricing management tab for creating and managing reusable pricing models",
+      "capabilities": [
+        "create_pricing_type",
+        "manage_pricing_models",
+        "ajax_handlers",
+        "validate_pricing_data"
+      ],
+      "deps_internal": [
+        "PricingManager",
+        "DashboardController"
+      ],
+      "deps_external": [
+        "WordPress",
+        "WooCommerce"
+      ],
+      "hooks": [
+        "wp_ajax_wc_ai_create_pricing_type",
+        "wp_ajax_wc_ai_update_pricing_type",
+        "wp_ajax_wc_ai_delete_pricing_type"
+      ],
+      "contracts": [
+        "on(create_pricing) => validate_and_store; on(ajax_request) => return_json_response"
+      ],
+      "exports": [
+        "WC_AI_Pricing_Management_Tab",
+        "pricing CRUD operations",
+        "admin interface"
+      ],
+      "consumes": [
+        "Pricing database",
+        "Admin UI",
+        "AJAX requests"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "Pricing model management",
+        "Admin interface",
+        "Pricing database operations"
+      ],
+      "owner": "admin-core",
+      "risk": "HIGH",
+      "severity": "HIGH",
+      "stability": "HIGH",
+      "tests": [
+        "Pricing creation",
+        "Model validation",
+        "AJAX responses",
+        "Database operations"
+      ]
+    },
+    {
+      "module": "PricingManager",
+      "path": "includes/class-wc-ai-pricing-manager.php",
+      "domain": [
+        "pricing",
+        "backend"
+      ],
+      "feature": "bulk-price",
+      "purpose": "Orchestrator pricing: instrada Product Modes (bulk, size, variant, matrix)",
+      "capabilities": [
+        "resolve_mode",
+        "set_price",
+        "tier_recalc",
+        "cart_scan"
+      ],
+      "deps_internal": [
+        "BulkMode",
+        "SizePriceMode",
+        "FramesBulkPricingManager"
+      ],
+      "deps_external": [
+        "WooCommerce"
+      ],
+      "hooks": [
+        "woocommerce_before_calculate_totals",
+        "woocommerce_add_cart_item_data"
+      ],
+      "contracts": [
+        "on(before_calculate_totals) => delegate_to_mode_handler; on(add_cart_item) => resolve_product_mode"
+      ],
+      "exports": [
+        "resolveMode",
+        "calculateForItem",
+        "getInstance",
+        "create_pricing_type"
+      ],
+      "consumes": [
+        "class-wc-ai-pricing-type-registry.php"
+      ],
+      "events": [
+        "woocommerce_before_calculate_totals"
+      ],
+      "touches": [
+        "Tutti i prezzi custom",
+        "Cart totals"
+      ],
+      "owner": "pricing-core",
+      "risk": "HIGH",
+      "severity": "HIGH",
+      "stability": "MEDIUM",
+      "tests": [
+        "remove item -> unit price updates for group; undo -> tiers consistent"
+      ]
+    },
+    {
+      "module": "PreCheckoutAjax",
+      "path": "includes/ajax/class-wc-ai-pre-checkout-ajax.php",
+      "domain": [
+        "ajax",
+        "pricing"
+      ],
+      "feature": "bulk-price",
+      "purpose": "AJAX handler for pre-checkout pricing selector: retrieve pricing data and configuration",
+      "exports": [
+        "WC_AI_Pre_Checkout_Ajax class",
+        "get_pricing_data endpoint"
+      ],
+      "consumes": [
+        "WC_AI_Pricing_Manager",
+        "Product mode classes"
+      ],
+      "events": [
+        "wp_ajax_wc_ai_get_pre_checkout_data",
+        "wp_ajax_nopriv_wc_ai_get_pre_checkout_data"
+      ],
+      "touches": [
+        "Pricing data retrieval",
+        "Product configuration",
+        "AJAX endpoints"
+      ],
+      "owner": "pricing-ajax",
+      "risk": "LOW",
+      "tests": [
+        "AJAX response validation",
+        "Data structure",
+        "Mode detection",
+        "Price calculation"
+      ]
+    },
+    {
+      "module": "SizeMatrixMode",
+      "path": "includes/product-modes/class-wc-ai-size-matrix-mode.php",
+      "domain": [
+        "product-modes",
+        "pricing"
+      ],
+      "feature": "bulk-price",
+      "purpose": "Matrix pricing con row personalizzabili, SKU suffix support, unified footer",
+      "capabilities": [
+        "process_matrix_data",
+        "validate_size_selection",
+        "format_cart_data",
+        "calculate_matrix_price",
+        "sku_suffix_support"
+      ],
+      "deps_internal": [
+        "BulkMode",
+        "PricingManager"
+      ],
+      "deps_external": [
+        "WooCommerce"
+      ],
+      "hooks": [
+        "wc_ai_product_data_for_frontend",
+        "wc_ai_validate_cart_item",
+        "wc_ai_format_cart_item_data"
+      ],
+      "contracts": [
+        "on(process_data) => return_size_matrix_config; on(validate) => check_size_quantity_rules"
+      ],
+      "exports": [
+        "WC_AI_Size_Matrix_Mode",
+        "matrix processing methods",
+        "validation methods"
+      ],
+      "consumes": [
+        "Size configurations",
+        "Quantity matrices",
+        "Price tables",
+        "SKU suffixes"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "Matrix selection",
+        "Pricing",
+        "Quantity validation",
+        "SKU suffix collection",
+        "Row naming"
+      ],
+      "owner": "pricing-modes",
+      "risk": "MEDIUM",
+      "severity": "MEDIUM",
+      "stability": "HIGH",
+      "tests": [
+        "Matrix selection",
+        "Price calculation",
+        "Cart validation",
+        "SKU suffix handling",
+        "Custom row names"
+      ]
+    },
+    {
+      "module": "StandardMode",
+      "path": "includes/product-modes/class-wc-ai-standard-mode.php",
+      "domain": [
+        "product-modes",
+        "pricing"
+      ],
+      "feature": "bulk-price",
+      "purpose": "Standard product mode - basic customization without bulk pricing",
+      "capabilities": [
+        "is_standard_mode",
+        "get_config",
+        "simple_pricing"
+      ],
+      "deps_internal": [
+        "None"
+      ],
+      "deps_external": [
+        "WooCommerce"
+      ],
+      "hooks": [
+        "None"
+      ],
+      "contracts": [
+        "on(mode_check) => return_boolean; on(get_config) => return_standard_config"
+      ],
+      "exports": [
+        "WC_AI_Standard_Mode",
+        "is_standard_mode",
+        "get_config"
+      ],
+      "consumes": [
+        "Product metadata",
+        "WooCommerce pricing"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "Product modes",
+        "Standard pricing",
+        "Basic configuration"
+      ],
+      "owner": "pricing-modes",
+      "risk": "LOW",
+      "severity": "LOW",
+      "stability": "HIGH",
+      "tests": [
+        "Mode detection",
+        "Config generation",
+        "Pricing consistency"
+      ]
+    },
+    {
+      "module": "VariantBulkMode",
+      "path": "includes/product-modes/class-wc-ai-variant-bulk-mode.php",
+      "domain": [
+        "product-modes",
+        "pricing"
+      ],
+      "feature": "bulk-price",
+      "purpose": "Combined variant + bulk pricing mode for complex product configurations",
+      "capabilities": [
+        "process_variant_data",
+        "validate_cart_item",
+        "format_cart_data"
+      ],
+      "deps_internal": [
+        "BulkMode",
+        "VariantManager"
+      ],
+      "deps_external": [
+        "WooCommerce"
+      ],
+      "hooks": [
+        "wc_ai_product_data_for_frontend",
+        "wc_ai_validate_cart_item"
+      ],
+      "contracts": [
+        "on(process_data) => return_variant_bulk_config; on(validate) => check_variant_bulk_rules"
+      ],
+      "exports": [
+        "WC_AI_Variant_Bulk_Mode",
+        "process_variant_bulk_data",
+        "validation methods"
+      ],
+      "consumes": [
+        "Product variants",
+        "Bulk pricing rules",
+        "Cart validation"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "Variant + Bulk pricing",
+        "Cart validation",
+        "Product configuration"
+      ],
+      "owner": "pricing-modes",
+      "risk": "HIGH",
+      "severity": "HIGH",
+      "stability": "MEDIUM",
+      "tests": [
+        "Variant + bulk combination",
+        "Cart validation",
+        "Pricing accuracy"
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "hook": "wp_ajax_wc_ai_get_pricing_type",
+      "file": "admin/dashboard/tabs/class-wc-ai-pricing-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_create_pricing_type",
+      "file": "admin/dashboard/tabs/class-wc-ai-pricing-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_update_pricing_type",
+      "file": "admin/dashboard/tabs/class-wc-ai-pricing-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_delete_pricing_type",
+      "file": "admin/dashboard/tabs/class-wc-ai-pricing-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_export_pricing_type",
+      "file": "admin/dashboard/tabs/class-wc-ai-pricing-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_export_all_pricing_types",
+      "file": "admin/dashboard/tabs/class-wc-ai-pricing-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_import_pricing_types",
+      "file": "admin/dashboard/tabs/class-wc-ai-pricing-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_push_pricing_type_to_sites",
+      "file": "admin/dashboard/tabs/class-wc-ai-pricing-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_get_pre_checkout_data",
+      "file": "includes/ajax/class-wc-ai-pre-checkout-ajax.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_nopriv_wc_ai_get_pre_checkout_data",
+      "file": "includes/ajax/class-wc-ai-pre-checkout-ajax.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wc_ai_product_data_for_frontend",
+      "file": "includes/product-modes/class-wc-ai-size-matrix-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wc_ai_validate_cart_item",
+      "file": "includes/product-modes/class-wc-ai-size-matrix-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wc_ai_format_cart_item_data",
+      "file": "includes/product-modes/class-wc-ai-size-matrix-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wc_ai_product_data_for_frontend",
+      "file": "includes/product-modes/class-wc-ai-variant-bulk-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wc_ai_validate_cart_item",
+      "file": "includes/product-modes/class-wc-ai-variant-bulk-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wc_ai_format_cart_item_data",
+      "file": "includes/product-modes/class-wc-ai-variant-bulk-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    }
+  ],
+  "events": [],
+  "dependencies": [
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-pricing-management-tab.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-pricing-management-tab.php",
+      "dependency": "WC_AI_Sync_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/ajax/class-wc-ai-pre-checkout-ajax.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/ajax/class-wc-ai-pre-checkout-ajax.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/ajax/class-wc-ai-pre-checkout-ajax.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/ajax/class-wc-ai-pre-checkout-ajax.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/ajax/class-wc-ai-pre-checkout-ajax.php",
+      "dependency": "Pricing",
+      "type": "internal"
+    },
+    {
+      "file": "includes/ajax/class-wc-ai-pre-checkout-ajax.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/product-modes/class-wc-ai-size-matrix-mode.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/product-modes/class-wc-ai-size-matrix-mode.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/product-modes/class-wc-ai-size-matrix-mode.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/product-modes/class-wc-ai-standard-mode.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/product-modes/class-wc-ai-variant-bulk-mode.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/product-modes/class-wc-ai-variant-bulk-mode.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/product-modes/class-wc-ai-variant-bulk-mode.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    }
+  ],
+  "stats": {
+    "moduleCount": 6,
+    "hookCount": 16,
+    "eventCount": 0,
+    "depCount": 15,
+    "riskLevels": {
+      "HIGH": 3,
+      "LOW": 2,
+      "MEDIUM": 1
+    }
+  }
+}

@@ -1,0 +1,430 @@
+{
+  "modules": [
+    {
+      "module": "AIConfigurationTab",
+      "path": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "domain": [
+        "admin",
+        "ai"
+      ],
+      "feature": "ai",
+      "purpose": "AI configuration tab handler for OpenAI settings and style management",
+      "capabilities": [
+        "handle_ai_config",
+        "manage_styles",
+        "validate_api_keys",
+        "ajax_handlers"
+      ],
+      "deps_internal": [
+        "DashboardController",
+        "StylesManager"
+      ],
+      "deps_external": [
+        "WordPress",
+        "OpenAI-API"
+      ],
+      "hooks": [
+        "wp_ajax_wc_ai_save_ai_settings",
+        "wp_ajax_wc_ai_test_openai_connection"
+      ],
+      "contracts": [
+        "on(save_ai_settings) => validate_api_keys; on(test_connection) => verify_openai_access"
+      ],
+      "exports": [
+        "WC_AI_AI_Configuration_Tab",
+        "AI settings handlers",
+        "API validation methods"
+      ],
+      "consumes": [
+        "OpenAI API keys",
+        "AI styles database",
+        "Configuration data"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "AI configuration",
+        "OpenAI integration",
+        "Style management",
+        "API validation"
+      ],
+      "owner": "ai-core",
+      "risk": "HIGH",
+      "severity": "HIGH",
+      "stability": "HIGH",
+      "tests": [
+        "API key validation",
+        "OpenAI connection",
+        "Style management",
+        "Settings save"
+      ]
+    },
+    {
+      "module": "AIProviderFactory",
+      "path": "includes/class-wc-ai-provider-factory.php",
+      "domain": [
+        "ai",
+        "factory"
+      ],
+      "feature": "ai",
+      "purpose": "Factory pattern per gestire la selezione dinamica dei provider AI (OpenAI, Google Gemini)",
+      "capabilities": [
+        "get_provider",
+        "create_provider",
+        "get_available_providers",
+        "validate_provider"
+      ],
+      "deps_internal": [
+        "WC_AI_Provider_Interface",
+        "WC_AI_OpenAI_Provider",
+        "WC_AI_Google_Gemini_Provider"
+      ],
+      "deps_external": [
+        "WordPress"
+      ],
+      "hooks": [
+        "None"
+      ],
+      "contracts": [
+        "factory_pattern => consistent_provider_interface"
+      ],
+      "exports": [
+        "WC_AI_Provider_Factory",
+        "provider instantiation methods"
+      ],
+      "consumes": [
+        "Provider configurations",
+        "WordPress options"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "Provider selection",
+        "Multi-provider architecture",
+        "Configuration management"
+      ],
+      "owner": "ai-core",
+      "risk": "MEDIUM",
+      "severity": "MEDIUM",
+      "stability": "HIGH",
+      "tests": [
+        "Provider creation",
+        "Configuration validation",
+        "Factory pattern consistency"
+      ]
+    },
+    {
+      "module": "StylesManager",
+      "path": "includes/class-wc-ai-styles-manager.php",
+      "domain": [
+        "ai",
+        "admin"
+      ],
+      "feature": "ai",
+      "purpose": "AI prompt templates and styles management for image generation",
+      "capabilities": [
+        "manage_styles",
+        "create_templates",
+        "validate_prompts",
+        "apply_styles"
+      ],
+      "deps_internal": [
+        "None"
+      ],
+      "deps_external": [
+        "WordPress",
+        "Database"
+      ],
+      "hooks": [
+        "None"
+      ],
+      "contracts": [
+        "on(create_style) => store_style_template; on(apply) => format_ai_prompt"
+      ],
+      "exports": [
+        "WC_AI_Styles_Manager",
+        "style management methods",
+        "template operations"
+      ],
+      "consumes": [
+        "AI style database",
+        "Prompt templates",
+        "Style configurations"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "AI styles",
+        "Prompt templates",
+        "Style database management"
+      ],
+      "owner": "ai-core",
+      "risk": "LOW",
+      "severity": "LOW",
+      "stability": "HIGH",
+      "tests": [
+        "Style creation",
+        "Template validation",
+        "Database operations",
+        "Prompt formatting"
+      ]
+    },
+    {
+      "module": "AIProviderInterface",
+      "path": "includes/interfaces/interface-wc-ai-provider.php",
+      "domain": [
+        "ai",
+        "interface"
+      ],
+      "feature": "ai",
+      "purpose": "Interface comune per tutti i provider AI (OpenAI, Google Gemini, etc.)",
+      "exports": [
+        "AI_Provider_Interface",
+        "standard methods for AI providers"
+      ],
+      "consumes": [
+        "Provider-specific configurations",
+        "API keys"
+      ],
+      "events": [
+        "None (interface only)"
+      ],
+      "touches": [
+        "AI provider abstraction",
+        "Multi-provider support"
+      ],
+      "owner": "ai-core",
+      "risk": "LOW",
+      "tests": [
+        "Interface compliance",
+        "Provider implementations"
+      ]
+    },
+    {
+      "module": "GoogleGeminiProvider",
+      "path": "includes/providers/class-wc-ai-google-gemini-provider.php",
+      "domain": [
+        "ai",
+        "provider"
+      ],
+      "feature": "ai",
+      "purpose": "Google Gemini API provider for AI image generation and editing",
+      "capabilities": [
+        "generate_image",
+        "edit_image",
+        "test_connection",
+        "validate_config"
+      ],
+      "deps_internal": [
+        "WC_AI_Provider_Interface",
+        "WC_AI_Styles_Manager"
+      ],
+      "deps_external": [
+        "WordPress",
+        "Google-Gemini-API"
+      ],
+      "hooks": [
+        "None"
+      ],
+      "contracts": [
+        "implements(WC_AI_Provider_Interface) => standardized_response_format"
+      ],
+      "exports": [
+        "WC_AI_Google_Gemini_Provider",
+        "Google Gemini API integration"
+      ],
+      "consumes": [
+        "Google Gemini API keys",
+        "AI styles database",
+        "Image generation requests"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "Google Gemini API integration",
+        "Image generation",
+        "Response normalization"
+      ],
+      "owner": "ai-core",
+      "risk": "HIGH",
+      "severity": "HIGH",
+      "stability": "HIGH",
+      "tests": [
+        "API integration",
+        "Image generation",
+        "Response formatting",
+        "Error handling"
+      ]
+    },
+    {
+      "module": "OpenAIProvider",
+      "path": "includes/providers/class-wc-ai-openai-provider.php",
+      "domain": [
+        "ai",
+        "provider"
+      ],
+      "feature": "ai",
+      "purpose": "OpenAI API provider for AI image generation and editing (refactored from existing implementation)",
+      "capabilities": [
+        "generate_image",
+        "edit_image",
+        "test_connection",
+        "validate_config"
+      ],
+      "deps_internal": [
+        "WC_AI_Provider_Interface",
+        "WC_AI_Styles_Manager"
+      ],
+      "deps_external": [
+        "WordPress",
+        "OpenAI-API"
+      ],
+      "hooks": [
+        "None"
+      ],
+      "contracts": [
+        "implements(WC_AI_Provider_Interface) => standardized_response_format"
+      ],
+      "exports": [
+        "WC_AI_OpenAI_Provider",
+        "OpenAI API integration"
+      ],
+      "consumes": [
+        "OpenAI API keys",
+        "AI styles database",
+        "Image generation requests"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "OpenAI API integration",
+        "Image generation",
+        "Response normalization"
+      ],
+      "owner": "ai-core",
+      "risk": "HIGH",
+      "severity": "HIGH",
+      "stability": "HIGH",
+      "tests": [
+        "API integration",
+        "Image generation",
+        "Response formatting",
+        "Error handling"
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "hook": "wp_ajax_wc_ai_get_style",
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_add_style",
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_update_style",
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_set_default_style",
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_toggle_style_status",
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_delete_style",
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_test_api_connection",
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_save_ai_settings",
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    }
+  ],
+  "events": [],
+  "dependencies": [
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "dependency": "WC_AI_Styles_",
+      "type": "internal"
+    },
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "dependency": "WC_AI_Styles_",
+      "type": "internal"
+    },
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "dependency": "WC_AI_Styles_",
+      "type": "internal"
+    },
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "dependency": "WC_AI_Styles_",
+      "type": "internal"
+    },
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "dependency": "WC_AI_Styles_",
+      "type": "internal"
+    },
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "dependency": "WC_AI_Styles_",
+      "type": "internal"
+    },
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-ai-configuration-tab.php",
+      "dependency": "WC_AI_Styles_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/providers/class-wc-ai-google-gemini-provider.php",
+      "dependency": "WC_AI_Styles_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/providers/class-wc-ai-openai-provider.php",
+      "dependency": "WC_AI_Styles_",
+      "type": "internal"
+    }
+  ],
+  "stats": {
+    "moduleCount": 6,
+    "hookCount": 8,
+    "eventCount": 0,
+    "depCount": 9,
+    "riskLevels": {
+      "HIGH": 3,
+      "MEDIUM": 1,
+      "LOW": 2
+    }
+  }
+}

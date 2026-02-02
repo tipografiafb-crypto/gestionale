@@ -1,0 +1,175 @@
+{
+  "modules": [
+    {
+      "module": "FramesRangeMode",
+      "path": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "domain": [
+        "product-modes",
+        "pricing"
+      ],
+      "feature": "frame-bulk",
+      "purpose": "Dynamic range pricing with cart aggregation (vs static tier bulk pricing)",
+      "capabilities": [
+        "get_cart_quantity",
+        "apply_range_pricing",
+        "calculate_totals",
+        "aggregate_items"
+      ],
+      "deps_internal": [
+        "BulkMode",
+        "PricingManager"
+      ],
+      "deps_external": [
+        "WooCommerce"
+      ],
+      "hooks": [
+        "woocommerce_before_calculate_totals",
+        "woocommerce_cart_item_removed",
+        "wp_ajax_frames_range_*"
+      ],
+      "contracts": [
+        "on(calculate_totals) => apply_range_to_all_items; on(cart_change) => recalc_aggregated_pricing"
+      ],
+      "exports": [
+        "WC_AI_Frames_Range_Mode",
+        "ajax handlers",
+        "cart aggregation methods"
+      ],
+      "consumes": [
+        "Cart data",
+        "Range configurations",
+        "Pricing tiers"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "Cart aggregation",
+        "Range pricing",
+        "Dynamic pricing calculation",
+        "Cart totals"
+      ],
+      "owner": "pricing-modes",
+      "risk": "HIGH",
+      "severity": "HIGH",
+      "stability": "MEDIUM",
+      "tests": [
+        "Cart aggregation",
+        "Range calculation",
+        "Item removal → price update",
+        "Range tier transitions"
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "hook": "wp_ajax_frames_range_get_cart_quantity",
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_nopriv_frames_range_get_cart_quantity",
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_frames_range_get_pricing",
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_nopriv_frames_range_get_pricing",
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_frames_range_save_pricing",
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "woocommerce_add_cart_item_data",
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "woocommerce_before_calculate_totals",
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "woocommerce_cart_item_removed",
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "woocommerce_cart_item_restored",
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "woocommerce_after_cart_item_quantity_update",
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "init",
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "init",
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "function": "anonymous",
+      "type": "php"
+    }
+  ],
+  "events": [],
+  "dependencies": [
+    {
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/product-modes/class-wc-ai-frames-range-mode.php",
+      "dependency": "WC_AI_Pricing_",
+      "type": "internal"
+    }
+  ],
+  "stats": {
+    "moduleCount": 1,
+    "hookCount": 12,
+    "eventCount": 0,
+    "depCount": 5,
+    "riskLevels": {
+      "HIGH": 1
+    }
+  }
+}

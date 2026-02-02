@@ -1,6 +1,6 @@
-# SCOPE LOCK DENY: UI
+# SCOPE LOCK DENY: CANVAS
 # Generated automatically by tools/build-universal-mapping.mjs
-# FORBIDDEN files - NEVER modify these for ui feature
+# FORBIDDEN files - NEVER modify these for canvas feature
 
 # Core plugin files (CRITICAL SYSTEM)
 wc-ai-product-customizer.php
@@ -12,4 +12,4 @@ includes/class-wc-ai-product-customizer-deactivator.php
 
 # Other features modules (CROSS-FEATURE BOUNDARY)
 
-# Usage: AI must NEVER touch these files when working on ui
+# Usage: AI must NEVER touch these files when working on canvas

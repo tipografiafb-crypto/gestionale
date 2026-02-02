@@ -1,0 +1,386 @@
+{
+  "modules": [
+    {
+      "module": "FileManagementTab",
+      "path": "admin/dashboard/tabs/class-wc-ai-file-management-tab.php",
+      "domain": [
+        "admin",
+        "file-cleanup"
+      ],
+      "feature": "file-cleanup",
+      "purpose": "Admin file management tab for cleanup operations and file statistics",
+      "capabilities": [
+        "cleanup_files",
+        "get_file_stats",
+        "manage_temp_files",
+        "ajax_handlers"
+      ],
+      "deps_internal": [
+        "DashboardController"
+      ],
+      "deps_external": [
+        "WordPress",
+        "File-system"
+      ],
+      "hooks": [
+        "wp_ajax_wc_ai_cleanup_files",
+        "wp_ajax_wc_ai_get_file_stats",
+        "wp_ajax_wc_ai_cleanup_temp_files"
+      ],
+      "contracts": [
+        "on(cleanup_files) => remove_and_report; on(get_stats) => scan_and_calculate"
+      ],
+      "exports": [
+        "WC_AI_File_Management_Tab",
+        "file cleanup operations",
+        "statistics"
+      ],
+      "consumes": [
+        "File system",
+        "Temporary files",
+        "Upload directories"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "File cleanup",
+        "Temporary file management",
+        "Statistics calculation",
+        "Storage optimization"
+      ],
+      "owner": "admin-core",
+      "risk": "HIGH",
+      "severity": "HIGH",
+      "stability": "HIGH",
+      "tests": [
+        "File cleanup",
+        "Statistics accuracy",
+        "Temp file removal",
+        "Storage calculations"
+      ]
+    },
+    {
+      "module": "AdminFileManagement",
+      "path": "admin/js/features/file-management.js",
+      "domain": [
+        "admin",
+        "file-cleanup"
+      ],
+      "feature": "file-cleanup",
+      "purpose": "Complete file management system - statistics, cleanup, temp file management",
+      "capabilities": [
+        "cleanup_files",
+        "get_statistics",
+        "manage_temp_files",
+        "refresh_stats"
+      ],
+      "deps_internal": [
+        "AdminCore"
+      ],
+      "deps_external": [
+        "jQuery",
+        "WordPress-AJAX"
+      ],
+      "hooks": [
+        "None"
+      ],
+      "contracts": [
+        "on(cleanup) => remove_files_and_report; on(stats_refresh) => update_display"
+      ],
+      "exports": [
+        "WCAIAdmin.FileManagement",
+        "cleanup operations",
+        "statistics methods"
+      ],
+      "consumes": [
+        "File system",
+        "Statistics data",
+        "Cleanup operations"
+      ],
+      "events": [
+        "cleanup-started",
+        "stats-updated",
+        "files-removed"
+      ],
+      "touches": [
+        "File cleanup operations",
+        "Statistics display",
+        "Temp file management",
+        "Storage optimization"
+      ],
+      "owner": "admin-core",
+      "risk": "HIGH",
+      "severity": "HIGH",
+      "stability": "HIGH",
+      "tests": [
+        "File cleanup",
+        "Statistics accuracy",
+        "Temp file removal",
+        "Storage calculations"
+      ]
+    },
+    {
+      "module": "AdminFileUploadSettings",
+      "path": "admin/js/features/file-upload-settings.js",
+      "domain": [
+        "admin",
+        "file-upload"
+      ],
+      "feature": "file-cleanup",
+      "purpose": "Admin file upload settings management and form handling",
+      "capabilities": [
+        "save_upload_settings",
+        "validate_settings",
+        "handle_ajax",
+        "manage_nonce"
+      ],
+      "deps_internal": [
+        "AdminCore"
+      ],
+      "deps_external": [
+        "jQuery",
+        "WordPress-AJAX"
+      ],
+      "hooks": [
+        "None"
+      ],
+      "contracts": [
+        "on(form_submit) => validate_and_save; on(ajax_success) => show_feedback"
+      ],
+      "exports": [
+        "AdminCore.FileUploadSettings",
+        "settings management methods"
+      ],
+      "consumes": [
+        "Upload settings form",
+        "AJAX nonce",
+        "Configuration data"
+      ],
+      "events": [
+        "form-submit",
+        "settings-saved",
+        "validation-error"
+      ],
+      "touches": [
+        "File upload configuration",
+        "Settings validation",
+        "Form handling"
+      ],
+      "owner": "admin-core",
+      "risk": "MEDIUM",
+      "severity": "MEDIUM",
+      "stability": "HIGH",
+      "tests": [
+        "Settings save",
+        "Form validation",
+        "AJAX response",
+        "Configuration persistence"
+      ]
+    },
+    {
+      "module": "FileArchiver",
+      "path": "includes/class-wc-ai-file-archiver.php",
+      "domain": [
+        "files",
+        "archive"
+      ],
+      "feature": "file-cleanup",
+      "purpose": "Archiviazione file ordini per riordino (locale e S3)",
+      "capabilities": [
+        "archive_order_files",
+        "copy_to_archive",
+        "restore_for_reorder"
+      ],
+      "deps_internal": [
+        "WC_AI_AWS_S3_Handler"
+      ],
+      "deps_external": [
+        "WordPress filesystem",
+        "WooCommerce"
+      ],
+      "hooks": [
+        "None"
+      ],
+      "contracts": [
+        "on(archive_order) => copy_files_to_archive; on(check_archived) => return_bool"
+      ],
+      "exports": [
+        "WC_AI_File_Archiver",
+        "archive_order_files"
+      ],
+      "consumes": [
+        "Order metadata",
+        "file URLs"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "File archiving",
+        "Storage management",
+        "Reorder operations"
+      ],
+      "owner": "file-maintenance",
+      "risk": "MEDIUM",
+      "severity": "MEDIUM",
+      "stability": "HIGH",
+      "tests": [
+        "Archive creation",
+        "File copy",
+        "Directory structure",
+        "S3/Local compatibility"
+      ]
+    },
+    {
+      "module": "FileManager",
+      "path": "includes/class-wc-ai-file-manager.php",
+      "domain": [
+        "files",
+        "maintenance"
+      ],
+      "feature": "file-cleanup",
+      "purpose": "Gestione manutenzione file: cleanup, AI images, screenshots, print files",
+      "exports": [
+        "get_available_periods",
+        "cleanup_files_by_period",
+        "get_file_statistics"
+      ],
+      "consumes": [
+        "WordPress filesystem API"
+      ],
+      "events": [
+        "wp_ajax_cleanup_files"
+      ],
+      "touches": [
+        "File cleanup",
+        "Storage management",
+        "Maintenance operations",
+        "Statistics"
+      ],
+      "owner": "file-maintenance",
+      "risk": "HIGH",
+      "tests": [
+        "File cleanup",
+        "Statistics calculation",
+        "Period detection",
+        "Cleanup safety"
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "hook": "wp_ajax_wc_ai_save_file_upload_settings",
+      "file": "admin/dashboard/tabs/class-wc-ai-file-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_cleanup_files",
+      "file": "admin/dashboard/tabs/class-wc-ai-file-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_get_file_stats",
+      "file": "admin/dashboard/tabs/class-wc-ai-file-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_ajax_wc_ai_cleanup_temp_files",
+      "file": "admin/dashboard/tabs/class-wc-ai-file-management-tab.php",
+      "function": "anonymous",
+      "type": "php"
+    }
+  ],
+  "events": [
+    {
+      "event": "submit",
+      "file": "admin/js/features/file-management.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/file-management.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "admin/js/features/file-management.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/file-management.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/file-management.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/file-management.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/file-management.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "admin/js/features/file-management.js",
+      "type": "listen"
+    },
+    {
+      "event": "submit",
+      "file": "admin/js/features/file-upload-settings.js",
+      "type": "listen"
+    }
+  ],
+  "dependencies": [
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-file-management-tab.php",
+      "dependency": "WC_AI_File_",
+      "type": "internal"
+    },
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-file-management-tab.php",
+      "dependency": "WC_AI_File_",
+      "type": "internal"
+    },
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-file-management-tab.php",
+      "dependency": "WC_AI_File_",
+      "type": "internal"
+    },
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-file-management-tab.php",
+      "dependency": "WC_AI_File_",
+      "type": "internal"
+    },
+    {
+      "file": "admin/dashboard/tabs/class-wc-ai-file-management-tab.php",
+      "dependency": "WC_AI_File_",
+      "type": "internal"
+    },
+    {
+      "file": "includes/class-wc-ai-file-archiver.php",
+      "dependency": "WC_AI_AWS_S3_",
+      "type": "internal"
+    }
+  ],
+  "stats": {
+    "moduleCount": 5,
+    "hookCount": 4,
+    "eventCount": 9,
+    "depCount": 6,
+    "riskLevels": {
+      "HIGH": 3,
+      "MEDIUM": 2
+    }
+  }
+}

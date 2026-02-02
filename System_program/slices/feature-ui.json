@@ -1,0 +1,597 @@
+{
+  "modules": [
+    {
+      "module": "CanvaHandler",
+      "path": "includes/interfaces/class-wc-ai-canva-handler.php",
+      "domain": [
+        "interface",
+        "canva"
+      ],
+      "feature": "ui",
+      "purpose": "Full-page Canva-style interface handler for product customization routing",
+      "capabilities": [
+        "handle_canva_request",
+        "render_interface",
+        "validate_request",
+        "enqueue_assets"
+      ],
+      "deps_internal": [
+        "InterfaceManager",
+        "ProductCustomizer"
+      ],
+      "deps_external": [
+        "WordPress",
+        "WooCommerce"
+      ],
+      "hooks": [
+        "template_redirect",
+        "wp_enqueue_scripts"
+      ],
+      "contracts": [
+        "on(handle_request) => route_to_canva_interface; on(validate) => check_product_eligibility"
+      ],
+      "exports": [
+        "WC_AI_Canva_Handler",
+        "handle_canva_request",
+        "render_canva_interface"
+      ],
+      "consumes": [
+        "URL parameters",
+        "Product settings",
+        "Template system"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "Full-page interface routing",
+        "Asset loading",
+        "Template rendering"
+      ],
+      "owner": "interface-core",
+      "risk": "MEDIUM",
+      "severity": "MEDIUM",
+      "stability": "HIGH",
+      "tests": [
+        "Interface routing",
+        "Asset loading",
+        "Product validation",
+        "Template rendering"
+      ]
+    },
+    {
+      "module": "ModalHandler",
+      "path": "includes/interfaces/class-wc-ai-modal-handler.php",
+      "domain": [
+        "interface",
+        "modal"
+      ],
+      "feature": "ui",
+      "purpose": "Traditional modal popup interface handler for product customization",
+      "capabilities": [
+        "render_modal",
+        "handle_modal_events",
+        "validate_modal_state"
+      ],
+      "deps_internal": [
+        "InterfaceManager",
+        "ProductCustomizer"
+      ],
+      "deps_external": [
+        "WordPress",
+        "WooCommerce"
+      ],
+      "hooks": [
+        "wp_footer"
+      ],
+      "contracts": [
+        "on(render) => show_modal_template; on(validate) => check_customizer_state"
+      ],
+      "exports": [
+        "WC_AI_Modal_Handler",
+        "render_modal_template",
+        "modal methods"
+      ],
+      "consumes": [
+        "Product settings",
+        "Interface configuration",
+        "Template system"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "Modal rendering",
+        "Interface display",
+        "Product customization UI"
+      ],
+      "owner": "interface-core",
+      "risk": "LOW",
+      "severity": "LOW",
+      "stability": "HIGH",
+      "tests": [
+        "Modal rendering",
+        "Interface functionality",
+        "Product integration"
+      ]
+    },
+    {
+      "module": "MagentaFloatingCanvasPanelCSS",
+      "path": "public/css/magenta/stage-select-modal.css",
+      "domain": [
+        "magenta-interface",
+        "floating-panel",
+        "canvas-selector"
+      ],
+      "feature": "ui",
+      "purpose": "CSS styling for floating canvas selection panel component",
+      "exports": [
+        "Floating panel layout",
+        "animations",
+        "responsive design",
+        "canvas grid"
+      ],
+      "consumes": [
+        "CSS variables",
+        "quick actions positioning",
+        "Magenta design tokens"
+      ],
+      "events": [
+        "None (pure CSS)"
+      ],
+      "touches": [
+        "Floating panel styling",
+        "Canvas grid layout",
+        "Responsive design",
+        "Quick actions integration"
+      ],
+      "owner": "ui",
+      "risk": "LOW",
+      "tests": [
+        "Visual rendering",
+        "Responsive behavior",
+        "Panel animations",
+        "Canvas selection"
+      ]
+    },
+    {
+      "module": "VariantSelector",
+      "path": "public/js/variant-selector.js",
+      "domain": [
+        "ui",
+        "modal"
+      ],
+      "feature": "ui",
+      "purpose": "Master/Servant variant selector modal with canvas transfer support + Universal Customizer Launcher",
+      "exports": [
+        "openModal",
+        "closeModal",
+        "redirectToCustomizer",
+        "openDirectCustomizer"
+      ],
+      "consumes": [
+        "CanvasTransferManager",
+        "MagentaCustomizer"
+      ],
+      "events": [
+        "variant:selected",
+        "canvas:transfer:initiated",
+        "customizer:direct:open"
+      ],
+      "touches": [
+        "Variant selection",
+        "Canvas transfer",
+        "AJAX product loading",
+        "Direct customizer launch"
+      ],
+      "owner": "ui-core",
+      "risk": "LOW",
+      "tests": [
+        "Variant selection",
+        "Canvas transfer before redirect",
+        "Modal interaction",
+        "Direct customizer launch"
+      ]
+    },
+    {
+      "module": "PreCheckoutSelector",
+      "path": "public/js/components/PreCheckoutSelector.js",
+      "domain": [
+        "ui",
+        "pricing"
+      ],
+      "feature": "ui",
+      "purpose": "Pre-checkout pricing selector: displays variant/quantity dropdowns above customize button",
+      "exports": [
+        "init",
+        "render",
+        "saveSelection",
+        "getSelection",
+        "calculatePrice"
+      ],
+      "consumes": [
+        "jQuery",
+        "AJAX endpoint (wc_ai_get_pre_checkout_data)"
+      ],
+      "events": [
+        "selector:loaded",
+        "selector:changed",
+        "price:calculated",
+        "selection:saved"
+      ],
+      "touches": [
+        "Product page UI",
+        "Pricing display",
+        "Session storage",
+        "AJAX data retrieval"
+      ],
+      "owner": "ui-components",
+      "risk": "LOW",
+      "tests": [
+        "Data loading",
+        "Price calculation",
+        "Selection persistence",
+        "Mode rendering"
+      ]
+    },
+    {
+      "module": "ClientErrorModal",
+      "path": "public/js/core/client-error-modal.js",
+      "domain": [
+        "ui",
+        "modal",
+        "error-handling"
+      ],
+      "feature": "ui",
+      "purpose": "Clean client-facing error modal system with PO/MO translation support",
+      "exports": [
+        "ClientErrorModal.show()",
+        "ClientErrorModal.hide()"
+      ],
+      "consumes": [
+        "config.i18n.clientErrors (translations)",
+        "client-error-modal.css"
+      ],
+      "events": [
+        "error:shown",
+        "error:dismissed"
+      ],
+      "touches": [
+        "User error notifications",
+        "Client-side validation feedback"
+      ],
+      "owner": "ui-core",
+      "risk": "LOW",
+      "tests": [
+        "Modal display",
+        "Translation integration",
+        "Error code validation"
+      ]
+    },
+    {
+      "module": "ConfirmModal",
+      "path": "public/js/interfaces-v2/magenta-customizer/ui/components/ConfirmModal.js",
+      "domain": [
+        "ui",
+        "modal"
+      ],
+      "feature": "ui",
+      "purpose": "Confirmation modal for destructive actions in Magenta Customizer",
+      "exports": [
+        "ConfirmModal.show()",
+        "ConfirmModal.hide()"
+      ],
+      "consumes": [
+        "CSS modal styling"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "User confirmation",
+        "Navigation warnings"
+      ],
+      "owner": "ui-core",
+      "risk": "LOW",
+      "tests": [
+        "Modal display",
+        "Confirm/Cancel actions",
+        "Keyboard navigation"
+      ]
+    },
+    {
+      "module": "MagentaStageSelectModal",
+      "path": "public/js/interfaces-v2/magenta-customizer/ui/components/StageSelectModal.js",
+      "domain": [
+        "magenta-interface",
+        "floating-panel",
+        "stage-selection"
+      ],
+      "feature": "ui",
+      "purpose": "Floating panel component for canvas/stage selection in multi-stage customizer",
+      "exports": [
+        "StageSelectModal class with show/hide/toggle functionality"
+      ],
+      "consumes": [
+        "MagentaCustomizer parent",
+        "Multi-stage system"
+      ],
+      "events": [
+        "panel:opened",
+        "panel:closed",
+        "stage:selected"
+      ],
+      "touches": [
+        "Stage selection",
+        "Floating panel UI",
+        "Multi-stage switching"
+      ],
+      "owner": "ui",
+      "risk": "LOW",
+      "tests": [
+        "Panel show/hide",
+        "Stage selection",
+        "Multi-stage navigation"
+      ]
+    },
+    {
+      "module": "ClipArtPanel",
+      "path": "public/js/interfaces-v2/magenta-customizer/ui/panels/ClipArtPanel.js",
+      "domain": [
+        "ui",
+        "clipart"
+      ],
+      "feature": "ui",
+      "purpose": "Pannello clip art con selezione da libreria SVG gestita dall'admin",
+      "exports": [
+        "generateHTML",
+        "mount",
+        "loadClipArts",
+        "addClipArtToCanvas",
+        "applyClipArtLayerOrdering",
+        "filterByCategory"
+      ],
+      "consumes": [
+        "WCAICore.CanvasEngine",
+        "ClipArt Collections API"
+      ],
+      "events": [
+        "clipart:selected",
+        "clipart:added",
+        "category:changed"
+      ],
+      "touches": [
+        "ClipArt gallery",
+        "Category filter",
+        "Canvas SVG objects"
+      ],
+      "owner": "magenta-ui",
+      "risk": "LOW",
+      "tests": [
+        "ClipArt loading",
+        "Category filter",
+        "Gallery display",
+        "Canvas integration"
+      ]
+    },
+    {
+      "module": "PriceFormatter",
+      "path": "public/js/utils/price-formatter.js",
+      "domain": [
+        "ui",
+        "pricing"
+      ],
+      "feature": "ui",
+      "purpose": "Centralized price formatting with currency configuration",
+      "exports": [
+        "WCAIFormatPrice (global function)"
+      ],
+      "consumes": [
+        "wcAiCustomizer.currencyConfig (from wp_localize_script)"
+      ],
+      "events": [
+        "None"
+      ],
+      "touches": [
+        "All price displays across customizer interfaces"
+      ],
+      "owner": "ui-components",
+      "risk": "LOW",
+      "tests": [
+        "Format with different currencies",
+        "positions",
+        "separators",
+        "decimal places"
+      ]
+    }
+  ],
+  "hooks": [
+    {
+      "hook": "template_redirect",
+      "file": "includes/interfaces/class-wc-ai-canva-handler.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_enqueue_scripts",
+      "file": "includes/interfaces/class-wc-ai-canva-handler.php",
+      "function": "anonymous",
+      "type": "php"
+    },
+    {
+      "hook": "wp_footer",
+      "file": "includes/interfaces/class-wc-ai-modal-handler.php",
+      "function": "anonymous",
+      "type": "php"
+    }
+  ],
+  "events": [
+    {
+      "event": "click",
+      "file": "public/js/variant-selector.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/variant-selector.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/variant-selector.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/variant-selector.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/variant-selector.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/variant-selector.js",
+      "type": "listen"
+    },
+    {
+      "event": "keydown",
+      "file": "public/js/variant-selector.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/variant-selector.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "public/js/components/PreCheckoutSelector.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/components/PreCheckoutSelector.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "public/js/components/PreCheckoutSelector.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "public/js/components/PreCheckoutSelector.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "public/js/components/PreCheckoutSelector.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "public/js/components/PreCheckoutSelector.js",
+      "type": "listen"
+    },
+    {
+      "event": "change",
+      "file": "public/js/components/PreCheckoutSelector.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/core/client-error-modal.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/core/client-error-modal.js",
+      "type": "listen"
+    },
+    {
+      "event": "keydown",
+      "file": "public/js/core/client-error-modal.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/interfaces-v2/magenta-customizer/ui/components/ConfirmModal.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/interfaces-v2/magenta-customizer/ui/components/ConfirmModal.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/interfaces-v2/magenta-customizer/ui/components/ConfirmModal.js",
+      "type": "listen"
+    },
+    {
+      "event": "keydown",
+      "file": "public/js/interfaces-v2/magenta-customizer/ui/components/ConfirmModal.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/interfaces-v2/magenta-customizer/ui/components/StageSelectModal.js",
+      "type": "listen"
+    },
+    {
+      "event": "keydown",
+      "file": "public/js/interfaces-v2/magenta-customizer/ui/components/StageSelectModal.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/interfaces-v2/magenta-customizer/ui/components/StageSelectModal.js",
+      "type": "listen"
+    },
+    {
+      "event": "keydown",
+      "file": "public/js/interfaces-v2/magenta-customizer/ui/components/StageSelectModal.js",
+      "type": "listen"
+    },
+    {
+      "event": "click",
+      "file": "public/js/interfaces-v2/magenta-customizer/ui/panels/ClipArtPanel.js",
+      "type": "listen"
+    }
+  ],
+  "dependencies": [
+    {
+      "file": "public/js/variant-selector.js",
+      "dependency": "CanvasTransfer",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/variant-selector.js",
+      "dependency": "Workspace",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/ui/panels/ClipArtPanel.js",
+      "dependency": "CategoryUI",
+      "type": "internal"
+    },
+    {
+      "file": "public/js/interfaces-v2/magenta-customizer/ui/panels/ClipArtPanel.js",
+      "dependency": "Positioning",
+      "type": "internal"
+    }
+  ],
+  "stats": {
+    "moduleCount": 10,
+    "hookCount": 3,
+    "eventCount": 27,
+    "depCount": 4,
+    "riskLevels": {
+      "MEDIUM": 1,
+      "LOW": 9
+    }
+  }
+}

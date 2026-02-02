@@ -1,0 +1,13 @@
+# SCOPE LOCK: MAGENTA-INTERFACE
+# Generated automatically by tools/build-universal-mapping.mjs
+# Allowed files for AI modifications in magenta-interface feature
+
+# Primary module files (SAFE to modify)
+admin/js/features/magenta-tab.js
+includes/interfaces/class-wc-ai-magenta-handler.php
+public/js/interfaces-v2/magenta-customizer/MagentaCustomizer.js
+
+# Related files (PROCEED WITH CAUTION)
+
+# Usage: AI should work ONLY within primary module files
+# Related files require explicit permission and risk assessment

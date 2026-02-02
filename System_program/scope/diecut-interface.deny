@@ -1,0 +1,21 @@
+# Diecut Interface - Denied Files
+# Feature: diecut-interface
+# These files should NOT be modified by diecut-interface feature
+
+# AI Customization (mutual exclusivity)
+magenta-product-customizer/public/js/ai-*.js
+magenta-product-customizer/includes/class-wc-ai-image-generator.php
+magenta-product-customizer/includes/class-wc-ai-openai-client.php
+
+# Other Interfaces
+magenta-product-customizer/templates/magenta-customizer.php
+magenta-product-customizer/templates/frames-customizer.php
+magenta-product-customizer/templates/page-customizer.php
+
+# Canvas Engine (Fabric.js based - not for diecut)
+magenta-product-customizer/public/js/canvas-engine*.js
+magenta-product-customizer/public/js/fabric-*.js
+
+# Pricing Core (read-only, use via adapter)
+magenta-product-customizer/includes/class-wc-ai-pricing-manager.php
+magenta-product-customizer/includes/class-wc-ai-bulk-pricing-backend.php

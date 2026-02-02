@@ -1,0 +1,14 @@
+# SCOPE LOCK: ADMIN
+# Generated automatically by tools/build-universal-mapping.mjs
+# Allowed files for AI modifications in admin feature
+
+# Primary module files (SAFE to modify)
+admin/dashboard/js/dashboard.js
+admin/dashboard/tabs/class-wc-ai-clipart-management-tab.php
+admin/dashboard/tabs/class-wc-ai-general-settings-tab.php
+admin/js/features/clipart-manager.js
+
+# Related files (PROCEED WITH CAUTION)
+
+# Usage: AI should work ONLY within primary module files
+# Related files require explicit permission and risk assessment

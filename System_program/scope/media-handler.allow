@@ -1,0 +1,11 @@
+# SCOPE LOCK: MEDIA-HANDLER
+# Generated automatically by tools/build-universal-mapping.mjs
+# Allowed files for AI modifications in media-handler feature
+
+# Primary module files (SAFE to modify)
+admin/js/core/media-handler.js
+
+# Related files (PROCEED WITH CAUTION)
+
+# Usage: AI should work ONLY within primary module files
+# Related files require explicit permission and risk assessment

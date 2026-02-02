@@ -1,0 +1,17 @@
+# License Feature - Allowed Files
+# Feature: license
+# Description: License management system for Magenta Product Customizer
+
+## Magenta Client-Side (License Validation)
+magenta-product-customizer/includes/license/class-wc-ai-license-manager.php
+magenta-product-customizer/includes/license/class-wc-ai-license-validator.php
+magenta-product-customizer/admin/class-wc-ai-license-settings.php
+magenta-product-customizer/admin/js/license-activation.js
+
+## License Server Plugin (Separate - for WooCommerce site)
+magenta-license-server/magenta-license-server.php
+magenta-license-server/includes/class-magenta-license-database.php
+magenta-license-server/includes/class-magenta-license-generator.php
+magenta-license-server/includes/class-magenta-license-api.php
+magenta-license-server/includes/class-magenta-license-woocommerce.php
+magenta-license-server/includes/class-magenta-license-email.php

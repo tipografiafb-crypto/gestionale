@@ -1,0 +1,22 @@
+# Diecut Interface Scope (Refactored)
+# Allows files related to the standalone diecut interface
+# This feature is mutually exclusive with the main AI customizer
+
+# Main Templates (Interface)
+magenta-product-customizer/diecut-interface/templates/diecut-customizer.php
+magenta-product-customizer/diecut-interface/templates/diecut-popup.php
+
+# JavaScript (NO Fabric.js - Canvas native only)
+magenta-product-customizer/diecut-interface/js/diecut-popup.js
+magenta-product-customizer/diecut-interface/js/diecut-processor-opencv.js
+
+# CSS
+magenta-product-customizer/diecut-interface/css/diecut-customizer-v2.css
+
+# Backend PHP
+magenta-product-customizer/diecut-interface/includes/class-wc-ai-diecut-standalone.php
+magenta-product-customizer/diecut-interface/includes/class-wc-ai-diecut-order-integration.php
+
+# Router (only diecut route methods)
+magenta-product-customizer/includes/class-wc-ai-interface-router.php:handle_diecut_route
+magenta-product-customizer/includes/class-wc-ai-interface-router.php:load_diecut_interface
