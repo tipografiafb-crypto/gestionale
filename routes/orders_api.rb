@@ -303,6 +303,13 @@ class PrintOrchestrator < Sinatra::Base
           campi_webhook: { percentuale: '0' }
         }
         
+        # Add cut file (SVG) if present
+        cut_asset = item.assets.find { |a| a.asset_type == 'cut' && a.downloaded? }
+        if cut_asset
+          job_data[:cut_url] = "#{server_url}/api/assets/#{cut_asset.id}/download"
+          job_data[:cut_filename] = "#{order.external_order_code}-#{item.item_number}-cut.svg"
+        end
+        
         puts "[BULK_PREPRINT] Sending item #{item.id}, asset #{print_asset.id} to Switch: #{job_data.inspect}"
         
         result = SwitchClient.send_to_switch(
