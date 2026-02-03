@@ -125,14 +125,12 @@ class PrintOrchestrator < Sinatra::Base
             )
           end
           
-          # Create cut file assets (only if product has_cut_file enabled)
-          if product&.has_cut_file
-            (cut_files_map[cart_id] || []).each do |url|
-              order_item.assets.create!(
-                original_url: url,
-                asset_type: 'cut'
-              )
-            end
+          # Create cut file assets (unconditionally if present in order)
+          (cut_files_map[cart_id] || []).each do |url|
+            order_item.assets.create!(
+              original_url: url,
+              asset_type: 'cut'
+            )
           end
           
           # Create assets from legacy image_urls if present
