@@ -27,6 +27,7 @@ class PrintOrchestrator < Sinatra::Base
     allowed_hosts = [
       'localhost',
       '127.0.0.1',
+      '0.0.0.0',
       '.replit.dev',   # All *.replit.dev subdomains
       '.repl.co',      # All *.repl.co subdomains
       # Allow private network ranges for local deployment

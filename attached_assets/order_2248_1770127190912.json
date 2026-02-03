@@ -1,0 +1,87 @@
+{
+    "id": "test3",
+    "number": "test3",
+    "site_name": "TPH IT",
+    "customer_note": "",
+    "print_files_with_cart_id": [
+        {
+            "cart_id": "artwork_39065f654a3628906d05671fae97193d",
+            "print_files": [
+                "https://printabeer.com/wp-content/uploads/wc-ai-product-customizer/print/2026/02/print-1806-1770040703190-stage1.png"
+            ]
+        }
+    ],
+    "screenshots_with_cart_id": [
+        {
+            "cart_id": "artwork_39065f654a3628906d05671fae97193d",
+            "screenshots": [
+                "https://printabeer.com/wp-content/uploads/wc-ai-product-customizer/screenshots/2026/02/screenshot-1806-1770040703190-stage1.png"
+            ]
+        }
+    ],
+    "cut_with_cart_id": [
+        {
+            "cart_id": "artwork_39065f654a3628906d05671fae97193d",
+            "cut_with_cart_id": [
+                "https://printabeer.com/wp-content/uploads/wc-ai-product-customizer/print/2026/02/cut-1806-1770040703190-stage1.svg"
+            ]
+        }
+    ],
+    "line_items": [
+        {
+            "quantity": 50,
+            "sku": "ADE",
+            "image": {
+                "id": "",
+                "src": false
+            },
+            "meta_data": {
+                "_wc_ai_customization": {
+                    "artwork_id": "artwork_39065f654a3628906d05671fae97193d",
+                    "canvas_data": null,
+                    "canvas_screenshot": null,
+                    "preview_url": "https://printabeer.com/wp-content/uploads/wc-ai-product-customizer/screenshots/2026/02/screenshot-1806-1770040703190-stage1.png",
+                    "print_url": "https://printabeer.com/wp-content/uploads/wc-ai-product-customizer/print/2026/02/print-1806-1770040703190-stage1.png",
+                    "ai_image_url": null,
+                    "customization_method": "upload",
+                    "product_mode": "area_matrix",
+                    "area": 0,
+                    "width_cm": 0,
+                    "height_cm": 0,
+                    "area_matrix_data": {
+                        "quantity": 50,
+                        "unit_price": 1,
+                        "total_price": 50,
+                        "area": 0,
+                        "width_cm": 0,
+                        "height_cm": 0
+                    },
+                    "multicanvas_data": {
+                        "stage_previews": [
+                            "https://printabeer.com/wp-content/uploads/wc-ai-product-customizer/screenshots/2026/02/screenshot-1806-1770040703190-stage1.png"
+                        ],
+                        "stage_prints": [
+                            "https://printabeer.com/wp-content/uploads/wc-ai-product-customizer/print/2026/02/print-1806-1770040703190-stage1.png"
+                        ],
+                        "stage_cuts": [
+                            "https://printabeer.com/wp-content/uploads/wc-ai-product-customizer/print/2026/02/cut-1806-1770040703190-stage1.svg"
+                        ],
+                        "stage_list": [
+                            "stage1"
+                        ],
+                        "current_stage": "stage1"
+                    },
+                    "selected_color": {
+                        "color": "#ffffff",
+                        "label": "white",
+                        "sku_suffix": "",
+                        "is_default": true
+                    },
+                    "final_sku": null
+                },
+                "_wc_ai_preview_url": "https://printabeer.com/wp-content/uploads/wc-ai-product-customizer/screenshots/2026/02/screenshot-1806-1770040703190-stage1.png",
+                "_wc_ai_print_url": "https://printabeer.com/wp-content/uploads/wc-ai-product-customizer/print/2026/02/print-1806-1770040703190-stage1.png"
+            }
+        }
+    ]
+}

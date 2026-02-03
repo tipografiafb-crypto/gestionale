@@ -73,7 +73,13 @@ class PrintOrchestrator < Sinatra::Base
       end
       
       (data['cut_with_cart_id'] || []).each do |entry|
-        cut_files_map[entry['cart_id']] = entry['cut_files'] || entry['cut_with_cart_id'] || []
+        # If entry is a hash, it might have 'cut_files' or 'cut_with_cart_id' (nested)
+        if entry.is_a?(Hash)
+          urls = entry['cut_files'] || entry['cut_with_cart_id'] || []
+          # Flatten in case it's nested arrays
+          urls = [urls].flatten
+          cut_files_map[entry['cart_id']] = urls
+        end
       end
       
       # Wrap all database operations in a transaction for data integrity

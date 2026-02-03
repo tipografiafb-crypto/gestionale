@@ -18,3 +18,5 @@ gem 'rubyzip', '~> 2.3'
 group :development do
   gem 'rerun', '~> 0.14'
 end
+
+gem "rack-cors", "~> 3.0"

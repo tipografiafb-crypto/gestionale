@@ -66,6 +66,9 @@ GEM
     puma (6.6.1)
       nio4r (~> 2.0)
     rack (3.2.4)
+    rack-cors (3.0.0)
+      logger
+      rack (>= 3.0.14)
     rack-protection (4.2.1)
       base64 (>= 0.1.0)
       logger (>= 1.6.0)
@@ -116,6 +119,7 @@ DEPENDENCIES
   pg (~> 1.5)
   puma (~> 6.4)
   rack (~> 3.0)
+  rack-cors (~> 3.0)
   rake (~> 13.1)
   rerun (~> 0.14)
   rubyzip (~> 2.3)
