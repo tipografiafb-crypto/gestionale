@@ -200,6 +200,14 @@ class FTPPoller
               asset_type: "screenshot_#{index + 1}"
             )
           end
+
+          # Create assets from cut files
+          (item_data['cut_files'] || []).each_with_index do |url, index|
+            order_item.assets.create!(
+              original_url: url,
+              asset_type: 'cut'
+            )
+          end
         end
         
         {
@@ -286,6 +294,7 @@ class FTPPoller
   def normalize_items(raw_data)
     print_files_map = build_assets_map(raw_data['print_files_with_cart_id'])
     screenshots_map = build_assets_map(raw_data['screenshots_with_cart_id'])
+    cut_files_map = build_assets_map(raw_data['cut_with_cart_id'])
     
     raw_data['line_items'].map do |item|
       meta_data = item['meta_data']
@@ -307,6 +316,7 @@ class FTPPoller
         'product_image_url' => item['image']&.dig('src'),
         'print_files' => print_files_map[cart_id] || [],
         'screenshots' => screenshots_map[cart_id] || [],
+        'cut_files' => cut_files_map[cart_id] || [],
         'raw_data' => lumise_data
       }
     end
@@ -319,8 +329,12 @@ class FTPPoller
     map = {}
     assets_with_cart_id.each do |item|
       cart_id = item['cart_id']
-      urls = item['print_files'] || item['screenshots'] || []
-      map[cart_id] = urls
+      urls = item['print_files'] || item['screenshots'] || item['cut_files'] || item['cut_with_cart_id'] || []
+      # Handle nested cut_with_cart_id if it's a hash inside the array
+      if urls.is_a?(Array) && urls.first.is_a?(Hash) && urls.first['cut_with_cart_id']
+        urls = urls.first['cut_with_cart_id']
+      end
+      map[cart_id] = [urls].flatten.compact
     end
     map
   end
