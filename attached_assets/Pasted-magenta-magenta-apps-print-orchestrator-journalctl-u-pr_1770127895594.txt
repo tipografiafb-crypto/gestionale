@@ -1,0 +1,52 @@
+magenta@magenta:~/apps/print-orchestrator$ journalctl -u print-orchestrator.service -n 50 --no-pager
+Feb 03 14:10:49 magenta print-orchestrator[114467]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/definition.rb:254:in `specs_for'
+Feb 03 14:10:49 magenta print-orchestrator[114467]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/runtime.rb:18:in `setup'
+Feb 03 14:10:49 magenta print-orchestrator[114467]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler.rb:171:in `setup'
+Feb 03 14:10:49 magenta print-orchestrator[114467]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/setup.rb:23:in `block in <top (required)>'
+Feb 03 14:10:49 magenta print-orchestrator[114467]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/ui/shell.rb:159:in `with_level'
+Feb 03 14:10:49 magenta print-orchestrator[114467]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/ui/shell.rb:111:in `silence'
+Feb 03 14:10:49 magenta print-orchestrator[114467]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/setup.rb:23:in `<top (required)>'
+Feb 03 14:10:49 magenta print-orchestrator[114467]:         from <internal:/usr/lib/ruby/vendor_ruby/rubygems/core_ext/kernel_require.rb>:86:in `require'
+Feb 03 14:10:49 magenta print-orchestrator[114467]:         from <internal:/usr/lib/ruby/vendor_ruby/rubygems/core_ext/kernel_require.rb>:86:in `require'
+Feb 03 14:10:49 magenta print-orchestrator[114467]:         from /usr/lib/ruby/vendor_ruby/rubygems.rb:1368:in `<top (required)>'
+Feb 03 14:10:49 magenta print-orchestrator[114467]:         from <internal:gem_prelude>:2:in `require'
+Feb 03 14:10:49 magenta print-orchestrator[114467]:         from <internal:gem_prelude>:2:in `<internal:gem_prelude>'
+Feb 03 14:10:49 magenta systemd[1]: print-orchestrator.service: Main process exited, code=exited, status=1/FAILURE
+Feb 03 14:10:49 magenta systemd[1]: print-orchestrator.service: Failed with result 'exit-code'.
+Feb 03 14:10:54 magenta systemd[1]: print-orchestrator.service: Scheduled restart job, restart counter is at 23.
+Feb 03 14:10:54 magenta systemd[1]: Started print-orchestrator.service - Print Order Orchestrator.
+Feb 03 14:10:55 magenta print-orchestrator[114474]: /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/definition.rb:524:in `materialize': Could not find rack-cors-3.0.0 in locally installed gems (Bundler::GemNotFound)
+Feb 03 14:10:55 magenta print-orchestrator[114474]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/definition.rb:197:in `specs'
+Feb 03 14:10:55 magenta print-orchestrator[114474]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/definition.rb:254:in `specs_for'
+Feb 03 14:10:55 magenta print-orchestrator[114474]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/runtime.rb:18:in `setup'
+Feb 03 14:10:55 magenta print-orchestrator[114474]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler.rb:171:in `setup'
+Feb 03 14:10:55 magenta print-orchestrator[114474]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/setup.rb:23:in `block in <top (required)>'
+Feb 03 14:10:55 magenta print-orchestrator[114474]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/ui/shell.rb:159:in `with_level'
+Feb 03 14:10:55 magenta print-orchestrator[114474]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/ui/shell.rb:111:in `silence'
+Feb 03 14:10:55 magenta print-orchestrator[114474]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/setup.rb:23:in `<top (required)>'
+Feb 03 14:10:55 magenta print-orchestrator[114474]:         from <internal:/usr/lib/ruby/vendor_ruby/rubygems/core_ext/kernel_require.rb>:86:in `require'
+Feb 03 14:10:55 magenta print-orchestrator[114474]:         from <internal:/usr/lib/ruby/vendor_ruby/rubygems/core_ext/kernel_require.rb>:86:in `require'
+Feb 03 14:10:55 magenta print-orchestrator[114474]:         from /usr/lib/ruby/vendor_ruby/rubygems.rb:1368:in `<top (required)>'
+Feb 03 14:10:55 magenta print-orchestrator[114474]:         from <internal:gem_prelude>:2:in `require'
+Feb 03 14:10:55 magenta print-orchestrator[114474]:         from <internal:gem_prelude>:2:in `<internal:gem_prelude>'
+Feb 03 14:10:55 magenta systemd[1]: print-orchestrator.service: Main process exited, code=exited, status=1/FAILURE
+Feb 03 14:10:55 magenta systemd[1]: print-orchestrator.service: Failed with result 'exit-code'.
+Feb 03 14:11:00 magenta systemd[1]: print-orchestrator.service: Scheduled restart job, restart counter is at 24.
+Feb 03 14:11:00 magenta systemd[1]: Started print-orchestrator.service - Print Order Orchestrator.
+Feb 03 14:11:01 magenta print-orchestrator[114481]: /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/definition.rb:524:in `materialize': Could not find rack-cors-3.0.0 in locally installed gems (Bundler::GemNotFound)
+Feb 03 14:11:01 magenta print-orchestrator[114481]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/definition.rb:197:in `specs'
+Feb 03 14:11:01 magenta print-orchestrator[114481]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/definition.rb:254:in `specs_for'
+Feb 03 14:11:01 magenta print-orchestrator[114481]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/runtime.rb:18:in `setup'
+Feb 03 14:11:01 magenta print-orchestrator[114481]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler.rb:171:in `setup'
+Feb 03 14:11:01 magenta print-orchestrator[114481]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/setup.rb:23:in `block in <top (required)>'
+Feb 03 14:11:01 magenta print-orchestrator[114481]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/ui/shell.rb:159:in `with_level'
+Feb 03 14:11:01 magenta print-orchestrator[114481]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/ui/shell.rb:111:in `silence'
+Feb 03 14:11:01 magenta print-orchestrator[114481]:         from /home/magenta/apps/print-orchestrator/vendor/bundle/ruby/3.2.0/gems/bundler-2.4.10/lib/bundler/setup.rb:23:in `<top (required)>'
+Feb 03 14:11:01 magenta print-orchestrator[114481]:         from <internal:/usr/lib/ruby/vendor_ruby/rubygems/core_ext/kernel_require.rb>:86:in `require'
+Feb 03 14:11:01 magenta print-orchestrator[114481]:         from <internal:/usr/lib/ruby/vendor_ruby/rubygems/core_ext/kernel_require.rb>:86:in `require'
+Feb 03 14:11:01 magenta print-orchestrator[114481]:         from /usr/lib/ruby/vendor_ruby/rubygems.rb:1368:in `<top (required)>'
+Feb 03 14:11:01 magenta print-orchestrator[114481]:         from <internal:gem_prelude>:2:in `require'
+Feb 03 14:11:01 magenta print-orchestrator[114481]:         from <internal:gem_prelude>:2:in `<internal:gem_prelude>'
+Feb 03 14:11:01 magenta systemd[1]: print-orchestrator.service: Main process exited, code=exited, status=1/FAILURE
+Feb 03 14:11:01 magenta systemd[1]: print-orchestrator.service: Failed with result 'exit-code'.
+magenta@magenta:~/apps/print-orchestrator$ 

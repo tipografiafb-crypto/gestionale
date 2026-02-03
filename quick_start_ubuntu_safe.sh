@@ -25,7 +25,10 @@ psql "$DB_URL" -c "SELECT 1" > /dev/null 2>&1 || {
 }
 echo "✅ Connessione riuscita."
 
-echo "Step 2: Esecuzione migrazioni sicure (ActiveRecord)..."
+echo "Step 2: Installazione dipendenze Ruby..."
+bundle install
+
+echo "Step 3: Esecuzione migrazioni sicure (ActiveRecord)..."
 # Questo aggiungerà tabelle e colonne mancanti basandosi sul file ConsolidatedSchema
 bundle exec rake db:migrate
 
