@@ -100,16 +100,24 @@ class OrderItem < ActiveRecord::Base
     end
   end
 
-  # Generate Switch filename based on number of print stages
+  # Generate Switch filename based on asset type and number of print stages
   # Uses external_order_code directly from JSON (e.g., "IT9395" becomes "IT9395-1.png")
-  # Single file: {external_order_code}-{item_number}.png (e.g., IT9395-1.png)
-  # Two files: {external_order_code}-{item_number}_F.png (stage1) and _R.png (stage2)
+  # Print files:
+  #   Single file: {external_order_code}-{item_number}.png (e.g., IT9395-1.png)
+  #   Two files: {external_order_code}-{item_number}_F.png (stage1) and _R.png (stage2)
+  # Cut files: {external_order_code}-{item_number}-cut.svg (e.g., IT9395-1-cut.svg)
   def switch_filename_for_asset(asset)
+    order_code = order.external_order_code.to_s
+    
+    # Handle cut files (asset_type == 'cut')
+    if asset.asset_type == 'cut'
+      extension = File.extname(asset.filename_from_url).presence || '.svg'
+      return "#{order_code}-#{item_number}-cut#{extension}"
+    end
+    
+    # Handle print files
     print_assets = switch_print_assets
     return nil unless print_assets.include?(asset)
-    
-    # Use external_order_code directly (e.g., "IT9395" from JSON id field)
-    order_code = order.external_order_code.to_s
     
     if print_assets.count == 1
       # Single file: no suffix
