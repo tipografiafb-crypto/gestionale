@@ -1,8 +1,9 @@
-// Print & Cut Merger - Reset & Align Center
-// 1. Clears existing content (to fix Page 1/2 confusion and keep Switch unhappy)
+// Print & Cut Merger - Reset & Align Center & Cleanup & Crop
+// 1. Clears existing content
 // 2. Places Page 1 (Graphics) -> Centers it
 // 3. Places Page 2 (Cut) -> Centers it
-// 4. Maintains valid document reference for Switch
+// 4. Cleans CutContour layer (removes unwanted boxes)
+// 5. Fits Artboard to valid CutContour bounds
 
 #target illustrator
 
@@ -13,19 +14,17 @@ function main() {
     var filePath = doc.fullName.fsName; // Path to original PDF
 
     // 1. CLEAR DOCUMENT CONTENT
-    // Delete all items to ensure clean slate
     app.executeMenuCommand('selectall');
     if (doc.selection.length > 0) {
         for (var i = doc.selection.length - 1; i >= 0; i--) {
             doc.selection[i].remove();
         }
     }
-    // Delete extra layers (keep 1)
     while (doc.layers.length > 1) {
         doc.layers[0].remove();
     }
 
-    // 2. PREPARE TEMP FILE (To allow placing same file)
+    // 2. PREPARE TEMP FILE
     var tempPath = Folder.temp.fsName + "/temp_merge_" + new Date().getTime() + ".pdf";
     var tempFile = new File(tempPath);
     (new File(filePath)).copy(tempFile);
@@ -43,14 +42,45 @@ function main() {
 
     placeAndCenter(doc, layerCut, tempFile, 2);
 
-    // 5. CLEANUP
+    // 5. CLEANUP CUT LAYER (Remove non-cut artifacts)
+    cleanupCutLayer(layerCut);
+
+    // 6. FIT ARTBOARD TO CUT CONTOUR
+    app.executeMenuCommand('deselectall');
+
+    // Select everything on CutContour layer
+    layerCut.hasSelectedArtwork = true;
+
+    if (doc.selection.length > 0) {
+        var finalBounds = null;
+
+        for (var k = 0; k < doc.selection.length; k++) {
+            var item = doc.selection[k];
+            var b = item.geometricBounds; // [L, T, R, B]
+
+            if (finalBounds == null) {
+                finalBounds = b;
+            } else {
+                finalBounds[0] = Math.min(finalBounds[0], b[0]);
+                finalBounds[1] = Math.max(finalBounds[1], b[1]);
+                finalBounds[2] = Math.max(finalBounds[2], b[2]);
+                finalBounds[3] = Math.min(finalBounds[3], b[3]);
+            }
+        }
+
+        if (finalBounds != null) {
+            doc.artboards[0].artboardRect = finalBounds;
+        }
+    }
+    app.executeMenuCommand('deselectall');
+
+    // 7. CLEANUP TEMP
     try { tempFile.remove(); } catch (e) { }
 
-    return "Merged & Centered.";
+    return "Merged, Cleaned & Cropped.";
 }
 
 function placeAndCenter(doc, layer, fileRef, pageNum) {
-    // Set Prefs
     var pdfOptions = app.preferences.PDFFileOptions;
     var originalPage = pdfOptions.pageToOpen;
     var originalBox = pdfOptions.pDFCropToBox;
@@ -58,22 +88,14 @@ function placeAndCenter(doc, layer, fileRef, pageNum) {
     pdfOptions.pageToOpen = pageNum;
     pdfOptions.pDFCropToBox = PDFBoxType.PDFMEDIABOX;
 
-    // Place
     var item = layer.placedItems.add();
     item.file = fileRef;
 
     // Center Align
-    // Calculate Artboard Center
-    var abRect = doc.artboards[0].artboardRect; // [L, T, R, B]
+    var abRect = doc.artboards[0].artboardRect;
     var abWidth = abRect[2] - abRect[0];
-    var abHeight = abRect[1] - abRect[3]; // Top - Bottom (reversed in AI)
+    var abHeight = abRect[1] - abRect[3];
     var abCenter = [abRect[0] + abWidth / 2, abRect[1] - abHeight / 2];
-
-    // Move Item Center to Artboard Center
-    // Need to embed first to get accurate bounds?
-    // No, place bounds are usually available.
-    // NOTE: Illustrator coordinates Y is positive up, sometimes down? 
-    // Usually: Rect = [Left, Top, Right, Bottom]. Top > Bottom.
 
     var itemBounds = item.geometricBounds;
     var itemWidth = itemBounds[2] - itemBounds[0];
@@ -81,15 +103,59 @@ function placeAndCenter(doc, layer, fileRef, pageNum) {
 
     item.position = [
         abCenter[0] - itemWidth / 2,
-        abCenter[1] + itemHeight / 2   // Set Top (Center Y + Half Height)
+        abCenter[1] + itemHeight / 2
     ];
 
-    // Restore Prefs
     pdfOptions.pageToOpen = originalPage;
     pdfOptions.pDFCropToBox = originalBox;
 
-    // Embed
     item.embed();
+}
+
+function cleanupCutLayer(layer) {
+    // Iterate backwards to safely remove items
+    for (var i = layer.pageItems.length - 1; i >= 0; i--) {
+        var item = layer.pageItems[i];
+        if (!keepItemRecursively(item)) {
+            item.remove();
+        }
+    }
+}
+
+function keepItemRecursively(item) {
+    try {
+        if (item.typename === "GroupItem") {
+            var hasValidChild = false;
+            // Iterate backwards
+            for (var j = item.pageItems.length - 1; j >= 0; j--) {
+                if (keepItemRecursively(item.pageItems[j])) {
+                    hasValidChild = true;
+                } else {
+                    item.pageItems[j].remove();
+                }
+            }
+            return hasValidChild;
+        }
+        else if (item.typename === "PathItem") {
+            return isCutContour(item);
+        }
+        else if (item.typename === "CompoundPathItem") {
+            if (item.pathItems.length > 0) {
+                return isCutContour(item.pathItems[0]);
+            }
+            return false;
+        }
+    } catch (e) { return false; }
+    return false;
+}
+
+function isCutContour(path) {
+    try {
+        if (path.stroked && path.strokeColor.typename === "SpotColor" && path.strokeColor.spot.name === "CutContour") {
+            return true;
+        }
+    } catch (e) { }
+    return false;
 }
 
 main();

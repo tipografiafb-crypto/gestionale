@@ -37,6 +37,10 @@ function main() {
         convertedCount += processPathArray(doc.groupItems[g].pathItems, cutContourColor);
     }
 
+    // 1b. Cleanup: Remove everything that is NOT CutContour
+    // (e.g. 0pt bounding boxes, white backgrounds, etc.)
+    cleanupNonCutItems(doc);
+
     // 2. Grouping for Scaling
     // IMPORTANT: We must group everything to scale it as a single unit, 
     // otherwise relative positions will be lost.
@@ -68,10 +72,18 @@ function main() {
             }
         }
 
-        // 3. Scale the Group
-        // Resize around TOPLEFT to keep origin roughly consistent? 
-        // actually CENTER might be safer if we refit artboard later.
-        // Let's use TOPLEFT to minimize movement drift.
+        // 3. Proportional Scaling (Content + Artboard + Position)
+        // We want to scale everything (artboard, position, size) by 24% to match PNG/Print density
+        // without losing relative margins.
+
+        var scaleDecimal = SCALE_FACTOR / 100.0;
+
+        // A. Capture Original Properties
+        var oldGroupPos = tempGroup.position; // [x, y]
+        var oldArtboardRect = doc.artboards[0].artboardRect; // [L, T, R, B]
+
+        // B. Scale the Group Content
+        // Resize around TOPLEFT so the group's "position" anchor (Top-Left) remains the stable reference
         tempGroup.resize(
             SCALE_FACTOR,
             SCALE_FACTOR,
@@ -80,17 +92,26 @@ function main() {
             Transformation.TOPLEFT
         );
 
-        // 4. Ungroup (Optional - usually better to leave formatted files clean, but Group is fine)
-        // Let's Ungroup to restore structure
-        // tempGroup.remove() would delete items. We need to move them out? No, just leave properly.
-        // Actually, for Cut files, a single group is often preferred. Let's KEEP the group.
+        // C. Reposition Group
+        // Since we scaled around TopLeft, the group stayed at [oldX, oldY].
+        // But in the new scaled universe, it should be at [oldX * s, oldY * s].
+        tempGroup.position = [
+            oldGroupPos[0] * scaleDecimal,
+            oldGroupPos[1] * scaleDecimal
+        ];
 
-        // 5. Force Stroke Weight (Post-Scaling)
-        // Scaling also scales stroke weights (e.g. 1pt becomes 0.24pt). We must fix it.
+        // 4. Force Stroke Weight (Post-Scaling)
         forceStrokeWeightRecursively(tempGroup, STROKE_WEIGHT, cutContourColor);
 
-        // 6. Fit Artboard to Content
-        doc.artboards[0].artboardRect = doc.visibleBounds;
+        // 5. Scale Artboard
+        // Apply the same scaling factor to the artboard coordinates
+        var newRect = [
+            oldArtboardRect[0] * scaleDecimal,
+            oldArtboardRect[1] * scaleDecimal,
+            oldArtboardRect[2] * scaleDecimal,
+            oldArtboardRect[3] * scaleDecimal
+        ];
+        doc.artboards[0].artboardRect = newRect;
     }
 
     app.executeMenuCommand('deselectall');
@@ -154,6 +175,61 @@ function getOrCreateCutContourSpot(doc) {
 function isRedRGB(color) {
     if (color.typename !== "RGBColor") return false;
     return (color.red > 250 && color.green < 10 && color.blue < 10);
+}
+
+function cleanupNonCutItems(doc) {
+    var validItems = [];
+
+    // Check Compound Paths first
+    for (var i = 0; i < doc.compoundPathItems.length; i++) {
+        var cp = doc.compoundPathItems[i];
+        if (isCutContourItem(cp)) {
+            validItems.push(cp);
+        }
+    }
+
+    // Check PathItems
+    for (var j = 0; j < doc.pathItems.length; j++) {
+        var p = doc.pathItems[j];
+        if (p.parent.typename === "CompoundPathItem") continue;
+
+        if (isCutContourItem(p)) {
+            validItems.push(p);
+        }
+    }
+
+    var cleanLayer = doc.layers.add();
+    cleanLayer.name = "CleanCut";
+
+    for (var k = 0; k < validItems.length; k++) {
+        try {
+            validItems[k].move(cleanLayer, ElementPlacement.PLACEATEND);
+        } catch (e) { }
+    }
+
+    for (var L = doc.layers.length - 1; L >= 0; L--) {
+        if (doc.layers[L] !== cleanLayer) {
+            doc.layers[L].remove();
+        }
+    }
+}
+
+function isCutContourItem(item) {
+    try {
+        // Direct check
+        if (item.stroked && item.strokeColor.typename === "SpotColor" && item.strokeColor.spot.name === "CutContour") return true;
+
+        // Compound Path check (often stroke is on the group, or on children)
+        if (item.typename === "CompoundPathItem") {
+            if (item.pathItems.length > 0) {
+                var first = item.pathItems[0];
+                if (first.stroked && first.strokeColor.typename === "SpotColor" && first.strokeColor.spot.name === "CutContour") return true;
+            }
+        }
+    } catch (e) { }
+    return false;
+
+
 }
 
 main();
