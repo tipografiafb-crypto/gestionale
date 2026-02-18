@@ -1,6 +1,6 @@
 source 'https://rubygems.org'
 
-ruby '~> 3.2.0'
+ruby '>= 3.2.0'
 
 gem 'sinatra', '~> 4.0'
 gem 'sinatra-contrib', '~> 4.0'
@@ -14,6 +14,13 @@ gem 'http', '~> 5.1'
 gem 'rack', '~> 3.0'
 gem 'net-ftp', '~> 0.3'
 gem 'rubyzip', '~> 2.3'
+gem 'csv'
+gem 'webrick'
+gem 'mutex_m'
+gem 'bigdecimal'
+gem 'base64'
+gem 'drb'
+gem 'observer'
 
 group :development do
   gem 'rerun', '~> 0.14'

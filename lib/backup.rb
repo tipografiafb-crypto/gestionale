@@ -122,26 +122,40 @@ class BackupManager
       FileUtils.rm_rf(extract_dir)
       FileUtils.mkdir_p(extract_dir)
 
-      # Extract ZIP
-      Zip::File.open(zip_path) do |zipfile|
-        zipfile.each do |entry|
-          # Ignora file di sistema macOS e directory nascoste
-          next if entry.name.include?('__MACOSX') || entry.name.start_with?('.') || entry.name.include?('/.')
-          
-          # Crea la sottodirectory se necessario
-          dest_path = File.join(extract_dir, entry.name)
-          FileUtils.mkdir_p(File.dirname(dest_path))
-          
-          puts "[RESTORE] Extracting #{entry.name} to #{dest_path}..."
-          entry.extract(dest_path) unless File.exist?(dest_path)
+      # Extract ZIP using system unzip as primary/fallback for large files
+      puts "[RESTORE] Attempting extraction with system unzip..."
+      unzip_success = system("unzip -o \"#{zip_path}\" -d \"#{extract_dir}\"")
+      
+      unless unzip_success
+        puts "[RESTORE] System unzip failed or not present, falling back to rubyzip..."
+        Zip::File.open(zip_path) do |zipfile|
+          puts "[RESTORE] ZIP contains #{zipfile.size} entries"
+          zipfile.each do |entry|
+            puts "[RESTORE] Found entry: #{entry.name}"
+            next if entry.name.include?('__MACOSX') || entry.name.start_with?('.') || entry.name.include?('/.')
+            dest_path = File.join(extract_dir, entry.name)
+            FileUtils.mkdir_p(File.dirname(dest_path))
+            entry.extract(dest_path) unless File.exist?(dest_path)
+          end
         end
       end
 
-      # Find database and storage files
-      db_file = Dir.glob(File.join(extract_dir, "database_*.sql")).first
-      storage_tar = Dir.glob(File.join(extract_dir, "storage_*.tar.gz")).first
+      # Find database and storage files (recursive search to be safe)
+      db_file = Dir.glob(File.join(extract_dir, "**", "database_*.sql")).first
+      storage_tar = Dir.glob(File.join(extract_dir, "**", "storage_*.tar.gz")).first
       
       puts "[RESTORE] Files found after extraction: DB=#{db_file || 'NONE'}, Storage=#{storage_tar || 'NONE'}"
+      
+      if db_file.nil? && storage_tar.nil?
+        # Last resort: check any SQL or tar.gz file
+        db_file ||= Dir.glob(File.join(extract_dir, "**", "*.sql")).first
+        storage_tar ||= Dir.glob(File.join(extract_dir, "**", "*.tar.gz")).first
+        puts "[RESTORE] Final fallback search: DB=#{db_file || 'NONE'}, Storage=#{storage_tar || 'NONE'}"
+        
+        if db_file.nil? && storage_tar.nil?
+          raise "Nessun file di database o storage trovato nel backup."
+        end
+      end
       
       if db_file.nil?
         # Prova a cercare qualsiasi file .sql se il pattern database_*.sql fallisce

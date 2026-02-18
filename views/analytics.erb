@@ -95,7 +95,7 @@
           <h5 class="mb-0"><i class="fas fa-line-chart"></i> Trend Vendite Giornaliere</h5>
         </div>
         <div class="card-body">
-          <canvas id="dailyChart" height="80"></canvas>
+          <canvas id="dailyChart" height="300"></canvas>
         </div>
       </div>
     </div>
@@ -271,17 +271,23 @@
 
   // Comparison Chart
   async function loadComparisonChart() {
-    const response = await fetch('/api/analytics/comparison');
+    const params = buildFilterParams();
+    const response = await fetch(`/api/analytics/comparison?${params}`);
     const data = await response.json();
     
     const ctx = document.getElementById('comparisonChart').getContext('2d');
+    
+    // Check if chart instance exists and destroy it if it does
+    const existingChart = Chart.getChart('comparisonChart');
+    if (existingChart) existingChart.destroy();
+
     new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: [data.current_week.label, data.previous_week.label],
+        labels: [data.current_period.label, data.previous_period.label],
         datasets: [{
           label: 'Quantità Venduta',
-          data: [data.current_week.quantity, data.previous_week.quantity],
+          data: [data.current_period.quantity, data.previous_period.quantity],
           backgroundColor: [colors.success, colors.warning],
           borderRadius: 5
         }]
@@ -314,12 +320,16 @@
     
     let html = '<table class="table table-sm table-striped"><thead><tr><th>Prodotto</th><th class="text-end">Quantità</th></tr></thead><tbody>';
     
-    data.products.forEach((product, idx) => {
-      html += `<tr>
-        <td><strong>${product.name}</strong><br><small class="text-muted">${product.sku}</small></td>
-        <td class="text-end"><span class="badge bg-success">${product.quantity}</span></td>
-      </tr>`;
-    });
+    if (data.products && data.products.length > 0) {
+      data.products.forEach((product, idx) => {
+        html += `<tr>
+          <td><strong>${product.name}</strong><br><small class="text-muted">${product.sku}</small></td>
+          <td class="text-end"><span class="badge bg-success">${product.quantity}</span></td>
+        </tr>`;
+      });
+    } else {
+      html += '<tr><td colspan="2" class="text-center text-muted">Nessun dato trovato</td></tr>';
+    }
     
     html += '</tbody></table>';
     document.getElementById('topProductsTable').innerHTML = html;
@@ -334,16 +344,12 @@
     loadTopProductsTable();
   });
 
-  // Reload charts when filters change
-  document.querySelector('form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    setTimeout(() => {
-      loadDailyChart();
-      loadProductChart();
-      loadCategoryChart();
-      loadTopProductsTable();
-    }, 500);
-    this.submit();
+  // Reload charts when filters change (handle form submission)
+  document.querySelector('form').addEventListener('submit', function(e) {
+    // We let the form submit normally to update the cards (server-side ERB),
+    // but the DOMContentLoaded on the next page load will handle chart refresh.
+    // If we wanted pure AJAX, we'd preventDefault() and update cards manually.
+    console.log("Filtering charts...");
   });
 </script>
 

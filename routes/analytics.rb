@@ -201,26 +201,29 @@ class PrintOrchestrator < Sinatra::Base
     }.to_json
   end
 
-  # GET /api/analytics/comparison - Week-over-week comparison
+  # GET /api/analytics/comparison - Period-over-period comparison
   get '/api/analytics/comparison' do
     content_type :json
     
-    end_date = Date.today
+    end_date = params[:end_date].present? ? Date.parse(params[:end_date]) : Date.today
+    start_date = params[:start_date].present? ? Date.parse(params[:start_date]) : (end_date - 7)
     
-    # Current week
-    current_week_start = end_date.beginning_of_week
-    current_week_end = end_date.end_of_week
+    duration = (end_date - start_date).to_i + 1
     
-    # Previous week
-    prev_week_end = current_week_start - 1.day
-    prev_week_start = prev_week_end.beginning_of_week
+    # Current period
+    current_start = start_date
+    current_end = end_date
+    
+    # Previous period (same duration)
+    prev_end = current_start - 1.day
+    prev_start = prev_end - (duration - 1).days
     
     current_orders = Order.where('created_at >= ? AND created_at <= ?',
-                                 current_week_start.beginning_of_day,
-                                 current_week_end.end_of_day)
+                                 current_start.beginning_of_day,
+                                 current_end.end_of_day)
     prev_orders = Order.where('created_at >= ? AND created_at <= ?',
-                              prev_week_start.beginning_of_day,
-                              prev_week_end.end_of_day)
+                              prev_start.beginning_of_day,
+                              prev_end.end_of_day)
     
     # Apply filters if specified
     current_items = OrderItem.where(order_id: current_orders.pluck(:id))
@@ -247,13 +250,13 @@ class PrintOrchestrator < Sinatra::Base
     prev_qty = prev_items.sum(:quantity)
     
     {
-      current_week: {
-        label: "Questa settimana (#{current_week_start.strftime('%d/%m')} - #{current_week_end.strftime('%d/%m')})",
+      current_period: {
+        label: "Periodo selezionato (#{current_start.strftime('%d/%m')} - #{current_end.strftime('%d/%m')})",
         quantity: current_qty,
         orders: current_orders.count
       },
-      previous_week: {
-        label: "Settimana precedente (#{prev_week_start.strftime('%d/%m')} - #{prev_week_end.strftime('%d/%m')})",
+      previous_period: {
+        label: "Periodo precedente (#{prev_start.strftime('%d/%m')} - #{prev_end.strftime('%d/%m')})",
         quantity: prev_qty,
         orders: prev_orders.count
       },
