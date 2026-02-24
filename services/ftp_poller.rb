@@ -179,10 +179,13 @@ class FTPPoller
           order_item.store_json_data(item_data)
           order_item.save
           
-          # Deduct from inventory (same as API import)
+          # Deduct from inventory
           product = Product.find_by(sku: item_data['sku'])
-          if product && product.inventory
-            product.inventory.remove_stock(item_data['quantity'])
+          if product
+            inventory_product = product.is_dependent && product.master_product ? product.master_product : product
+            if inventory_product.inventory
+              inventory_product.inventory.remove_stock(item_data['quantity'])
+            end
           end
           
           # Create assets from print files (skip product_image)
