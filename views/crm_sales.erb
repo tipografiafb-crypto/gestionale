@@ -1,0 +1,87 @@
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/crm">CRM</a></li>
+    <li class="breadcrumb-item active">Vendite</li>
+  </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-shopping-bag"></i> Vendite (<%= @sales.count %>)</h1>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" action="/crm/sales" class="row g-3 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label">Cerca Ordine</label>
+        <input type="text" name="q" class="form-control" placeholder="Codice ordine..." value="<%= params[:q] %>">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Negozio</label>
+        <select name="store_id" class="form-select">
+          <option value="">Tutti</option>
+          <% @stores.each do |store| %>
+            <option value="<%= store.id %>" <%= 'selected' if params[:store_id] == store.id.to_s %>><%= store.name %></option>
+          <% end %>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Da</label>
+        <input type="date" name="start_date" class="form-control" value="<%= @filter_start_date %>">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">A</label>
+        <input type="date" name="end_date" class="form-control" value="<%= @filter_end_date %>">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i> Filtra</button>
+      </div>
+      <div class="col-md-1">
+        <a href="/crm/sales" class="btn btn-outline-secondary w-100"><i class="fas fa-times"></i></a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<% total_filtered = @sales.sum(&:total) %>
+<div class="alert alert-info mb-4">
+  <strong>Totale filtrato:</strong> &euro; <%= '%.2f' % (total_filtered || 0) %> su <strong><%= @sales.count %></strong> vendite
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-striped mb-0">
+      <thead>
+        <tr>
+          <th>Ordine</th>
+          <th>Cliente</th>
+          <th>Negozio</th>
+          <th>Data</th>
+          <th class="text-end">Totale</th>
+          <th class="text-end">IVA</th>
+          <th>Pagamento</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @sales.each do |sale| %>
+        <tr>
+          <td><strong><%= sale.external_order_code %></strong></td>
+          <td>
+            <% if sale.customer %>
+              <a href="/crm/customers/<%= sale.customer_id %>"><%= sale.customer.full_name %></a>
+            <% end %>
+          </td>
+          <td><%= sale.store&.name || '-' %></td>
+          <td><%= sale.order_date&.strftime('%d/%m/%Y %H:%M') %></td>
+          <td class="text-end fw-bold">&euro; <%= '%.2f' % (sale.total || 0) %></td>
+          <td class="text-end">&euro; <%= '%.2f' % (sale.tax || 0) %></td>
+          <td><%= sale.payment_method || '-' %></td>
+        </tr>
+        <% end %>
+        <% if @sales.empty? %>
+        <tr><td colspan="7" class="text-center text-muted py-4">Nessuna vendita trovata</td></tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

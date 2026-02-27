@@ -1,0 +1,111 @@
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/crm">CRM</a></li>
+    <li class="breadcrumb-item"><a href="/crm/customers">Clienti</a></li>
+    <li class="breadcrumb-item active"><%= @customer.full_name %></li>
+  </ol>
+</nav>
+
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h1><i class="fas fa-user"></i> <%= @customer.full_name %></h1>
+  </div>
+</div>
+
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-id-card"></i> Dati Anagrafici</div>
+      <div class="card-body">
+        <table class="table table-sm mb-0">
+          <tr><td class="text-muted">Email</td><td><a href="mailto:<%= @customer.email %>"><%= @customer.email %></a></td></tr>
+          <tr><td class="text-muted">Telefono</td><td><%= @customer.phone || '-' %></td></tr>
+          <tr><td class="text-muted">Indirizzo Fatt.</td><td><%= @customer.billing_address || '-' %></td></tr>
+          <tr><td class="text-muted">Indirizzo Sped.</td><td><%= @customer.shipping_address || '-' %></td></tr>
+          <tr><td class="text-muted">Primo Ordine</td><td><%= @customer.first_order_at&.strftime('%d/%m/%Y') || '-' %></td></tr>
+          <tr><td class="text-muted">Ultimo Ordine</td><td><%= @customer.last_order_at&.strftime('%d/%m/%Y') || '-' %></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-chart-pie"></i> Statistiche</div>
+      <div class="card-body text-center">
+        <div class="row">
+          <div class="col-6 mb-3">
+            <h3 class="text-success mb-0">&euro; <%= '%.2f' % (@customer.total_spent || 0) %></h3>
+            <small class="text-muted">Spesa Totale</small>
+          </div>
+          <div class="col-6 mb-3">
+            <h3 class="mb-0"><%= @customer.order_count || 0 %></h3>
+            <small class="text-muted">Ordini</small>
+          </div>
+          <div class="col-12">
+            <% avg = (@customer.order_count || 0) > 0 ? ((@customer.total_spent || 0) / @customer.order_count).round(2) : 0 %>
+            <h4 class="mb-0">&euro; <%= '%.2f' % avg %></h4>
+            <small class="text-muted">Valore Medio Ordine</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-sticky-note"></i> Note</div>
+      <div class="card-body">
+        <form method="post" action="/crm/customers/<%= @customer.id %>/notes">
+          <textarea name="notes" class="form-control mb-2" rows="4" placeholder="Aggiungi note su questo cliente..."><%= @customer.notes %></textarea>
+          <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save"></i> Salva</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <i class="fas fa-shopping-bag"></i> Storico Ordini (<%= @sales.count %>)
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-striped mb-0">
+      <thead>
+        <tr>
+          <th>Ordine</th>
+          <th>Data</th>
+          <th>Negozio</th>
+          <th class="text-end">Totale</th>
+          <th class="text-end">IVA</th>
+          <th>Pagamento</th>
+          <th>Prodotti</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @sales.each do |sale| %>
+        <tr>
+          <td><strong><%= sale.external_order_code %></strong></td>
+          <td><%= sale.order_date&.strftime('%d/%m/%Y %H:%M') %></td>
+          <td><%= sale.store&.name || '-' %></td>
+          <td class="text-end fw-bold">&euro; <%= '%.2f' % (sale.total || 0) %></td>
+          <td class="text-end">&euro; <%= '%.2f' % (sale.tax || 0) %></td>
+          <td><%= sale.payment_method || '-' %></td>
+          <td>
+            <% sale.sale_items.each do |item| %>
+              <div class="small">
+                <span class="badge bg-secondary"><%= item.quantity %>x</span>
+                <%= item.product_name || item.sku %>
+                <span class="text-muted">(&euro; <%= '%.2f' % (item.line_total || 0) %>)</span>
+              </div>
+            <% end %>
+          </td>
+        </tr>
+        <% end %>
+        <% if @sales.empty? %>
+        <tr><td colspan="7" class="text-center text-muted py-4">Nessun ordine trovato</td></tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

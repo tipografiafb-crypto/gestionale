@@ -1,8 +1,8 @@
 # 📚 MODULES DOCUMENTATION
 
-> Last generated: 2026-01-28T16:33:33.930Z
-> Total Modules: 47
-> Features: 13
+> Last generated: 2026-02-27T17:12:42.011Z
+> Total Modules: 52
+> Features: 14
 
 ---
 
@@ -38,6 +38,16 @@
 |---|---|---|---|---|
 | backup.rb | `lib/backup.rb` | LOW | MEDIUM | - |
 | backup_config.rb | `models/backup_config.rb` | LOW | MEDIUM | - |
+
+### crm
+
+| Module | File | Risk | Stability | Purpose |
+|---|---|---|---|---|
+| customer.rb | `models/customer.rb` | LOW | MEDIUM | - |
+| sale_item.rb | `models/sale_item.rb` | LOW | MEDIUM | - |
+| sale.rb | `models/sale.rb` | LOW | MEDIUM | - |
+| crm_web.rb | `routes/crm_web.rb` | LOW | MEDIUM | - |
+| crm_poller.rb | `services/crm_poller.rb` | LOW | MEDIUM | - |
 
 ### integration
 

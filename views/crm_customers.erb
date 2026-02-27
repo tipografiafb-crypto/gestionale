@@ -1,0 +1,83 @@
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/crm">CRM</a></li>
+    <li class="breadcrumb-item active">Clienti</li>
+  </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1><i class="fas fa-address-book"></i> Clienti (<%= @customers.count %>)</h1>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" action="/crm/customers" class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label">Cerca</label>
+        <input type="text" name="q" class="form-control" placeholder="Nome, email o telefono..." value="<%= params[:q] %>">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Negozio</label>
+        <select name="store_id" class="form-select">
+          <option value="">Tutti</option>
+          <% @stores.each do |store| %>
+            <option value="<%= store.id %>" <%= 'selected' if params[:store_id] == store.id.to_s %>><%= store.name %></option>
+          <% end %>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Ordina per</label>
+        <select name="sort" class="form-select">
+          <option value="">Nome</option>
+          <option value="spent_desc" <%= 'selected' if params[:sort] == 'spent_desc' %>>Spesa (↓)</option>
+          <option value="spent_asc" <%= 'selected' if params[:sort] == 'spent_asc' %>>Spesa (↑)</option>
+          <option value="orders_desc" <%= 'selected' if params[:sort] == 'orders_desc' %>>N° Ordini (↓)</option>
+          <option value="recent" <%= 'selected' if params[:sort] == 'recent' %>>Ultimo Ordine</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i> Filtra</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-striped mb-0">
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Negozio</th>
+          <th>Email</th>
+          <th>Telefono</th>
+          <th class="text-center">Ordini</th>
+          <th class="text-end">Spesa Totale</th>
+          <th>Ultimo Ordine</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @customers.each do |customer| %>
+        <tr>
+          <td><strong><%= customer.full_name %></strong></td>
+          <td><span class="badge bg-light text-dark border"><%= customer.store&.name || '-' %></span></td>
+          <td><%= customer.email %></td>
+          <td><%= customer.phone %></td>
+          <td class="text-center"><span class="badge bg-info"><%= customer.order_count || 0 %></span></td>
+          <td class="text-end fw-bold">&euro; <%= '%.2f' % (customer.total_spent || 0) %></td>
+          <td><%= customer.last_order_at&.strftime('%d/%m/%Y') || '-' %></td>
+          <td>
+            <a href="/crm/customers/<%= customer.id %>" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-eye"></i>
+            </a>
+          </td>
+        </tr>
+        <% end %>
+        <% if @customers.empty? %>
+        <tr><td colspan="7" class="text-center text-muted py-4">Nessun cliente trovato</td></tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

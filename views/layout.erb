@@ -527,6 +527,9 @@
           <li class="nav-item">
             <a class="nav-link <%= 'active' if request.path_info =~ %r{^/analytics} %>" href="/analytics"><i class="fas fa-chart-line"></i> Analitiche</a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link <%= 'active' if request.path_info =~ %r{^/crm} %>" href="/crm"><i class="fas fa-users"></i> CRM</a>
+          </li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="settingsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="fas fa-cog"></i> Impostazioni
