@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "generated": "2026-02-27T17:12:41.993Z",
-    "totalModules": 52,
-    "totalFeatures": 14
+    "generated": "2026-01-28T16:33:33.913Z",
+    "totalModules": 47,
+    "totalFeatures": 13
   },
   "features": {
     "aggregation": [
@@ -85,53 +85,6 @@
       {
         "file": "lib/backup.rb",
         "module": "backup.rb",
-        "type": "ruby",
-        "domain": null,
-        "purpose": null,
-        "risk": "LOW",
-        "stability": "MEDIUM"
-      }
-    ],
-    "crm": [
-      {
-        "file": "models/customer.rb",
-        "module": "customer.rb",
-        "type": "ruby",
-        "domain": null,
-        "purpose": null,
-        "risk": "LOW",
-        "stability": "MEDIUM"
-      },
-      {
-        "file": "models/sale.rb",
-        "module": "sale.rb",
-        "type": "ruby",
-        "domain": null,
-        "purpose": null,
-        "risk": "LOW",
-        "stability": "MEDIUM"
-      },
-      {
-        "file": "models/sale_item.rb",
-        "module": "sale_item.rb",
-        "type": "ruby",
-        "domain": null,
-        "purpose": null,
-        "risk": "LOW",
-        "stability": "MEDIUM"
-      },
-      {
-        "file": "routes/crm_web.rb",
-        "module": "crm_web.rb",
-        "type": "ruby",
-        "domain": null,
-        "purpose": null,
-        "risk": "LOW",
-        "stability": "MEDIUM"
-      },
-      {
-        "file": "services/crm_poller.rb",
-        "module": "crm_poller.rb",
         "type": "ruby",
         "domain": null,
         "purpose": null,
@@ -511,7 +464,6 @@
       "models/aggregated_job_item.rb",
       "models/asset.rb",
       "models/backup_config.rb",
-      "models/customer.rb",
       "models/import_error.rb",
       "models/inventory.rb",
       "models/log.rb",
@@ -524,8 +476,6 @@
       "models/product.rb",
       "models/product_category.rb",
       "models/product_print_flow.rb",
-      "models/sale.rb",
-      "models/sale_item.rb",
       "models/store.rb",
       "models/switch_job.rb",
       "models/switch_webhook.rb",
@@ -535,7 +485,6 @@
       "routes/aggregation_api.rb",
       "routes/analytics.rb",
       "routes/api_print_flows.rb",
-      "routes/crm_web.rb",
       "routes/order_items_switch.rb",
       "routes/orders_api.rb",
       "routes/pdf_proxy.rb",
@@ -552,7 +501,6 @@
       "routes/webhooks_web.rb",
       "services/asset_downloader.rb",
       "services/autopilot_service.rb",
-      "services/crm_poller.rb",
       "services/ftp_poller.rb",
       "services/switch_client.rb",
       "services/switch_integration.rb",
@@ -568,7 +516,6 @@
       "models/aggregated_job_item.rb",
       "models/asset.rb",
       "models/backup_config.rb",
-      "models/customer.rb",
       "models/import_error.rb",
       "models/inventory.rb",
       "models/log.rb",
@@ -581,8 +528,6 @@
       "models/product.rb",
       "models/product_category.rb",
       "models/product_print_flow.rb",
-      "models/sale.rb",
-      "models/sale_item.rb",
       "models/store.rb",
       "models/switch_job.rb",
       "models/switch_webhook.rb",
@@ -592,7 +537,6 @@
       "routes/aggregation_api.rb",
       "routes/analytics.rb",
       "routes/api_print_flows.rb",
-      "routes/crm_web.rb",
       "routes/order_items_switch.rb",
       "routes/orders_api.rb",
       "routes/pdf_proxy.rb",
@@ -609,7 +553,6 @@
       "routes/webhooks_web.rb",
       "services/asset_downloader.rb",
       "services/autopilot_service.rb",
-      "services/crm_poller.rb",
       "services/ftp_poller.rb",
       "services/switch_client.rb",
       "services/switch_integration.rb",
@@ -703,19 +646,6 @@
       "type": "ruby",
       "module": "backup_config.rb",
       "feature": "backup",
-      "domain": null,
-      "purpose": null,
-      "risk": "LOW",
-      "stability": "MEDIUM",
-      "consumes": [],
-      "touches": [],
-      "ai": null
-    },
-    {
-      "file": "models/customer.rb",
-      "type": "ruby",
-      "module": "customer.rb",
-      "feature": "crm",
       "domain": null,
       "purpose": null,
       "risk": "LOW",
@@ -881,32 +811,6 @@
       "ai": null
     },
     {
-      "file": "models/sale_item.rb",
-      "type": "ruby",
-      "module": "sale_item.rb",
-      "feature": "crm",
-      "domain": null,
-      "purpose": null,
-      "risk": "LOW",
-      "stability": "MEDIUM",
-      "consumes": [],
-      "touches": [],
-      "ai": null
-    },
-    {
-      "file": "models/sale.rb",
-      "type": "ruby",
-      "module": "sale.rb",
-      "feature": "crm",
-      "domain": null,
-      "purpose": null,
-      "risk": "LOW",
-      "stability": "MEDIUM",
-      "consumes": [],
-      "touches": [],
-      "ai": null
-    },
-    {
       "file": "models/store.rb",
       "type": "ruby",
       "module": "store.rb",
@@ -1015,19 +919,6 @@
       "type": "ruby",
       "module": "api_print_flows.rb",
       "feature": "orders",
-      "domain": null,
-      "purpose": null,
-      "risk": "LOW",
-      "stability": "MEDIUM",
-      "consumes": [],
-      "touches": [],
-      "ai": null
-    },
-    {
-      "file": "routes/crm_web.rb",
-      "type": "ruby",
-      "module": "crm_web.rb",
-      "feature": "crm",
       "domain": null,
       "purpose": null,
       "risk": "LOW",
@@ -1236,19 +1127,6 @@
       "type": "ruby",
       "module": "autopilot_service.rb",
       "feature": "autopilot",
-      "domain": null,
-      "purpose": null,
-      "risk": "LOW",
-      "stability": "MEDIUM",
-      "consumes": [],
-      "touches": [],
-      "ai": null
-    },
-    {
-      "file": "services/crm_poller.rb",
-      "type": "ruby",
-      "module": "crm_poller.rb",
-      "feature": "crm",
       "domain": null,
       "purpose": null,
       "risk": "LOW",

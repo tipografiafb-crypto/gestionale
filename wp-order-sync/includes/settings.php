@@ -86,22 +86,6 @@ function wos_settings_init() {
         'wos_settings_group',
         'wos_settings_section'
     );
-
-    add_settings_field(
-        'wos_crm_enabled',
-        __('Abilita CRM Export', 'wp-order-sync'),
-        'wos_crm_enabled_render',
-        'wos_settings_group',
-        'wos_settings_section'
-    );
-
-    add_settings_field(
-        'wos_ftp_crm_path',
-        __('Percorso Cartella FTP CRM', 'wp-order-sync'),
-        'wos_ftp_crm_path_render',
-        'wos_settings_group',
-        'wos_settings_section'
-    );
 }
 
 /**
@@ -126,14 +110,6 @@ function sanitize_wos_settings($input) {
     }
     if (isset($input['wos_ftp_path'])) {
         $sanitized['wos_ftp_path'] = sanitize_text_field($input['wos_ftp_path']);
-    }
-    if (isset($input['wos_crm_enabled'])) {
-        $sanitized['wos_crm_enabled'] = sanitize_text_field($input['wos_crm_enabled']);
-    } else {
-        $sanitized['wos_crm_enabled'] = '0';
-    }
-    if (isset($input['wos_ftp_crm_path'])) {
-        $sanitized['wos_ftp_crm_path'] = sanitize_text_field($input['wos_ftp_crm_path']);
     }
     return $sanitized;
 }
@@ -197,39 +173,14 @@ function wos_ftp_path_render() {
     <?php
 }
 
-function wos_crm_enabled_render() {
-    $options = get_option('wos_settings');
-    $checked = isset($options['wos_crm_enabled']) && $options['wos_crm_enabled'] === '1' ? 'checked' : '';
-    ?>
-    <label>
-        <input type="checkbox" name="wos_settings[wos_crm_enabled]" value="1" <?php echo $checked; ?>>
-        <?php _e('Invia anche i dati CRM (cliente + finanziari) via FTP', 'wp-order-sync'); ?>
-    </label>
-    <?php
-}
-
-function wos_ftp_crm_path_render() {
-    $options = get_option('wos_settings');
-    ?>
-    <input type="text" name="wos_settings[wos_ftp_crm_path]"
-           value="<?php echo esc_attr($options['wos_ftp_crm_path'] ?? ''); ?>" size="50">
-    <p class="description"><?php _e('Lascia vuoto per usare la cartella ordini + /crm/', 'wp-order-sync'); ?></p>
-    <?php
-}
-
 /**
  * Callback della pagina opzioni
  * con il bottone "Sincronizza tutti gli ordini processing".
  */
 function wos_options_page() {
-    // Se clicca “Sincronizza tutti gli ordini” (Produzione + CRM per nuovi)
+    // Se clicca “Sincronizza tutti gli ordini”
     if (isset($_POST['wos_sync_all']) && current_user_can('manage_options')) {
         wos_sync_all_processing_orders();
-    }
-    
-    // NUOVO: Sincronizza TUTTI per CRM (anche se già passati a produzione)
-    if (isset($_POST['wos_sync_crm_all']) && current_user_can('manage_options')) {
-        wos_sync_all_crm_data();
     }
     ?>
     <div class="wrap">
@@ -255,20 +206,6 @@ function wos_options_page() {
                 false
             );
             ?>
-        </form>
-
-        <form method="post">
-            <?php
-            submit_button(
-                __('Sincronizza TUTTI gli ordini Processing per CRM (storico)', 'wp-order-sync'),
-                'secondary',
-                'wos_sync_crm_all',
-                false
-            );
-            ?>
-            <p class="description">
-                <?php _e('Invia solo i dati CRM di tutti gli ordini "In lavorazione", ignorando se sono già stati sincronizzati.', 'wp-order-sync'); ?>
-            </p>
         </form>
     </div>
     <?php
@@ -309,27 +246,5 @@ function wos_sync_all_processing_orders() {
         echo '<div class="notice notice-info"><p>'
            . __('Nessun ordine processing da sincronizzare.', 'wp-order-sync')
            . '</p></div>';
-    }
-}
-
-/**
- * Recupera TUTTI gli ordini in stato "processing" e invia SOLO i dati CRM.
- */
-function wos_sync_all_crm_data() {
-    $args = [
-        'post_type'      => 'shop_order',
-        'post_status'    => 'wc-processing',
-        'posts_per_page' => -1,
-    ];
-
-    $query  = new WP_Query($args);
-    $orders = $query->posts;
-
-    if (!empty($orders)) {
-        foreach ($orders as $order_post) {
-            $order_id = $order_post->ID;
-            // Usa la funzione specializzata per solo CRM
-            wos_sync_crm_data_only($order_id);
-        }
     }
 }

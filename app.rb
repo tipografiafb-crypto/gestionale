@@ -74,18 +74,12 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'models/aggregated_job_item'
   require_relative 'models/log'
 
-  # CRM models
-  require_relative 'models/customer'
-  require_relative 'models/sale'
-  require_relative 'models/sale_item'
-
   # Load services
   require_relative 'lib/backup'
   require_relative 'lib/app_logger'
   require_relative 'services/asset_downloader'
   require_relative 'services/switch_client'
   require_relative 'services/ftp_poller'
-  require_relative 'services/crm_poller'
 
   # Serve local asset files
   get '/file/:id' do
@@ -165,12 +159,10 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'routes/pdf_proxy'
   require_relative 'routes/api_print_flows'
   require_relative 'routes/analytics'
-  require_relative 'routes/crm_web'
   
   # Start FTP poller in background (if configured)
   # Skip FTP poller when running rake tasks
   configure do
     FTPPoller.new.start unless $PROGRAM_NAME.include?('rake')
-    CRMPoller.new.start unless $PROGRAM_NAME.include?('rake')
   end
 end

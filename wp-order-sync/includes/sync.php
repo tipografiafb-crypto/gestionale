@@ -313,7 +313,7 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
             return;
         }
 
-        // --- 5) Upload FTP (Production JSON) ---
+        // --- 5) Upload FTP ---
         $order_number    = $order->get_order_number();
         $filename        = 'order_' . $order_number . '.json';
         $remote_file     = rtrim($ftp_path, '/') . '/' . $filename;
@@ -321,25 +321,8 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
         $upload_response = wos_upload_to_ftp($ftp_host, $ftp_port, $ftp_username, $ftp_password, $remote_file, $json_data);
 
         if (is_wp_error($upload_response)) {
-            error_log('WP Order Sync: Upload produzione fallito - ' . $upload_response->get_error_message());
+            error_log('WP Order Sync: Upload fallito - ' . $upload_response->get_error_message());
             return;
-        }
-
-        // --- 6) CRM JSON Upload ---
-        $crm_enabled = $options['wos_crm_enabled'] ?? '1';
-        if ($crm_enabled === '1') {
-            $crm_json = wos_generate_crm_json($order, $site_name);
-            if ($crm_json !== false) {
-                $crm_ftp_path = $options['wos_ftp_crm_path'] ?? (rtrim($ftp_path, '/') . '/crm');
-                $crm_filename = 'crm_order_' . $order_number . '.json';
-                $crm_remote   = rtrim($crm_ftp_path, '/') . '/' . $crm_filename;
-
-                $crm_upload = wos_upload_to_ftp($ftp_host, $ftp_port, $ftp_username, $ftp_password, $crm_remote, $crm_json);
-                if (is_wp_error($crm_upload)) {
-                    error_log('WP Order Sync: Upload CRM fallito - ' . $crm_upload->get_error_message());
-                    // Non blocchiamo: l'ordine produzione è già stato inviato
-                }
-            }
         }
 
         update_post_meta($order_id, '_wos_synced', 1);
@@ -554,81 +537,6 @@ if ( ! function_exists('wos_extract_final_sku') ) {
     }
 }
 
-/**
- * Generate CRM JSON payload from a WooCommerce order.
- * Extracts standard customer and financial data only.
- */
-if ( ! function_exists('wos_generate_crm_json') ) {
-    function wos_generate_crm_json($order, $site_name) {
-        if (!$order) return false;
-
-        // Customer data
-        $customer_data = [
-            'email'            => $order->get_billing_email(),
-            'first_name'       => $order->get_billing_first_name(),
-            'last_name'        => $order->get_billing_last_name(),
-            'phone'            => $order->get_billing_phone(),
-            'billing_address'  => implode(', ', array_filter([
-                $order->get_billing_address_1(),
-                $order->get_billing_address_2(),
-                $order->get_billing_postcode(),
-                $order->get_billing_city(),
-                $order->get_billing_state(),
-                $order->get_billing_country(),
-            ])),
-            'shipping_address' => implode(', ', array_filter([
-                $order->get_shipping_address_1(),
-                $order->get_shipping_address_2(),
-                $order->get_shipping_postcode(),
-                $order->get_shipping_city(),
-                $order->get_shipping_state(),
-                $order->get_shipping_country(),
-            ])),
-        ];
-
-        // Financial data
-        $financials = [
-            'total'          => (float)$order->get_total(),
-            'tax'            => (float)$order->get_total_tax(),
-            'shipping'       => (float)$order->get_shipping_total(),
-            'discount'       => (float)$order->get_discount_total(),
-            'payment_method' => $order->get_payment_method_title(),
-            'currency'       => $order->get_currency(),
-        ];
-
-        // Products
-        $products = [];
-        foreach ($order->get_items() as $item) {
-            $product = $item->get_product();
-            $sku = $product ? $product->get_sku() : '';
-
-            $products[] = [
-                'sku'        => $sku,
-                'name'       => $item->get_name(),
-                'quantity'   => $item->get_quantity(),
-                'line_total' => (float)$item->get_total(),
-            ];
-        }
-
-        $crm_data = [
-            'type'         => 'crm_order',
-            'site_name'    => $site_name,
-            'order_number' => $order->get_order_number(),
-            'order_date'   => $order->get_date_created() ? $order->get_date_created()->date('c') : date('c'),
-            'customer'     => $customer_data,
-            'financials'   => $financials,
-            'products'     => $products,
-        ];
-
-        $json = json_encode($crm_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        if ($json === false) {
-            error_log('WP Order Sync: Errore json_encode CRM per ordine ' . $order->get_id());
-            return false;
-        }
-
-        return $json;
-    }
-}
 
 /**
  * Admin bulk actions
@@ -685,39 +593,5 @@ function wos_bulk_action_admin_notice() {
                 $count
             )
         );
-    }
-}
-
-/**
- * Sincronizza SOLO i dati CRM per un ordine specifico.
- * Utile per il recupero dei dati storici senza rispedire il JSON di produzione a Switch.
- */
-function wos_sync_crm_data_only($order_id) {
-    if (!$order_id) return;
-    $order = wc_get_order($order_id);
-    if (!$order) return;
-
-    $options = get_option('wos_settings');
-    $ftp_host     = $options['wos_ftp_host'] ?? '';
-    $ftp_username = $options['wos_ftp_username'] ?? '';
-    $ftp_password = $options['wos_ftp_password'] ?? '';
-    $ftp_port     = $options['wos_ftp_port'] ?? '21';
-    $ftp_path     = $options['wos_ftp_path'] ?? '/';
-    $site_name    = get_bloginfo('name');
-
-    $crm_enabled = $options['wos_crm_enabled'] ?? '1';
-    if ($crm_enabled === '1') {
-        $crm_json = wos_generate_crm_json($order, $site_name);
-        if ($crm_json !== false) {
-            $order_number = $order->get_order_number();
-            $crm_ftp_path = $options['wos_ftp_crm_path'] ?? (rtrim($ftp_path, '/') . '/crm');
-            $crm_filename = 'crm_order_' . $order_number . '.json';
-            $crm_remote   = rtrim($crm_ftp_path, '/') . '/' . $crm_filename;
-
-            $crm_upload = wos_upload_to_ftp($ftp_host, $ftp_port, $ftp_username, $ftp_password, $crm_remote, $crm_json);
-            if (is_wp_error($crm_upload)) {
-                error_log('WP Order Sync: Upload CRM Storico fallito - ' . $crm_upload->get_error_message());
-            }
-        }
     }
 }
