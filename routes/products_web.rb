@@ -222,7 +222,7 @@ class PrintOrchestrator < Sinatra::Base
     # If no default flow selected, use the first selected flow
     default_flow_id ||= flow_ids.first if flow_ids.present?
     
-    product = Product.new(
+    product_attrs = {
       sku: params[:sku].upcase,
       name: params[:name],
       default_print_flow_id: default_flow_id,
@@ -230,9 +230,11 @@ class PrintOrchestrator < Sinatra::Base
       notes: params[:notes],
       min_stock_level: params[:min_stock_level].to_i.presence,
       is_dependent: params[:is_dependent] == 'true',
-      master_product_id: params[:is_dependent] == 'true' ? params[:master_product_id].presence : nil,
-      has_cut_file: params[:has_cut_file] == 'true'
-    )
+      master_product_id: params[:is_dependent] == 'true' ? params[:master_product_id].presence : nil
+    }
+    product_attrs[:has_cut_file] = params[:has_cut_file] == 'true' if Product.column_names.include?('has_cut_file')
+
+    product = Product.new(product_attrs)
 
     if product.save
       if flow_ids.present?
@@ -270,7 +272,7 @@ class PrintOrchestrator < Sinatra::Base
     # If no default flow selected, use the first selected flow
     default_flow_id ||= flow_ids.first if flow_ids.present?
     
-    product.update(
+    product_attrs = {
       sku: params[:sku].upcase,
       name: params[:name],
       default_print_flow_id: default_flow_id,
@@ -278,9 +280,11 @@ class PrintOrchestrator < Sinatra::Base
       notes: params[:notes],
       min_stock_level: params[:min_stock_level].to_i.presence,
       is_dependent: params[:is_dependent] == 'true',
-      master_product_id: params[:is_dependent] == 'true' ? params[:master_product_id].presence : nil,
-      has_cut_file: params[:has_cut_file] == 'true'
-    )
+      master_product_id: params[:is_dependent] == 'true' ? params[:master_product_id].presence : nil
+    }
+    product_attrs[:has_cut_file] = params[:has_cut_file] == 'true' if Product.column_names.include?('has_cut_file')
+
+    product.update(product_attrs)
 
     if product.save
       # Update print flow associations

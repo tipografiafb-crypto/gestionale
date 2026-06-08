@@ -2,6 +2,9 @@
 # @domain web
 # Web UI routes - HTML interface for operators
 require 'json'
+require 'open3'
+require 'tmpdir'
+require 'fileutils'
 
 class PrintOrchestrator < Sinatra::Base
   VALID_FILE_EXTENSIONS = %w[png jpg jpeg pdf svg dxf ai eps].freeze
@@ -9,6 +12,128 @@ class PrintOrchestrator < Sinatra::Base
   def valid_file_extension?(filename)
     ext = File.extname(filename).downcase.sub(/^\./, '')
     VALID_FILE_EXTENSIONS.include?(ext)
+  end
+
+  def png_print_info(asset, target_dpi = 300)
+    return nil unless asset&.downloaded?
+    path = asset.local_path_full
+    return nil unless path && File.extname(path).downcase == '.png' && File.exist?(path)
+
+    File.open(path, 'rb') do |file|
+      return nil unless file.read(8) == "\x89PNG\r\n\x1a\n".b
+
+      width = nil
+      height = nil
+      declared_dpi = nil
+
+      until file.eof?
+        length_bytes = file.read(4)
+        break unless length_bytes && length_bytes.bytesize == 4
+
+        length = length_bytes.unpack1('N')
+        chunk_type = file.read(4)
+        data = file.read(length)
+        file.read(4)
+
+        if chunk_type == 'IHDR'
+          width, height = data.unpack('NN')
+        elsif chunk_type == 'pHYs' && data.bytesize >= 9
+          x_pixels_per_unit, _y_pixels_per_unit, unit = data.unpack('NNC')
+          declared_dpi = x_pixels_per_unit * 0.0254 if unit == 1
+        end
+
+        break if width && height && declared_dpi
+        break if chunk_type == 'IDAT'
+      end
+
+      return nil unless width && height
+
+      {
+        width_px: width,
+        height_px: height,
+        declared_dpi: declared_dpi,
+        target_dpi: target_dpi,
+        print_width_cm: width.to_f / target_dpi * 2.54,
+        print_height_cm: height.to_f / target_dpi * 2.54
+      }
+    end
+  rescue => e
+    puts "[PNG_INFO] Error reading asset #{asset&.id}: #{e.message}"
+    nil
+  end
+
+  def halftone_source_backup_path(asset)
+    path = asset&.local_path_full
+    return nil unless path
+
+    dir = File.dirname(path)
+    basename = File.basename(path, '.*')
+    extension = File.extname(path)
+    File.join(dir, "#{basename}_dtf_original#{extension}")
+  end
+
+  def halftone_source_path(asset)
+    backup_path = halftone_source_backup_path(asset)
+    return backup_path if backup_path && File.exist?(backup_path)
+
+    asset.local_path_full
+  end
+
+  def halftone_command(input_path, output_path, request_params, preview: false)
+    target_dpi = numeric_param(request_params, 'target_dpi', 300, min: 1).to_i
+    lpi = numeric_param(request_params, 'lpi', 35, min: 1, max: 120)
+    angle = numeric_param(request_params, 'angle', 22, min: 0, max: 90)
+    min_dot_px = numeric_param(request_params, 'min_dot_px', 0, min: 0, max: 50)
+    dot_shape = request_params['dot_shape'].presence || 'circle'
+    highlight_mode = request_params['highlight_mode'].presence || 'drop'
+    tone_mode = request_params['tone_mode'].presence || 'photoshop_action'
+    saturation = numeric_param(request_params, 'saturation', 1.0, min: 0, max: 3)
+    contrast = numeric_param(request_params, 'contrast', 1.0, min: 0, max: 3)
+    brightness = numeric_param(request_params, 'brightness', 0, min: -100, max: 100)
+    knockout_strength = numeric_param(request_params, 'knockout_strength', 0, min: 0, max: 1)
+    antialias_px = numeric_param(request_params, 'antialias_px', 0, min: 0, max: 5)
+    mask_black = numeric_param(request_params, 'mask_black', 36, min: 0, max: 254)
+    mask_white = numeric_param(request_params, 'mask_white', 245, min: mask_black + 1, max: 255)
+    mask_gamma = numeric_param(request_params, 'mask_gamma', 1.0, min: 0.1, max: 5)
+    resize_width_cm = numeric_param(request_params, 'resize_width_cm', 0, min: 0, max: 300)
+    resize_height_cm = numeric_param(request_params, 'resize_height_cm', 0, min: 0, max: 300)
+    shirt_color = request_params['shirt_color'].presence
+
+    command = [
+      'python3', '-m', 'tools.dtf_halftone.cli',
+      input_path,
+      output_path,
+      '--target-dpi', target_dpi.to_s,
+      '--lpi', lpi.to_s,
+      '--angle', angle.to_s,
+      '--dot-shape', dot_shape,
+      '--min-dot-px', min_dot_px.to_s,
+      '--highlight-mode', highlight_mode,
+      '--tone-mode', tone_mode,
+      '--saturation', saturation.to_s,
+      '--contrast', contrast.to_s,
+      '--brightness', brightness.to_s,
+      '--knockout-strength', knockout_strength.to_s,
+      '--antialias-px', antialias_px.to_s,
+      '--mask-black', mask_black.to_s,
+      '--mask-white', mask_white.to_s,
+      '--mask-gamma', mask_gamma.to_s,
+      '--json'
+    ]
+    command.concat(['--shirt-color', shirt_color]) if shirt_color
+    command.concat(['--resize-width-cm', resize_width_cm.to_s]) if resize_width_cm.positive?
+    command.concat(['--resize-height-cm', resize_height_cm.to_s]) if resize_height_cm.positive?
+    command
+  end
+
+  def numeric_param(request_params, key, default, min: nil, max: nil)
+    raw_value = request_params[key].presence
+    value = raw_value ? Float(raw_value) : default
+    value = min if min && value < min
+    value = max if max && value > max
+    value
+  rescue ArgumentError, TypeError
+    default
   end
 
   # GET / - Redirect to orders list
@@ -676,6 +801,233 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/orders/#{order.id}/items/#{item.id}"
   end
 
+  # GET /assets/:id/halftone - Operator controls for DTF halftone processing
+  get '/assets/:id/halftone' do
+    begin
+      @asset = Asset.find(params[:id])
+      @item = @asset.order_item
+      @order = @item.order
+      @png_info = png_print_info(@asset)
+      @halftone_presets = HalftonePreset.ordered.map do |preset|
+        {
+          id: preset.id,
+          name: preset.name,
+          settings: preset.settings_hash
+        }
+      end
+
+      unless @asset.downloaded? && File.exist?(@asset.local_path_full)
+        return redirect "/orders/#{@order.id}/items/#{@item.id}?error=asset_missing"
+      end
+
+      unless File.extname(@asset.local_path_full).downcase == '.png'
+        return redirect "/orders/#{@order.id}/items/#{@item.id}?error=halftone_requires_png"
+      end
+
+      erb :halftone_form
+    rescue ActiveRecord::RecordNotFound
+      redirect '/orders?error=asset_not_found'
+    end
+  end
+
+  # GET /assets/:id/halftone/source - Original source used for repeated halftone edits
+  get '/assets/:id/halftone/source' do
+    begin
+      asset = Asset.find(params[:id])
+      source_path = halftone_source_path(asset)
+
+      if source_path && File.exist?(source_path)
+        send_file source_path
+      else
+        status 404
+        'source_not_found'
+      end
+    rescue ActiveRecord::RecordNotFound
+      status 404
+      'asset_not_found'
+    end
+  end
+
+  # POST /halftone_presets - Save or update a custom DTF halftone preset
+  post '/halftone_presets' do
+    content_type :json
+
+    begin
+      request.body.rewind
+      data = JSON.parse(request.body.read)
+      name = data['name'].to_s.strip
+      settings = data['settings']
+
+      if name.empty?
+        status 422
+        return { success: false, error: 'Nome preset obbligatorio' }.to_json
+      end
+
+      unless settings.is_a?(Hash)
+        status 422
+        return { success: false, error: 'Parametri preset non validi' }.to_json
+      end
+
+      preset = HalftonePreset.find_or_initialize_by(name: name)
+      preset.settings = settings
+      preset.save!
+
+      {
+        success: true,
+        preset: {
+          id: preset.id,
+          name: preset.name,
+          settings: preset.settings_hash
+        }
+      }.to_json
+    rescue JSON::ParserError
+      status 400
+      { success: false, error: 'JSON non valido' }.to_json
+    rescue => e
+      status 500
+      { success: false, error: e.message }.to_json
+    end
+  end
+
+  # DELETE /halftone_presets/:id - Delete a custom DTF halftone preset
+  delete '/halftone_presets/:id' do
+    content_type :json
+
+    begin
+      preset = HalftonePreset.find(params[:id])
+      preset.destroy
+      { success: true }.to_json
+    rescue ActiveRecord::RecordNotFound
+      status 404
+      { success: false, error: 'Preset non trovato' }.to_json
+    rescue => e
+      status 500
+      { success: false, error: e.message }.to_json
+    end
+  end
+
+  # POST /assets/:id/halftone/preview - Fast preview without creating an asset
+  post '/assets/:id/halftone/preview' do
+    begin
+      asset = Asset.find(params[:id])
+      unless asset.downloaded? && File.exist?(asset.local_path_full)
+        status 404
+        return 'asset_missing'
+      end
+
+      unless File.extname(asset.local_path_full).downcase == '.png'
+        status 415
+        return 'halftone_requires_png'
+      end
+
+      source_path = halftone_source_path(asset)
+      Dir.mktmpdir('dtf-halftone-preview') do |tmpdir|
+        output_path = File.join(tmpdir, "preview_#{asset.id}.png")
+        command = halftone_command(source_path, output_path, params, preview: true)
+        stdout, stderr, cmd_status = Open3.capture3(*command, chdir: Dir.pwd)
+
+        unless cmd_status.success? && File.exist?(output_path)
+          puts "[DTF_HALFTONE_PREVIEW] Error processing asset #{asset.id}: #{stderr}"
+          status 500
+          return stderr.presence || stdout.presence || 'preview_failed'
+        end
+
+        content_type 'image/png'
+        return File.binread(output_path)
+      end
+    rescue ActiveRecord::RecordNotFound
+      status 404
+      'asset_not_found'
+    rescue => e
+      puts "[DTF_HALFTONE_PREVIEW] Error: #{e.message}"
+      status 500
+      'preview_failed'
+    end
+  end
+
+  # POST /assets/:id/halftone/mask_preview - Grayscale mask before halftone screening
+  post '/assets/:id/halftone/mask_preview' do
+    begin
+      asset = Asset.find(params[:id])
+      unless asset.downloaded? && File.exist?(asset.local_path_full)
+        status 404
+        return 'asset_missing'
+      end
+
+      unless File.extname(asset.local_path_full).downcase == '.png'
+        status 415
+        return 'halftone_requires_png'
+      end
+
+      source_path = halftone_source_path(asset)
+      Dir.mktmpdir('dtf-halftone-mask-preview') do |tmpdir|
+        output_path = File.join(tmpdir, "mask_preview_#{asset.id}.png")
+        command = halftone_command(source_path, output_path, params, preview: true)
+        command << '--mask-preview'
+        stdout, stderr, cmd_status = Open3.capture3(*command, chdir: Dir.pwd)
+
+        unless cmd_status.success? && File.exist?(output_path)
+          puts "[DTF_HALFTONE_MASK_PREVIEW] Error processing asset #{asset.id}: #{stderr}"
+          status 500
+          return stderr.presence || stdout.presence || 'mask_preview_failed'
+        end
+
+        content_type 'image/png'
+        return File.binread(output_path)
+      end
+    rescue ActiveRecord::RecordNotFound
+      status 404
+      'asset_not_found'
+    rescue => e
+      puts "[DTF_HALFTONE_MASK_PREVIEW] Error: #{e.message}"
+      status 500
+      'mask_preview_failed'
+    end
+  end
+
+  # POST /assets/:id/halftone - Replace the operational print file, preserving the original source
+  post '/assets/:id/halftone' do
+    begin
+      asset = Asset.find(params[:id])
+      item = asset.order_item
+      order = item.order
+
+      unless asset.downloaded? && File.exist?(asset.local_path_full)
+        return redirect "/orders/#{order.id}/items/#{item.id}?error=asset_missing"
+      end
+
+      unless File.extname(asset.local_path_full).downcase == '.png'
+        return redirect "/orders/#{order.id}/items/#{item.id}?error=halftone_requires_png"
+      end
+
+      operational_path = asset.local_path_full
+      source_backup_path = halftone_source_backup_path(asset)
+      FileUtils.copy(operational_path, source_backup_path) unless File.exist?(source_backup_path)
+
+      source_path = halftone_source_path(asset)
+      tmp_output_path = File.join(File.dirname(operational_path), ".#{File.basename(operational_path, '.*')}_dtf_halftone_tmp_#{Time.now.strftime('%Y%m%d%H%M%S')}.png")
+      command = halftone_command(source_path, tmp_output_path, params)
+
+      stdout, stderr, cmd_status = Open3.capture3(*command, chdir: Dir.pwd)
+      unless cmd_status.success? && File.exist?(tmp_output_path)
+        File.delete(tmp_output_path) if File.exist?(tmp_output_path)
+        puts "[DTF_HALFTONE] Error processing asset #{asset.id}: #{stderr}"
+        return redirect "/orders/#{order.id}/items/#{item.id}?error=halftone_failed"
+      end
+
+      FileUtils.mv(tmp_output_path, operational_path)
+
+      puts "[DTF_HALFTONE] Replaced asset #{asset.id} from source backup #{source_backup_path}: #{stdout}"
+      redirect "/orders/#{order.id}/items/#{item.id}?success=halftone_updated"
+    rescue ActiveRecord::RecordNotFound
+      redirect '/orders?error=asset_not_found'
+    rescue => e
+      puts "[DTF_HALFTONE] Error: #{e.message}"
+      puts e.backtrace.take(3)
+      redirect '/orders?error=halftone_failed'
+    end
+  end
+
   # POST /assets/:id/delete - Delete asset file
   post '/assets/:id/delete' do
     begin
@@ -685,8 +1037,13 @@ class PrintOrchestrator < Sinatra::Base
       
       # Delete file from disk if it exists
       if asset.local_path.present? && File.exist?(asset.local_path_full)
+        dtf_backup_path = halftone_source_backup_path(asset)
         File.delete(asset.local_path_full)
         puts "[DELETE] ✅ File deleted: #{asset.local_path_full}"
+        if dtf_backup_path && File.exist?(dtf_backup_path)
+          FileUtils.rm_f(dtf_backup_path)
+          puts "[DELETE] ✅ DTF source backup deleted: #{dtf_backup_path}"
+        end
       end
       
       # Delete asset from database
@@ -723,6 +1080,8 @@ class PrintOrchestrator < Sinatra::Base
       # Check if backup exists
       backup_filename = "#{original_filename}_original_backup#{extension}"
       backup_path = File.join(dir, backup_filename)
+      dtf_backup_path = halftone_source_backup_path(asset)
+      backup_path = dtf_backup_path if dtf_backup_path && File.exist?(dtf_backup_path)
       
       unless File.exist?(backup_path)
         redirect "/orders/#{order_id}/items/#{item_id}?error=No backup available for this image"

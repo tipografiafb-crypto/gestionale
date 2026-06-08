@@ -23,7 +23,7 @@ services:
     build: .
     command: bundle exec puma -b tcp://0.0.0.0:5000 config.ru
     ports:
-      - "5000:5000"
+      - "${HOST_PORT:-5001}:5000"
     volumes:
       - .:/app
     environment:

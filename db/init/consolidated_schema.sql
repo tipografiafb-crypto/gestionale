@@ -404,7 +404,9 @@ CREATE TABLE public.products (
     name character varying NOT NULL,
     product_category_id bigint,
     default_print_flow_id bigint,
-    min_stock_level integer DEFAULT 0
+    min_stock_level integer DEFAULT 0,
+    has_cut_file boolean DEFAULT false,
+    cut_file_path character varying
 );
 
 
@@ -1418,4 +1420,3 @@ ALTER DEFAULT PRIVILEGES FOR ROLE cloud_admin IN SCHEMA public GRANT ALL ON TABL
 --
 
 \unrestrict ROaGTKrdyFhWdx3ArsUjeOZYiUqCPXSqs0veNHMfkoBUzP8MbtMcLEd6eXrwT1v
-

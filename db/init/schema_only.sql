@@ -368,7 +368,9 @@ CREATE TABLE public.products (
     name character varying NOT NULL,
     product_category_id bigint,
     default_print_flow_id bigint,
-    min_stock_level integer DEFAULT 0
+    min_stock_level integer DEFAULT 0,
+    has_cut_file boolean DEFAULT false,
+    cut_file_path character varying
 );
 
 
@@ -1091,4 +1093,3 @@ ALTER TABLE ONLY public.inventories
 --
 
 \unrestrict BnSFjI8O0ApOECeAiimaVyo9Wzcb9Uov1kitqboh8hhqzYjlG8OWcY764jD9ag7
-

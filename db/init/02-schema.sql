@@ -76,6 +76,8 @@ CREATE TABLE IF NOT EXISTS products (
   product_category_id BIGINT,
   default_print_flow_id BIGINT,
   min_stock_level INTEGER DEFAULT 0,
+  has_cut_file BOOLEAN DEFAULT false,
+  cut_file_path VARCHAR,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -216,6 +218,15 @@ CREATE TABLE IF NOT EXISTS logs (
   category VARCHAR,
   message TEXT,
   details TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- halftone_presets
+CREATE TABLE IF NOT EXISTS halftone_presets (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR NOT NULL UNIQUE,
+  settings JSON DEFAULT '{}' NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

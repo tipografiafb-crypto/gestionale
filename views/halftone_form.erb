@@ -1,0 +1,581 @@
+<style>
+  .dtf-preview-frame {
+    align-items: center;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    min-height: 420px;
+    max-height: 680px;
+    overflow: auto;
+    padding: 16px;
+  }
+
+  .dtf-preview-frame.is-zoomed {
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .dtf-preview-checker {
+    background: repeating-conic-gradient(#f8f9fa 0% 25%, #e9ecef 0% 50%) 50% / 24px 24px;
+  }
+
+  .dtf-preview-image {
+    max-height: 620px;
+    max-width: 100%;
+    object-fit: contain;
+  }
+
+  .dtf-preview-frame.is-zoomed .dtf-preview-image {
+    image-rendering: pixelated;
+    max-height: none;
+    max-width: none;
+  }
+</style>
+
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h4 class="mb-1"><i class="fas fa-dot-circle"></i> Retino DTF</h4>
+      <small class="text-muted">Ordine <%= @order.external_order_code %> - <%= @item.sku %></small>
+    </div>
+    <a href="/orders/<%= @order.id %>/items/<%= @item.id %>" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Torna alla riga
+    </a>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-5 mb-4">
+      <div class="card">
+        <div class="card-header bg-light">
+          <div class="d-flex justify-content-between align-items-center gap-2">
+          <ul class="nav nav-tabs card-header-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="original-tab" data-bs-toggle="tab" data-bs-target="#original-pane" type="button" role="tab">Originale</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="retino-tab" data-bs-toggle="tab" data-bs-target="#retino-pane" type="button" role="tab">Retino</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="mask-tab" data-bs-toggle="tab" data-bs-target="#mask-pane" type="button" role="tab">Maschera</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="maglia-tab" data-bs-toggle="tab" data-bs-target="#maglia-pane" type="button" role="tab">Maglia</button>
+            </li>
+          </ul>
+            <div class="d-flex align-items-center gap-2">
+              <select id="previewZoom" class="form-select form-select-sm" style="width: 96px;">
+                <option value="fit" selected>Fit</option>
+                <option value="1">100%</option>
+                <option value="3">300%</option>
+                <option value="6">600%</option>
+                <option value="9">900%</option>
+              </select>
+              <small id="previewStatus" class="text-muted">In attesa</small>
+            </div>
+          </div>
+        </div>
+        <div class="card-body text-center">
+          <div class="tab-content">
+            <div class="tab-pane fade show active" id="original-pane" role="tabpanel" aria-labelledby="original-tab">
+              <div class="dtf-preview-frame dtf-preview-checker">
+                <img class="dtf-preview-image" src="/assets/<%= @asset.id %>/halftone/source" alt="Originale">
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="retino-pane" role="tabpanel" aria-labelledby="retino-tab">
+              <div class="dtf-preview-frame dtf-preview-checker">
+                <img id="halftonePreview" class="dtf-preview-image" alt="Preview retino" style="display: none;">
+                <span id="previewEmpty" class="text-muted">La preview viene generata dai parametri correnti.</span>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="mask-pane" role="tabpanel" aria-labelledby="mask-tab">
+              <div class="dtf-preview-frame">
+                <img id="maskPreview" class="dtf-preview-image" alt="Preview maschera" style="display: none;">
+                <span id="maskPreviewEmpty" class="text-muted">La maschera mostra cosa verra stampato prima del retino.</span>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="maglia-pane" role="tabpanel" aria-labelledby="maglia-tab">
+              <div id="shirtPreviewSurface" class="dtf-preview-frame" style="background-color: #000000;">
+                <img id="shirtPreview" class="dtf-preview-image" alt="Preview su maglia" style="display: none;">
+                <span id="shirtPreviewEmpty" class="text-muted" style="color: #ced4da !important;">La preview viene compositata sul colore maglia.</span>
+              </div>
+            </div>
+          </div>
+
+          <% if @png_info %>
+            <div class="text-start mt-3">
+              <div><strong>Pixel:</strong> <%= @png_info[:width_px] %>x<%= @png_info[:height_px] %></div>
+              <div><strong>DPI file:</strong> <%= @png_info[:declared_dpi] ? @png_info[:declared_dpi].round : 'non dichiarato' %></div>
+              <div><strong>DPI produzione:</strong> <%= @png_info[:target_dpi] %></div>
+              <div><strong>Dimensione originale a 300 DPI:</strong> <%= format('%.2f', @png_info[:print_width_cm]) %>x<%= format('%.2f', @png_info[:print_height_cm]) %> cm</div>
+              <small class="text-warning d-block mt-2">La dimensione output viene applicata prima del retino.</small>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-7 mb-4">
+      <form id="halftoneForm" action="/assets/<%= @asset.id %>/halftone" method="post" class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+          <strong>Parametri operatore</strong>
+          <div class="d-flex align-items-center gap-2">
+            <select id="dtfPreset" class="form-select form-select-sm" style="width: 240px;"></select>
+            <button id="savePresetButton" type="button" class="btn btn-sm btn-outline-primary" title="Salva preset">
+              <i class="fas fa-save"></i>
+            </button>
+            <button id="deletePresetButton" type="button" class="btn btn-sm btn-outline-danger" title="Cancella preset" disabled>
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <input type="hidden" name="target_dpi" value="300">
+
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label" for="resize_width_cm">Larghezza cm</label>
+              <input id="resize_width_cm" name="resize_width_cm" type="number" step="0.01" min="0.1" max="300" value="<%= @png_info ? format('%.2f', @png_info[:print_width_cm]) : '' %>" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="resize_height_cm">Altezza cm</label>
+              <input id="resize_height_cm" name="resize_height_cm" type="number" step="0.01" min="0.1" max="300" value="<%= @png_info ? format('%.2f', @png_info[:print_height_cm]) : '' %>" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Ridimensionamento</label>
+              <div class="form-control bg-light text-muted">Prima del retino a 300 DPI</div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label" for="lpi">LPI</label>
+              <input id="lpi" name="lpi" type="number" step="0.5" min="10" max="85" value="35" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="angle">Angolo</label>
+              <input id="angle" name="angle" type="number" step="0.5" min="0" max="90" value="22" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="dot_shape">Forma punto</label>
+              <select id="dot_shape" name="dot_shape" class="form-select">
+                <option value="circle" selected>Cerchio</option>
+                <option value="ellipse">Ellisse</option>
+                <option value="line">Linea</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label" for="min_dot_px">Min dot px</label>
+              <input id="min_dot_px" name="min_dot_px" type="number" step="0.25" min="0" max="12" value="0" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="highlight_mode">Alte luci</label>
+              <select id="highlight_mode" name="highlight_mode" class="form-select">
+                <option value="drop" selected>Elimina sotto soglia</option>
+                <option value="force">Forza min dot</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="tone_mode">Calcolo tono</label>
+              <select id="tone_mode" name="tone_mode" class="form-select">
+                <option value="photoshop_action" selected>Action Photoshop</option>
+                <option value="alpha">Solo trasparenza</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label" for="mask_black">Nero maschera</label>
+              <input id="mask_black" name="mask_black" type="number" step="1" min="0" max="254" value="36" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="mask_gamma">Mezzitoni maschera</label>
+              <input id="mask_gamma" name="mask_gamma" type="number" step="0.05" min="0.1" max="5" value="1" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="mask_white">Bianco maschera</label>
+              <input id="mask_white" name="mask_white" type="number" step="1" min="1" max="255" value="245" class="form-control">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label" for="saturation">Saturazione</label>
+              <input id="saturation" name="saturation" type="number" step="0.05" min="0" max="3" value="1.10" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="contrast">Contrasto</label>
+              <input id="contrast" name="contrast" type="number" step="0.05" min="0" max="3" value="1.08" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="brightness">Luminosita</label>
+              <input id="brightness" name="brightness" type="number" step="1" min="-80" max="80" value="0" class="form-control">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label" for="shirt_color">Colore maglia</label>
+              <input id="shirt_color" name="shirt_color" type="color" value="#000000" class="form-control form-control-color">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="knockout_strength">Knockout</label>
+              <input id="knockout_strength" name="knockout_strength" type="number" step="0.05" min="0" max="1" value="0" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="antialias_px">Bordo punto</label>
+              <input id="antialias_px" name="antialias_px" type="number" step="0.25" min="0" max="3" value="0" class="form-control">
+            </div>
+          </div>
+        </div>
+
+        <div class="card-footer d-flex justify-content-between align-items-center">
+          <small class="text-muted">L'export sostituisce il file di stampa e conserva l'originale per nuove modifiche.</small>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-file-export"></i> Esporta retino DTF
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('halftoneForm');
+    const previewImage = document.getElementById('halftonePreview');
+    const maskPreviewImage = document.getElementById('maskPreview');
+    const shirtPreviewImage = document.getElementById('shirtPreview');
+    const previewEmpty = document.getElementById('previewEmpty');
+    const maskPreviewEmpty = document.getElementById('maskPreviewEmpty');
+    const shirtPreviewEmpty = document.getElementById('shirtPreviewEmpty');
+    const previewStatus = document.getElementById('previewStatus');
+    const shirtPreviewSurface = document.getElementById('shirtPreviewSurface');
+    const shirtColorField = document.getElementById('shirt_color');
+    const previewZoom = document.getElementById('previewZoom');
+    const previewFrames = Array.from(document.querySelectorAll('.dtf-preview-frame'));
+    const previewImages = Array.from(document.querySelectorAll('.dtf-preview-image'));
+    const originalImage = document.querySelector('#original-pane .dtf-preview-image');
+    const presetSelect = document.getElementById('dtfPreset');
+    const savePresetButton = document.getElementById('savePresetButton');
+    const deletePresetButton = document.getElementById('deletePresetButton');
+    const resizeWidthField = document.getElementById('resize_width_cm');
+    const resizeHeightField = document.getElementById('resize_height_cm');
+    const resizeAspect = <%= @png_info && @png_info[:height_px].positive? ? (@png_info[:width_px].to_f / @png_info[:height_px]).round(8) : 1 %>;
+    let previewTimer = null;
+    let previewController = null;
+    let previewObjectUrl = null;
+    let maskObjectUrl = null;
+    let syncingResizeFields = false;
+
+    const presetFields = [
+      'lpi', 'angle', 'dot_shape', 'min_dot_px', 'highlight_mode', 'tone_mode',
+      'mask_black', 'mask_white', 'mask_gamma', 'saturation', 'contrast',
+      'brightness', 'shirt_color', 'knockout_strength', 'antialias_px'
+    ];
+
+    const builtinPresets = {
+      solid: {
+        name: 'Logo / colore pieno',
+        lpi: '38', angle: '22.5', dot_shape: 'circle', min_dot_px: '0',
+        highlight_mode: 'drop', tone_mode: 'alpha', saturation: '1.05',
+        contrast: '1.05', brightness: '0', knockout_strength: '0', antialias_px: '0',
+        mask_black: '36', mask_white: '245', mask_gamma: '1'
+      },
+      gradient: {
+        name: 'Sfumature',
+        lpi: '35', angle: '22', dot_shape: 'circle', min_dot_px: '0',
+        highlight_mode: 'drop', tone_mode: 'photoshop_action', saturation: '1.10',
+        contrast: '1.08', brightness: '0', knockout_strength: '0', antialias_px: '0',
+        mask_black: '36', mask_white: '245', mask_gamma: '1'
+      },
+      black_shirt: {
+        name: 'Maglia nera / knockout',
+        lpi: '35', angle: '22', dot_shape: 'circle', min_dot_px: '0',
+        highlight_mode: 'drop', tone_mode: 'photoshop_action', saturation: '1.15',
+        contrast: '1.12', brightness: '0', knockout_strength: '1', antialias_px: '0',
+        mask_black: '42', mask_white: '235', mask_gamma: '1.15'
+      }
+    };
+    let customPresets = <%= (@halftone_presets || []).to_json %>;
+
+    function applyPreset(settings) {
+      Object.keys(settings).forEach(function(id) {
+        if (id === 'name') return;
+        const field = document.getElementById(id);
+        if (field) field.value = settings[id];
+      });
+      schedulePreview();
+    }
+
+    function renderPresetOptions(selectedValue) {
+      presetSelect.innerHTML = '';
+
+      Object.keys(builtinPresets).forEach(function(key) {
+        const option = document.createElement('option');
+        option.value = 'builtin:' + key;
+        option.textContent = builtinPresets[key].name;
+        presetSelect.appendChild(option);
+      });
+
+      if (customPresets.length > 0) {
+        const group = document.createElement('optgroup');
+        group.label = 'Preset salvati';
+        customPresets.forEach(function(preset) {
+          const option = document.createElement('option');
+          option.value = 'custom:' + preset.id;
+          option.textContent = preset.name;
+          group.appendChild(option);
+        });
+        presetSelect.appendChild(group);
+      }
+
+      presetSelect.value = selectedValue || 'builtin:gradient';
+      updateDeletePresetState();
+    }
+
+    function selectedCustomPreset() {
+      if (!presetSelect.value.startsWith('custom:')) return null;
+      const id = Number(presetSelect.value.replace('custom:', ''));
+      return customPresets.find(function(preset) { return preset.id === id; }) || null;
+    }
+
+    function updateDeletePresetState() {
+      deletePresetButton.disabled = selectedCustomPreset() === null;
+    }
+
+    function currentPresetSettings() {
+      const settings = {};
+      presetFields.forEach(function(id) {
+        const field = document.getElementById(id);
+        if (field) settings[id] = field.value;
+      });
+      return settings;
+    }
+
+    presetSelect.addEventListener('change', function(event) {
+      const value = event.target.value;
+      if (value.startsWith('builtin:')) {
+        applyPreset(builtinPresets[value.replace('builtin:', '')]);
+      } else {
+        const preset = selectedCustomPreset();
+        if (preset) applyPreset(preset.settings);
+      }
+      updateDeletePresetState();
+    });
+
+    savePresetButton.addEventListener('click', async function() {
+      const current = selectedCustomPreset();
+      const name = window.prompt('Nome preset', current ? current.name : '');
+      if (!name || name.trim() === '') return;
+
+      try {
+        const response = await fetch('/halftone_presets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: name.trim(),
+            settings: currentPresetSettings()
+          })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error || 'Salvataggio preset fallito');
+
+        customPresets = customPresets.filter(function(preset) { return preset.id !== result.preset.id; });
+        customPresets.push(result.preset);
+        customPresets.sort(function(a, b) { return a.name.localeCompare(b.name); });
+        renderPresetOptions('custom:' + result.preset.id);
+      } catch (error) {
+        window.alert(error.message);
+      }
+    });
+
+    deletePresetButton.addEventListener('click', async function() {
+      const preset = selectedCustomPreset();
+      if (!preset) return;
+      if (!window.confirm('Cancellare il preset "' + preset.name + '"?')) return;
+
+      try {
+        const response = await fetch('/halftone_presets/' + preset.id, { method: 'DELETE' });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error || 'Cancellazione preset fallita');
+
+        customPresets = customPresets.filter(function(item) { return item.id !== preset.id; });
+        renderPresetOptions('builtin:gradient');
+        applyPreset(builtinPresets.gradient);
+      } catch (error) {
+        window.alert(error.message);
+      }
+    });
+
+    function schedulePreview() {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(updatePreview, 450);
+    }
+
+    function activePreviewPane() {
+      const activeTab = document.querySelector('[data-bs-toggle="tab"].active');
+      return activeTab ? activeTab.getAttribute('data-bs-target') : '#original-pane';
+    }
+
+    async function updatePreview() {
+      const activePane = activePreviewPane();
+      const needsHalftone = activePane === '#retino-pane' || activePane === '#maglia-pane';
+      const needsMask = activePane === '#mask-pane';
+
+      if (!needsHalftone && !needsMask) {
+        previewStatus.textContent = 'In attesa';
+        return;
+      }
+
+      if (previewController) previewController.abort();
+      previewController = new AbortController();
+      previewStatus.textContent = needsMask ? 'Aggiorno maschera...' : 'Aggiorno retino...';
+
+      try {
+        if (needsHalftone) {
+          const response = await fetch('/assets/<%= @asset.id %>/halftone/preview', {
+            method: 'POST',
+            body: new FormData(form),
+            signal: previewController.signal
+          });
+
+          if (!response.ok) throw new Error(await response.text());
+
+          const blob = await response.blob();
+          if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+          previewObjectUrl = URL.createObjectURL(blob);
+          previewImage.src = previewObjectUrl;
+          shirtPreviewImage.src = previewObjectUrl;
+          previewImage.style.display = 'block';
+          shirtPreviewImage.style.display = 'block';
+          previewEmpty.style.display = 'none';
+          shirtPreviewEmpty.style.display = 'none';
+        }
+
+        if (needsMask) {
+          const maskResponse = await fetch('/assets/<%= @asset.id %>/halftone/mask_preview', {
+            method: 'POST',
+            body: new FormData(form),
+            signal: previewController.signal
+          });
+
+          if (!maskResponse.ok) throw new Error(await maskResponse.text());
+
+          const maskBlob = await maskResponse.blob();
+          if (maskObjectUrl) URL.revokeObjectURL(maskObjectUrl);
+          maskObjectUrl = URL.createObjectURL(maskBlob);
+          maskPreviewImage.src = maskObjectUrl;
+          maskPreviewImage.style.display = 'block';
+          maskPreviewEmpty.style.display = 'none';
+        }
+
+        applyPreviewZoom();
+        previewStatus.textContent = 'Preview aggiornata';
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        previewStatus.textContent = 'Errore preview';
+        console.error('DTF preview error:', error);
+      }
+    }
+
+    form.querySelectorAll('input, select').forEach(function(field) {
+      field.addEventListener('input', schedulePreview);
+      field.addEventListener('change', schedulePreview);
+    });
+
+    form.querySelectorAll('input[type="number"]').forEach(function(field) {
+      field.addEventListener('blur', function() {
+        if (field.value === '') return;
+        const min = field.min === '' ? null : Number(field.min);
+        const max = field.max === '' ? null : Number(field.max);
+        let value = Number(field.value);
+        if (Number.isNaN(value)) return;
+        if (min !== null && value < min) value = min;
+        if (max !== null && value > max) value = max;
+        field.value = value;
+      });
+    });
+
+    function syncResizeFromWidth() {
+      if (syncingResizeFields || !resizeWidthField || !resizeHeightField) return;
+      const width = Number(resizeWidthField.value);
+      if (!width || Number.isNaN(width) || !resizeAspect) return;
+
+      syncingResizeFields = true;
+      resizeHeightField.value = (width / resizeAspect).toFixed(2);
+      syncingResizeFields = false;
+    }
+
+    function syncResizeFromHeight() {
+      if (syncingResizeFields || !resizeWidthField || !resizeHeightField) return;
+      const height = Number(resizeHeightField.value);
+      if (!height || Number.isNaN(height) || !resizeAspect) return;
+
+      syncingResizeFields = true;
+      resizeWidthField.value = (height * resizeAspect).toFixed(2);
+      syncingResizeFields = false;
+    }
+
+    if (resizeWidthField && resizeHeightField) {
+      resizeWidthField.addEventListener('input', syncResizeFromWidth);
+      resizeHeightField.addEventListener('input', syncResizeFromHeight);
+    }
+
+    function applyPreviewZoom() {
+      const zoom = previewZoom.value;
+      const isFit = zoom === 'fit';
+      const visibleFrame = previewFrames.find(function(frame) {
+        return frame.offsetParent !== null && frame.clientWidth > 40 && frame.clientHeight > 40;
+      });
+
+      previewFrames.forEach(function(frame) {
+        frame.classList.toggle('is-zoomed', !isFit);
+      });
+
+      previewImages.forEach(function(image) {
+        if (isFit) {
+          image.style.width = '';
+          image.style.height = '';
+          return;
+        }
+
+        if (!image.naturalWidth) return;
+        const frame = image.closest('.dtf-preview-frame');
+        const measuringFrame = frame && frame.clientWidth > 40 && frame.clientHeight > 40 ? frame : visibleFrame;
+        const availableWidth = measuringFrame ? Math.max(measuringFrame.clientWidth - 32, 1) : image.clientWidth;
+        const availableHeight = measuringFrame ? Math.max(measuringFrame.clientHeight - 32, 1) : image.clientHeight;
+        const fitScale = Math.min(availableWidth / image.naturalWidth, availableHeight / image.naturalHeight);
+        const fitWidth = image.naturalWidth * fitScale;
+        const previewCompensation = originalImage && originalImage.naturalWidth && image !== originalImage
+          ? originalImage.naturalWidth / image.naturalWidth
+          : 1;
+        image.style.width = Math.round(fitWidth * Number(zoom) * previewCompensation) + 'px';
+        image.style.height = 'auto';
+      });
+    }
+
+    function updateShirtBackground() {
+      shirtPreviewSurface.style.backgroundColor = shirtColorField.value || '#000000';
+    }
+
+    previewZoom.addEventListener('change', applyPreviewZoom);
+    previewImages.forEach(function(image) {
+      image.addEventListener('load', applyPreviewZoom);
+    });
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(tab) {
+      tab.addEventListener('shown.bs.tab', function() {
+        applyPreviewZoom();
+        schedulePreview();
+      });
+      tab.addEventListener('click', function() {
+        setTimeout(applyPreviewZoom, 80);
+      });
+    });
+    window.addEventListener('resize', applyPreviewZoom);
+    shirtColorField.addEventListener('input', updateShirtBackground);
+    shirtColorField.addEventListener('change', updateShirtBackground);
+    renderPresetOptions('builtin:gradient');
+    applyPreviewZoom();
+    updateShirtBackground();
+    schedulePreview();
+  });
+</script>

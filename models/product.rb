@@ -37,6 +37,14 @@ class Product < ActiveRecord::Base
     "N/A"
   end
 
+  def has_cut_file
+    has_attribute?(:has_cut_file) ? self[:has_cut_file] : false
+  end
+
+  def cut_file_path
+    has_attribute?(:cut_file_path) ? self[:cut_file_path] : nil
+  end
+
   # Duplicate product with all its configurations
   def duplicate
     new_product = self.dup

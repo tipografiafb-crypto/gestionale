@@ -65,6 +65,8 @@ class ConsolidatedSchema < ActiveRecord::Migration[7.2]
       t.bigint :product_category_id
       t.bigint :default_print_flow_id
       t.integer :min_stock_level, default: 0
+      t.boolean :has_cut_file, default: false
+      t.string :cut_file_path
       t.timestamps
     end
 
@@ -183,6 +185,14 @@ class ConsolidatedSchema < ActiveRecord::Migration[7.2]
       t.text :details
       t.timestamps
     end
+
+    # halftone_presets
+    create_table :halftone_presets, if_not_exists: true do |t|
+      t.string :name, null: false
+      t.json :settings, default: {}, null: false
+      t.timestamps
+    end
+    add_index :halftone_presets, :name, unique: true if index_name_exists?(:halftone_presets, :name).nil?
 
     # import_errors
     create_table :import_errors, if_not_exists: true do |t|

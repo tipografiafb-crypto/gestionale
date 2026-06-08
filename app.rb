@@ -73,6 +73,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'models/aggregated_job'
   require_relative 'models/aggregated_job_item'
   require_relative 'models/log'
+  require_relative 'models/halftone_preset'
 
   # Load services
   require_relative 'lib/backup'

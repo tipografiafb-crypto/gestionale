@@ -164,6 +164,7 @@
         <% if print_files.any? %>
           <div class="row mb-3">
             <% print_files.each do |asset| %>
+              <% asset_label = asset.asset_type == 'print_file_halftone' ? 'Retino DTF' : 'File di Stampa' %>
               <div class="col-md-3 mb-3">
                 <div class="card">
                   <div class="card-body text-center">
@@ -176,7 +177,16 @@
                         <i class="fas fa-file-pdf" style="font-size: 32px; color: #dc3545;"></i>
                       </div>
                     <% end %>
-                    <small class="d-block"><strong>File di Stampa</strong></small>
+                    <small class="d-block"><strong><%= asset_label %></strong></small>
+                    <% if (png_info = png_print_info(asset)) %>
+                      <small class="d-block text-muted">
+                        <%= png_info[:width_px] %>x<%= png_info[:height_px] %> px -
+                        <%= format('%.1f', png_info[:print_width_cm]) %>x<%= format('%.1f', png_info[:print_height_cm]) %> cm @ <%= png_info[:target_dpi] %> DPI
+                      </small>
+                      <% if png_info[:declared_dpi] && (png_info[:declared_dpi] - png_info[:target_dpi]).abs > 1 %>
+                        <small class="d-block text-warning">DPI file: <%= png_info[:declared_dpi].round %>, pixel invariati</small>
+                      <% end %>
+                    <% end %>
                     <div class="btn-group btn-group-sm mt-2" role="group">
                       <% if asset.downloaded? %>
                         <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Scarica"><i class="fas fa-download"></i></a>
@@ -185,6 +195,9 @@
                                   data-asset-id="<%= asset.id %>" 
                                   data-file-url="/file/<%= asset.id %>"
                                   title="Modifica Offset"><i class="fas fa-arrows-alt"></i></button>
+                          <% if asset.local_path_full.to_s.match?(/\.png$/i) && asset.asset_type != 'print_file_halftone' %>
+                            <a href="/assets/<%= asset.id %>/halftone" class="btn btn-sm btn-outline-success" title="Configura retino DTF"><i class="fas fa-dot-circle"></i></a>
+                          <% end %>
                           <form action="/assets/<%= asset.id %>/restore" method="post" class="d-inline" onsubmit="return confirm('Ripristinare la versione originale dell\'immagine?');">
                             <input type="hidden" name="order_id" value="<%= @order.id %>">
                             <input type="hidden" name="item_id" value="<%= @item.id %>">
