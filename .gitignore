@@ -45,3 +45,7 @@ Thumbs.db
 # Replit
 .replit
 replit.nix
+
+# Python
+__pycache__/
+*.pyc
