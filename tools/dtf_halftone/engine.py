@@ -33,7 +33,9 @@ def process_image(input_path: str, output_path: str, config: HalftoneConfig) -> 
     rgb, alpha = _load_rgba_arrays(input_path)
 
     adjusted_rgb = _adjust_rgb(rgb, config)
-    if config.tone_mode == "photoshop_action":
+    if config.tone_mode == "retino_am":
+        output_alpha = _retino_am_alpha(adjusted_rgb, alpha, config)
+    elif config.tone_mode == "photoshop_action":
         output_alpha = _photoshop_action_alpha(adjusted_rgb, alpha, config)
         output_alpha = np.clip(output_alpha * _knockout_scale(adjusted_rgb, config), 0.0, 1.0)
     else:
@@ -61,6 +63,10 @@ def process_image(input_path: str, output_path: str, config: HalftoneConfig) -> 
             "angle": config.angle,
             "dot_shape": config.dot_shape,
             "min_dot_px": config.min_dot_px,
+            "min_dot_percent": config.min_dot_percent,
+            "min_hole_percent": config.min_hole_percent,
+            "max_coverage": config.max_coverage,
+            "tone_mode": config.tone_mode,
         }
     )
     return info
@@ -72,7 +78,10 @@ def save_mask_preview(input_path: str, output_path: str, config: HalftoneConfig)
     rgb, alpha = _load_rgba_arrays(input_path)
     adjusted_rgb = _adjust_rgb(rgb, config)
 
-    if config.tone_mode == "photoshop_action":
+    if config.tone_mode == "retino_am":
+        knockout_scale = _knockout_scale(adjusted_rgb, config)
+        mask = _retino_am_coverage(adjusted_rgb, alpha * knockout_scale, config)
+    elif config.tone_mode == "photoshop_action":
         mask = _photoshop_action_reveal_tone(adjusted_rgb, alpha, config)
         mask = np.clip(mask * _knockout_scale(adjusted_rgb, config), 0.0, 1.0)
     else:
@@ -105,9 +114,17 @@ def _adjust_rgb(rgb: np.ndarray, config: HalftoneConfig) -> np.ndarray:
     adjusted = np.clip(rgb, 0.0, 1.0)
 
     if config.saturation != 1.0:
-        hsv = cv2.cvtColor((adjusted * 255).astype(np.uint8), cv2.COLOR_RGB2HSV).astype(np.float32)
-        hsv[:, :, 1] = np.clip(hsv[:, :, 1] * config.saturation, 0, 255)
-        adjusted = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB).astype(np.float32) / 255.0
+        if config.tone_mode == "retino_am":
+            luminance = (
+                (0.299 * adjusted[:, :, 0])
+                + (0.587 * adjusted[:, :, 1])
+                + (0.114 * adjusted[:, :, 2])
+            )
+            adjusted = luminance[:, :, None] + ((adjusted - luminance[:, :, None]) * config.saturation)
+        else:
+            hsv = cv2.cvtColor((adjusted * 255).astype(np.uint8), cv2.COLOR_RGB2HSV).astype(np.float32)
+            hsv[:, :, 1] = np.clip(hsv[:, :, 1] * config.saturation, 0, 255)
+            adjusted = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB).astype(np.float32) / 255.0
 
     if config.contrast != 1.0 or config.brightness != 0.0:
         adjusted = (adjusted - 0.5) * config.contrast + 0.5 + (config.brightness / 255.0)
@@ -174,6 +191,93 @@ def _apply_mask_levels(value: np.ndarray, config: HalftoneConfig) -> np.ndarray:
     white = config.mask_white / 255.0
     leveled = np.clip((value - black) / max(white - black, 1e-6), 0.0, 1.0)
     return np.power(leveled, config.mask_gamma).astype(np.float32)
+
+
+def _retino_am_alpha(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneConfig) -> np.ndarray:
+    knockout_scale = _knockout_scale(rgb, config)
+    coverage = _retino_am_coverage(rgb, alpha * knockout_scale, config)
+    return _retino_am_screen_mask(coverage, config)
+
+
+def _retino_am_coverage(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneConfig) -> np.ndarray:
+    tone = _srgb_encoded_luminance(rgb) * alpha
+    if config.invert:
+        tone = 1.0 - tone
+
+    black = config.mask_black / 255.0
+    white = config.mask_white / 255.0
+    span = max(white - black, 1e-6)
+    leveled = (tone - black) / span
+    clipped = np.clip(leveled, 0.0, 1.0)
+
+    gamma = max(config.mask_gamma, 0.01)
+    coverage = np.power(clipped, 1.0 / gamma)
+    coverage = np.where(leveled <= 0.0, 0.0, coverage)
+    coverage = np.where(leveled >= 1.0, 1.0, coverage)
+    coverage = np.where(coverage < config.min_dot_percent, 0.0, coverage)
+    coverage = np.where(coverage > (1.0 - config.min_hole_percent), 1.0, coverage)
+    coverage = np.where((coverage > 0.0) & (coverage < 1.0), coverage * config.max_coverage, coverage)
+    coverage = np.where(alpha > config.alpha_threshold, coverage, 0.0)
+    return np.clip(coverage, 0.0, 1.0).astype(np.float32)
+
+
+def _retino_am_screen_mask(coverage: np.ndarray, config: HalftoneConfig) -> np.ndarray:
+    height, width = coverage.shape
+    cell_px = config.target_dpi / config.lpi
+    if cell_px < 2:
+        raise ValueError("lpi is too high for the selected target DPI")
+
+    yy, xx = np.indices((height, width), dtype=np.float32)
+    angle = math.radians(config.angle)
+    cos_a = math.cos(angle)
+    sin_a = math.sin(angle)
+    xr = (xx * cos_a) + (yy * sin_a)
+    yr = (-xx * sin_a) + (yy * cos_a)
+
+    local_x = (np.mod(xr / cell_px, 1.0) * 2.0) - 1.0
+    local_y = (np.mod(yr / cell_px, 1.0) * 2.0) - 1.0
+    threshold = _retino_am_spot_threshold(local_x, local_y, config.dot_shape)
+
+    mask = coverage > threshold
+    mask = np.where(coverage >= 1.0, True, mask)
+    mask = np.where(coverage <= 0.0, False, mask)
+    return mask.astype(np.float32)
+
+
+def _retino_am_spot_threshold(local_x: np.ndarray, local_y: np.ndarray, dot_shape: str) -> np.ndarray:
+    if dot_shape in {"circle", "round"}:
+        return ((local_x * local_x) + (local_y * local_y)) * 0.5
+    if dot_shape == "ellipse":
+        threshold = ((local_x * local_x / 1.55) + (local_y * local_y * 1.55)) * 0.5
+        return np.clip(threshold, 0.0, 1.0).astype(np.float32)
+    if dot_shape == "line":
+        return np.abs(local_y).astype(np.float32)
+
+    ax = np.abs(local_x)
+    ay = np.abs(local_y)
+    inside_diamond = (ax + ay) <= 1.0
+    dot_part = 1.0 - ((local_x * local_x) + (local_y * local_y))
+    hole_part = (((ax - 1.0) * (ax - 1.0)) + ((ay - 1.0) * (ay - 1.0))) - 1.0
+    spot = np.where(inside_diamond, dot_part, hole_part)
+    return ((1.0 - spot) * 0.5).astype(np.float32)
+
+
+def _srgb_encoded_luminance(rgb: np.ndarray) -> np.ndarray:
+    linear = _srgb_to_linear(rgb)
+    luminance = (
+        (0.2126 * linear[:, :, 0])
+        + (0.7152 * linear[:, :, 1])
+        + (0.0722 * linear[:, :, 2])
+    )
+    return _linear_to_srgb(luminance).astype(np.float32)
+
+
+def _srgb_to_linear(value: np.ndarray) -> np.ndarray:
+    return np.where(value <= 0.04045, value / 12.92, np.power((value + 0.055) / 1.055, 2.4))
+
+
+def _linear_to_srgb(value: np.ndarray) -> np.ndarray:
+    return np.where(value <= 0.0031308, value * 12.92, (1.055 * np.power(value, 1.0 / 2.4)) - 0.055)
 
 
 def _apply_highlight_guard_to_reveal_mask(reveal_mask: np.ndarray, ink: np.ndarray, config: HalftoneConfig) -> np.ndarray:

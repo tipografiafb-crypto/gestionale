@@ -23,10 +23,14 @@ def main() -> int:
     parser.add_argument("--target-dpi", type=int, default=300)
     parser.add_argument("--lpi", type=float, default=35.0)
     parser.add_argument("--angle", type=float, default=22.5)
-    parser.add_argument("--dot-shape", choices=["circle", "ellipse", "line"], default="circle")
+    parser.add_argument("--dot-shape", choices=["circle", "round", "euclid", "ellipse", "line"], default="circle")
     parser.add_argument("--min-dot-px", type=float, default=0.0)
+    parser.add_argument("--min-dot-percent", type=float, default=6.0, help="Minimum printable dot coverage; accepts 6 or 0.06")
+    parser.add_argument("--min-hole-percent", type=float, default=4.0, help="Minimum open hole coverage; accepts 4 or 0.04")
+    parser.add_argument("--max-coverage", type=float, default=85.0, help="Maximum halftone coverage; accepts 85 or 0.85")
     parser.add_argument("--highlight-mode", choices=["drop", "force"], default="drop")
-    parser.add_argument("--tone-mode", choices=["alpha", "luminance", "combined", "photoshop_action"], default="alpha")
+    parser.add_argument("--tone-mode", choices=["alpha", "luminance", "combined", "photoshop_action", "retino_am"], default="alpha")
+    parser.add_argument("--invert", action="store_true", help="Invert tonal coverage before screening")
     parser.add_argument("--saturation", type=float, default=1.0)
     parser.add_argument("--contrast", type=float, default=1.0)
     parser.add_argument("--brightness", type=float, default=0.0)
@@ -57,8 +61,12 @@ def main() -> int:
         angle=args.angle,
         dot_shape=args.dot_shape,
         min_dot_px=args.min_dot_px,
+        min_dot_percent=_percent_to_fraction(args.min_dot_percent),
+        min_hole_percent=_percent_to_fraction(args.min_hole_percent),
+        max_coverage=_percent_to_fraction(args.max_coverage),
         highlight_mode=args.highlight_mode,
         tone_mode=args.tone_mode,
+        invert=args.invert,
         saturation=args.saturation,
         contrast=args.contrast,
         brightness=args.brightness,
@@ -167,6 +175,10 @@ def parse_hex_color(value: Optional[str]) -> Optional[RGBColor]:
         return tuple(int(normalized[i : i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
     except ValueError as exc:
         raise argparse.ArgumentTypeError("color must be in #RRGGBB format") from exc
+
+
+def _percent_to_fraction(value: float) -> float:
+    return value / 100.0 if value >= 1.0 else value
 
 
 def _print_result(result: dict, as_json: bool) -> None:

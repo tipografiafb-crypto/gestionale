@@ -86,15 +86,19 @@ class PrintOrchestrator < Sinatra::Base
     min_dot_px = numeric_param(request_params, 'min_dot_px', 0, min: 0, max: 50)
     dot_shape = request_params['dot_shape'].presence || 'circle'
     highlight_mode = request_params['highlight_mode'].presence || 'drop'
-    tone_mode = request_params['tone_mode'].presence || 'photoshop_action'
+    tone_mode = request_params['tone_mode'].presence || 'retino_am'
+    invert = truthy_param?(request_params, 'invert')
     saturation = numeric_param(request_params, 'saturation', 1.0, min: 0, max: 3)
     contrast = numeric_param(request_params, 'contrast', 1.0, min: 0, max: 3)
     brightness = numeric_param(request_params, 'brightness', 0, min: -100, max: 100)
     knockout_strength = numeric_param(request_params, 'knockout_strength', 0, min: 0, max: 1)
     antialias_px = numeric_param(request_params, 'antialias_px', 0, min: 0, max: 5)
-    mask_black = numeric_param(request_params, 'mask_black', 36, min: 0, max: 254)
-    mask_white = numeric_param(request_params, 'mask_white', 245, min: mask_black + 1, max: 255)
+    mask_black = numeric_param(request_params, 'mask_black', 0, min: 0, max: 254)
+    mask_white = numeric_param(request_params, 'mask_white', 255, min: mask_black + 1, max: 255)
     mask_gamma = numeric_param(request_params, 'mask_gamma', 1.0, min: 0.1, max: 5)
+    max_coverage = numeric_param(request_params, 'max_coverage', 85, min: 0, max: 100)
+    min_dot_percent = numeric_param(request_params, 'min_dot_percent', 6, min: 0, max: 100)
+    min_hole_percent = numeric_param(request_params, 'min_hole_percent', 4, min: 0, max: 100)
     resize_width_cm = numeric_param(request_params, 'resize_width_cm', 0, min: 0, max: 300)
     resize_height_cm = numeric_param(request_params, 'resize_height_cm', 0, min: 0, max: 300)
     shirt_color = request_params['shirt_color'].presence
@@ -108,6 +112,9 @@ class PrintOrchestrator < Sinatra::Base
       '--angle', angle.to_s,
       '--dot-shape', dot_shape,
       '--min-dot-px', min_dot_px.to_s,
+      '--min-dot-percent', min_dot_percent.to_s,
+      '--min-hole-percent', min_hole_percent.to_s,
+      '--max-coverage', max_coverage.to_s,
       '--highlight-mode', highlight_mode,
       '--tone-mode', tone_mode,
       '--saturation', saturation.to_s,
@@ -120,6 +127,7 @@ class PrintOrchestrator < Sinatra::Base
       '--mask-gamma', mask_gamma.to_s,
       '--json'
     ]
+    command << '--invert' if invert
     command.concat(['--shirt-color', shirt_color]) if shirt_color
     command.concat(['--resize-width-cm', resize_width_cm.to_s]) if resize_width_cm.positive?
     command.concat(['--resize-height-cm', resize_height_cm.to_s]) if resize_height_cm.positive?
@@ -134,6 +142,13 @@ class PrintOrchestrator < Sinatra::Base
     value
   rescue ArgumentError, TypeError
     default
+  end
+
+  def truthy_param?(request_params, key)
+    value = request_params[key]
+    return false if value.nil?
+
+    %w[1 true yes on].include?(value.to_s.downcase)
   end
 
   # GET / - Redirect to orders list
@@ -1000,6 +1015,52 @@ class PrintOrchestrator < Sinatra::Base
         return redirect "/orders/#{order.id}/items/#{item.id}?error=halftone_requires_png"
       end
 
+      upload = params[:png] || params['png']
+      if upload
+        content_type :json
+        tempfile = nil
+        if upload.respond_to?(:[])
+          tempfile = upload[:tempfile] || upload['tempfile']
+        elsif upload.respond_to?(:tempfile)
+          tempfile = upload.tempfile
+        end
+
+        unless tempfile && File.exist?(tempfile.path)
+          status 422
+          return { success: false, error: 'png_missing' }.to_json
+        end
+
+        if File.size(tempfile.path) > 200 * 1024 * 1024
+          status 413
+          return { success: false, error: 'png_too_large' }.to_json
+        end
+
+        tempfile.rewind
+        signature = tempfile.read(8)
+        tempfile.rewind
+        unless signature == "\x89PNG\r\n\x1a\n".b
+          status 422
+          return { success: false, error: 'invalid_png' }.to_json
+        end
+
+        operational_path = asset.local_path_full
+        source_backup_path = halftone_source_backup_path(asset)
+        FileUtils.copy(operational_path, source_backup_path) unless File.exist?(source_backup_path)
+
+        tmp_output_path = File.join(
+          File.dirname(operational_path),
+          ".#{File.basename(operational_path, '.*')}_dtf_canvas_tmp_#{Time.now.strftime('%Y%m%d%H%M%S')}.png"
+        )
+        FileUtils.copy(tempfile.path, tmp_output_path)
+        FileUtils.mv(tmp_output_path, operational_path)
+
+        puts "[DTF_HALFTONE_BROWSER] Replaced asset #{asset.id} from canvas export; source backup #{source_backup_path}"
+        return {
+          success: true,
+          redirect_url: "/orders/#{order.id}/items/#{item.id}?success=halftone_updated"
+        }.to_json
+      end
+
       operational_path = asset.local_path_full
       source_backup_path = halftone_source_backup_path(asset)
       FileUtils.copy(operational_path, source_backup_path) unless File.exist?(source_backup_path)
@@ -1025,6 +1086,77 @@ class PrintOrchestrator < Sinatra::Base
       puts "[DTF_HALFTONE] Error: #{e.message}"
       puts e.backtrace.take(3)
       redirect '/orders?error=halftone_failed'
+    end
+  end
+
+  # POST /assets/:id/halftone/browser_export - Save the browser-rendered canvas PNG
+  post '/assets/:id/halftone/browser_export' do
+    content_type :json
+
+    begin
+      asset = Asset.find(params[:id])
+      item = asset.order_item
+      order = item.order
+
+      unless asset.downloaded? && File.exist?(asset.local_path_full)
+        status 404
+        return { success: false, error: 'asset_missing' }.to_json
+      end
+
+      unless File.extname(asset.local_path_full).downcase == '.png'
+        status 415
+        return { success: false, error: 'halftone_requires_png' }.to_json
+      end
+
+      upload = params[:png] || params['png']
+      tempfile = nil
+      if upload.respond_to?(:[])
+        tempfile = upload[:tempfile] || upload['tempfile']
+      elsif upload.respond_to?(:tempfile)
+        tempfile = upload.tempfile
+      end
+      unless tempfile && File.exist?(tempfile.path)
+        status 422
+        return { success: false, error: 'png_missing' }.to_json
+      end
+
+      if File.size(tempfile.path) > 200 * 1024 * 1024
+        status 413
+        return { success: false, error: 'png_too_large' }.to_json
+      end
+
+      tempfile.rewind
+      signature = tempfile.read(8)
+      tempfile.rewind
+      unless signature == "\x89PNG\r\n\x1a\n".b
+        status 422
+        return { success: false, error: 'invalid_png' }.to_json
+      end
+
+      operational_path = asset.local_path_full
+      source_backup_path = halftone_source_backup_path(asset)
+      FileUtils.copy(operational_path, source_backup_path) unless File.exist?(source_backup_path)
+
+      tmp_output_path = File.join(
+        File.dirname(operational_path),
+        ".#{File.basename(operational_path, '.*')}_dtf_canvas_tmp_#{Time.now.strftime('%Y%m%d%H%M%S')}.png"
+      )
+      FileUtils.copy(tempfile.path, tmp_output_path)
+      FileUtils.mv(tmp_output_path, operational_path)
+
+      puts "[DTF_HALFTONE_BROWSER] Replaced asset #{asset.id} from canvas export; source backup #{source_backup_path}"
+      {
+        success: true,
+        redirect_url: "/orders/#{order.id}/items/#{item.id}?success=halftone_updated"
+      }.to_json
+    rescue ActiveRecord::RecordNotFound
+      status 404
+      { success: false, error: 'asset_not_found' }.to_json
+    rescue => e
+      FileUtils.rm_f(tmp_output_path) if defined?(tmp_output_path) && tmp_output_path && File.exist?(tmp_output_path)
+      puts "[DTF_HALFTONE_BROWSER] Error: #{e.message}"
+      status 500
+      { success: false, error: 'halftone_failed' }.to_json
     end
   end
 
