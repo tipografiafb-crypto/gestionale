@@ -419,7 +419,6 @@
 
     <div class="ht-group">
       <h5>Tono e copertura</h5>
-      <label class="ht-check"><input type="checkbox" id="invert">Inverti copertura</label>
       <canvas id="hist" width="256" height="64"></canvas>
 
       <div class="ht-row"><label for="lvB">Nero input</label><span class="ht-val" id="lvBV">0</span></div>
@@ -442,6 +441,29 @@
 
       <div class="ht-row"><label for="sat">Saturazione colore</label><span class="ht-val" id="satV">100%</span></div>
       <input class="ht-range" type="range" id="sat" min="0" max="250" step="5" value="100">
+
+      <div class="ht-row"><label for="shade">Neutralizza ombre</label><span class="ht-val" id="shadeV">70</span></div>
+      <input class="ht-range" type="range" id="shade" min="0" max="150" step="5" value="70">
+    </div>
+
+    <div class="ht-group">
+      <h5>Tessuto come base</h5>
+      <label class="ht-check"><input type="checkbox" id="knockChk">Usa colore tessuto come base</label>
+      <label class="ht-check"><input type="checkbox" id="dualTone" checked>Preserva chiari e scuri</label>
+      <label class="ht-check"><input type="checkbox" id="invert">Inverti copertura</label>
+      <div class="ht-row" style="gap:8px">
+        <button id="pickBtn" type="button" class="ht-button" style="flex:1">Contagocce</button>
+        <input type="color" id="fabricCol" value="#151515" style="width:42px;height:30px;border:1px solid var(--ht-line);border-radius:4px;padding:1px">
+      </div>
+      <div class="ht-hint" id="pickHint">Preleva il colore dalla preview oppure sceglilo dal riquadro.</div>
+
+      <div class="ht-row"><label for="tol">Tolleranza</label><span class="ht-val" id="tolV">18</span></div>
+      <input class="ht-range" type="range" id="tol" min="1" max="60" step="1" value="18">
+
+      <div class="ht-row"><label for="tolL">Peso luminosita</label><span class="ht-val" id="tolLV">30%</span></div>
+      <input class="ht-range" type="range" id="tolL" min="0" max="100" step="5" value="30">
+
+      <label class="ht-check"><input type="checkbox" id="knockShow">Evidenzia zone base</label>
     </div>
 
     <div class="ht-group">
@@ -453,7 +475,6 @@
       </div>
       <label class="ht-check" style="justify-content:space-between">
         <span style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="fabricChk">Tessuto sotto</span>
-        <input type="color" id="fabricCol" value="#151515" style="width:42px;height:26px;border:1px solid var(--ht-line);border-radius:4px;padding:1px">
       </label>
       <button class="ht-button ht-button-primary" id="btnSave" type="button" disabled>Esporta nel flusso</button>
       <div class="ht-hint mt-2" id="saveStatus">Il PNG finale viene salvato sull'asset, con backup automatico dell'originale.</div>
@@ -501,6 +522,8 @@
       img: null,
       tone: null,
       alpha: null,
+      lab: null,
+      knock: null,
       hist: null,
       color: null,
       tw: 0,
@@ -524,17 +547,35 @@
       s2l[i] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
     }
 
+    function rgb2lab(r, g, b) {
+      const R = s2l[r];
+      const G = s2l[g];
+      const B = s2l[b];
+      let x = R * 0.4124 + G * 0.3576 + B * 0.1805;
+      let y = R * 0.2126 + G * 0.7152 + B * 0.0722;
+      let z = R * 0.0193 + G * 0.1192 + B * 0.9505;
+      x /= 0.95047;
+      z /= 1.08883;
+      const f = t => t > 0.008856 ? Math.cbrt(t) : (7.787 * t + 16 / 116);
+      const fx = f(x);
+      const fy = f(y);
+      const fz = f(z);
+      return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+    }
+
     function P() {
       return {
         dpi: +$('dpi').value,
         printw: Math.max(0, parseFloat($('printw').value) || 0),
         lpi: +$('lpi').value,
         angle: +$('angle').value * Math.PI / 180,
-        invert: $('invert').checked,
+        invert: $('knockChk').checked && $('invert').checked,
+        dualTone: $('knockChk').checked && $('dualTone').checked,
         black: +$('lvB').value,
         white: +$('lvW').value,
         lgamma: +$('lvG').value,
         sat: +$('sat').value / 100,
+        shadeThr: +$('shade').value,
         cap: +$('cap').value / 100,
         mindot: +$('mindot').value / 100,
         minhole: +$('minhole').value / 100
@@ -566,11 +607,29 @@
     bindRange('mindot', v => v + '%', false);
     bindRange('minhole', v => v + '%', false);
     bindRange('sat', v => v + '%', true);
+    bindRange('shade', v => v, true);
+    bindRange('tol', v => v, false);
+    bindRange('tolL', v => v + '%', false);
+
+    function syncKnockOptionState() {
+      const enabled = $('knockChk').checked;
+      $('invert').disabled = !enabled;
+      $('dualTone').disabled = !enabled;
+    }
 
     $('invert').addEventListener('change', () => schedule(false));
+    $('dualTone').addEventListener('change', () => schedule(false));
     $('printw').addEventListener('input', () => schedule(true));
     $('fabricChk').addEventListener('change', () => schedule(false));
     $('fabricCol').addEventListener('input', () => { if ($('fabricChk').checked || S.view === 'shirt') schedule(false); });
+    $('knockChk').addEventListener('change', () => {
+      syncKnockOptionState();
+      refreshKnock();
+    });
+    $('knockShow').addEventListener('change', () => schedule(false));
+    $('tol').addEventListener('input', () => refreshKnock());
+    $('tolL').addEventListener('input', () => refreshKnock());
+    $('fabricCol').addEventListener('input', () => refreshKnock());
 
     function bindSeg(id, cb) {
       $(id).addEventListener('click', e => {
@@ -594,22 +653,25 @@
     const deletePresetButton = $('deletePresetButton');
     let customPresets = <%= (@halftone_presets || []).to_json %>;
 
-    const presetFields = ['dpi', 'printw', 'lpi', 'angle', 'invert', 'lvB', 'lvG', 'lvW', 'cap', 'mindot', 'minhole', 'sat', 'fabricChk', 'fabricCol'];
+    const presetFields = ['dpi', 'printw', 'lpi', 'angle', 'invert', 'dualTone', 'lvB', 'lvG', 'lvW', 'cap', 'mindot', 'minhole', 'sat', 'shade', 'knockChk', 'tol', 'tolL', 'knockShow', 'fabricChk', 'fabricCol'];
     const builtinPresets = {
       gradient: {
         name: 'Retino AM / sfumature',
         dpi: '300', lpi: '30', angle: '22', spot: 'round', out: 'color',
-        invert: '0', lvB: '0', lvG: '1.00', lvW: '255', cap: '85', mindot: '6', minhole: '4', sat: '100', fabricChk: '0', fabricCol: '#151515'
+        invert: '0', dualTone: '1', lvB: '0', lvG: '1.00', lvW: '255', cap: '85', mindot: '6', minhole: '4', sat: '100', shade: '70',
+        knockChk: '0', tol: '18', tolL: '30', knockShow: '0', fabricChk: '0', fabricCol: '#151515'
       },
       black_shirt: {
         name: 'Maglia nera / colori vivi',
         dpi: '300', lpi: '30', angle: '22', spot: 'round', out: 'color',
-        invert: '0', lvB: '0', lvG: '1.00', lvW: '255', cap: '85', mindot: '6', minhole: '4', sat: '135', fabricChk: '1', fabricCol: '#151515'
+        invert: '0', dualTone: '1', lvB: '0', lvG: '1.00', lvW: '255', cap: '85', mindot: '6', minhole: '4', sat: '135', shade: '70',
+        knockChk: '0', tol: '18', tolL: '30', knockShow: '0', fabricChk: '1', fabricCol: '#151515'
       },
       soft: {
         name: 'Sfumatura morbida',
         dpi: '300', lpi: '35', angle: '22', spot: 'euclid', out: 'color',
-        invert: '0', lvB: '0', lvG: '1.10', lvW: '255', cap: '78', mindot: '4', minhole: '5', sat: '120', fabricChk: '0', fabricCol: '#151515'
+        invert: '0', dualTone: '1', lvB: '0', lvG: '1.10', lvW: '255', cap: '78', mindot: '4', minhole: '5', sat: '120', shade: '70',
+        knockChk: '0', tol: '18', tolL: '30', knockShow: '0', fabricChk: '0', fabricCol: '#151515'
       }
     };
 
@@ -657,6 +719,7 @@
       });
       if (settings.spot) setSegValue('spotSeg', settings.spot);
       if (settings.out) setSegValue('outSeg', settings.out);
+      syncKnockOptionState();
       schedule(true);
     }
 
@@ -798,6 +861,28 @@
       octx.drawImage(S.img, 0, 0, w, h);
       const imgd = octx.getImageData(0, 0, w, h);
       const d = imgd.data;
+      const lab = new Float32Array(w * h * 3);
+      for (let i = 0, j = 0; i < w * h; i++, j += 4) {
+        const L = rgb2lab(d[j], d[j + 1], d[j + 2]);
+        lab[i * 3] = L[0];
+        lab[i * 3 + 1] = L[1];
+        lab[i * 3 + 2] = L[2];
+      }
+      S.lab = lab;
+
+      const shadeThr = p.shadeThr;
+      if (shadeThr > 0) {
+        for (let j = 0; j < d.length; j += 4) {
+          const lum = 0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2];
+          if (lum < shadeThr) {
+            const k = 1 - lum / shadeThr;
+            d[j] = d[j] + (lum - d[j]) * k;
+            d[j + 1] = d[j + 1] + (lum - d[j + 1]) * k;
+            d[j + 2] = d[j + 2] + (lum - d[j + 2]) * k;
+          }
+        }
+      }
+
       const sat = p.sat;
 
       if (sat !== 1) {
@@ -831,6 +916,40 @@
         'sorgente: <b>' + S.img.naturalWidth + ' x ' + S.img.naturalHeight + '</b> px<br>' +
         'lavoro: <b>' + w + ' x ' + h + '</b> px<br>' +
         'stampa: <b>' + cmW + ' x ' + cmH + ' cm</b> @ ' + p.dpi + ' dpi';
+      buildKnock();
+    }
+
+    function refreshKnock() {
+      buildKnock();
+      schedule(false);
+    }
+
+    function buildKnock() {
+      if (!S.lab || !$('knockChk').checked) {
+        S.knock = null;
+        return;
+      }
+
+      const hex = $('fabricCol').value;
+      const tr = parseInt(hex.slice(1, 3), 16);
+      const tg = parseInt(hex.slice(3, 5), 16);
+      const tb = parseInt(hex.slice(5, 7), 16);
+      const target = rgb2lab(tr, tg, tb);
+      const tol = +$('tol').value;
+      const lightWeight = +$('tolL').value / 100;
+      const tol2 = tol * tol;
+      const labData = S.lab;
+      const count = S.tw * S.th;
+      const mask = new Uint8Array(count);
+
+      for (let i = 0; i < count; i++) {
+        const dL = (labData[i * 3] - target[0]) * lightWeight;
+        const da = labData[i * 3 + 1] - target[1];
+        const db = labData[i * 3 + 2] - target[2];
+        if (dL * dL + da * da + db * db <= tol2) mask[i] = 1;
+      }
+
+      S.knock = mask;
     }
 
     function makeSpot(kind) {
@@ -845,9 +964,8 @@
       };
     }
 
-    function coverageAt(tone, alpha, p) {
-      if (alpha <= 0.01) return 0;
-      let v = p.invert ? 1 - tone : tone;
+    function leveledCoverage(value, p) {
+      let v = value;
       const span = Math.max(1, p.white - p.black);
       v = (v * 255 - p.black) / span;
       if (v <= 0) return 0;
@@ -856,6 +974,14 @@
       if (v < p.mindot) return 0;
       if (v > 1 - p.minhole) return 1;
       return v * p.cap;
+    }
+
+    function coverageAt(tone, alpha, p) {
+      if (alpha <= 0.01) return 0;
+      if (p.dualTone) {
+        return Math.max(leveledCoverage(tone, p), leveledCoverage(1 - tone, p));
+      }
+      return leveledCoverage(p.invert ? 1 - tone : tone, p);
     }
 
     function drawHist() {
@@ -913,6 +1039,9 @@
         bg = (0xFF << 24 | b << 16 | g << 8 | r) >>> 0;
       }
 
+      const knock = S.knock;
+      const showKnock = $('knockShow').checked;
+      const hilite = 0xFF00E5E5;
       const invCell = 1 / cell;
       for (let y = 0; y < h; y++) {
         const ys = y * sin;
@@ -920,6 +1049,10 @@
         const row = y * w;
         for (let x = 0; x < w; x++) {
           const i = row + x;
+          if (knock && knock[i] && S.view !== 'original') {
+            out[i] = showKnock ? hilite : (S.view === 'mask' ? 0xFF000000 : bg);
+            continue;
+          }
           const c = coverageAt(S.tone[i], S.alpha[i], p);
           if (S.view === 'mask') {
             const g = Math.max(0, Math.min(255, Math.round(c * 255)));
@@ -975,12 +1108,47 @@
       }
     }
 
+    let picking = false;
+    $('pickBtn').addEventListener('click', () => {
+      picking = !picking;
+      $('pickBtn').style.background = picking ? 'var(--ht-ink)' : '';
+      $('pickBtn').style.color = picking ? 'var(--ht-paper)' : '';
+      $('pickHint').innerHTML = picking ? '<b style="color:var(--ht-reg)">Clicca un punto della preview</b>' : 'Preleva il colore dalla preview oppure sceglilo dal riquadro.';
+      cv.style.cursor = picking ? 'copy' : 'crosshair';
+    });
+
+    cv.addEventListener('click', e => {
+      if (!picking || !S.color) return;
+      const r = cv.getBoundingClientRect();
+      const px = Math.floor((e.clientX - r.left) / r.width * cv.width);
+      const py = Math.floor((e.clientY - r.top) / r.height * cv.height);
+      const i = py * S.tw + px;
+      if (i < 0 || i >= S.tw * S.th) return;
+      const c = S.color[i];
+      const rr = c & 0xFF;
+      const gg = (c >> 8) & 0xFF;
+      const bb = (c >> 16) & 0xFF;
+      const hex = '#' + [rr, gg, bb].map(v => v.toString(16).padStart(2, '0')).join('');
+      $('fabricCol').value = hex;
+      $('knockChk').checked = true;
+      syncKnockOptionState();
+      picking = false;
+      $('pickBtn').style.background = '';
+      $('pickBtn').style.color = '';
+      cv.style.cursor = 'crosshair';
+      $('pickHint').innerHTML = 'Colore tessuto prelevato: <b>' + hex + '</b>.';
+      refreshKnock();
+    });
+
     const loupe = $('loupe');
     const loupecv = $('loupecv');
     const lctx = loupecv.getContext('2d');
     lctx.imageSmoothingEnabled = false;
     cv.addEventListener('mousemove', e => {
-      if (!S.tone) return;
+      if (!S.tone || picking) {
+        loupe.style.display = 'none';
+        return;
+      }
       const r = cv.getBoundingClientRect();
       const px = (e.clientX - r.left) / r.width * cv.width;
       const py = (e.clientY - r.top) / r.height * cv.height;
@@ -1048,8 +1216,10 @@
 
       const oldView = S.view;
       const fabricWas = $('fabricChk').checked;
+      const knockShowWas = $('knockShow').checked;
       S.view = 'retino';
       $('fabricChk').checked = false;
+      $('knockShow').checked = false;
       render();
 
       let dataUrl = cv.toDataURL('image/png');
@@ -1058,6 +1228,7 @@
 
       S.view = oldView;
       $('fabricChk').checked = fabricWas;
+      $('knockShow').checked = knockShowWas;
       setSegValue('viewSeg', oldView);
       render();
 
