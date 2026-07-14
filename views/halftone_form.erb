@@ -18,12 +18,17 @@
     overflow: hidden;
   }
 
+  .ht-shell *,
+  .ht-title * {
+    box-sizing: border-box;
+  }
+
   .ht-sidebar {
-    background: var(--ht-panel);
+    background: var(--ht-paper);
     border-right: 1px solid var(--ht-line);
     flex: 0 0 320px;
     overflow-y: auto;
-    padding: 16px 18px 28px;
+    padding: 12px 14px 28px;
   }
 
   .ht-stage {
@@ -68,6 +73,11 @@
 
   .ht-title .btn {
     margin-left: auto;
+    white-space: nowrap;
+  }
+
+  .ht-title > div {
+    min-width: 0;
   }
 
   .ht-regmark {
@@ -76,8 +86,18 @@
     width: 26px;
   }
 
+  .ht-preset-row {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
   .ht-group {
-    margin-bottom: 20px;
+    background: var(--ht-panel);
+    border: 1px solid var(--ht-line);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    padding: 12px 14px;
   }
 
   .ht-group h5 {
@@ -87,9 +107,66 @@
     font-size: 10px;
     font-weight: 700;
     letter-spacing: .14em;
-    margin: 0 0 12px;
-    padding-bottom: 5px;
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    gap: 8px;
+    margin: -12px -14px 12px;
+    padding: 11px 14px;
     text-transform: uppercase;
+    user-select: none;
+  }
+
+  .ht-group h5::after {
+    border-bottom: 1.5px solid currentColor;
+    border-right: 1.5px solid currentColor;
+    content: "";
+    height: 7px;
+    margin-left: auto;
+    transform: rotate(45deg);
+    transition: transform .15s ease;
+    width: 7px;
+  }
+
+  .ht-group h5:focus-visible {
+    outline: 2px solid var(--ht-reg);
+    outline-offset: -2px;
+  }
+
+  .ht-group.is-collapsed {
+    padding-bottom: 12px;
+  }
+
+  .ht-group.is-collapsed h5 {
+    border-bottom: 0;
+    margin-bottom: -12px;
+  }
+
+  .ht-group.is-collapsed h5::after {
+    transform: rotate(-45deg);
+  }
+
+  .ht-group.is-collapsed > :not(h5) {
+    display: none !important;
+  }
+
+  .ht-badge {
+    background: var(--ht-reg);
+    border-radius: 3px;
+    color: #fff;
+    display: none;
+    font-size: 9px;
+    letter-spacing: .05em;
+    margin-left: auto;
+    padding: 2px 6px;
+  }
+
+  .ht-badge.is-visible {
+    display: inline-block;
+  }
+
+  .ht-group h5:has(.ht-badge.is-visible)::after {
+    margin-left: 0;
   }
 
   .ht-row {
@@ -116,6 +193,51 @@
     text-align: right;
   }
 
+  .ht-number-wrap {
+    align-items: center;
+    background: var(--ht-paper);
+    border: 1px solid var(--ht-line);
+    border-radius: 3px;
+    display: inline-flex;
+    min-width: 70px;
+    overflow: hidden;
+  }
+
+  .ht-number-input {
+    appearance: textfield;
+    background: transparent;
+    border: 0;
+    color: var(--ht-ink);
+    font-family: var(--ht-mono);
+    font-size: 11px;
+    min-width: 0;
+    padding: 2px 3px 2px 6px;
+    text-align: right;
+    width: 54px;
+  }
+
+  .ht-number-input::-webkit-inner-spin-button,
+  .ht-number-input::-webkit-outer-spin-button {
+    margin: 0;
+  }
+
+  .ht-number-input:focus {
+    outline: none;
+  }
+
+  .ht-number-wrap:focus-within {
+    border-color: var(--ht-reg);
+    box-shadow: 0 0 0 1px var(--ht-reg);
+  }
+
+  .ht-unit {
+    color: var(--ht-dim);
+    font-family: var(--ht-mono);
+    font-size: 10px;
+    padding-right: 6px;
+    white-space: nowrap;
+  }
+
   .ht-input,
   .ht-select,
   .ht-button {
@@ -131,6 +253,22 @@
 
   .ht-button {
     cursor: pointer;
+  }
+
+  .ht-button:focus-visible,
+  .ht-select:focus-visible,
+  .ht-input:focus-visible,
+  .ht-seg button:focus-visible {
+    outline: 2px solid var(--ht-reg);
+    outline-offset: 1px;
+  }
+
+  .ht-button:disabled,
+  .ht-seg button:disabled,
+  .ht-input:disabled,
+  .ht-range:disabled {
+    cursor: not-allowed;
+    opacity: .45;
   }
 
   .ht-button-primary {
@@ -216,6 +354,18 @@
     font-size: 11px;
     line-height: 1.45;
     margin: -4px 0 10px;
+  }
+
+  .ht-option-block {
+    transition: opacity .15s ease;
+  }
+
+  .ht-option-block.is-disabled {
+    opacity: .48;
+  }
+
+  .ht-option-block.is-disabled .ht-hint {
+    margin-bottom: 0;
   }
 
   .ht-info {
@@ -353,10 +503,73 @@
       flex: none;
       max-height: none;
       width: 100%;
+      max-width: 100%;
     }
 
     .ht-viewport {
       min-height: 520px;
+    }
+
+    .ht-topbar {
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
+
+    .ht-topbar .ht-seg {
+      flex: 1 1 280px;
+      width: auto !important;
+    }
+
+    .ht-topbar .ht-meta {
+      flex-basis: 100%;
+      margin-left: 0 !important;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .ht-title {
+      align-items: flex-start;
+      flex-wrap: wrap;
+      padding: 10px 12px;
+    }
+
+    .ht-title .btn {
+      margin-left: 38px;
+    }
+
+    .ht-sidebar {
+      padding-left: 10px;
+      padding-right: 10px;
+    }
+
+    .ht-preset-row {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .ht-preset-row .ht-select {
+      grid-column: 1 / -1;
+    }
+
+    .ht-preset-row .ht-button {
+      width: 100% !important;
+    }
+
+    .ht-topbar .ht-seg {
+      flex-basis: 100%;
+    }
+
+    .ht-seg button {
+      font-size: 11px;
+      padding-left: 4px;
+      padding-right: 4px;
+    }
+
+    .ht-number-wrap {
+      min-width: 64px;
+    }
+
+    .ht-number-input {
+      width: 48px;
     }
   }
 </style>
@@ -380,14 +593,14 @@
   <aside class="ht-sidebar">
     <div class="ht-group">
       <h5>Preset</h5>
-      <div class="d-flex gap-2">
+      <div class="ht-preset-row">
         <select id="dtfPreset" class="ht-select"></select>
         <button id="savePresetButton" type="button" class="ht-button" title="Salva preset" style="width:auto;white-space:nowrap"><i class="fas fa-save"></i> Salva</button>
         <button id="deletePresetButton" type="button" class="ht-button" title="Cancella preset" style="width:auto;white-space:nowrap" disabled><i class="fas fa-trash"></i> Elimina</button>
       </div>
     </div>
 
-    <div class="ht-group">
+    <div class="ht-group is-collapsed">
       <h5>Immagine</h5>
       <div class="ht-info" id="imgInfo">caricamento sorgente...</div>
     </div>
@@ -419,6 +632,8 @@
 
     <div class="ht-group">
       <h5>Tono e copertura</h5>
+      <label class="ht-check"><input type="checkbox" id="invert">Inverti copertura</label>
+      <div class="ht-hint">Disattivato lavora sulle zone chiare; attivato sulle zone scure.</div>
       <canvas id="hist" width="256" height="64"></canvas>
 
       <div class="ht-row"><label for="lvB">Nero input</label><span class="ht-val" id="lvBV">0</span></div>
@@ -446,24 +661,42 @@
       <input class="ht-range" type="range" id="shade" min="0" max="150" step="5" value="70">
     </div>
 
-    <div class="ht-group">
-      <h5>Tessuto come base</h5>
+    <div class="ht-group is-collapsed" data-active-control="dotChk">
+      <h5>Punto minimo fisico <span class="ht-badge">Attivo</span></h5>
+      <label class="ht-check"><input type="checkbox" id="dotChk">Imponi diametro minimo</label>
+      <div class="ht-hint">Corregge i punti stampati troppo piccoli per trattenere la polvere. E diverso dal punto minimo tonale.</div>
+      <div class="ht-option-block is-disabled" id="dotOptions">
+        <div class="ht-row"><label for="dotPx">Diametro minimo</label><span class="ht-val" id="dotPxV">3 px</span></div>
+        <input class="ht-range" type="range" id="dotPx" min="2" max="12" step="1" value="3" disabled>
+        <div class="ht-row"><label>Punti sotto soglia</label></div>
+        <div class="ht-seg" id="dotModeSeg">
+          <button type="button" data-v="drop" class="on" disabled>Elimina</button>
+          <button type="button" data-v="force" disabled>Porta al minimo</button>
+        </div>
+        <div class="ht-hint mt-2">Elimina produce alte luci piu pulite; Porta al minimo conserva piu dettaglio.</div>
+        <div class="ht-info" id="dotInfo" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="ht-group is-collapsed" data-active-control="knockChk">
+      <h5>Tessuto come base <span class="ht-badge">Attivo</span></h5>
       <label class="ht-check"><input type="checkbox" id="knockChk">Usa colore tessuto come base</label>
-      <label class="ht-check"><input type="checkbox" id="dualTone" checked>Preserva chiari e scuri</label>
-      <label class="ht-check"><input type="checkbox" id="invert">Inverti copertura</label>
       <div class="ht-row" style="gap:8px">
         <button id="pickBtn" type="button" class="ht-button" style="flex:1">Contagocce</button>
         <input type="color" id="fabricCol" value="#151515" style="width:42px;height:30px;border:1px solid var(--ht-line);border-radius:4px;padding:1px">
       </div>
       <div class="ht-hint" id="pickHint">Preleva il colore dalla preview oppure sceglilo dal riquadro.</div>
 
-      <div class="ht-row"><label for="tol">Tolleranza</label><span class="ht-val" id="tolV">18</span></div>
-      <input class="ht-range" type="range" id="tol" min="1" max="60" step="1" value="18">
+      <div class="ht-option-block is-disabled" id="knockOptions">
+        <label class="ht-check"><input type="checkbox" id="dualTone" checked disabled>Preserva dettagli chiari e scuri</label>
+        <div class="ht-row"><label for="tol">Tolleranza</label><span class="ht-val" id="tolV">18</span></div>
+        <input class="ht-range" type="range" id="tol" min="1" max="60" step="1" value="18" disabled>
 
-      <div class="ht-row"><label for="tolL">Peso luminosita</label><span class="ht-val" id="tolLV">30%</span></div>
-      <input class="ht-range" type="range" id="tolL" min="0" max="100" step="5" value="30">
+        <div class="ht-row"><label for="tolL">Peso luminosita</label><span class="ht-val" id="tolLV">30%</span></div>
+        <input class="ht-range" type="range" id="tolL" min="0" max="100" step="5" value="30" disabled>
 
-      <label class="ht-check"><input type="checkbox" id="knockShow">Evidenzia zone base</label>
+        <label class="ht-check"><input type="checkbox" id="knockShow" disabled>Evidenzia selezione in anteprima</label>
+      </div>
     </div>
 
     <div class="ht-group">
@@ -474,8 +707,9 @@
         <button type="button" data-v="kb">Nero/Bianco</button>
       </div>
       <label class="ht-check" style="justify-content:space-between">
-        <span style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="fabricChk">Tessuto sotto</span>
+        <span style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="fabricChk">Simula tessuto sotto</span>
       </label>
+      <div class="ht-hint">Solo anteprima. Il PNG esportato mantiene sempre la trasparenza.</div>
       <button class="ht-button ht-button-primary" id="btnSave" type="button" disabled>Esporta nel flusso</button>
       <div class="ht-hint mt-2" id="saveStatus">Il PNG finale viene salvato sull'asset, con backup automatico dell'originale.</div>
     </div>
@@ -530,6 +764,7 @@
       th: 0,
       spot: 'round',
       out: 'color',
+      dotMode: 'drop',
       view: 'retino',
       fit: true,
       renderedMode: 'retino'
@@ -569,7 +804,7 @@
         printw: Math.max(0, parseFloat($('printw').value) || 0),
         lpi: +$('lpi').value,
         angle: +$('angle').value * Math.PI / 180,
-        invert: $('knockChk').checked && $('invert').checked,
+        invert: $('invert').checked,
         dualTone: $('knockChk').checked && $('dualTone').checked,
         black: +$('lvB').value,
         white: +$('lvW').value,
@@ -582,15 +817,70 @@
       };
     }
 
+    function clampToRange(el, raw) {
+      const min = Number(el.min);
+      const max = Number(el.max);
+      let value = Number(raw);
+      if (!Number.isFinite(value)) value = Number(el.value) || min || 0;
+      if (Number.isFinite(min)) value = Math.max(min, value);
+      if (Number.isFinite(max)) value = Math.min(max, value);
+      return value;
+    }
+
+    function isInRange(el, raw) {
+      const value = Number(raw);
+      const min = Number(el.min);
+      const max = Number(el.max);
+      if (!Number.isFinite(value)) return false;
+      if (Number.isFinite(min) && value < min) return false;
+      if (Number.isFinite(max) && value > max) return false;
+      return true;
+    }
+
+    function setRangeDisabled(id, disabled) {
+      const range = $(id);
+      const number = $(id + 'N');
+      if (range) range.disabled = disabled;
+      if (number) number.disabled = disabled;
+    }
+
     function bindRange(id, fmt, rebuildTone) {
       const el = $(id);
       const out = $(id + 'V');
+      const number = document.createElement('input');
+      const unit = document.createElement('span');
+      number.className = 'ht-number-input';
+      number.type = 'number';
+      number.id = id + 'N';
+      number.min = el.min;
+      number.max = el.max;
+      number.step = el.step;
+      number.disabled = el.disabled;
+      unit.className = 'ht-unit';
+      out.className = 'ht-number-wrap';
+      out.textContent = '';
+      out.appendChild(number);
+      out.appendChild(unit);
       const upd = () => {
-        out.textContent = fmt(+el.value);
+        const formatted = fmt(+el.value);
+        const parts = String(formatted).match(/^(-?\d+(?:\.\d+)?)(.*)$/);
+        number.value = parts ? parts[1] : el.value;
+        unit.textContent = parts ? parts[2].trim() : '';
         const p = (el.value - el.min) / (el.max - el.min) * 100;
         el.style.setProperty('--fill', p + '%');
       };
       el.addEventListener('input', () => {
+        upd();
+        schedule(Boolean(rebuildTone));
+      });
+      number.addEventListener('input', () => {
+        if (number.value === '' || !isInRange(el, number.value)) return;
+        el.value = number.value;
+        upd();
+        schedule(Boolean(rebuildTone));
+      });
+      number.addEventListener('change', () => {
+        el.value = clampToRange(el, number.value);
         upd();
         schedule(Boolean(rebuildTone));
       });
@@ -608,14 +898,51 @@
     bindRange('minhole', v => v + '%', false);
     bindRange('sat', v => v + '%', true);
     bindRange('shade', v => v, true);
+    bindRange('dotPx', v => v + ' px', false);
     bindRange('tol', v => v, false);
     bindRange('tolL', v => v + '%', false);
 
     function syncKnockOptionState() {
       const enabled = $('knockChk').checked;
-      $('invert').disabled = !enabled;
-      $('dualTone').disabled = !enabled;
+      ['dualTone', 'knockShow'].forEach(id => { $(id).disabled = !enabled; });
+      ['tol', 'tolL'].forEach(id => setRangeDisabled(id, !enabled));
+      $('knockOptions').classList.toggle('is-disabled', !enabled);
+      updateSectionBadges();
     }
+
+    function syncDotOptionState() {
+      const enabled = $('dotChk').checked;
+      setRangeDisabled('dotPx', !enabled);
+      $('dotModeSeg').querySelectorAll('button').forEach(button => { button.disabled = !enabled; });
+      $('dotOptions').classList.toggle('is-disabled', !enabled);
+      if (!enabled) $('dotInfo').style.display = 'none';
+      updateSectionBadges();
+    }
+
+    function updateSectionBadges() {
+      document.querySelectorAll('.ht-group[data-active-control]').forEach(group => {
+        const control = $(group.dataset.activeControl);
+        const badge = group.querySelector('.ht-badge');
+        if (badge) badge.classList.toggle('is-visible', Boolean(control && control.checked));
+      });
+    }
+
+    document.querySelectorAll('.ht-group > h5').forEach(heading => {
+      const group = heading.parentElement;
+      heading.setAttribute('role', 'button');
+      heading.setAttribute('tabindex', '0');
+      heading.setAttribute('aria-expanded', String(!group.classList.contains('is-collapsed')));
+      const toggle = () => {
+        group.classList.toggle('is-collapsed');
+        heading.setAttribute('aria-expanded', String(!group.classList.contains('is-collapsed')));
+      };
+      heading.addEventListener('click', toggle);
+      heading.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        toggle();
+      });
+    });
 
     $('invert').addEventListener('change', () => schedule(false));
     $('dualTone').addEventListener('change', () => schedule(false));
@@ -625,6 +952,10 @@
     $('knockChk').addEventListener('change', () => {
       syncKnockOptionState();
       refreshKnock();
+    });
+    $('dotChk').addEventListener('change', () => {
+      syncDotOptionState();
+      schedule(false);
     });
     $('knockShow').addEventListener('change', () => schedule(false));
     $('tol').addEventListener('input', () => refreshKnock());
@@ -642,6 +973,7 @@
 
     bindSeg('spotSeg', v => { S.spot = v; schedule(false); });
     bindSeg('outSeg', v => { S.out = v; schedule(false); });
+    bindSeg('dotModeSeg', v => { S.dotMode = v; if ($('dotChk').checked) schedule(false); });
     bindSeg('viewSeg', v => { S.view = v; schedule(false); });
     bindSeg('zoomSeg', v => {
       S.fit = v === 'fit';
@@ -653,24 +985,24 @@
     const deletePresetButton = $('deletePresetButton');
     let customPresets = <%= (@halftone_presets || []).to_json %>;
 
-    const presetFields = ['dpi', 'printw', 'lpi', 'angle', 'invert', 'dualTone', 'lvB', 'lvG', 'lvW', 'cap', 'mindot', 'minhole', 'sat', 'shade', 'knockChk', 'tol', 'tolL', 'knockShow', 'fabricChk', 'fabricCol'];
+    const presetFields = ['dpi', 'printw', 'lpi', 'angle', 'invert', 'dualTone', 'lvB', 'lvG', 'lvW', 'cap', 'mindot', 'minhole', 'sat', 'shade', 'dotChk', 'dotPx', 'knockChk', 'tol', 'tolL', 'knockShow', 'fabricChk', 'fabricCol'];
     const builtinPresets = {
       gradient: {
         name: 'Retino AM / sfumature',
         dpi: '300', lpi: '30', angle: '22', spot: 'round', out: 'color',
-        invert: '0', dualTone: '1', lvB: '0', lvG: '1.00', lvW: '255', cap: '85', mindot: '6', minhole: '4', sat: '100', shade: '70',
+        invert: '0', dualTone: '1', lvB: '0', lvG: '1.00', lvW: '255', cap: '85', mindot: '6', minhole: '4', sat: '100', shade: '70', dotChk: '0', dotPx: '3', dotMode: 'drop',
         knockChk: '0', tol: '18', tolL: '30', knockShow: '0', fabricChk: '0', fabricCol: '#151515'
       },
       black_shirt: {
         name: 'Maglia nera / colori vivi',
         dpi: '300', lpi: '30', angle: '22', spot: 'round', out: 'color',
-        invert: '0', dualTone: '1', lvB: '0', lvG: '1.00', lvW: '255', cap: '85', mindot: '6', minhole: '4', sat: '135', shade: '70',
+        invert: '0', dualTone: '1', lvB: '0', lvG: '1.00', lvW: '255', cap: '85', mindot: '6', minhole: '4', sat: '135', shade: '70', dotChk: '0', dotPx: '3', dotMode: 'drop',
         knockChk: '0', tol: '18', tolL: '30', knockShow: '0', fabricChk: '1', fabricCol: '#151515'
       },
       soft: {
         name: 'Sfumatura morbida',
         dpi: '300', lpi: '35', angle: '22', spot: 'euclid', out: 'color',
-        invert: '0', dualTone: '1', lvB: '0', lvG: '1.10', lvW: '255', cap: '78', mindot: '4', minhole: '5', sat: '120', shade: '70',
+        invert: '0', dualTone: '1', lvB: '0', lvG: '1.10', lvW: '255', cap: '78', mindot: '4', minhole: '5', sat: '120', shade: '70', dotChk: '0', dotPx: '3', dotMode: 'drop',
         knockChk: '0', tol: '18', tolL: '30', knockShow: '0', fabricChk: '0', fabricCol: '#151515'
       }
     };
@@ -682,6 +1014,7 @@
       seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === button));
       if (id === 'spotSeg') S.spot = value;
       if (id === 'outSeg') S.out = value;
+      if (id === 'dotModeSeg') S.dotMode = value;
     }
 
     function normalizePreset(settings) {
@@ -719,7 +1052,9 @@
       });
       if (settings.spot) setSegValue('spotSeg', settings.spot);
       if (settings.out) setSegValue('outSeg', settings.out);
+      if (settings.dotMode) setSegValue('dotModeSeg', settings.dotMode);
       syncKnockOptionState();
+      syncDotOptionState();
       schedule(true);
     }
 
@@ -732,6 +1067,7 @@
       });
       settings.spot = S.spot;
       settings.out = S.out;
+      settings.dotMode = S.dotMode;
       return settings;
     }
 
@@ -1042,6 +1378,9 @@
       const knock = S.knock;
       const showKnock = $('knockShow').checked;
       const hilite = 0xFF00E5E5;
+      const enforcePhysicalDot = $('dotChk').checked && (S.view === 'retino' || S.view === 'shirt');
+      const inkMask = enforcePhysicalDot ? new Uint8Array(w * h) : null;
+      if (!enforcePhysicalDot) $('dotInfo').style.display = 'none';
       const invCell = 1 / cell;
       for (let y = 0; y < h; y++) {
         const ys = y * sin;
@@ -1069,6 +1408,7 @@
           }
           if (c >= 1) {
             out[i] = useColor ? (color[i] | 0xFF000000) : ink;
+            if (inkMask) inkMask[i] = 1;
             continue;
           }
           const xr = x * cos + ys;
@@ -1078,10 +1418,18 @@
           if (u < 0) u += 1;
           if (v < 0) v += 1;
           const threshold = spot(u * 2 - 1, v * 2 - 1);
-          out[i] = c > threshold ? (useColor ? (color[i] | 0xFF000000) : ink) : bg;
+          if (c > threshold) {
+            out[i] = useColor ? (color[i] | 0xFF000000) : ink;
+            if (inkMask) inkMask[i] = 1;
+          } else {
+            out[i] = bg;
+          }
         }
       }
 
+      if (inkMask) {
+        enforceMinDot(out, inkMask, w, h, +$('dotPx').value, S.dotMode, useColor, color, ink, bg, S.alpha, knock);
+      }
       ctx.putImageData(imgd, 0, 0);
       S.renderedMode = S.view;
       applyView();
@@ -1095,6 +1443,82 @@
       $('ftCell').textContent = 'cella ' + cell.toFixed(1) + 'px @ ' + p.dpi + 'dpi';
       $('ftTime').textContent = ms + ' ms';
       $('stageMeta').textContent = w + ' x ' + h + ' px · lente 1:1 col mouse';
+    }
+
+    function enforceMinDot(out, inkMask, width, height, diameter, mode, useColor, color, ink, bg, alpha, knock) {
+      const minArea = Math.max(2, Math.round(Math.PI * diameter * diameter / 4));
+      const visited = new Uint8Array(width * height);
+      const stack = [];
+      const componentPixels = new Int32Array(minArea);
+      const radius = diameter / 2;
+      const radiusInt = Math.ceil(radius);
+      let removed = 0;
+      let grown = 0;
+
+      for (let start = 0; start < width * height; start++) {
+        if (!inkMask[start] || visited[start]) continue;
+
+        visited[start] = 1;
+        stack.length = 0;
+        stack.push(start);
+        let area = 0;
+        let sumX = 0;
+        let sumY = 0;
+
+        while (stack.length) {
+          const index = stack.pop();
+          if (area < minArea) componentPixels[area] = index;
+          area++;
+          const x = index % width;
+          sumX += x;
+          sumY += (index / width) | 0;
+
+          if (x > 0 && inkMask[index - 1] && !visited[index - 1]) {
+            visited[index - 1] = 1;
+            stack.push(index - 1);
+          }
+          if (x < width - 1 && inkMask[index + 1] && !visited[index + 1]) {
+            visited[index + 1] = 1;
+            stack.push(index + 1);
+          }
+          if (index >= width && inkMask[index - width] && !visited[index - width]) {
+            visited[index - width] = 1;
+            stack.push(index - width);
+          }
+          if (index < width * (height - 1) && inkMask[index + width] && !visited[index + width]) {
+            visited[index + width] = 1;
+            stack.push(index + width);
+          }
+        }
+
+        if (area >= minArea) continue;
+        for (let i = 0; i < area; i++) out[componentPixels[i]] = bg;
+
+        if (mode === 'force') {
+          const centerX = Math.round(sumX / area);
+          const centerY = Math.round(sumY / area);
+          for (let dy = -radiusInt; dy <= radiusInt; dy++) {
+            const y = centerY + dy;
+            if (y < 0 || y >= height) continue;
+            for (let dx = -radiusInt; dx <= radiusInt; dx++) {
+              const x = centerX + dx;
+              if (x < 0 || x >= width || dx * dx + dy * dy > radius * radius) continue;
+              const index = y * width + x;
+              if (alpha[index] <= 0.01 || (knock && knock[index])) continue;
+              out[index] = useColor ? (color[index] | 0xFF000000) : ink;
+            }
+          }
+          grown++;
+        } else {
+          removed++;
+        }
+      }
+
+      const info = $('dotInfo');
+      info.style.display = 'block';
+      info.innerHTML = mode === 'force'
+        ? 'Punti portati al diametro minimo: <b>' + grown + '</b>'
+        : 'Punti eliminati sotto soglia: <b>' + removed + '</b>';
     }
 
     function applyView() {

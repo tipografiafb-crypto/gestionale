@@ -1,6 +1,6 @@
 import math
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -195,8 +195,11 @@ def _apply_mask_levels(value: np.ndarray, config: HalftoneConfig) -> np.ndarray:
 
 def _retino_am_alpha(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneConfig) -> np.ndarray:
     knockout_scale = _knockout_scale(rgb, config)
-    coverage = _retino_am_coverage(rgb, alpha * knockout_scale, config)
-    return _retino_am_screen_mask(coverage, config)
+    effective_alpha = alpha * knockout_scale
+    coverage = _retino_am_coverage(rgb, effective_alpha, config)
+    screen_mask = _retino_am_screen_mask(coverage, config)
+    printable_mask = effective_alpha > config.alpha_threshold
+    return _enforce_min_dot_components(screen_mask, config, printable_mask)
 
 
 def _retino_am_coverage(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneConfig) -> np.ndarray:
@@ -244,6 +247,43 @@ def _retino_am_screen_mask(coverage: np.ndarray, config: HalftoneConfig) -> np.n
     return mask.astype(np.float32)
 
 
+def _enforce_min_dot_components(
+    mask: np.ndarray, config: HalftoneConfig, printable_mask: Optional[np.ndarray] = None
+) -> np.ndarray:
+    if config.min_dot_px <= 0:
+        return mask
+
+    binary = (mask >= 0.5).astype(np.uint8)
+    component_count, labels, stats, centroids = cv2.connectedComponentsWithStats(binary, connectivity=4)
+    min_area = max(2, round(math.pi * config.min_dot_px * config.min_dot_px / 4.0))
+    result = binary.copy()
+    radius = config.min_dot_px / 2.0
+    radius_int = math.ceil(radius)
+    height, width = binary.shape
+
+    for label in range(1, component_count):
+        if stats[label, cv2.CC_STAT_AREA] >= min_area:
+            continue
+
+        result[labels == label] = 0
+        if config.highlight_mode != "force":
+            continue
+
+        center_x, center_y = np.rint(centroids[label]).astype(int)
+        y0 = max(0, center_y - radius_int)
+        y1 = min(height, center_y + radius_int + 1)
+        x0 = max(0, center_x - radius_int)
+        x1 = min(width, center_x + radius_int + 1)
+        yy, xx = np.ogrid[y0:y1, x0:x1]
+        disk = ((xx - center_x) ** 2 + (yy - center_y) ** 2) <= radius * radius
+        if printable_mask is not None:
+            disk &= printable_mask[y0:y1, x0:x1]
+        region = result[y0:y1, x0:x1]
+        region[disk] = 1
+
+    return result.astype(np.float32)
+
+
 def _retino_am_spot_threshold(local_x: np.ndarray, local_y: np.ndarray, dot_shape: str) -> np.ndarray:
     if dot_shape in {"circle", "round"}:
         return ((local_x * local_x) + (local_y * local_y)) * 0.5
@@ -285,8 +325,8 @@ def _apply_highlight_guard_to_reveal_mask(reveal_mask: np.ndarray, ink: np.ndarr
         return reveal_mask
 
     cell_px = config.target_dpi / config.lpi
-    expected_radius = np.sqrt(np.clip(ink, 0.0, 1.0) / math.pi) * cell_px
-    too_small = (expected_radius > 0) & (expected_radius < config.min_dot_px)
+    expected_diameter = np.sqrt(np.clip(ink, 0.0, 1.0) / math.pi) * cell_px * 2.0
+    too_small = (expected_diameter > 0) & (expected_diameter < config.min_dot_px)
     if config.highlight_mode == "drop":
         return np.where(too_small, 1.0, reveal_mask)
     return reveal_mask
@@ -328,7 +368,7 @@ def _halftone_mask(coverage: np.ndarray, config: HalftoneConfig) -> np.ndarray:
         return _line_mask(local_y, cell_coverage, cell_px, config)
 
     radius = np.sqrt(cell_coverage / math.pi) * cell_px
-    radius = _apply_min_dot(radius, config)
+    radius = _apply_min_dot(radius * 2.0, config) / 2.0
 
     if config.dot_shape == "ellipse":
         aspect = 1.8
