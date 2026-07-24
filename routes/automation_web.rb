@@ -28,6 +28,12 @@ class PrintOrchestrator < Sinatra::Base
     {type: 'set_variables', label: 'Imposta variabili', icon: 'fa-tags', outputs: ['default']},
     {type: 'calculate_copies', label: 'Calcola quantità', icon: 'fa-calculator', outputs: ['default']},
     {type: 'duplicate_pages', label: 'Moltiplica pagine', icon: 'fa-copy', outputs: ['default']},
+    {
+      type: 'pair_sides',
+      label: 'Abbina fronte e retro',
+      icon: 'fa-clone',
+      outputs: ['mono', 'bifa', 'incomplete']
+    },
     {type: 'photoshop', label: 'Photoshop', icon: 'fa-image', outputs: ['default']},
     {type: 'illustrator', label: 'Illustrator', icon: 'fa-pen-nib', outputs: ['default']},
     {type: 'step_repeat', label: 'Step and repeat', icon: 'fa-grip', outputs: ['default']},
@@ -100,23 +106,9 @@ class PrintOrchestrator < Sinatra::Base
     end
 
     def automation_chain_rows(folder)
-      rows = []
-      visited = {}
-      walk = lambda do |flow, depth|
-        repeated = visited.key?(flow.id)
-        rows << {flow: flow, depth: depth, repeated: repeated}
-        return if repeated
-
-        visited[flow.id] = true
-        AutomationFlow.where(id: flow.handoff_target_ids).ordered.each do |target|
-          walk.call(target, depth + 1)
-        end
+      folder.automation_folder_flows.map do |membership|
+        {flow: membership.automation_flow, membership: membership}
       end
-      walk.call(folder.root_flow, 0) if folder.root_flow
-      folder.automation_flows.each do |flow|
-        walk.call(flow, 0) unless visited[flow.id]
-      end
-      rows
     end
   end
 
@@ -136,6 +128,8 @@ class PrintOrchestrator < Sinatra::Base
       :root_flow,
       automation_folder_flows: {automation_flow: :active_version}
     ).ordered
+    @organized_flow_ids = @automation_folders.flat_map(&:chain_flows).map(&:id).uniq
+    @unorganized_flows = @automation_flows.reject { |flow| @organized_flow_ids.include?(flow.id) }
     @automation_presets = AutomationPreset.ordered
     @automation_agents = AutomationAgent.ordered
     @automation_items = OrderItem.includes(:order).order(created_at: :desc).limit(100)
@@ -143,14 +137,15 @@ class PrintOrchestrator < Sinatra::Base
   end
 
   post '/automation_folders' do
-    root_flow = AutomationFlow.find_by(id: params[:root_flow_id])
     folder = AutomationFolder.create!(
       name: params[:name],
       description: params[:description],
-      root_flow: root_flow
+      root_flow: nil
     )
-    folder.include_flow!(root_flow) if root_flow
-    redirect '/automations?msg=success&text=Processo+creato'
+    Array(params[:automation_flow_ids]).reject(&:blank?).each do |flow_id|
+      folder.include_flow!(AutomationFlow.find(flow_id))
+    end
+    redirect '/automations?msg=success&text=Cartella+creata'
   rescue StandardError => e
     redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end
@@ -159,7 +154,7 @@ class PrintOrchestrator < Sinatra::Base
     folder = AutomationFolder.find(params[:id])
     flow = AutomationFlow.find(params[:automation_flow_id])
     folder.include_flow!(flow)
-    redirect '/automations?msg=success&text=Modulo+aggiunto+al+processo'
+    redirect '/automations?msg=success&text=Flusso+spostato+nella+cartella'
   rescue StandardError => e
     redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end
@@ -167,17 +162,16 @@ class PrintOrchestrator < Sinatra::Base
   post '/automation_folders/:id/flows/:flow_id/delete' do
     folder = AutomationFolder.find(params[:id])
     flow = AutomationFlow.find(params[:flow_id])
-    raise ArgumentError, 'Il flusso principale non può essere rimosso dal processo' if folder.root_flow_id == flow.id
 
     folder.automation_folder_flows.find_by!(automation_flow: flow).destroy!
-    redirect '/automations?msg=success&text=Modulo+rimosso+dal+processo'
+    redirect '/automations?msg=success&text=Flusso+rimosso+dalla+cartella'
   rescue StandardError => e
     redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end
 
   post '/automation_folders/:id/delete' do
     AutomationFolder.find(params[:id]).destroy!
-    redirect '/automations?msg=success&text=Processo+eliminato,+i+flussi+sono+rimasti+intatti'
+    redirect '/automations?msg=success&text=Cartella+eliminata,+i+flussi+sono+rimasti+intatti'
   rescue StandardError => e
     redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end

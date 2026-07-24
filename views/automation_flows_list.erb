@@ -20,8 +20,8 @@
     <div class="card shadow-sm mb-4">
       <div class="card-header d-flex justify-content-between align-items-center">
         <div>
-          <strong>Processi completi</strong>
-          <div class="small text-muted">Cartelle che mostrano il flusso principale e tutti i moduli richiamati.</div>
+          <strong>Cartelle automazioni</strong>
+          <div class="small text-muted">Organizzazione manuale dei flussi. I collegamenti di esecuzione restano indipendenti.</div>
         </div>
         <span class="badge bg-secondary"><%= @automation_folders.size %></span>
       </div>
@@ -37,33 +37,41 @@
                   <span class="text-muted ms-2"><%= Rack::Utils.escape_html(folder.description) %></span>
                 <% end %>
               </span>
-              <span class="badge bg-light text-dark"><%= rows.size %> moduli</span>
+              <span class="badge bg-light text-dark"><%= rows.size %> <%= rows.size == 1 ? 'flusso' : 'flussi' %></span>
             </summary>
             <div class="border-top">
               <% rows.each do |row| %>
                 <% flow = row[:flow] %>
-                <div class="d-flex align-items-center justify-content-between gap-2 px-3 py-2 border-bottom"
-                     style="padding-left: <%= 1 + (row[:depth] * 1.75) %>rem !important">
+                <% targets = AutomationFlow.where(id: flow.handoff_target_ids).ordered %>
+                <div class="d-flex align-items-center justify-content-between gap-3 px-3 py-2 border-bottom">
                   <div>
-                    <% if row[:depth].positive? %>
-                      <i class="fas fa-turn-up fa-rotate-90 text-muted me-2"></i>
-                    <% else %>
-                      <i class="fas fa-play-circle text-primary me-2"></i>
-                    <% end %>
+                    <i class="fas fa-diagram-project text-primary me-2"></i>
                     <a href="/automations/<%= flow.id %>/edit" class="fw-semibold text-decoration-none">
                       <%= Rack::Utils.escape_html(flow.name) %>
                     </a>
-                    <% if folder.root_flow_id == flow.id %>
-                      <span class="badge bg-primary ms-2">flusso principale</span>
-                    <% elsif row[:repeated] %>
-                      <span class="badge bg-secondary ms-2">riutilizzato</span>
-                    <% else %>
-                      <span class="badge bg-light text-dark ms-2">modulo</span>
+                    <% if targets.any? %>
+                      <div class="small text-muted ms-4">
+                        <i class="fas fa-arrow-right me-1"></i>
+                        uscita verso
+                        <% targets.each_with_index do |target, index| %>
+                          <%= ', ' if index.positive? %><%= Rack::Utils.escape_html(target.name) %>
+                          <% unless folder.automation_flows.include?(target) %>
+                            <span class="badge bg-warning text-dark">fuori cartella</span>
+                          <% end %>
+                        <% end %>
+                      </div>
                     <% end %>
                   </div>
-                  <span class="small text-muted">
-                    <%= flow.active_version ? "pubblicato v#{flow.active_version.version_number}" : 'solo bozza' %>
-                  </span>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="small text-muted">
+                      <%= flow.active_version ? "pubblicato v#{flow.active_version.version_number}" : 'solo bozza' %>
+                    </span>
+                    <form method="post" action="/automation_folders/<%= folder.id %>/flows/<%= flow.id %>/delete">
+                      <button class="btn btn-sm btn-outline-secondary" title="Rimuovi solo dalla cartella">
+                        <i class="fas fa-folder-minus"></i>
+                      </button>
+                    </form>
+                  </div>
                 </div>
               <% end %>
               <% if rows.empty? %>
@@ -74,20 +82,20 @@
               <div class="d-flex flex-wrap gap-2 align-items-end justify-content-between">
                 <form method="post" action="/automation_folders/<%= folder.id %>/flows" class="d-flex gap-2 align-items-end">
                   <div>
-                    <label class="form-label small mb-1">Aggiungi modulo non ancora collegato</label>
+                    <label class="form-label small mb-1">Aggiungi o sposta un flusso qui</label>
                     <select class="form-select form-select-sm" name="automation_flow_id" required>
                       <option value="">-- Scegli flusso --</option>
                       <% @automation_flows.each do |flow| %>
-                        <% unless folder.chain_flows.include?(flow) %>
+                        <% unless folder.automation_flows.include?(flow) %>
                           <option value="<%= flow.id %>"><%= Rack::Utils.escape_html(flow.name) %></option>
                         <% end %>
                       <% end %>
                     </select>
                   </div>
-                  <button class="btn btn-sm btn-outline-primary">Aggiungi</button>
+                  <button class="btn btn-sm btn-outline-primary">Sposta qui</button>
                 </form>
                 <form method="post" action="/automation_folders/<%= folder.id %>/delete"
-                      onsubmit="return confirm('Eliminare solo la cartella “<%= Rack::Utils.escape_html(folder.name) %>”? I flussi rimarranno intatti.');">
+                      onsubmit="return confirm('Eliminare solo la cartella “<%= Rack::Utils.escape_html(folder.name) %>”? I flussi diventeranno non organizzati, senza modificare i collegamenti.');">
                   <button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash me-1"></i>Elimina cartella</button>
                 </form>
               </div>
@@ -96,7 +104,7 @@
         <% end %>
         <% if @automation_folders.empty? %>
           <div class="text-center text-muted py-4">
-            Crea una cartella processo e scegli il flusso principale. I moduli collegati compariranno automaticamente.
+            Crea una cartella e scegli liberamente quali flussi inserirvi.
           </div>
         <% end %>
       </div>
@@ -104,8 +112,11 @@
 
     <div class="card shadow-sm">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <strong>Flussi</strong>
-        <span class="badge bg-secondary"><%= @automation_flows.size %></span>
+        <div>
+          <strong>Flussi non organizzati</strong>
+          <div class="small text-muted">Automazioni indipendenti che non appartengono ancora a un processo completo.</div>
+        </div>
+        <span class="badge bg-secondary"><%= @unorganized_flows.size %></span>
       </div>
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
@@ -118,7 +129,7 @@
             </tr>
           </thead>
           <tbody>
-            <% @automation_flows.each do |flow| %>
+            <% @unorganized_flows.each do |flow| %>
               <% linked_names = flow.linked_print_flows.map(&:name) %>
               <% module_names = flow.incoming_handoff_flows.map(&:name) %>
               <% runs_count = flow.runs_count %>
@@ -169,8 +180,8 @@
                 </td>
               </tr>
             <% end %>
-            <% if @automation_flows.empty? %>
-              <tr><td colspan="4" class="text-center text-muted py-5">Nessun flusso configurato.</td></tr>
+            <% if @unorganized_flows.empty? %>
+              <tr><td colspan="4" class="text-center text-muted py-5">Tutti i flussi sono organizzati in un processo.</td></tr>
             <% end %>
           </tbody>
         </table>
@@ -202,7 +213,9 @@
                 <td>
                   <%= Rack::Utils.escape_html(run.flow.name) %> v<%= run.automation_flow_version.version_number %>
                   <% if modules_count.positive? %>
-                    <div class="small text-muted"><%= modules_count %> moduli successivi</div>
+                    <div class="small text-muted">
+                      <%= modules_count %> <%= modules_count == 1 ? 'modulo successivo' : 'moduli successivi' %>
+                    </div>
                   <% end %>
                 </td>
                 <td><%= Rack::Utils.escape_html(run.context.dig('order', 'code').to_s) %></td>
@@ -221,23 +234,29 @@
 
   <div class="col-xl-4">
     <div class="card shadow-sm mb-4">
-      <div class="card-header"><strong>Nuovo processo completo</strong></div>
+      <div class="card-header"><strong>Nuova cartella automazioni</strong></div>
       <div class="card-body">
         <form method="post" action="/automation_folders">
           <label class="form-label" for="new-folder-name">Nome cartella</label>
           <input class="form-control mb-3" id="new-folder-name" name="name" required
                  placeholder="Es. Produzione plettri">
-          <label class="form-label" for="new-folder-root">Flusso principale</label>
-          <select class="form-select mb-3" id="new-folder-root" name="root_flow_id">
-            <option value="">-- Da scegliere in seguito --</option>
+          <div class="form-label">Flussi da organizzare</div>
+          <div class="border rounded p-2 mb-2" style="max-height: 220px; overflow-y: auto">
             <% @automation_flows.each do |flow| %>
-              <option value="<%= flow.id %>"><%= Rack::Utils.escape_html(flow.name) %></option>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="automation_flow_ids[]"
+                       value="<%= flow.id %>" id="folder-flow-<%= flow.id %>">
+                <label class="form-check-label" for="folder-flow-<%= flow.id %>">
+                  <%= Rack::Utils.escape_html(flow.name) %>
+                </label>
+              </div>
             <% end %>
-          </select>
+          </div>
+          <div class="form-text mb-3">Se un flusso era in un’altra cartella, verrà spostato.</div>
           <label class="form-label" for="new-folder-description">Descrizione</label>
           <textarea class="form-control mb-3" id="new-folder-description" name="description" rows="2"></textarea>
           <button class="btn btn-outline-primary w-100">
-            <i class="fas fa-folder-plus me-1"></i>Crea processo
+            <i class="fas fa-folder-plus me-1"></i>Crea cartella
           </button>
         </form>
       </div>

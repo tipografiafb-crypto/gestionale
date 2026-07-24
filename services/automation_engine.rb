@@ -781,6 +781,7 @@ class AutomationNodeExecutor
     when 'set_variables' then execute_set_variables
     when 'calculate_copies' then execute_calculate_copies
     when 'duplicate_pages' then execute_duplicate_pages
+    when 'pair_sides' then execute_pair_sides
     when 'photoshop', 'illustrator' then execute_adobe
     when 'step_repeat' then execute_step_repeat
     when 'barcode' then execute_barcode
@@ -865,11 +866,20 @@ class AutomationNodeExecutor
                  FileUtils.cp(source.full_path, output)
                  {'simulation' => true, 'copied_pdf' => true}
                else
-                 run_pdf_tool(
+                 image_arguments = [
                    'image-to-pdf',
                    '--input', source.full_path,
                    '--output', output,
                    '--dpi', (@config['dpi'] || 300).to_s
+                 ]
+                 if @config['width_mm'].to_f.positive? && @config['height_mm'].to_f.positive?
+                   image_arguments.concat([
+                     '--width-mm', @config['width_mm'].to_s,
+                     '--height-mm', @config['height_mm'].to_s
+                   ])
+                 end
+                 run_pdf_tool(
+                   *image_arguments
                  ).merge('simulation' => true)
                end
     artifact = AutomationEngine.create_artifact!(
@@ -912,6 +922,167 @@ class AutomationNodeExecutor
       'artifact_id' => artifact.id,
       'context_updates' => {'runtime.current_artifact_id' => artifact.id}
     }
+  end
+
+  def execute_pair_sides
+    source = require_artifact!
+    filename = @context.dig('file', 'filename').presence || source.filename
+    side = side_for_filename(filename)
+
+    unless side
+      return {
+        'next_port' => 'mono',
+        'print_mode' => 'mono',
+        'context_updates' => {
+          'variables.print_mode' => 'mono',
+          'variables.side_count' => 1
+        }
+      }
+    end
+
+    counterpart = find_waiting_counterpart(side)
+    return combine_with_counterpart!(counterpart, side, source) if counterpart
+
+    waited_since = @step.output_data['waiting_since'].presence
+    timeout_minutes = [@config.fetch('timeout_minutes', 15).to_f, 0].max
+    deadline = (waited_since ? Time.zone.parse(waited_since) : Time.current) + timeout_minutes.minutes
+    return missing_side_result(side) if Time.current >= deadline
+
+    {
+      'state' => 'waiting_group',
+      'waiting_since' => waited_since || Time.current.iso8601,
+      'wait_until' => deadline.iso8601,
+      'detected_side' => side,
+      'group_value' => pairing_group_value,
+      'filename' => filename
+    }
+  end
+
+  def side_for_filename(filename)
+    stem = File.basename(filename.to_s, File.extname(filename.to_s))
+    front = @config.fetch('front_suffix', '_F').to_s
+    back = @config.fetch('back_suffix', '_R').to_s
+    raise ArgumentError, 'I suffissi fronte e retro devono essere diversi' if front.casecmp?(back)
+    raise ArgumentError, 'Configura entrambi i suffissi fronte e retro' if front.empty? || back.empty?
+
+    return 'front' if stem.downcase.end_with?(front.downcase)
+    return 'back' if stem.downcase.end_with?(back.downcase)
+  end
+
+  def pairing_group_value
+    field = @config['group_field'].presence || 'item.id'
+    AutomationEngine.context_value(@context, field).to_s
+  end
+
+  def find_waiting_counterpart(side)
+    return nil if @run.action_batch_id.blank?
+
+    candidates = AutomationRun.where(
+      automation_flow_version_id: @run.automation_flow_version_id,
+      order_item_id: @run.order_item_id,
+      action_batch_id: @run.action_batch_id
+    ).where.not(id: @run.id)
+
+    candidates.each do |candidate_run|
+      next false unless AutomationEngine.context_value(
+        candidate_run.context,
+        @config['group_field'].presence || 'item.id'
+      ).to_s == pairing_group_value
+
+      candidate_step = candidate_run.automation_step_runs.find_by(
+        node_key: @step.node_key,
+        status: 'queued'
+      )
+      next false unless candidate_step&.output_data&.dig('state') == 'waiting_group'
+
+      candidate_filename = candidate_run.context.dig('file', 'filename')
+      candidate_side = side_for_filename(candidate_filename)
+      return candidate_step if candidate_side && candidate_side != side
+    end
+    nil
+  end
+
+  def combine_with_counterpart!(counterpart_step, side, source)
+    counterpart_run = counterpart_step.automation_run
+    counterpart_source = counterpart_run.current_artifact
+    raise ArgumentError, 'Il file dell’altro lato non è più disponibile' unless counterpart_source&.available?
+
+    front = side == 'front' ? source : counterpart_source
+    back = side == 'back' ? source : counterpart_source
+    output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
+    metadata = run_pdf_tool(
+      'merge-pages',
+      '--input', front.full_path,
+      '--input', back.full_path,
+      '--output', output
+    )
+    artifact = AutomationEngine.create_artifact!(
+      run: @run,
+      step: @step,
+      kind: @config['output_kind'].presence || 'paired_pdf',
+      path: output,
+      filename: File.basename(output),
+      media_type: 'application/pdf',
+      metadata: metadata.merge(
+        'front_artifact_id' => front.id,
+        'back_artifact_id' => back.id,
+        'paired_run_id' => counterpart_run.id
+      )
+    )
+
+    counterpart_step.update!(
+      status: 'completed',
+      output_data: counterpart_step.output_data.merge(
+        'paired_into_run_id' => @run.id,
+        'paired_artifact_id' => artifact.id
+      ),
+      available_at: nil,
+      finished_at: Time.current
+    )
+    counterpart_run.update!(
+      status: 'completed',
+      current_node_key: nil,
+      completed_at: Time.current
+    )
+
+    {
+      'artifact_id' => artifact.id,
+      'next_port' => 'bifa',
+      'print_mode' => 'bifa',
+      'paired_run_id' => counterpart_run.id,
+      'context_updates' => {
+        'runtime.current_artifact_id' => artifact.id,
+        'variables.print_mode' => 'bifa',
+        'variables.side_count' => 2
+      }
+    }
+  end
+
+  def missing_side_result(side)
+    case @config.fetch('missing_policy', 'route_incomplete')
+    when 'treat_as_mono'
+      {
+        'next_port' => 'mono',
+        'print_mode' => 'mono',
+        'missing_side' => side == 'front' ? 'back' : 'front',
+        'context_updates' => {
+          'variables.print_mode' => 'mono',
+          'variables.side_count' => 1
+        }
+      }
+    when 'fail'
+      raise ArgumentError, "Lato #{side == 'front' ? 'retro' : 'fronte'} non ricevuto entro il tempo configurato"
+    else
+      {
+        'next_port' => 'incomplete',
+        'print_mode' => 'incomplete',
+        'missing_side' => side == 'front' ? 'back' : 'front',
+        'context_updates' => {
+          'variables.print_mode' => 'incomplete',
+          'variables.side_count' => 1
+        }
+      }
+    end
   end
 
   def execute_step_repeat
@@ -1096,6 +1267,15 @@ class AutomationWorker
     when 'waiting_review'
       step.update!(status: 'waiting_review', worker_id: nil, locked_at: nil)
       step.automation_run.update!(status: 'waiting_review')
+    when 'waiting_group'
+      step.update!(
+        status: 'queued',
+        output_data: result,
+        available_at: Time.zone.parse(result.fetch('wait_until')),
+        worker_id: nil,
+        locked_at: nil
+      )
+      step.automation_run.update!(status: 'waiting_group')
     else
       AutomationEngine.complete_step!(step, result)
     end

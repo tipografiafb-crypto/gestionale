@@ -18,14 +18,22 @@ from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 
 
-def image_to_pdf(input_path: str, output_path: str, dpi: float) -> dict:
+def image_to_pdf(
+    input_path: str,
+    output_path: str,
+    dpi: float,
+    width_mm: float = 0,
+    height_mm: float = 0,
+) -> dict:
     with Image.open(input_path) as image:
         width_px, height_px = image.size
-        source_dpi = image.info.get("dpi", (dpi, dpi))
-        source_dpi_x = float(source_dpi[0] or dpi)
-        source_dpi_y = float(source_dpi[1] or dpi)
-        width_pt = width_px * 72.0 / source_dpi_x
-        height_pt = height_px * 72.0 / source_dpi_y
+        resize_applied = width_mm > 0 and height_mm > 0
+        if resize_applied:
+            width_pt = width_mm * mm
+            height_pt = height_mm * mm
+        else:
+            width_pt = width_px * 72.0 / dpi
+            height_pt = height_px * 72.0 / dpi
 
         pdf = canvas.Canvas(output_path, pagesize=(width_pt, height_pt))
         pdf.drawImage(
@@ -46,6 +54,9 @@ def image_to_pdf(input_path: str, output_path: str, dpi: float) -> dict:
         "source_width_px": width_px,
         "source_height_px": height_px,
         "dpi": dpi,
+        "width_mm": width_mm if resize_applied else width_pt / mm,
+        "height_mm": height_mm if resize_applied else height_pt / mm,
+        "resize_applied": resize_applied,
     }
 
 
@@ -72,6 +83,32 @@ def duplicate_pages(input_path: str, output_path: str, copies: int) -> dict:
         "source_pages": len(reader.pages),
         "copies": copies,
         "output_pages": len(reader.pages) * copies,
+    }
+
+
+def merge_pages(input_paths: list[str], output_path: str) -> dict:
+    if len(input_paths) < 2:
+        raise ValueError("Servono almeno due PDF da unire")
+
+    writer = PdfWriter()
+    page_counts = []
+    for input_path in input_paths:
+        reader = PdfReader(input_path)
+        if not reader.pages:
+            raise ValueError(f"Il PDF {input_path} non contiene pagine")
+        page_counts.append(len(reader.pages))
+        for page in reader.pages:
+            writer.add_page(page)
+        writer.reset_translation(reader)
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "wb") as output_file:
+        writer.write(output_file)
+
+    return {
+        "input_files": len(input_paths),
+        "input_page_counts": page_counts,
+        "output_pages": sum(page_counts),
     }
 
 
@@ -247,6 +284,8 @@ def parse_args():
     image_parser.add_argument("--input", required=True)
     image_parser.add_argument("--output", required=True)
     image_parser.add_argument("--dpi", type=float, default=300)
+    image_parser.add_argument("--width-mm", type=float, default=0)
+    image_parser.add_argument("--height-mm", type=float, default=0)
 
     impose_parser = subparsers.add_parser("impose")
     impose_parser.add_argument("--input", required=True)
@@ -257,6 +296,10 @@ def parse_args():
     duplicate_parser.add_argument("--input", required=True)
     duplicate_parser.add_argument("--output", required=True)
     duplicate_parser.add_argument("--copies", required=True, type=int)
+
+    merge_parser = subparsers.add_parser("merge-pages")
+    merge_parser.add_argument("--input", required=True, action="append")
+    merge_parser.add_argument("--output", required=True)
 
     barcode_parser = subparsers.add_parser("barcode")
     barcode_parser.add_argument("--data", required=True)
@@ -271,9 +314,17 @@ def parse_args():
 def main():
     args = parse_args()
     if args.command == "image-to-pdf":
-        result = image_to_pdf(args.input, args.output, args.dpi)
+        result = image_to_pdf(
+            args.input,
+            args.output,
+            args.dpi,
+            args.width_mm,
+            args.height_mm,
+        )
     elif args.command == "duplicate-pages":
         result = duplicate_pages(args.input, args.output, args.copies)
+    elif args.command == "merge-pages":
+        result = merge_pages(args.input, args.output)
     elif args.command == "impose":
         result = impose(args.input, args.output, json.loads(args.config))
     elif args.command == "barcode":

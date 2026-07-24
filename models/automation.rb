@@ -112,7 +112,7 @@ end
 
 class AutomationRun < ActiveRecord::Base
   STATUSES = %w[
-    queued running waiting_external waiting_review completed failed cancelled
+    queued running waiting_external waiting_review waiting_group completed failed cancelled
   ].freeze
 
   belongs_to :automation_flow_version
@@ -229,25 +229,18 @@ class AutomationFolder < ActiveRecord::Base
   scope :ordered, -> { order(:name) }
 
   def include_flow!(flow)
-    automation_folder_flows.find_or_create_by!(automation_flow: flow) do |membership|
-      membership.position = (automation_folder_flows.maximum(:position) || -1) + 1
+    transaction do
+      AutomationFolderFlow.where(automation_flow: flow)
+                          .where.not(automation_folder_id: id)
+                          .destroy_all
+      automation_folder_flows.find_or_create_by!(automation_flow: flow) do |membership|
+        membership.position = (automation_folder_flows.maximum(:position) || -1) + 1
+      end
     end
   end
 
   def chain_flows
-    return automation_flows.to_a unless root_flow
-
-    found = []
-    queue = [root_flow]
-    until queue.empty?
-      flow = queue.shift
-      next if found.include?(flow)
-
-      found << flow
-      targets = AutomationFlow.where(id: flow.handoff_target_ids).to_a
-      queue.concat(targets)
-    end
-    found + (automation_flows.to_a - found)
+    automation_flows.to_a
   end
 end
 

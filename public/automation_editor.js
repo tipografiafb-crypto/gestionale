@@ -48,6 +48,14 @@
       copies_field: 'variables.production_copies',
       output_kind: 'multipage_pdf'
     },
+    pair_sides: {
+      front_suffix: '_F',
+      back_suffix: '_R',
+      group_field: 'item.id',
+      timeout_minutes: 15,
+      missing_policy: 'route_incomplete',
+      output_kind: 'paired_pdf'
+    },
     photoshop: {
       agent_key: '',
       action_set: 'AZIONI',
@@ -168,6 +176,47 @@
       },
       {key: 'output_kind', label: 'Tipo risultato', default: 'multipage_pdf'}
     ],
+    pair_sides: [
+      {
+        key: 'front_suffix',
+        label: 'Suffisso fronte',
+        default: '_F',
+        help: 'Viene cercato alla fine del nome, prima dell’estensione.'
+      },
+      {
+        key: 'back_suffix',
+        label: 'Suffisso retro',
+        default: '_R',
+        help: 'Maiuscole e minuscole sono considerate equivalenti.'
+      },
+      {
+        key: 'group_field',
+        label: 'Abbina usando',
+        choices: [
+          ['item.id', 'Riga ordine (consigliato)'],
+          ['order.code', 'Codice ordine'],
+          ['operation.id', 'Identificativo operazione']
+        ],
+        default: 'item.id'
+      },
+      {
+        key: 'timeout_minutes',
+        label: 'Attesa lato mancante (minuti)',
+        type: 'number',
+        default: 15
+      },
+      {
+        key: 'missing_policy',
+        label: 'Allo scadere dell’attesa',
+        choices: [
+          ['route_incomplete', 'Invia all’uscita Incompleto'],
+          ['treat_as_mono', 'Considera monofacciale'],
+          ['fail', 'Ferma il flusso con errore']
+        ],
+        default: 'route_incomplete'
+      },
+      {key: 'output_kind', label: 'Tipo risultato bifacciale', default: 'paired_pdf'}
+    ],
     step_repeat: [
       {key: 'preset_code', label: 'Preset plancia', choices: 'imposition'},
       {key: 'output_kind', label: 'Tipo risultato', default: 'imposition_pdf'}
@@ -233,7 +282,15 @@
 
   function portsFor(node) {
     if (node.type !== 'router') {
-      return catalogFor(node.type).outputs?.includes('default') ? [{key: 'default', label: ''}] : [];
+      const labels = {
+        mono: 'Monofacciale',
+        bifa: 'Bifacciale',
+        incomplete: 'Incompleto'
+      };
+      return Array.from(catalogFor(node.type).outputs || []).map((key) => ({
+        key,
+        label: labels[key] || ''
+      }));
     }
     const cases = Array.isArray(node.config?.cases) ? node.config.cases : [];
     const ports = cases.map((rule, index) => ({
@@ -474,6 +531,9 @@
     }
     if (node.type === 'trigger') {
       configHint('Questo ingresso può essere avviato manualmente o da un’azione del gestionale.');
+    }
+    if (node.type === 'pair_sides') {
+      configHint('I file senza suffisso escono subito come monofacciali. I file fronte e retro vengono attesi, ordinati e uniti in un PDF a due pagine.');
     }
     schema.forEach((field) => {
       nodeConfigForm.appendChild(configField(field, node.config?.[field.key]));
