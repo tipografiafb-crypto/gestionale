@@ -1193,6 +1193,11 @@ class AutomationNodeExecutor
   end
 
   def compare(left, operator, right)
+    alternatives = right.to_s.split(';').map(&:strip).reject(&:empty?)
+    if alternatives.length > 1 && operator.to_s != 'matches'
+      return alternatives.any? { |value| compare(left, operator, value) }
+    end
+
     case operator.to_s
     when 'equals' then left.to_s.casecmp?(right.to_s)
     when 'contains' then left.to_s.downcase.include?(right.to_s.downcase)

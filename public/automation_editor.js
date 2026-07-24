@@ -428,7 +428,10 @@
           ['matches', 'corrisponde a espressione']
         ]
       }, rule.operator || 'contains', 'case_operator'),
-      configField({label: 'Valore'}, rule.value ?? '', 'case_value'),
+      configField({
+        label: 'Valore',
+        help: 'Per usare OR separa più valori con ; — esempio: AA001;AA002;AA003'
+      }, rule.value ?? '', 'case_value'),
       configField({label: 'Nome uscita'}, rule.label || rule.value || `Caso ${index + 1}`, 'case_label'),
       configField({
         label: 'Codice uscita',
