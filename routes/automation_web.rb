@@ -19,6 +19,8 @@ class PrintOrchestrator < Sinatra::Base
     {path: 'file.count', label: 'Numero file della riga', type: 'number'},
     {path: 'operation.type', label: 'Azione gestionale', type: 'text'},
     {path: 'machine.name', label: 'Macchina selezionata', type: 'text'},
+    {path: 'variables.print_mode', label: 'Tipo stampa (mono/bifa)', type: 'text'},
+    {path: 'variables.side_count', label: 'Numero lati', type: 'number'},
     {path: 'payload.campi_webhook.percentuale', label: 'Correzione percentuale', type: 'number'}
   ].freeze
 
