@@ -23,17 +23,6 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Flusso+di+stampa+non+trovato"
     end
     
-    puts "[DEBUG_PREPRINT] preprint_webhook: #{print_flow.preprint_webhook.inspect}"
-    unless print_flow.preprint_webhook
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Webhook+pre-stampa+non+configurato"
-    end
-    
-    webhook_hook_path = print_flow.preprint_webhook&.hook_path
-    puts "[DEBUG_PREPRINT] webhook_hook_path: #{webhook_hook_path.inspect}"
-    unless webhook_hook_path.present?
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Path+webhook+pre-stampa+vuoto"
-    end
-
     # Get percentuale and azione_photoshop from form and build campi_webhook
     percentuale = params[:percentuale].to_i rescue 0
     azione_photoshop = params[:azione_photoshop]&.strip
@@ -53,6 +42,27 @@ class PrintOrchestrator < Sinatra::Base
     unless print_assets.any?
       item.update(preprint_status: 'failed')
       redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
+    end
+
+    if print_flow.executor_for('preprint') == 'automation'
+      begin
+        result = AutomationActionDispatcher.dispatch!(
+          print_flow: print_flow,
+          action: 'preprint',
+          order_item: item,
+          assets: print_assets
+        )
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=#{result[:runs].length}+flussi+interni+di+prestampa+avviati"
+      rescue StandardError => e
+        item.update(preprint_status: 'failed')
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore flusso interno: ' + e.message)}"
+      end
+    end
+
+    webhook_hook_path = print_flow.preprint_webhook&.hook_path
+    unless webhook_hook_path.present?
+      item.update(preprint_status: 'failed')
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Webhook+pre-stampa+non+configurato"
     end
 
     product = item.product
@@ -148,8 +158,11 @@ class PrintOrchestrator < Sinatra::Base
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
 
-    # Delete all previous Switch output files
-    item.assets.where(asset_type: 'print_output').destroy_all
+    # Keep historical automation runs readable while removing obsolete outputs.
+    # The run context and artifacts retain the full audit trail after this link is cleared.
+    previous_outputs = item.assets.where(asset_type: 'print_output')
+    AutomationRun.where(source_asset_id: previous_outputs.select(:id)).update_all(source_asset_id: nil)
+    previous_outputs.destroy_all
     puts "[RESET] Deleted print_output assets for item #{item.id}"
 
     item.update(
@@ -184,18 +197,40 @@ class PrintOrchestrator < Sinatra::Base
     # Update status and machine
     item.update(print_status: 'processing', print_machine_id: print_machine.id)
 
-    # Get print flow and print webhook
+    # Get print flow and configured executor
     print_flow = item.print_flow
-    unless print_flow&.print_webhook
+    unless print_flow
       item.update(print_status: 'failed')
       redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Flusso+di+stampa+non+configurato"
     end
 
-    # Get the preprint output PDF (print_output asset)
-    print_output_asset = item.assets.where(asset_type: 'print_output').first
-    unless print_output_asset
+    # Get the preprint output PDF(s)
+    print_output_assets = item.assets.where(asset_type: 'print_output').select(&:downloaded?)
+    unless print_output_assets.any?
       item.update(print_status: 'failed')
       redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=File+preprint+non+trovato"
+    end
+
+    if print_flow.executor_for('print') == 'automation'
+      begin
+        result = AutomationActionDispatcher.dispatch!(
+          print_flow: print_flow,
+          action: 'print',
+          order_item: item,
+          assets: print_output_assets,
+          print_machine: print_machine
+        )
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=#{result[:runs].length}+flussi+interni+di+stampa+avviati"
+      rescue StandardError => e
+        item.update(print_status: 'failed')
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore flusso interno: ' + e.message)}"
+      end
+    end
+
+    print_output_asset = print_output_assets.first
+    unless print_flow.print_webhook&.hook_path.present?
+      item.update(print_status: 'failed')
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Webhook+stampa+non+configurato"
     end
 
     product = item.product
@@ -277,16 +312,35 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Stampante+non+selezionata"
     end
 
-    # Get print flow and label webhook
+    # Get print flow and configured executor
     print_flow = item.print_flow
-    unless print_flow&.label_webhook
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Webhook+etichetta+non+configurato"
+    unless print_flow
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Flusso+di+stampa+non+configurato"
     end
 
     # Get all print assets (assets are auto-downloaded during import)
     print_assets = item.switch_print_assets
     unless print_assets.any?
       redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
+    end
+
+    if print_flow.executor_for('label') == 'automation'
+      begin
+        result = AutomationActionDispatcher.dispatch!(
+          print_flow: print_flow,
+          action: 'label',
+          order_item: item,
+          assets: [print_assets.first],
+          print_machine: print_machine
+        )
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=Flusso+interno+etichetta+avviato"
+      rescue StandardError => e
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore flusso interno: ' + e.message)}"
+      end
+    end
+
+    unless print_flow.executor_for('label') == 'webhook' && print_flow.label_webhook&.hook_path.present?
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Azione+etichetta+non+configurata"
     end
 
     product = item.product

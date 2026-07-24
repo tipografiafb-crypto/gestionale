@@ -1,0 +1,164 @@
+<link rel="stylesheet" href="/automation_editor.css?v=20260724-1">
+
+<% if params[:text].present? %>
+  <div class="alert alert-<%= params[:msg] == 'error' ? 'danger' : 'success' %> alert-dismissible fade show mb-3">
+    <%= Rack::Utils.escape_html(params[:text]) %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+
+<div class="automation-heading">
+  <div>
+    <a href="/automations" class="small text-decoration-none"><i class="fas fa-arrow-left me-1"></i>Automazioni</a>
+    <h1 class="mb-1 mt-2"><%= Rack::Utils.escape_html(@automation_flow.name) %></h1>
+    <div class="text-muted">
+      Bozza v<%= @automation_version.version_number %>
+      <% if @automation_flow.active_version %>
+        · attiva v<%= @automation_flow.active_version.version_number %>
+      <% else %>
+        · non ancora pubblicata
+      <% end %>
+    </div>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <button type="button" class="btn btn-outline-secondary" id="validate-automation"><i class="fas fa-check-double me-1"></i>Valida</button>
+    <button type="button" class="btn btn-primary" id="save-automation"><i class="fas fa-floppy-disk me-1"></i>Salva bozza</button>
+    <form method="post" action="/automations/<%= @automation_flow.id %>/publish" id="publish-automation-form">
+      <button class="btn btn-success"><i class="fas fa-cloud-arrow-up me-1"></i>Pubblica</button>
+    </form>
+  </div>
+</div>
+
+<div id="automation-message" class="automation-message" role="status"></div>
+
+<div class="automation-shell" id="automation-editor">
+  <aside class="automation-palette">
+    <div class="automation-column-header">
+      <div class="panel-title">Blocchi</div>
+      <p class="small text-muted mb-0">Clicca un blocco oppure trascinalo nel punto desiderato. La lista scorre indipendentemente.</p>
+    </div>
+    <div class="automation-column-scroll" id="automation-palette-list"></div>
+  </aside>
+
+  <main class="automation-stage">
+    <div class="automation-stage-toolbar">
+      <span><i class="fas fa-hand-pointer me-1"></i>1. Clicca il pallino di uscita a destra · 2. Clicca il blocco di destinazione</span>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="fit-automation">Torna all’origine</button>
+    </div>
+    <div class="automation-canvas-scroll" id="automation-canvas-scroll">
+      <div class="automation-canvas" id="automation-canvas">
+        <svg class="automation-edges" id="automation-edges"></svg>
+        <div id="automation-nodes"></div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="automation-inspector">
+    <div class="automation-column-scroll automation-inspector-scroll">
+      <div class="panel-title">Configurazione</div>
+      <div class="mb-3">
+        <label class="form-label small" for="automation-flow-name">Nome flusso</label>
+        <input class="form-control form-control-sm" id="automation-flow-name" value="<%= Rack::Utils.escape_html(@automation_flow.name) %>">
+      </div>
+      <div class="mb-3">
+        <label class="form-label small" for="automation-flow-description">Descrizione</label>
+        <textarea class="form-control form-control-sm" id="automation-flow-description" rows="3"><%= Rack::Utils.escape_html(@automation_flow.description.to_s) %></textarea>
+      </div>
+      <hr>
+      <div id="automation-node-empty" class="text-muted small">Seleziona un blocco per modificarlo.</div>
+      <div id="automation-node-form" hidden>
+        <div class="mb-2">
+          <label class="form-label small">ID blocco</label>
+          <input class="form-control form-control-sm font-monospace" id="automation-node-id" readonly>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small" for="automation-node-label">Etichetta</label>
+          <input class="form-control form-control-sm" id="automation-node-label">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small">Tipo</label>
+          <input class="form-control form-control-sm" id="automation-node-type" readonly>
+        </div>
+        <div class="mb-3">
+          <div id="automation-node-config-form"></div>
+          <details class="mt-3">
+            <summary class="small text-muted">Configurazione avanzata JSON</summary>
+            <textarea class="form-control form-control-sm font-monospace mt-2" id="automation-node-config" rows="12"></textarea>
+            <div class="form-text">Usa questa sezione solo per opzioni non presenti nel modulo.</div>
+          </details>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-primary flex-grow-1" id="apply-node">Applica</button>
+          <button type="button" class="btn btn-sm btn-outline-danger" id="delete-node">
+            <i class="fas fa-trash me-1"></i>Elimina blocco
+          </button>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="card shadow-sm mt-4">
+  <div class="card-header"><strong>Prova il flusso pubblicato</strong></div>
+  <div class="card-body">
+    <form method="post" action="/automations/<%= @automation_flow.id %>/runs" class="row g-3 align-items-end">
+      <div class="col-lg-7">
+        <label class="form-label" for="automation-order-item">Riga ordine con file locale</label>
+        <select class="form-select" id="automation-order-item" name="order_item_id" required>
+          <% @automation_items.each do |item| %>
+            <option value="<%= item.id %>">
+              Ordine <%= Rack::Utils.escape_html(item.order.external_order_code.to_s) %> · <%= Rack::Utils.escape_html(item.sku.to_s) %> · quantità <%= item.quantity %>
+            </option>
+          <% end %>
+        </select>
+      </div>
+      <div class="col-lg-3">
+        <div class="form-check form-switch mb-2">
+          <input type="hidden" name="simulation" value="0">
+          <input class="form-check-input" type="checkbox" name="simulation" value="1" id="simulation" checked>
+          <label class="form-check-label" for="simulation">Simula Photoshop/Illustrator</label>
+          <div class="form-text text-warning-emphasis">
+            Se attiva, il flusso non apre realmente le applicazioni Adobe.
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-2">
+        <button class="btn btn-outline-primary w-100" <%= 'disabled' unless @automation_flow.active_version %>>
+          <i class="fas fa-play me-1"></i>Avvia
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script id="automation-initial-data" type="application/json"><%= JSON.generate({
+  flow: {
+    id: @automation_flow.id,
+    name: @automation_flow.name,
+    description: @automation_flow.description,
+    active_version: @automation_flow.active_version&.version_number
+  },
+  version: {
+    id: @automation_version.id,
+    number: @automation_version.version_number,
+    graph: @automation_version.graph
+  },
+  node_catalog: @node_catalog,
+  field_catalog: PrintOrchestrator::AUTOMATION_FIELD_CATALOG,
+  presets: @automation_presets.map { |preset|
+    {id: preset.id, kind: preset.kind, code: preset.code, name: preset.name}
+  },
+  agents: @automation_agents.map { |agent|
+    {
+      key: agent.agent_key,
+      name: agent.name,
+      online: agent.online?,
+      capabilities: agent.capabilities,
+      metadata: agent.metadata
+    }
+  },
+  flows: @automation_target_flows.map { |flow|
+    {id: flow.id, name: flow.name, version: flow.active_version.version_number}
+  }
+}).gsub('</', '<\/') %></script>
+<script src="/automation_editor.js?v=20260724-9"></script>

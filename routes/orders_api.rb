@@ -271,8 +271,8 @@ class PrintOrchestrator < Sinatra::Base
         return { success: false, error: "Item non in attesa di pre-stampa (stato: #{item.preprint_status})" }.to_json
       end
       
-      # Check if print flow has preprint webhook
-      unless print_flow&.preprint_webhook
+      # Check if the selected preprint destination is configured.
+      unless print_flow.executor_for('preprint') == 'automation' || print_flow.preprint_webhook
         return { success: false, error: 'Flusso di stampa non configurato per pre-stampa' }.to_json
       end
       
@@ -280,6 +280,22 @@ class PrintOrchestrator < Sinatra::Base
       print_assets = item.switch_print_assets
       unless print_assets.any?
         return { success: false, error: 'File grafico non trovato' }.to_json
+      end
+
+      if print_flow.executor_for('preprint') == 'automation'
+        result = AutomationActionDispatcher.dispatch!(
+          print_flow: print_flow,
+          action: 'preprint',
+          order_item: item,
+          assets: print_assets
+        )
+
+        return {
+          success: true,
+          message: "#{result[:runs].length} flusso/i interno/i di pre-stampa avviato/i",
+          batch_id: result[:batch_id],
+          run_ids: result[:runs].map(&:id)
+        }.to_json
       end
       
       product = item.product
@@ -390,9 +406,9 @@ class PrintOrchestrator < Sinatra::Base
         return { success: false, error: "Item non in attesa di stampa (stato: #{item.print_status})" }.to_json
       end
       
-      # Get print flow and print webhook
+      # Get print flow and configured print destination.
       print_flow = item.print_flow
-      unless print_flow&.print_webhook
+      unless print_flow && (print_flow.executor_for('print') == 'automation' || print_flow.print_webhook)
         return { success: false, error: 'Flusso di stampa non configurato' }.to_json
       end
       
@@ -400,6 +416,23 @@ class PrintOrchestrator < Sinatra::Base
       print_output_asset = item.assets.where(asset_type: 'print_output').first
       unless print_output_asset
         return { success: false, error: 'File preprint non trovato' }.to_json
+      end
+
+      if print_flow.executor_for('print') == 'automation'
+        result = AutomationActionDispatcher.dispatch!(
+          print_flow: print_flow,
+          action: 'print',
+          order_item: item,
+          assets: [print_output_asset],
+          print_machine: print_machine
+        )
+
+        return {
+          success: true,
+          message: 'Flusso interno di stampa avviato',
+          batch_id: result[:batch_id],
+          run_ids: result[:runs].map(&:id)
+        }.to_json
       end
       
       product = item.product

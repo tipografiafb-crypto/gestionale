@@ -16,31 +16,56 @@
       <small class="text-muted">Es: "Pre-press → Print Color", "B&W Production"</small>
     </div>
 
-    <div class="mb-3">
-      <label for="preprint_webhook_id" class="form-label">Webhook Pre-Stampa *</label>
-      <select class="form-select" id="preprint_webhook_id" name="preprint_webhook_id" required>
-        <option value="">-- Seleziona webhook pre-stampa --</option>
-        <% @webhooks.each do |webhook| %>
-          <option value="<%= webhook.id %>" <%= 'selected' if @flow&.preprint_webhook_id == webhook.id %>>
-            <%= webhook.name %> (<%= webhook.hook_path %>)
-          </option>
-        <% end %>
-      </select>
-      <small class="text-muted">Webhook per la fase di preparazione e validazione dei file</small>
-    </div>
+    <% [
+      ['preprint', 'Pre-stampa', (@flow&.preprint_executor || 'webhook'), false],
+      ['print', 'Stampa', (@flow&.print_executor || 'webhook'), false],
+      ['label', 'Etichetta', (@flow&.label_executor || 'none'), true]
+    ].each do |action, title, selected_executor, optional| %>
+      <div class="card mb-3 action-destination" data-action="<%= action %>">
+        <div class="card-header">
+          <strong><%= title %></strong>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label" for="<%= action %>_executor">Esecutore</label>
+            <select class="form-select action-executor" id="<%= action %>_executor" name="<%= action %>_executor">
+              <% if optional %><option value="none" <%= 'selected' if selected_executor == 'none' %>>Non configurata</option><% end %>
+              <option value="webhook" <%= 'selected' if selected_executor == 'webhook' %>>Webhook Switch</option>
+              <option value="automation" <%= 'selected' if selected_executor == 'automation' %>>Flusso interno</option>
+            </select>
+          </div>
 
-    <div class="mb-3">
-      <label for="print_webhook_id" class="form-label">Webhook Stampa *</label>
-      <select class="form-select" id="print_webhook_id" name="print_webhook_id" required>
-        <option value="">-- Seleziona webhook stampa --</option>
-        <% @webhooks.each do |webhook| %>
-          <option value="<%= webhook.id %>" <%= 'selected' if @flow&.print_webhook_id == webhook.id %>>
-            <%= webhook.name %> (<%= webhook.hook_path %>)
-          </option>
-        <% end %>
-      </select>
-      <small class="text-muted">Webhook per l'invio dei file alle macchine di stampa</small>
-    </div>
+          <div class="executor-fields" data-executor="webhook">
+            <label class="form-label" for="<%= action %>_webhook_id">Webhook Switch</label>
+            <select class="form-select destination-select" id="<%= action %>_webhook_id" name="<%= action %>_webhook_id">
+              <option value="">-- Seleziona webhook --</option>
+              <% @webhooks.each do |webhook| %>
+                <option value="<%= webhook.id %>" <%= 'selected' if @flow&.public_send("#{action}_webhook_id") == webhook.id %>>
+                  <%= webhook.name %> (<%= webhook.hook_path %>)
+                </option>
+              <% end %>
+            </select>
+          </div>
+
+          <div class="executor-fields" data-executor="automation">
+            <label class="form-label" for="<%= action %>_automation_flow_id">Flusso interno</label>
+            <select class="form-select destination-select" id="<%= action %>_automation_flow_id" name="<%= action %>_automation_flow_id">
+              <option value="">-- Seleziona flusso pubblicato --</option>
+              <% @automation_flows.each do |automation| %>
+                <option value="<%= automation.id %>"
+                        <%= 'selected' if @flow&.public_send("#{action}_automation_flow_id") == automation.id %>
+                        <%= 'disabled' unless automation.active_version %>>
+                  <%= automation.name %><%= automation.active_version ? " · v#{automation.active_version.version_number}" : ' · non pubblicato' %>
+                </option>
+              <% end %>
+            </select>
+            <div class="form-text">
+              L'azione avvia il flusso per ogni file della riga. In locale Photoshop e Illustrator vengono simulati.
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
 
     <% if @flow&.id %>
     <div class="mb-3 p-3 bg-light border rounded">
@@ -67,19 +92,6 @@
       <% end %>
     </div>
     <% end %>
-
-    <div class="mb-3">
-      <label for="label_webhook_id" class="form-label">Webhook Etichetta (opzionale)</label>
-      <select class="form-select" id="label_webhook_id" name="label_webhook_id">
-        <option value="">-- Nessun webhook etichetta --</option>
-        <% @webhooks.each do |webhook| %>
-          <option value="<%= webhook.id %>" <%= 'selected' if @flow&.label_webhook_id == webhook.id %>>
-            <%= webhook.name %> (<%= webhook.hook_path %>)
-          </option>
-        <% end %>
-      </select>
-      <small class="text-muted">Webhook opzionale per l'invio delle etichette</small>
-    </div>
 
     <div class="mb-3">
       <label for="notes" class="form-label">Note</label>
@@ -126,6 +138,23 @@
     </div>
 
     <script>
+      function updateActionDestination(card) {
+        const executor = card.querySelector('.action-executor').value;
+        card.querySelectorAll('.executor-fields').forEach((fields) => {
+          const visible = fields.dataset.executor === executor;
+          fields.hidden = !visible;
+          fields.querySelectorAll('.destination-select').forEach((select) => {
+            select.required = visible && executor !== 'none';
+          });
+        });
+      }
+
+      document.querySelectorAll('.action-destination').forEach((card) => {
+        const executor = card.querySelector('.action-executor');
+        executor.addEventListener('change', () => updateActionDestination(card));
+        updateActionDestination(card);
+      });
+
       document.getElementById('azione_photoshop_enabled').addEventListener('change', function() {
         const optionsDiv = document.getElementById('azione-photoshop-options');
         optionsDiv.style.display = this.checked ? 'block' : 'none';

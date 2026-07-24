@@ -34,5 +34,18 @@ services:
       db:
         condition: service_healthy
 
+  automation_worker:
+    build: .
+    command: bundle exec ruby -r ./app -e "AutomationWorker.run"
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql://orchestrator_user:postgres123@db:5432/print_orchestrator_dev
+      - RACK_ENV=development
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   postgres_data:

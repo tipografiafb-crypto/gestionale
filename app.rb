@@ -74,6 +74,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'models/aggregated_job_item'
   require_relative 'models/log'
   require_relative 'models/halftone_preset'
+  require_relative 'models/automation'
 
   # Load services
   require_relative 'lib/backup'
@@ -81,6 +82,9 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'services/asset_downloader'
   require_relative 'services/switch_client'
   require_relative 'services/ftp_poller'
+  require_relative 'services/automation_engine'
+  require_relative 'services/automation_action_dispatcher'
+  require_relative 'services/automation_adobe_agent'
 
   # Serve local asset files
   get '/file/:id' do
@@ -160,6 +164,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'routes/pdf_proxy'
   require_relative 'routes/api_print_flows'
   require_relative 'routes/analytics'
+  require_relative 'routes/automation_web'
   
   # Start FTP poller in background (if configured)
   # Skip FTP poller when running rake tasks

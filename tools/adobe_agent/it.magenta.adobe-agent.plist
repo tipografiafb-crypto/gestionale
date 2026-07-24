@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>it.magenta.adobe-agent</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/switch/AutomationAdobe/adobe_agent.py</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>AUTOMATION_BASE_URL</key>
+    <string>http://192.168.1.75:5010</string>
+    <key>AUTOMATION_AGENT_ID</key>
+    <string>mac-switch-01</string>
+    <key>AUTOMATION_AGENT_NAME</key>
+    <string>Mac Switch Prestampa</string>
+    <key>AUTOMATION_TEMPLATE_ROOT</key>
+    <string>/Users/switch/AutomationAdobe/templates</string>
+    <key>ADOBE_PHOTOSHOP_APP</key>
+    <string>Adobe Photoshop 2024</string>
+    <key>ADOBE_ILLUSTRATOR_APP</key>
+    <string>Adobe Illustrator</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+  <key>StandardOutPath</key>
+  <string>/Users/switch/AutomationAdobe/logs/agent.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/switch/AutomationAdobe/logs/agent-error.log</string>
+</dict>
+</plist>

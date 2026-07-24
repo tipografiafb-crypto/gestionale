@@ -13,6 +13,7 @@ class PrintOrchestrator < Sinatra::Base
   get '/print_flows/new' do
     @flow = nil
     @webhooks = SwitchWebhook.all.order(name: :asc)
+    @automation_flows = AutomationFlow.includes(:active_version).ordered
     @machines = PrintMachine.ordered
     erb :print_flow_form
   end
@@ -21,9 +22,15 @@ class PrintOrchestrator < Sinatra::Base
   post '/print_flows' do
     flow = PrintFlow.new(
       name: params[:name],
+      preprint_executor: params[:preprint_executor].presence || 'webhook',
       preprint_webhook_id: params[:preprint_webhook_id],
+      preprint_automation_flow_id: params[:preprint_automation_flow_id],
+      print_executor: params[:print_executor].presence || 'webhook',
       print_webhook_id: params[:print_webhook_id],
+      print_automation_flow_id: params[:print_automation_flow_id],
+      label_executor: params[:label_executor].presence || 'none',
       label_webhook_id: params[:label_webhook_id],
+      label_automation_flow_id: params[:label_automation_flow_id],
       notes: params[:notes],
       azione_photoshop_enabled: params[:azione_photoshop_enabled] == '1',
       azione_photoshop_options: params[:azione_photoshop_options],
@@ -35,6 +42,8 @@ class PrintOrchestrator < Sinatra::Base
     else
       @flow = flow
       @webhooks = SwitchWebhook.all.order(name: :asc)
+      @automation_flows = AutomationFlow.includes(:active_version).ordered
+      @machines = PrintMachine.ordered
       @error = flow.errors.full_messages.join(', ')
       erb :print_flow_form
     end
@@ -44,6 +53,7 @@ class PrintOrchestrator < Sinatra::Base
   get '/print_flows/:id/edit' do
     @flow = PrintFlow.find(params[:id])
     @webhooks = SwitchWebhook.all.order(name: :asc)
+    @automation_flows = AutomationFlow.includes(:active_version).ordered
     @machines = PrintMachine.ordered
     erb :print_flow_form
   rescue ActiveRecord::RecordNotFound
@@ -56,9 +66,15 @@ class PrintOrchestrator < Sinatra::Base
     flow = PrintFlow.find(params[:id])
     flow.update(
       name: params[:name],
+      preprint_executor: params[:preprint_executor].presence || 'webhook',
       preprint_webhook_id: params[:preprint_webhook_id],
+      preprint_automation_flow_id: params[:preprint_automation_flow_id],
+      print_executor: params[:print_executor].presence || 'webhook',
       print_webhook_id: params[:print_webhook_id],
+      print_automation_flow_id: params[:print_automation_flow_id],
+      label_executor: params[:label_executor].presence || 'none',
       label_webhook_id: params[:label_webhook_id],
+      label_automation_flow_id: params[:label_automation_flow_id],
       notes: params[:notes],
       azione_photoshop_enabled: params[:azione_photoshop_enabled] == '1',
       azione_photoshop_options: params[:azione_photoshop_options],
@@ -78,6 +94,7 @@ class PrintOrchestrator < Sinatra::Base
       @flow = flow
       @machines = PrintMachine.ordered
       @webhooks = SwitchWebhook.all.order(name: :asc)
+      @automation_flows = AutomationFlow.includes(:active_version).ordered
       @error = flow.errors.full_messages.join(', ')
       erb :print_flow_form
     end

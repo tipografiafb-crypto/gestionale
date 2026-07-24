@@ -1,0 +1,184 @@
+<% run = @automation_run %>
+<% badge = {'completed' => 'success', 'failed' => 'danger', 'waiting_external' => 'warning', 'waiting_review' => 'info'}.fetch(run.status, 'primary') %>
+
+<% if params[:text].present? %>
+  <div class="alert alert-<%= params[:msg] == 'error' ? 'danger' : 'success' %>">
+    <%= Rack::Utils.escape_html(params[:text]) %>
+  </div>
+<% end %>
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <a href="/automations" class="small text-decoration-none"><i class="fas fa-arrow-left me-1"></i>Automazioni</a>
+    <h1 class="mt-2 mb-1">Esecuzione #<%= run.id %></h1>
+    <p class="text-muted mb-0">
+      <%= Rack::Utils.escape_html(run.flow.name) %> v<%= run.automation_flow_version.version_number %>
+      · ordine <strong><%= Rack::Utils.escape_html(run.context.dig('order', 'code').to_s) %></strong>
+    </p>
+  </div>
+  <div class="text-end">
+    <span class="badge bg-<%= badge %> fs-6"><%= run.status %></span>
+    <% if run.status == 'failed' %>
+      <form method="post" action="/automation_runs/<%= run.id %>/retry" class="mt-2">
+        <button class="btn btn-sm btn-outline-danger"><i class="fas fa-rotate-right me-1"></i>Riprova</button>
+      </form>
+    <% end %>
+  </div>
+</div>
+
+<% if run.error_message.present? %>
+  <div class="alert alert-danger"><strong>Errore:</strong> <%= Rack::Utils.escape_html(run.error_message) %></div>
+<% end %>
+
+<% chain_runs = run.chain_runs.includes(automation_flow_version: :automation_flow) %>
+<% if chain_runs.size > 1 || run.parent_run_id.present? %>
+  <div class="card shadow-sm mb-4">
+    <div class="card-header"><strong>Catena di automazioni</strong></div>
+    <div class="card-body d-flex flex-wrap align-items-center gap-2">
+      <% chain_runs.each_with_index do |chain_run, index| %>
+        <% chain_badge = {'completed' => 'success', 'failed' => 'danger', 'waiting_external' => 'warning', 'waiting_review' => 'info'}.fetch(chain_run.status, 'primary') %>
+        <% if index.positive? %><i class="fas fa-arrow-right text-muted"></i><% end %>
+        <a href="/automation_runs/<%= chain_run.id %>"
+           class="btn btn-sm <%= chain_run.id == run.id ? 'btn-primary' : 'btn-outline-secondary' %>">
+          <%= Rack::Utils.escape_html(chain_run.flow.name) %>
+          <span class="badge bg-<%= chain_badge %> ms-1"><%= chain_run.status %></span>
+        </a>
+      <% end %>
+    </div>
+  </div>
+<% end %>
+
+<div class="row g-4">
+  <div class="col-xl-8">
+    <div class="card shadow-sm">
+      <div class="card-header"><strong>Passaggi</strong></div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th>#</th><th>Blocco</th><th>Stato</th><th>Tentativi</th><th>Durata</th><th></th></tr></thead>
+          <tbody>
+            <% run.automation_step_runs.order(:created_at).each_with_index do |step, index| %>
+              <% step_badge = {'completed' => 'success', 'failed' => 'danger', 'waiting_external' => 'warning', 'waiting_review' => 'info', 'skipped' => 'secondary'}.fetch(step.status, 'primary') %>
+              <tr>
+                <td><%= index + 1 %></td>
+                <td>
+                  <strong><%= Rack::Utils.escape_html(step.node_key) %></strong>
+                  <div class="small text-muted"><%= Rack::Utils.escape_html(step.node_type) %></div>
+                  <% if step.error_message.present? %>
+                    <div class="small text-danger mt-1"><%= Rack::Utils.escape_html(step.error_message) %></div>
+                  <% end %>
+                  <% if step.output_data['handoff_child_run_id'].present? %>
+                    <a class="small text-decoration-none" href="/automation_runs/<%= step.output_data['handoff_child_run_id'] %>">
+                      <i class="fas fa-arrow-right me-1"></i>Apri automazione successiva
+                    </a>
+                  <% end %>
+                </td>
+                <td><span class="badge bg-<%= step_badge %>"><%= step.status %></span></td>
+                <td><%= step.attempts %>/<%= step.max_attempts %></td>
+                <td>
+                  <% if step.started_at %>
+                    <%= step.finished_at ? format('%.2fs', step.finished_at - step.started_at) : 'in corso' %>
+                  <% else %>
+                    —
+                  <% end %>
+                </td>
+                <td class="text-end">
+                  <% if step.status == 'waiting_review' %>
+                    <form method="post" action="/automation_steps/<%= step.id %>/approve">
+                      <button class="btn btn-sm btn-outline-primary">Approva</button>
+                    </form>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-4">
+      <div class="card-header"><strong>File prodotti</strong></div>
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th>Tipo</th><th>File</th><th>Checksum</th><th></th></tr></thead>
+          <tbody>
+            <% run.automation_artifacts.order(:created_at).each do |artifact| %>
+              <tr>
+                <td><span class="badge bg-light text-dark"><%= Rack::Utils.escape_html(artifact.kind) %></span></td>
+                <td>
+                  <%= Rack::Utils.escape_html(artifact.filename) %>
+                  <div class="small <%= artifact.available? ? 'text-success' : 'text-danger' %>">
+                    <%= artifact.available? ? 'Disponibile' : 'Mancante' %>
+                  </div>
+                  <% if artifact.metadata['action_name'].present? %>
+                    <div class="small text-muted">
+                      Photoshop: <%= Rack::Utils.escape_html(artifact.metadata['action_set'].to_s) %>
+                      → <%= Rack::Utils.escape_html(artifact.metadata['action_name'].to_s) %>
+                    </div>
+                    <% if artifact.metadata['dpi'].present? && artifact.metadata['pixels_after'].is_a?(Array) %>
+                      <div class="small text-success">
+                        <%= artifact.metadata['dpi'] %> dpi ·
+                        <%= artifact.metadata['pixels_after'].join('×') %> px
+                        <% if artifact.metadata['resize_applied'] %>
+                          · <%= artifact.metadata['width_mm'] %>×<%= artifact.metadata['height_mm'] %> mm
+                        <% else %>
+                          · pixel invariati
+                        <% end %>
+                      </div>
+                    <% end %>
+                  <% elsif artifact.metadata['template_path'].present? %>
+                    <div class="small text-muted">
+                      Illustrator:
+                      <% if artifact.metadata['script_name'].present? %>
+                        <%= Rack::Utils.escape_html(artifact.metadata['script_name'].to_s) %> ·
+                      <% end %>
+                      <%= Rack::Utils.escape_html(artifact.metadata['template_path'].to_s) %>
+                      <% if artifact.metadata['pdf_preset'].present? %>
+                        · PDF <%= Rack::Utils.escape_html(artifact.metadata['pdf_preset'].to_s) %>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </td>
+                <td class="small font-monospace"><%= artifact.checksum.to_s[0, 12] %></td>
+                <td class="text-end">
+                  <% if artifact.available? %>
+                    <% if artifact.media_type == 'application/pdf' %>
+                      <a class="btn btn-sm btn-outline-secondary" target="_blank" href="/automation_artifacts/<%= artifact.id %>/download?inline=1">Apri</a>
+                    <% end %>
+                    <a class="btn btn-sm btn-outline-primary" href="/automation_artifacts/<%= artifact.id %>/download"><i class="fas fa-download"></i></a>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4">
+    <div class="card shadow-sm">
+      <div class="card-header"><strong>Contesto</strong></div>
+      <div class="card-body">
+        <dl class="row small mb-0">
+          <dt class="col-5">Ordine</dt><dd class="col-7"><%= Rack::Utils.escape_html(run.context.dig('order', 'code').to_s) %></dd>
+          <dt class="col-5">SKU</dt><dd class="col-7"><%= Rack::Utils.escape_html(run.context.dig('item', 'sku').to_s) %></dd>
+          <dt class="col-5">Quantità</dt><dd class="col-7"><%= run.context.dig('item', 'quantity') %></dd>
+          <dt class="col-5">Copie prodotte</dt><dd class="col-7"><%= run.context.dig('variables', 'production_copies') || '—' %></dd>
+          <dt class="col-5">Modalità Adobe</dt><dd class="col-7"><%= run.context.dig('runtime', 'simulation') ? 'Simulazione' : 'Agente reale' %></dd>
+          <dt class="col-5">Avvio</dt><dd class="col-7"><%= run.started_at&.strftime('%d/%m/%Y %H:%M:%S') || '—' %></dd>
+          <dt class="col-5">Fine</dt><dd class="col-7"><%= run.completed_at&.strftime('%d/%m/%Y %H:%M:%S') || '—' %></dd>
+        </dl>
+      </div>
+    </div>
+    <details class="card shadow-sm mt-4">
+      <summary class="card-header"><strong>Contesto JSON completo</strong></summary>
+      <div class="card-body">
+        <pre class="small mb-0" style="max-height: 520px; overflow:auto"><%= Rack::Utils.escape_html(JSON.pretty_generate(run.context)) %></pre>
+      </div>
+    </details>
+  </div>
+</div>
+
+<% if %w[queued running waiting_external waiting_review].include?(run.status) %>
+  <script>window.setTimeout(function () { window.location.reload(); }, 2500);</script>
+<% end %>

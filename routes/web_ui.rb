@@ -1509,8 +1509,10 @@ class PrintOrchestrator < Sinatra::Base
       order = Order.find(params[:order_id])
       item = order.order_items.find(params[:item_id])
       
-      # Delete all Switch output files (this ensures the processing bar appears again next time)
-      item.assets.where(asset_type: 'print_output').destroy_all
+      # Remove obsolete outputs without breaking the audit history of internal runs.
+      previous_outputs = item.assets.where(asset_type: 'print_output')
+      AutomationRun.where(source_asset_id: previous_outputs.select(:id)).update_all(source_asset_id: nil)
+      previous_outputs.destroy_all
       puts "[RESET] Deleted print_output assets for item #{item.id}"
       
       # Reset workflow statuses to pending - only update fields that exist

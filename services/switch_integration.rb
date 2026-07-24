@@ -25,6 +25,28 @@ class SwitchIntegration
       puts "[SwitchIntegration] ✗ No default print flow configured for product #{product.sku}"
       return { success: false, error: 'No default print flow configured' }
     end
+
+    if print_flow.executor_for('preprint') == 'automation'
+      print_assets = order_item.switch_print_assets
+      unless print_assets.any?
+        order_item.update(preprint_status: 'failed')
+        return {success: false, error: 'No print assets found'}
+      end
+
+      order_item.update!(campi_webhook: {'percentuale' => '0'})
+      result = AutomationActionDispatcher.dispatch!(
+        print_flow: print_flow,
+        action: 'preprint',
+        order_item: order_item,
+        assets: print_assets
+      )
+      puts "[SwitchIntegration] ✓ Started #{result[:runs].length} internal automation run(s)"
+      return {
+        success: true,
+        message: "Started #{result[:runs].length} internal automation run(s)",
+        job_ids: result[:runs].map(&:id)
+      }
+    end
     
     # Get preprint webhook from print flow
     preprint_webhook = print_flow.preprint_webhook
