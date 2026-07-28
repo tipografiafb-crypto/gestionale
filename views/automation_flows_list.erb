@@ -66,6 +66,11 @@
                     <span class="small text-muted">
                       <%= flow.active_version ? "pubblicato v#{flow.active_version.version_number}" : 'solo bozza' %>
                     </span>
+                    <form method="post" action="/automations/<%= flow.id %>/duplicate">
+                      <button class="btn btn-sm btn-outline-secondary" title="Duplica automazione">
+                        <i class="fas fa-copy"></i>
+                      </button>
+                    </form>
                     <form method="post" action="/automation_folders/<%= folder.id %>/flows/<%= flow.id %>/delete">
                       <button class="btn btn-sm btn-outline-secondary" title="Rimuovi solo dalla cartella">
                         <i class="fas fa-folder-minus"></i>
@@ -151,6 +156,11 @@
                     <a class="btn btn-sm btn-outline-primary" href="/automations/<%= flow.id %>/edit">
                       <i class="fas fa-pen me-1"></i>Apri editor
                     </a>
+                    <form method="post" action="/automations/<%= flow.id %>/duplicate">
+                      <button class="btn btn-sm btn-outline-secondary" title="Duplica automazione">
+                        <i class="fas fa-copy"></i>
+                      </button>
+                    </form>
                     <form method="post"
                           action="/automations/<%= flow.id %>/delete"
                           onsubmit="return confirm('Eliminare il flusso “<%= Rack::Utils.escape_html(flow.name) %>”<%= runs_count.positive? ? " e le sue #{runs_count} esecuzioni" : '' %>? L’operazione non può essere annullata.');">

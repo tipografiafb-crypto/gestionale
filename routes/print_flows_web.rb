@@ -5,7 +5,7 @@
 class PrintOrchestrator < Sinatra::Base
   # GET /print_flows - List all print flows
   get '/print_flows' do
-    @flows = PrintFlow.all.order(created_at: :desc)
+    @flows = PrintFlow.includes(event_routes: :automation_flow).order(created_at: :desc)
     erb :print_flows_list
   end
 
@@ -37,7 +37,7 @@ class PrintOrchestrator < Sinatra::Base
       default_azione_photoshop: params[:default_azione_photoshop]
     )
 
-    if flow.save
+    if save_print_flow_with_events(flow)
       redirect '/print_flows?success=created'
     else
       @flow = flow
@@ -64,7 +64,7 @@ class PrintOrchestrator < Sinatra::Base
   # PUT /print_flows/:id - Update print flow
   put '/print_flows/:id' do
     flow = PrintFlow.find(params[:id])
-    flow.update(
+    flow.assign_attributes(
       name: params[:name],
       preprint_executor: params[:preprint_executor].presence || 'webhook',
       preprint_webhook_id: params[:preprint_webhook_id],
@@ -81,7 +81,7 @@ class PrintOrchestrator < Sinatra::Base
       default_azione_photoshop: params[:default_azione_photoshop]
     )
 
-    if flow.save
+    if save_print_flow_with_events(flow)
       # Update machine associations
       flow.print_flow_machines.destroy_all
       machine_ids = params[:machine_ids] || []
@@ -109,5 +109,43 @@ class PrintOrchestrator < Sinatra::Base
     redirect '/print_flows?success=deleted'
   rescue ActiveRecord::RecordNotFound
     status 404
+  end
+
+  private
+
+  def save_print_flow_with_events(flow)
+    PrintFlow.transaction do
+      flow.save!
+      sync_print_flow_events!(flow)
+    end
+    true
+  rescue ActiveRecord::RecordInvalid => e
+    e.record.errors.each { |error| flow.errors.add(:base, error.full_message) } unless e.record == flow
+    false
+  end
+
+  def sync_print_flow_events!(flow)
+    keys = Array(params[:custom_event_keys])
+    labels = Array(params[:custom_event_labels])
+    automation_ids = Array(params[:custom_event_automation_flow_ids])
+    route_ids = Array(params[:custom_event_route_ids])
+    retained_ids = []
+
+    keys.each_index do |index|
+      event_key = keys[index].to_s.strip
+      next if event_key.empty? && automation_ids[index].to_s.empty?
+
+      route = flow.event_routes.find_by(id: route_ids[index].presence) || flow.event_routes.build
+      route.assign_attributes(
+        event_key: event_key,
+        label: labels[index].to_s.strip.presence,
+        automation_flow_id: automation_ids[index],
+        active: true
+      )
+      route.save!
+      retained_ids << route.id
+    end
+
+    flow.event_routes.where.not(id: retained_ids).destroy_all
   end
 end

@@ -19,12 +19,29 @@ class AutomationActionDispatcher
     end
 
     def dispatch!(print_flow:, action:, order_item:, assets:, print_machine: nil, simulation: simulation_default?)
-      action = action.to_s
-      raise ArgumentError, "Azione interna non supportata: #{action}" unless OPERATIONS.key?(action)
-      raise ArgumentError, "L'azione #{action} non usa un flusso interno" unless print_flow.executor_for(action) == 'automation'
+      dispatch_event!(
+        print_flow: print_flow,
+        event_key: action,
+        order_item: order_item,
+        assets: assets,
+        print_machine: print_machine,
+        simulation: simulation
+      )
+    end
 
-      automation_flow = print_flow.automation_flow_for(action)
-      raise ArgumentError, "Flusso interno #{action} non configurato" unless automation_flow
+    def dispatch_event!(print_flow:, event_key:, order_item:, assets:, print_machine: nil,
+                        simulation: simulation_default?, trigger_source: 'print_flow')
+      event_key = event_key.to_s.strip
+      raise ArgumentError, 'Evento mancante' if event_key.empty?
+      unless event_key.match?(PrintFlowEventRoute::EVENT_KEY_FORMAT)
+        raise ArgumentError, "Codice evento non valido: #{event_key}"
+      end
+      unless print_flow.executor_for(event_key) == 'automation'
+        raise ArgumentError, "L'evento #{event_key} non usa un flusso interno"
+      end
+
+      automation_flow = print_flow.automation_flow_for(event_key)
+      raise ArgumentError, "Flusso interno #{event_key} non configurato" unless automation_flow
       raise ArgumentError, "Pubblica il flusso interno #{automation_flow.name} prima di usarlo" unless automation_flow.active_version
 
       source_assets = Array(assets).compact
@@ -39,12 +56,14 @@ class AutomationActionDispatcher
           flow: automation_flow,
           order_item: order_item,
           source_asset: asset,
-          operation_type: action,
+          operation_type: event_key,
           print_flow: print_flow,
           action_batch_id: batch_id,
           simulation: simulation,
           extra_context: {
-            'operation_id' => OPERATIONS.fetch(action),
+            'operation_id' => OPERATIONS[event_key],
+            'event_key' => event_key,
+            'trigger_source' => trigger_source,
             'file_index' => index + 1,
             'file_count' => source_assets.length,
             'machine' => print_machine && {
@@ -55,7 +74,7 @@ class AutomationActionDispatcher
         )
       end
 
-      mark_item_started!(order_item, print_flow, action, batch_id, print_machine)
+      mark_item_started!(order_item, print_flow, event_key, batch_id, print_machine)
       {
         success: true,
         batch_id: batch_id,
@@ -67,6 +86,8 @@ class AutomationActionDispatcher
     private
 
     def mark_item_started!(item, print_flow, action, batch_id, print_machine)
+      return unless OPERATIONS.key?(action)
+
       item.order.update!(status: 'processing') if item.order.status == 'new'
       case action
       when 'preprint'

@@ -22,6 +22,7 @@
             <th>Pre-Stampa</th>
             <th>Stampa</th>
             <th>Etichetta</th>
+            <th>Eventi</th>
             <th>Prodotti</th>
             <th>Status</th>
             <th>Azioni</th>
@@ -34,6 +35,18 @@
               <td><%= Rack::Utils.escape_html(flow.destination_label('preprint')) %></td>
               <td><%= Rack::Utils.escape_html(flow.destination_label('print')) %></td>
               <td><%= Rack::Utils.escape_html(flow.destination_label('label')) %></td>
+              <td>
+                <% if flow.event_routes.active.any? %>
+                  <% flow.event_routes.active.ordered.each do |route| %>
+                    <div class="small">
+                      <code><%= Rack::Utils.escape_html(route.event_key) %></code>
+                      → <%= Rack::Utils.escape_html(route.automation_flow.name) %>
+                    </div>
+                  <% end %>
+                <% else %>
+                  <span class="text-muted">Nessuno</span>
+                <% end %>
+              </td>
               <td><span class="badge bg-info"><%= flow.products.count %></span></td>
               <td><%= flow.active? ? '<i class="fas fa-check-circle"></i> Attivo' : '⏸️ Inattivo' %></td>
               <td>

@@ -150,6 +150,17 @@
   font-size: 0.78rem;
 }
 
+.automation-view-tools {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.25rem;
+}
+
+.automation-zoom-value {
+  width: 54px;
+  font-variant-numeric: tabular-nums;
+}
+
 .automation-canvas-scroll {
   position: relative;
   flex: 1;
@@ -164,7 +175,16 @@
 .automation-canvas {
   position: relative;
   width: 3600px;
-  height: 900px;
+  height: 1400px;
+}
+
+.automation-canvas-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3600px;
+  height: 1400px;
+  transform-origin: top left;
   background-color: #f7f8fb;
   background-image: radial-gradient(#cbd2dd 1px, transparent 1px);
   background-size: 20px 20px;
@@ -250,7 +270,7 @@
   white-space: nowrap;
 }
 
-.automation-node-delete {
+.automation-node-action {
   display: inline-flex;
   width: 28px;
   height: 28px;
@@ -265,13 +285,26 @@
   cursor: pointer;
 }
 
+.automation-node-action:hover,
+.automation-node-action:focus-visible {
+  color: #fff;
+  background: #687386;
+}
+
+.automation-node-action:disabled {
+  opacity: 0.35;
+  color: #687386;
+  background: transparent;
+  cursor: not-allowed;
+}
+
 .automation-node-delete:hover,
 .automation-node-delete:focus-visible {
   color: #fff;
   background: #dc3545;
 }
 
-.automation-node-delete i {
+.automation-node-action i {
   color: inherit;
   pointer-events: none;
 }

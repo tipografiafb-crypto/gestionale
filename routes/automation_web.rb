@@ -17,7 +17,9 @@ class PrintOrchestrator < Sinatra::Base
     {path: 'file.filename', label: 'Nome file', type: 'text'},
     {path: 'file.index', label: 'Indice file', type: 'number'},
     {path: 'file.count', label: 'Numero file della riga', type: 'number'},
-    {path: 'operation.type', label: 'Azione gestionale', type: 'text'},
+    {path: 'operation.type', label: 'Codice evento', type: 'text'},
+    {path: 'operation.source', label: 'Sorgente evento', type: 'text'},
+    {path: 'operation.handoff_from_flow_name', label: 'Automazione precedente', type: 'text'},
     {path: 'machine.name', label: 'Macchina selezionata', type: 'text'},
     {path: 'variables.print_mode', label: 'Tipo stampa (mono/bifa)', type: 'text'},
     {path: 'variables.side_count', label: 'Numero lati', type: 'number'},
@@ -196,6 +198,32 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end
 
+  post '/automations/:id/duplicate' do
+    source = AutomationFlow.includes(:automation_folders).find(params[:id])
+    base_name = "#{source.name} copia"
+    duplicate_name = base_name
+    suffix = 2
+    while AutomationFlow.exists?(name: duplicate_name)
+      duplicate_name = "#{base_name} #{suffix}"
+      suffix += 1
+    end
+
+    duplicate = nil
+    AutomationFlow.transaction do
+      duplicate = AutomationFlow.create!(
+        name: duplicate_name,
+        description: source.description
+      )
+      graph = JSON.parse(JSON.generate(source.draft_version.graph))
+      duplicate.draft_version.update!(graph: graph)
+      source.automation_folders.each { |folder| folder.include_flow!(duplicate) }
+    end
+
+    redirect "/automations/#{duplicate.id}/edit?msg=success&text=Automazione+duplicata"
+  rescue StandardError => e
+    redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
   post '/automations/:id/delete' do
     flow = AutomationFlow.includes(
       :preprint_print_flows,
@@ -242,6 +270,45 @@ class PrintOrchestrator < Sinatra::Base
     redirect '/automations?msg=success&text=Flusso+eliminato'
   rescue StandardError => e
     redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
+  post '/api/automation/events/:event_key/dispatch' do
+    content_type :json
+    payload = automation_json_body
+    print_flow = PrintFlow.find(payload['print_flow_id'])
+    order_item = OrderItem.find(payload['order_item_id'])
+    requested_asset_ids = Array(payload['asset_ids']).map(&:to_i).reject(&:zero?)
+    assets = if requested_asset_ids.any?
+               order_item.assets.where(id: requested_asset_ids).to_a
+             else
+               (
+                 order_item.assets.to_a +
+                 order_item.switch_print_assets.to_a
+               ).uniq.select(&:downloaded?)
+             end
+
+    result = AutomationActionDispatcher.dispatch_event!(
+      print_flow: print_flow,
+      event_key: params[:event_key],
+      order_item: order_item,
+      assets: assets,
+      print_machine: PrintMachine.find_by(id: payload['print_machine_id']),
+      simulation: payload.key?('simulation') ? payload['simulation'] == true : AutomationActionDispatcher.simulation_default?,
+      trigger_source: 'api'
+    )
+    status 202
+    {
+      success: true,
+      event_key: params[:event_key],
+      batch_id: result[:batch_id],
+      run_ids: result[:runs].map(&:id)
+    }.to_json
+  rescue ActiveRecord::RecordNotFound => e
+    status 404
+    {success: false, error: e.message}.to_json
+  rescue ArgumentError, ActiveRecord::RecordInvalid => e
+    status 422
+    {success: false, error: e.message}.to_json
   end
 
   get '/automations/:id/edit' do

@@ -345,6 +345,20 @@ end
 
 class AutomationEngine
   class << self
+    def validate_trigger!(trigger, event_key:, source:)
+      accepted_events = trigger_values(trigger, 'operation_type')
+      unless trigger_accepts?(accepted_events, event_key)
+        raise ArgumentError,
+              "Il flusso accetta gli eventi #{accepted_events.join(', ')}, non #{event_key}"
+      end
+
+      accepted_sources = trigger_values(trigger, 'source_type')
+      unless trigger_accepts?(accepted_sources, source)
+        raise ArgumentError,
+              "Il flusso accetta le sorgenti #{accepted_sources.join(', ')}, non #{source}"
+      end
+    end
+
     def start_run(flow:, order_item:, source_asset: nil, operation_type: 'manual',
                   print_flow: nil, action_batch_id: nil, simulation: false,
                   extra_context: {})
@@ -355,12 +369,8 @@ class AutomationEngine
       raise ArgumentError, graph_errors.join(', ') if graph_errors.any?
 
       trigger = Array(version.graph['nodes']).find { |node| node['type'] == 'trigger' }
-      accepted_operation = trigger&.dig('config', 'operation_type').to_s
-      if accepted_operation.present? && accepted_operation != 'any' &&
-         accepted_operation != operation_type.to_s
-        raise ArgumentError,
-              "Il flusso accetta l'azione #{accepted_operation}, non #{operation_type}"
-      end
+      trigger_source = extra_context['trigger_source'].presence || 'manual'
+      validate_trigger!(trigger, event_key: operation_type.to_s, source: trigger_source)
 
       asset = source_asset ||
               order_item.switch_print_assets.find(&:downloaded?) ||
@@ -421,6 +431,7 @@ class AutomationEngine
 
       trigger = Array(version.graph['nodes']).find { |node| node['type'] == 'trigger' }
       raise ArgumentError, "Il flusso #{target_flow.name} non contiene un ingresso" unless trigger
+      validate_trigger!(trigger, event_key: parent_run.operation_type.to_s, source: 'handoff')
 
       child = nil
       AutomationRun.transaction do
@@ -432,6 +443,7 @@ class AutomationEngine
         context['runtime']['handoff_step_id'] = handoff_step.id
         context['runtime']['created_at'] = Time.current.iso8601
         context['operation'] ||= {}
+        context['operation']['source'] = 'handoff'
         context['operation']['handoff_from_flow_id'] = parent_run.flow.id
         context['operation']['handoff_from_flow_name'] = parent_run.flow.name
 
@@ -659,6 +671,16 @@ class AutomationEngine
 
     private
 
+    def trigger_values(trigger, key)
+      configured = trigger&.dig('config', key).to_s
+      values = configured.split(/[;,]/).map(&:strip).reject(&:empty?)
+      values.presence || ['any']
+    end
+
+    def trigger_accepts?(accepted, value)
+      accepted.include?('any') || accepted.include?(value.to_s)
+    end
+
     def schedule_next!(step, port)
       run = step.automation_run
       graph = run.automation_flow_version.graph
@@ -718,6 +740,8 @@ class AutomationEngine
         },
         'operation' => {
           'type' => operation_type,
+          'event_key' => extra_context['event_key'] || operation_type,
+          'source' => extra_context['trigger_source'] || 'manual',
           'id' => extra_context['operation_id'],
           'print_flow_id' => print_flow&.id,
           'print_flow_name' => print_flow&.name

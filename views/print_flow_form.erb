@@ -1,4 +1,4 @@
-<div class="container mt-5" style="max-width: 600px;">
+<div class="container mt-5" style="max-width: 1100px;">
   <h1><%= @flow&.id ? "Modifica Flusso di Stampa" : "Nuovo Flusso di Stampa" %></h1>
 
   <% if @error %>
@@ -15,6 +15,95 @@
       <input type="text" class="form-control" id="name" name="name" value="<%= @flow&.name %>" required>
       <small class="text-muted">Es: "Pre-press → Print Color", "B&W Production"</small>
     </div>
+
+    <div class="mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div>
+          <h2 class="h5 mb-1">Eventi personalizzati</h2>
+          <p class="text-muted small mb-0">Collega eventi programmabili alle automazioni di questo flusso di stampa.</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="add-custom-event">
+          <i class="fas fa-plus"></i> Aggiungi evento
+        </button>
+      </div>
+
+      <div id="custom-event-routes">
+        <% (@flow&.event_routes&.ordered || []).each do |route| %>
+          <div class="custom-event-route border-top py-3">
+            <input type="hidden" name="custom_event_route_ids[]" value="<%= route.id %>">
+            <div class="row g-2 align-items-end">
+              <div class="col-md-4">
+                <label class="form-label">Codice evento</label>
+                <input type="text" class="form-control event-key" name="custom_event_keys[]"
+                       value="<%= route.event_key %>" required
+                       pattern="[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*"
+                       placeholder="artwork.approved">
+                <div class="form-text">Esempio: artwork.approved oppure production.completed.</div>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Nome visibile</label>
+                <input type="text" class="form-control" name="custom_event_labels[]"
+                       value="<%= route.label %>" placeholder="Grafica approvata">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Automazione</label>
+                <select class="form-select" name="custom_event_automation_flow_ids[]" required>
+                  <option value="">-- Seleziona flusso pubblicato --</option>
+                  <% @automation_flows.each do |automation| %>
+                    <option value="<%= automation.id %>"
+                            <%= 'selected' if route.automation_flow_id == automation.id %>
+                            <%= 'disabled' unless automation.active_version %>>
+                      <%= automation.name %><%= automation.active_version ? " · v#{automation.active_version.version_number}" : ' · non pubblicato' %>
+                    </option>
+                  <% end %>
+                </select>
+              </div>
+              <div class="col-md-1">
+                <button type="button" class="btn btn-outline-danger remove-custom-event" title="Rimuovi evento">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+      <div class="form-text">Prestampa, stampa ed etichetta restano configurati separatamente per compatibilità.</div>
+    </div>
+
+    <template id="custom-event-template">
+      <div class="custom-event-route border-top py-3">
+        <input type="hidden" name="custom_event_route_ids[]" value="">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label">Codice evento</label>
+            <input type="text" class="form-control event-key" name="custom_event_keys[]" required
+                   pattern="[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*"
+                   placeholder="artwork.approved">
+            <div class="form-text">Esempio: artwork.approved oppure production.completed.</div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Nome visibile</label>
+            <input type="text" class="form-control" name="custom_event_labels[]" placeholder="Grafica approvata">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Automazione</label>
+            <select class="form-select" name="custom_event_automation_flow_ids[]" required>
+              <option value="">-- Seleziona flusso pubblicato --</option>
+              <% @automation_flows.each do |automation| %>
+                <option value="<%= automation.id %>" <%= 'disabled' unless automation.active_version %>>
+                  <%= automation.name %><%= automation.active_version ? " · v#{automation.active_version.version_number}" : ' · non pubblicato' %>
+                </option>
+              <% end %>
+            </select>
+          </div>
+          <div class="col-md-1">
+            <button type="button" class="btn btn-outline-danger remove-custom-event" title="Rimuovi evento">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </template>
 
     <% [
       ['preprint', 'Pre-stampa', (@flow&.preprint_executor || 'webhook'), false],
@@ -153,6 +242,18 @@
         const executor = card.querySelector('.action-executor');
         executor.addEventListener('change', () => updateActionDestination(card));
         updateActionDestination(card);
+      });
+
+      const eventRoutes = document.getElementById('custom-event-routes');
+      const eventTemplate = document.getElementById('custom-event-template');
+
+      document.getElementById('add-custom-event').addEventListener('click', () => {
+        eventRoutes.appendChild(eventTemplate.content.cloneNode(true));
+      });
+
+      eventRoutes.addEventListener('click', (event) => {
+        const remove = event.target.closest('.remove-custom-event');
+        if (remove) remove.closest('.custom-event-route').remove();
       });
 
       document.getElementById('azione_photoshop_enabled').addEventListener('change', function() {

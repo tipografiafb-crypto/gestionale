@@ -17,6 +17,10 @@ class PrintFlow < ActiveRecord::Base
   has_many :products, through: :product_print_flows
   has_many :print_flow_machines, dependent: :destroy
   has_many :print_machines, through: :print_flow_machines
+  has_many :event_routes,
+           class_name: 'PrintFlowEventRoute',
+           dependent: :destroy,
+           inverse_of: :print_flow
   
   validates :name, presence: true, uniqueness: true
   validates :preprint_executor, inclusion: {in: EXECUTORS}
@@ -37,15 +41,30 @@ class PrintFlow < ActiveRecord::Base
   end
 
   def executor_for(action)
+    return 'automation' if event_route_for(action)
+
+    return nil unless ACTIONS.include?(action.to_s)
+
     public_send("#{action}_executor")
   end
 
   def automation_flow_for(action)
+    route = event_route_for(action)
+    return route.automation_flow if route
+
+    return nil unless ACTIONS.include?(action.to_s)
+
     public_send("#{action}_automation_flow")
   end
 
   def webhook_for(action)
+    return nil unless ACTIONS.include?(action.to_s)
+
     public_send("#{action}_webhook")
+  end
+
+  def event_route_for(event_key)
+    event_routes.active.find_by(event_key: event_key.to_s)
   end
 
   def destination_label(action)

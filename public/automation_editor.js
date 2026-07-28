@@ -15,10 +15,17 @@
     flows: initial.flows || [],
     selectedNodeId: null,
     pendingConnection: null,
-    dirty: false
+    dirty: false,
+    zoom: 1
   };
 
+  const GRID_SIZE = 20;
+  const CANVAS_WIDTH = 3600;
+  const CANVAS_HEIGHT = 1400;
+  const MIN_ZOOM = 0.2;
+  const MAX_ZOOM = 1.5;
   const canvas = document.getElementById('automation-canvas');
+  const canvasContent = document.getElementById('automation-canvas-content');
   const nodesLayer = document.getElementById('automation-nodes');
   const edgesLayer = document.getElementById('automation-edges');
   const scrollArea = document.getElementById('automation-canvas-scroll');
@@ -32,7 +39,7 @@
   const nodeConfigForm = document.getElementById('automation-node-config-form');
 
   const defaults = {
-    trigger: {operation_type: 'any'},
+    trigger: {operation_type: 'any', source_type: 'any'},
     router: {
       cases: [{port: 'yes', label: 'Condizione', field: 'item.sku', operator: 'contains', value: 'CODICE'}],
       default_port: 'other'
@@ -96,20 +103,6 @@
   };
 
   const simpleConfigSchemas = {
-    trigger: [
-      {
-        key: 'operation_type',
-        label: 'Azione accettata',
-        default: 'any',
-        choices: [
-          ['any', 'Qualsiasi azione / test manuale'],
-          ['preprint', 'Prestampa'],
-          ['print', 'Stampa'],
-          ['label', 'Etichetta']
-        ],
-        help: 'Il flusso rifiuta automaticamente azioni di tipo diverso.'
-      }
-    ],
     photoshop: [
       {
         key: 'agent_key',
@@ -117,8 +110,16 @@
         choices: 'agents',
         help: 'Seleziona il Mac che eseguirà realmente questo blocco.'
       },
-      {key: 'action_set', label: 'Gruppo azioni Photoshop'},
-      {key: 'action_name', label: 'Azione Photoshop'},
+      {
+        key: 'action_set',
+        label: 'Gruppo azioni Photoshop',
+        help: 'Inserisci un nome fisso, ad esempio definitive_0924, oppure una variabile come {{variables.adobe_action_set}}.'
+      },
+      {
+        key: 'action_name',
+        label: 'Azione Photoshop',
+        help: 'Inserisci un nome fisso, ad esempio plettri bianchi, oppure una variabile come {{variables.adobe_action_name}}.'
+      },
       {
         key: 'width_mm',
         label: 'Larghezza finale (mm)',
@@ -153,15 +154,24 @@
         key: 'script_name',
         label: 'Script JSX Illustrator',
         choices: 'illustrator_scripts',
-        default: 'plettro2.jsx'
+        allowCustomChoice: true,
+        default: 'plettro2.jsx',
+        help: 'Scegli uno script rilevato oppure inserisci un nome fisso, ad esempio plettro2.jsx, o una variabile come {{variables.illustrator_script}}.'
       },
       {
         key: 'template_path',
         label: 'Maschera Illustrator',
         choices: 'illustrator_templates',
-        default: 'STANDARD.ai'
+        allowCustomChoice: true,
+        default: 'STANDARD.ai',
+        help: 'Scegli una maschera rilevata oppure inserisci un nome fisso, ad esempio STANDARD.ai, o un’espressione come {{variables.template}}.ai.'
       },
-      {key: 'pdf_preset', label: 'Preset PDF Illustrator', default: 'PDF PLANCE'},
+      {
+        key: 'pdf_preset',
+        label: 'Preset PDF Illustrator',
+        default: 'PDF PLANCE',
+        help: 'Inserisci un nome fisso, ad esempio PDF PLANCE, oppure una variabile come {{variables.illustrator_pdf_preset}}.'
+      },
       {key: 'output_kind', label: 'Tipo risultato', default: 'unit_pdf'}
     ],
     duplicate_pages: [
@@ -280,6 +290,135 @@
     return candidate;
   }
 
+  function snapToGrid(value) {
+    return Math.max(GRID_SIZE, Math.round(Number(value || 0) / GRID_SIZE) * GRID_SIZE);
+  }
+
+  function clampZoom(value) {
+    return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
+  }
+
+  function canvasSize() {
+    return state.graph.nodes.reduce((size, node) => ({
+      width: Math.max(size.width, Number(node.position?.x || 0) + 500),
+      height: Math.max(size.height, Number(node.position?.y || 0) + 300)
+    }), {width: CANVAS_WIDTH, height: CANVAS_HEIGHT});
+  }
+
+  function resizeCanvas() {
+    const size = canvasSize();
+    canvas.style.width = `${size.width * state.zoom}px`;
+    canvas.style.height = `${size.height * state.zoom}px`;
+    canvasContent.style.width = `${size.width}px`;
+    canvasContent.style.height = `${size.height}px`;
+  }
+
+  function applyZoom(nextZoom, options = {}) {
+    const previousZoom = state.zoom;
+    const zoom = clampZoom(nextZoom);
+    const centerX = scrollArea.scrollLeft + scrollArea.clientWidth / 2;
+    const centerY = scrollArea.scrollTop + scrollArea.clientHeight / 2;
+    const contentX = centerX / previousZoom;
+    const contentY = centerY / previousZoom;
+    state.zoom = zoom;
+    resizeCanvas();
+    canvasContent.style.transform = `scale(${zoom})`;
+    document.getElementById('reset-zoom-automation').textContent = `${Math.round(zoom * 100)}%`;
+    if (options.keepCenter !== false) {
+      scrollArea.scrollLeft = contentX * zoom - scrollArea.clientWidth / 2;
+      scrollArea.scrollTop = contentY * zoom - scrollArea.clientHeight / 2;
+    }
+  }
+
+  function graphBounds() {
+    if (!state.graph.nodes.length) return {left: 0, top: 0, right: 800, bottom: 500};
+    const elements = new Map(
+      Array.from(nodesLayer.querySelectorAll('.automation-node')).map((element) => [
+        element.dataset.nodeId,
+        element
+      ])
+    );
+    return state.graph.nodes.reduce((bounds, node) => {
+      const element = elements.get(node.id);
+      const x = Number(node.position?.x || 0);
+      const y = Number(node.position?.y || 0);
+      return {
+        left: Math.min(bounds.left, x),
+        top: Math.min(bounds.top, y),
+        right: Math.max(bounds.right, x + (element?.offsetWidth || 194)),
+        bottom: Math.max(bounds.bottom, y + (element?.offsetHeight || 92))
+      };
+    }, {left: Infinity, top: Infinity, right: 0, bottom: 0});
+  }
+
+  function fitAutomation() {
+    const bounds = graphBounds();
+    const padding = 80;
+    const width = Math.max(1, bounds.right - bounds.left + padding * 2);
+    const height = Math.max(1, bounds.bottom - bounds.top + padding * 2);
+    const zoom = clampZoom(Math.min(
+      scrollArea.clientWidth / width,
+      scrollArea.clientHeight / height
+    ));
+    applyZoom(zoom, {keepCenter: false});
+    scrollArea.scrollTo({
+      left: Math.max(0, (bounds.left - padding) * zoom),
+      top: Math.max(0, (bounds.top - padding) * zoom),
+      behavior: 'smooth'
+    });
+  }
+
+  function organizeAutomation() {
+    if (!state.graph.nodes.length) return;
+    const nodesById = new Map(state.graph.nodes.map((node) => [node.id, node]));
+    const incoming = new Map(state.graph.nodes.map((node) => [node.id, []]));
+    state.graph.edges.forEach((edge) => {
+      if (nodesById.has(edge.source) && nodesById.has(edge.target)) {
+        incoming.get(edge.target).push(edge.source);
+      }
+    });
+    const depths = new Map();
+    const depthFor = (nodeId, visiting = new Set()) => {
+      if (depths.has(nodeId)) return depths.get(nodeId);
+      if (visiting.has(nodeId)) return 0;
+      const nextVisiting = new Set(visiting).add(nodeId);
+      const parents = incoming.get(nodeId) || [];
+      const depth = parents.length
+        ? Math.max(...parents.map((parentId) => depthFor(parentId, nextVisiting))) + 1
+        : 0;
+      depths.set(nodeId, depth);
+      return depth;
+    };
+    state.graph.nodes.forEach((node) => depthFor(node.id));
+    const levels = new Map();
+    const heights = new Map(
+      Array.from(nodesLayer.querySelectorAll('.automation-node')).map((element) => [
+        element.dataset.nodeId,
+        element.offsetHeight
+      ])
+    );
+    state.graph.nodes.forEach((node) => {
+      const depth = depths.get(node.id) || 0;
+      if (!levels.has(depth)) levels.set(depth, []);
+      levels.get(depth).push(node);
+    });
+    Array.from(levels.entries()).sort(([a], [b]) => a - b).forEach(([depth, nodes]) => {
+      let nextY = 40;
+      nodes.forEach((node) => {
+        node.position = {
+          x: snapToGrid(40 + depth * 240),
+          y: snapToGrid(nextY)
+        };
+        nextY += snapToGrid((heights.get(node.id) || 92) + 40);
+      });
+    });
+    markDirty();
+    render();
+    applyZoom(state.zoom, {keepCenter: false});
+    fitAutomation();
+    showMessage('Blocchi ordinati sulla griglia. Salva la bozza per confermare.', 'success');
+  }
+
   function portsFor(node) {
     if (node.type !== 'router') {
       const labels = {
@@ -354,7 +493,24 @@
     label.textContent = field.label;
     const choices = choicesFor(field.choices);
     let input;
-    if (choices) {
+    if (choices && field.allowCustomChoice) {
+      input = document.createElement('input');
+      input.className = 'form-control form-control-sm';
+      input.type = 'text';
+      input.value = value ?? field.default ?? '';
+      const datalist = document.createElement('datalist');
+      datalist.id = `automation-options-${field.key}-${Math.random().toString(36).slice(2)}`;
+      choices
+        .filter(([choiceValue]) => choiceValue !== '')
+        .forEach(([choiceValue, choiceLabel]) => {
+          const option = document.createElement('option');
+          option.value = choiceValue;
+          option.label = choiceLabel;
+          datalist.appendChild(option);
+        });
+      input.setAttribute('list', datalist.id);
+      wrapper.append(label, input, datalist);
+    } else if (choices) {
       input = document.createElement('select');
       input.className = 'form-select form-select-sm';
       choices.forEach(([choiceValue, choiceLabel]) => {
@@ -377,7 +533,7 @@
       input.value = value ?? field.default ?? '';
     }
     input.dataset.configRole = role;
-    wrapper.append(label, input);
+    if (!field.allowCustomChoice) wrapper.append(label, input);
     if (field.help) {
       const help = document.createElement('div');
       help.className = 'form-text';
@@ -488,8 +644,141 @@
     container.appendChild(row);
   }
 
+  function configList(value) {
+    return String(value || 'any').split(/[;,]/).map((item) => item.trim()).filter(Boolean);
+  }
+
+  function triggerChoice(label, value, selected, kind) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'form-check mb-1';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.className = 'form-check-input';
+    input.id = `trigger-${kind}-${value}`;
+    input.value = value;
+    input.checked = selected;
+    input.dataset.triggerKind = kind;
+    const text = document.createElement('label');
+    text.className = 'form-check-label small';
+    text.htmlFor = input.id;
+    text.textContent = label;
+    wrapper.append(input, text);
+    return wrapper;
+  }
+
+  function triggerChoiceGroup({title, help, kind, configured, choices, custom = false}) {
+    const selected = configList(configured);
+    const acceptsAny = selected.includes('any');
+    const knownValues = choices.map((choice) => choice[0]);
+    const section = document.createElement('fieldset');
+    section.className = 'mb-3';
+    const legend = document.createElement('legend');
+    legend.className = 'form-label small fw-semibold mb-1';
+    legend.textContent = title;
+    const anyChoice = triggerChoice('Qualsiasi', 'any', acceptsAny, kind);
+    section.append(legend, anyChoice);
+    choices.forEach(([value, label]) => {
+      section.appendChild(triggerChoice(label, value, !acceptsAny && selected.includes(value), kind));
+    });
+
+    if (custom) {
+      const customValues = selected.filter((value) => value !== 'any' && !knownValues.includes(value));
+      const customLabel = document.createElement('label');
+      customLabel.className = 'form-label small mt-2 mb-1';
+      customLabel.htmlFor = `trigger-${kind}-custom`;
+      customLabel.textContent = 'Eventi personalizzati';
+      const customInput = document.createElement('input');
+      customInput.type = 'text';
+      customInput.className = 'form-control form-control-sm';
+      customInput.id = `trigger-${kind}-custom`;
+      customInput.placeholder = 'artwork.approved; production.completed';
+      customInput.value = customValues.join('; ');
+      customInput.dataset.triggerCustom = kind;
+      section.append(customLabel, customInput);
+    }
+
+    const helpText = document.createElement('div');
+    helpText.className = 'form-text';
+    helpText.textContent = help;
+    section.appendChild(helpText);
+
+    const updateDisabledState = () => {
+      const anyInput = section.querySelector(`[data-trigger-kind="${kind}"][value="any"]`);
+      section.querySelectorAll(`[data-trigger-kind="${kind}"]:not([value="any"])`).forEach((input) => {
+        input.disabled = anyInput.checked;
+        if (anyInput.checked) input.checked = false;
+      });
+      const customInput = section.querySelector(`[data-trigger-custom="${kind}"]`);
+      if (customInput) customInput.disabled = anyInput.checked;
+    };
+    section.querySelectorAll(`[data-trigger-kind="${kind}"]`).forEach((input) => {
+      input.addEventListener('change', () => {
+        if (input.value !== 'any' && input.checked) {
+          section.querySelector(`[data-trigger-kind="${kind}"][value="any"]`).checked = false;
+        }
+        updateDisabledState();
+      });
+    });
+    updateDisabledState();
+    return section;
+  }
+
+  function renderTriggerConfig(node) {
+    configHint('Scegli quando può partire questa automazione e da dove può ricevere il lavoro.');
+    nodeConfigForm.append(
+      triggerChoiceGroup({
+        title: 'Quando può partire',
+        help: 'Per una prestampa normale seleziona Prestampa. Gli eventi personalizzati servono solo per casi aggiuntivi.',
+        kind: 'event',
+        configured: node.config?.operation_type,
+        choices: [
+          ['preprint', 'Prestampa'],
+          ['print', 'Stampa'],
+          ['label', 'Etichetta']
+        ],
+        custom: true
+      }),
+      triggerChoiceGroup({
+        title: 'Da dove può partire',
+        help: 'Per il primo flusso seleziona Flusso di stampa. Per la seconda parte seleziona Altra automazione.',
+        kind: 'source',
+        configured: node.config?.source_type,
+        choices: [
+          ['print_flow', 'Flusso di stampa'],
+          ['handoff', 'Altra automazione'],
+          ['manual', 'Avvio manuale o prova'],
+          ['api', 'Chiamata API']
+        ]
+      })
+    );
+  }
+
+  function collectTriggerValues(kind, custom = false) {
+    const checked = Array.from(
+      nodeConfigForm.querySelectorAll(`[data-trigger-kind="${kind}"]:checked`)
+    ).map((input) => input.value);
+    if (checked.includes('any')) return 'any';
+
+    const values = [...checked];
+    if (custom) {
+      const customValue = nodeConfigForm.querySelector(`[data-trigger-custom="${kind}"]`)?.value || '';
+      customValue.split(/[;,]/).map((value) => value.trim()).filter(Boolean).forEach((value) => {
+        if (!/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(value)) {
+          throw new Error(`Codice evento personalizzato non valido: ${value}`);
+        }
+        if (!values.includes(value)) values.push(value);
+      });
+    }
+    if (!values.length) throw new Error(`Seleziona almeno una voce in “${kind === 'event' ? 'Quando può partire' : 'Da dove può partire'}”.`);
+    return values.join(';');
+  }
+
   function renderNodeConfigForm(node) {
     nodeConfigForm.replaceChildren();
+    if (node.type === 'trigger') {
+      renderTriggerConfig(node);
+      return;
+    }
     if (node.type === 'router') {
       renderRouterConfig(node);
       return;
@@ -532,9 +821,6 @@
       configHint('Questo blocco non richiede configurazione.');
       return;
     }
-    if (node.type === 'trigger') {
-      configHint('Questo ingresso può essere avviato manualmente o da un’azione del gestionale.');
-    }
     if (node.type === 'pair_sides') {
       configHint('I file senza suffisso escono subito come monofacciali. I file fronte e retro vengono attesi, ordinati e uniti in un PDF a due pagine.');
     }
@@ -544,6 +830,12 @@
   }
 
   function collectNodeConfig(node) {
+    if (node.type === 'trigger') {
+      return {
+        operation_type: collectTriggerValues('event', true),
+        source_type: collectTriggerValues('source')
+      };
+    }
     if (node.type === 'router') {
       return {
         cases: Array.from(nodeConfigForm.querySelectorAll('.automation-config-case')).map((card, index) => ({
@@ -608,8 +900,10 @@
   function addNode(type, position = {}) {
     const item = catalogFor(type);
     const id = uniqueId(type);
-    const x = Math.max(10, Number(position.x ?? (scrollArea.scrollLeft + 100)));
-    const y = Math.max(10, Number(position.y ?? (scrollArea.scrollTop + 100 + (state.graph.nodes.length % 5) * 24)));
+    const x = snapToGrid(position.x ?? (scrollArea.scrollLeft / state.zoom + 100));
+    const y = snapToGrid(position.y ?? (
+      scrollArea.scrollTop / state.zoom + 100 + (state.graph.nodes.length % 5) * GRID_SIZE
+    ));
     state.graph.nodes.push({
       id,
       type,
@@ -620,6 +914,28 @@
     state.selectedNodeId = id;
     markDirty();
     render();
+  }
+
+  function duplicateNode(requestedId = state.selectedNodeId) {
+    const source = nodeFor(requestedId);
+    if (!source) return;
+    if (source.type === 'trigger') {
+      showMessage('Il flusso può avere un solo blocco Ingresso.', 'error');
+      return;
+    }
+    const id = uniqueId(source.type);
+    const duplicate = JSON.parse(JSON.stringify(source));
+    duplicate.id = id;
+    duplicate.label = `${source.label || source.id} copia`;
+    duplicate.position = {
+      x: snapToGrid(Number(source.position?.x || 0) + GRID_SIZE * 2),
+      y: snapToGrid(Number(source.position?.y || 0) + GRID_SIZE * 2)
+    };
+    state.graph.nodes.push(duplicate);
+    state.selectedNodeId = id;
+    markDirty();
+    render();
+    showMessage('Blocco duplicato senza collegamenti. Posizionalo e collegalo dove serve.', 'success');
   }
 
   function selectNode(id, options = {}) {
@@ -738,9 +1054,21 @@
       const label = document.createElement('span');
       label.className = 'automation-node-label';
       label.textContent = node.label || node.id;
+      const duplicate = document.createElement('button');
+      duplicate.type = 'button';
+      duplicate.className = 'automation-node-action automation-node-duplicate';
+      duplicate.title = 'Duplica blocco';
+      duplicate.setAttribute('aria-label', `Duplica blocco ${node.label || node.id}`);
+      duplicate.innerHTML = '<i class="fas fa-copy"></i>';
+      duplicate.addEventListener('pointerdown', (event) => event.stopPropagation());
+      duplicate.addEventListener('click', (event) => {
+        event.stopPropagation();
+        duplicateNode(node.id);
+      });
+      if (node.type === 'trigger') duplicate.disabled = true;
       const remove = document.createElement('button');
       remove.type = 'button';
-      remove.className = 'automation-node-delete';
+      remove.className = 'automation-node-action automation-node-delete';
       remove.title = 'Elimina blocco';
       remove.setAttribute('aria-label', `Elimina blocco ${node.label || node.id}`);
       remove.innerHTML = '<i class="fas fa-trash"></i>';
@@ -749,7 +1077,7 @@
         event.stopPropagation();
         deleteNode(node.id);
       });
-      header.append(icon, label, remove);
+      header.append(icon, label, duplicate, remove);
 
       const body = document.createElement('div');
       body.className = 'automation-node-body';
@@ -822,14 +1150,14 @@
 
       const onMove = (moveEvent) => {
         if (moveEvent.pointerId !== event.pointerId) return;
-        const deltaX = moveEvent.clientX - startX;
-        const deltaY = moveEvent.clientY - startY;
+        const deltaX = (moveEvent.clientX - startX) / state.zoom;
+        const deltaY = (moveEvent.clientY - startY) / state.zoom;
         if (!moved && Math.abs(deltaX) < 3 && Math.abs(deltaY) < 3) return;
         moved = true;
         moveEvent.preventDefault();
         node.position = {
-          x: Math.max(10, originX + deltaX),
-          y: Math.max(10, originY + deltaY)
+          x: snapToGrid(originX + deltaX),
+          y: snapToGrid(originY + deltaY)
         };
         element.style.left = `${node.position.x}px`;
         element.style.top = `${node.position.y}px`;
@@ -841,7 +1169,10 @@
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointercancel', onUp);
         element.classList.remove('is-dragging');
-        if (moved) markDirty();
+        if (moved) {
+          resizeCanvas();
+          markDirty();
+        }
       };
       element.classList.add('is-dragging');
       window.addEventListener('pointermove', onMove, {passive: false});
@@ -879,6 +1210,7 @@
   function render() {
     renderNodes();
     renderEdges();
+    resizeCanvas();
     if (state.selectedNodeId) selectNode(state.selectedNodeId);
   }
 
@@ -964,9 +1296,14 @@
   });
 
   document.getElementById('delete-node').addEventListener('click', deleteNode);
+  document.getElementById('duplicate-node').addEventListener('click', () => duplicateNode());
   document.getElementById('save-automation').addEventListener('click', save);
   document.getElementById('validate-automation').addEventListener('click', validate);
-  document.getElementById('fit-automation').addEventListener('click', () => scrollArea.scrollTo({left: 0, top: 0, behavior: 'smooth'}));
+  document.getElementById('organize-automation').addEventListener('click', organizeAutomation);
+  document.getElementById('zoom-out-automation').addEventListener('click', () => applyZoom(state.zoom - 0.1));
+  document.getElementById('zoom-in-automation').addEventListener('click', () => applyZoom(state.zoom + 0.1));
+  document.getElementById('reset-zoom-automation').addEventListener('click', () => applyZoom(1));
+  document.getElementById('fit-automation').addEventListener('click', fitAutomation);
 
   scrollArea.addEventListener('dragover', (event) => {
     if (!event.dataTransfer.types.includes('application/x-automation-node')) return;
@@ -985,8 +1322,8 @@
     event.preventDefault();
     const canvasRect = canvas.getBoundingClientRect();
     addNode(type, {
-      x: event.clientX - canvasRect.left - 97,
-      y: event.clientY - canvasRect.top - 30
+      x: (event.clientX - canvasRect.left) / state.zoom - 97,
+      y: (event.clientY - canvasRect.top) / state.zoom - 30
     });
   });
 
@@ -1029,5 +1366,6 @@
   });
 
   renderPalette();
+  applyZoom(1, {keepCenter: false});
   render();
 })();

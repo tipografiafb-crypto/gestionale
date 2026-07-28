@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="/automation_editor.css?v=20260724-1">
+<link rel="stylesheet" href="/automation_editor.css?v=20260728-2">
 
 <% if params[:text].present? %>
   <div class="alert alert-<%= params[:msg] == 'error' ? 'danger' : 'success' %> alert-dismissible fade show mb-3">
@@ -21,6 +21,11 @@
     </div>
   </div>
   <div class="d-flex flex-wrap gap-2">
+    <form method="post" action="/automations/<%= @automation_flow.id %>/duplicate">
+      <button class="btn btn-outline-secondary" title="Duplica automazione">
+        <i class="fas fa-copy me-1"></i>Duplica
+      </button>
+    </form>
     <button type="button" class="btn btn-outline-secondary" id="validate-automation"><i class="fas fa-check-double me-1"></i>Valida</button>
     <button type="button" class="btn btn-primary" id="save-automation"><i class="fas fa-floppy-disk me-1"></i>Salva bozza</button>
     <form method="post" action="/automations/<%= @automation_flow.id %>/publish" id="publish-automation-form">
@@ -43,12 +48,28 @@
   <main class="automation-stage">
     <div class="automation-stage-toolbar">
       <span><i class="fas fa-hand-pointer me-1"></i>1. Clicca il pallino di uscita a destra · 2. Clicca il blocco di destinazione</span>
-      <button type="button" class="btn btn-sm btn-outline-secondary" id="fit-automation">Torna all’origine</button>
+      <div class="automation-view-tools" role="group" aria-label="Vista automazione">
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="organize-automation" title="Ordina i blocchi">
+          <i class="fas fa-table-cells-large"></i><span class="d-none d-xl-inline ms-1">Ordina</span>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="zoom-out-automation" title="Riduci">
+          <i class="fas fa-minus"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary automation-zoom-value" id="reset-zoom-automation" title="Zoom 100%">100%</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="zoom-in-automation" title="Ingrandisci">
+          <i class="fas fa-plus"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="fit-automation" title="Mostra tutta l’automazione">
+          <i class="fas fa-expand"></i><span class="d-none d-xl-inline ms-1">Adatta</span>
+        </button>
+      </div>
     </div>
     <div class="automation-canvas-scroll" id="automation-canvas-scroll">
       <div class="automation-canvas" id="automation-canvas">
-        <svg class="automation-edges" id="automation-edges"></svg>
-        <div id="automation-nodes"></div>
+        <div class="automation-canvas-content" id="automation-canvas-content">
+          <svg class="automation-edges" id="automation-edges"></svg>
+          <div id="automation-nodes"></div>
+        </div>
       </div>
     </div>
   </main>
@@ -89,6 +110,9 @@
         </div>
         <div class="d-flex gap-2">
           <button type="button" class="btn btn-sm btn-primary flex-grow-1" id="apply-node">Applica</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="duplicate-node" title="Duplica blocco">
+            <i class="fas fa-copy"></i>
+          </button>
           <button type="button" class="btn btn-sm btn-outline-danger" id="delete-node">
             <i class="fas fa-trash me-1"></i>Elimina blocco
           </button>
@@ -161,4 +185,4 @@
     {id: flow.id, name: flow.name, version: flow.active_version.version_number}
   }
 }).gsub('</', '<\/') %></script>
-<script src="/automation_editor.js?v=20260724-11"></script>
+<script src="/automation_editor.js?v=20260728-12"></script>

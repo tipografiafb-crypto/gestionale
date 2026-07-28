@@ -26,6 +26,7 @@ class AutomationFlow < ActiveRecord::Base
            class_name: 'PrintFlow',
            foreign_key: :label_automation_flow_id,
            dependent: :restrict_with_error
+  has_many :print_flow_event_routes, dependent: :restrict_with_error
   has_many :automation_folder_flows, dependent: :destroy
   has_many :automation_folders, through: :automation_folder_flows
   has_many :root_automation_folders,
@@ -39,7 +40,12 @@ class AutomationFlow < ActiveRecord::Base
   scope :ordered, -> { order(name: :asc) }
 
   def linked_print_flows
-    (preprint_print_flows.to_a + print_print_flows.to_a + label_print_flows.to_a).uniq
+    (
+      preprint_print_flows.to_a +
+      print_print_flows.to_a +
+      label_print_flows.to_a +
+      print_flow_event_routes.includes(:print_flow).map(&:print_flow)
+    ).uniq
   end
 
   def runs_count
