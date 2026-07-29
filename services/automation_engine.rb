@@ -8,6 +8,7 @@ require 'open3'
 require 'pathname'
 require 'securerandom'
 require 'socket'
+require 'time'
 
 class AutomationGraphValidator
   attr_reader :graph
@@ -970,7 +971,7 @@ class AutomationNodeExecutor
 
     waited_since = @step.output_data['waiting_since'].presence
     timeout_minutes = [@config.fetch('timeout_minutes', 15).to_f, 0].max
-    deadline = (waited_since ? Time.zone.parse(waited_since) : Time.current) + timeout_minutes.minutes
+    deadline = (waited_since ? Time.iso8601(waited_since) : Time.current) + timeout_minutes.minutes
     return missing_side_result(side) if Time.current >= deadline
 
     {
@@ -1131,11 +1132,19 @@ class AutomationNodeExecutor
     end
 
     output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
+    impose_config = preset.config.deep_dup
+    side_page_counts = Array(source.metadata.to_h['input_page_counts']).map(&:to_i)
+    if side_page_counts.length == 2 &&
+       side_page_counts.all?(&:positive?) &&
+       impose_config['double_sided_mode'].to_s != 'none'
+      impose_config['side_page_counts'] = side_page_counts
+    end
+
     metadata = run_pdf_tool(
       'impose',
       '--input', input_path,
       '--output', output,
-      '--config', JSON.generate(preset.config)
+      '--config', JSON.generate(impose_config)
     ).merge(compatibility_metadata)
     artifact = AutomationEngine.create_artifact!(
       run: @run,
@@ -1316,7 +1325,8 @@ class AutomationWorker
   DEFAULT_POLL_SECONDS = 1.0
 
   def self.run(poll_seconds: DEFAULT_POLL_SECONDS)
-    ActiveRecord::Base.logger.level = Logger::WARN unless ENV['AUTOMATION_WORKER_SQL_LOG'] == '1'
+    logger = ActiveRecord::Base.logger
+    logger.level = Logger::WARN if logger && ENV['AUTOMATION_WORKER_SQL_LOG'] != '1'
     worker = new
     puts "[AutomationWorker] Avviato #{worker.worker_id}"
     loop do
@@ -1353,7 +1363,7 @@ class AutomationWorker
       step.update!(
         status: 'queued',
         output_data: result,
-        available_at: Time.zone.parse(result.fetch('wait_until')),
+        available_at: Time.iso8601(result.fetch('wait_until')),
         worker_id: nil,
         locked_at: nil
       )

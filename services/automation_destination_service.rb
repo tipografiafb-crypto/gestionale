@@ -63,7 +63,7 @@ class AutomationDestinationService
         output: stdout.strip
       }
     rescue Errno::ENOENT
-      raise ArgumentError, 'Comando lp non disponibile: installare cups-client nel container'
+      raise ArgumentError, 'Comando lp non disponibile: installare cups-client sul server'
     end
 
     def discover_printers(cups_server)
@@ -103,7 +103,7 @@ class AutomationDestinationService
       if !File.exist?(path)
         Result.new(
           success?: false,
-          message: 'Cartella non montata nel container',
+          message: 'Cartella non disponibile sul server',
           details: {path: path}
         )
       elsif !File.directory?(path)
@@ -134,7 +134,7 @@ class AutomationDestinationService
     rescue Errno::ENOENT
       Result.new(
         success?: false,
-        message: 'Comando lpstat non disponibile: installare cups-client nel container',
+        message: 'Comando lpstat non disponibile: installare cups-client sul server',
         details: {}
       )
     end

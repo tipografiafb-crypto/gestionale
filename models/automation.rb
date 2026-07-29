@@ -64,11 +64,19 @@ class AutomationFlow < ActiveRecord::Base
 
   def incoming_handoff_flows
     AutomationFlow.where.not(id: id).includes(:versions).select do |flow|
-      flow.versions.any? do |version|
-        %w[draft published].include?(version.status) &&
-          flow.handoff_target_ids(version).include?(id)
+      flow.current_dependency_versions.any? do |version|
+        flow.handoff_target_ids(version).include?(id)
       end
     end
+  end
+
+  # Historical published versions remain available for old execution records,
+  # but they must not keep current modules locked after a handoff is removed.
+  def current_dependency_versions
+    [
+      active_version,
+      versions.where(status: 'draft').order(version_number: :desc).first
+    ].compact.uniq
   end
 
   def draft_version
@@ -86,6 +94,8 @@ class AutomationFlow < ActiveRecord::Base
     raise ArgumentError, errors.join(', ') if errors.any?
 
     transaction do
+      versions.where(status: 'published').where.not(id: draft.id)
+              .update_all(status: 'archived', updated_at: Time.current)
       draft.update!(
         status: 'published',
         published_at: Time.current,
@@ -260,7 +270,7 @@ class AutomationDestination < ActiveRecord::Base
     if network_folder?
       container_path = values['container_path'].to_s.strip
       root = ENV.fetch('AUTOMATION_DESTINATIONS_ROOT', '/destinations')
-      errors.add(:config, 'deve indicare il percorso visto dal container') if container_path.empty?
+      errors.add(:config, 'deve indicare il percorso operativo sul server') if container_path.empty?
       errors.add(:config, "deve trovarsi sotto #{root}") unless
         container_path == root || container_path.start_with?("#{root}/")
     elsif ipp_printer?

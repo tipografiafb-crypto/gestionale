@@ -114,7 +114,7 @@
           <small><strong>Cosa viene salvato:</strong></small><br>
           <small>✓ Database PostgreSQL completo</small><br>
           <small>✓ Cartella storage/ (tutti i file importati e processati)</small><br>
-          <small>✓ File .zip con timestamp</small>
+          <small>✓ Archivio .tar verificato, senza limiti ZIP a 4 GB</small>
         </p>
       </div>
     </div>
@@ -192,13 +192,13 @@
     <p class="text-muted mb-3">Carica un backup salvato su Switch per ripristinarlo in caso di crash. ATTENZIONE: Sovrascriverà completamente il database e tutti i file nella cartella storage/!</p>
     <form action="/admin/backup/restore_upload" method="post" enctype="multipart/form-data" id="restoreForm">
       <div class="mb-3">
-        <label for="backup_file" class="form-label">Seleziona file backup (.zip)</label>
+        <label for="backup_file" class="form-label">Seleziona file backup (.tar o .zip precedente)</label>
         <input type="file" class="form-control" id="backup_file" name="backup_file" 
-               accept=".zip" required>
+               accept=".tar,.zip" required>
         <div class="progress mt-2 d-none" id="uploadProgressContainer">
           <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" id="uploadProgressBar" style="width: 0%">0%</div>
         </div>
-        <small class="text-muted">Solo file .zip (backup_YYYYMMDD_HHMMSS.zip)</small>
+        <small class="text-muted">Nuovo formato .tar; i backup .zip precedenti restano recuperabili.</small>
       </div>
       <button type="submit" class="btn btn-danger w-100" id="restoreSubmitBtn"
               onclick="return handleRestore(event)">

@@ -237,7 +237,7 @@ class PrintOrchestrator < Sinatra::Base
       backup_dir = File.join(Dir.pwd, 'tmp', 'backups')
       file_path = File.join(backup_dir, filename)
 
-      if File.exist?(file_path) && filename.start_with?('backup_') && filename.end_with?('.zip')
+      if File.exist?(file_path) && BackupManager.valid_backup_filename?(filename)
         File.delete(file_path)
         redirect "/admin/backup?msg=success&text=Backup+eliminato+correttamente"
       else
@@ -251,22 +251,6 @@ class PrintOrchestrator < Sinatra::Base
   # POST /admin/backup/restore_upload - Restore from uploaded file (disaster recovery)
   post '/admin/backup/restore_upload' do
     begin
-      # Debug logging
-      puts "[RESTORE_UPLOAD] === INIZIO RICHIESTA ==="
-      puts "[RESTORE_UPLOAD] params.keys: #{params.keys.inspect}"
-      puts "[RESTORE_UPLOAD] backup_file present?: #{params[:backup_file].present?}"
-      
-      if params[:backup_file]
-        puts "[RESTORE_UPLOAD] backup_file class: #{params[:backup_file].class}"
-        puts "[RESTORE_UPLOAD] backup_file keys: #{params[:backup_file].keys.inspect rescue 'N/A'}"
-        puts "[RESTORE_UPLOAD] filename: #{params[:backup_file][:filename] rescue 'N/A'}"
-        puts "[RESTORE_UPLOAD] tempfile: #{params[:backup_file][:tempfile] rescue 'N/A'}"
-        puts "[RESTORE_UPLOAD] tempfile.path: #{params[:backup_file][:tempfile]&.path rescue 'N/A'}"
-        puts "[RESTORE_UPLOAD] tempfile.size: #{params[:backup_file][:tempfile]&.size rescue 'N/A'}"
-      else
-        puts "[RESTORE_UPLOAD] ⚠️ params[:backup_file] is nil/false!"
-      end
-      
       return redirect("/admin/backup?msg=error&text=Nessun+file+caricato") unless params[:backup_file]
 
       result = BackupManager.restore_from_uploaded_file(params[:backup_file])

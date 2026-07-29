@@ -100,6 +100,10 @@ class PrintOrchestrator < Sinatra::Base
       anchor = params[:anchor].to_s
       allowed_anchors = %w[top_left top_right bottom_left bottom_right]
       raise ArgumentError, 'Punto di ancoraggio non valido' unless allowed_anchors.include?(anchor)
+      double_sided_mode = params[:double_sided_mode].presence || 'none'
+      unless %w[none horizontal vertical].include?(double_sided_mode)
+        raise ArgumentError, 'Modalità fronte/retro non valida'
+      end
 
       config = {
         'sheet_width_mm' => Float(params[:sheet_width_mm]),
@@ -112,7 +116,8 @@ class PrintOrchestrator < Sinatra::Base
         'columns' => Integer(params[:columns].presence || 0),
         'rows' => Integer(params[:rows].presence || 0),
         'rotate' => params[:rotate] == '1',
-        'fill_last_sheet' => params[:fill_last_sheet] == '1'
+        'fill_last_sheet' => params[:fill_last_sheet] == '1',
+        'double_sided_mode' => double_sided_mode
       }
       raise ArgumentError, 'Le dimensioni del foglio devono essere maggiori di zero' unless
         config['sheet_width_mm'].positive? && config['sheet_height_mm'].positive?

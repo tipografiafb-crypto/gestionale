@@ -97,6 +97,14 @@ else
   echo -e "${RED}✗ PostgreSQL client non trovato${NC}"
 fi
 
+# Check backup/transfer utilities
+if command -v tar &> /dev/null && command -v unzip &> /dev/null && command -v sshpass &> /dev/null; then
+  echo -e "${GREEN}✓ Utility backup presenti${NC}"
+else
+  MISSING="$MISSING tar unzip sshpass"
+  echo -e "${RED}✗ Utility tar/unzip/sshpass mancanti${NC}"
+fi
+
 # Check build essentials (needed for native gems)
 if dpkg -l | grep -q build-essential; then
   echo -e "${GREEN}✓ build-essential installato${NC}"

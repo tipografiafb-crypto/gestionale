@@ -128,6 +128,11 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
     gap_y = float(config.get("gap_y_mm", 0)) * mm
     fill_last_sheet = bool(config.get("fill_last_sheet", False))
     rotate = bool(config.get("rotate", False))
+    double_sided_mode = str(config.get("double_sided_mode", "none"))
+    if double_sided_mode not in {"none", "horizontal", "vertical"}:
+        raise ValueError(
+            f"Modalità fronte/retro non valida: {double_sided_mode}"
+        )
     fixed_columns = int(config.get("columns", 0) or 0)
     fixed_rows = int(config.get("rows", 0) or 0)
     if fixed_columns < 0 or fixed_rows < 0:
@@ -167,20 +172,79 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         )
     slots_per_sheet = rows * columns
     input_pages = len(reader.pages)
-    sheets = math.ceil(input_pages / slots_per_sheet)
-    placements_total = sheets * slots_per_sheet if fill_last_sheet else input_pages
+    side_page_counts = config.get("side_page_counts")
+    duplex_groups = None
+    if side_page_counts is not None:
+        if double_sided_mode == "none":
+            raise ValueError(
+                "Le pagine fronte/retro richiedono una modalità fronte/retro"
+            )
+        if (
+            not isinstance(side_page_counts, list)
+            or len(side_page_counts) != 2
+            or any(
+                isinstance(value, bool) or not isinstance(value, (int, float))
+                for value in side_page_counts
+            )
+        ):
+            raise ValueError("I conteggi fronte/retro devono contenere due numeri")
+        front_pages, back_pages = (int(value) for value in side_page_counts)
+        if front_pages < 1 or back_pages < 1:
+            raise ValueError("Fronte e retro devono contenere almeno una pagina")
+        if front_pages + back_pages != input_pages:
+            raise ValueError(
+                "I conteggi fronte/retro non corrispondono alle pagine del PDF"
+            )
+        duplex_groups = (
+            (0, front_pages),
+            (front_pages, back_pages),
+        )
+        sheet_pairs = math.ceil(max(front_pages, back_pages) / slots_per_sheet)
+        sheets = sheet_pairs * 2
+        placements_total = (
+            sheets * slots_per_sheet
+            if fill_last_sheet
+            else front_pages + back_pages
+        )
+    else:
+        sheets = math.ceil(input_pages / slots_per_sheet)
+        placements_total = sheets * slots_per_sheet if fill_last_sheet else input_pages
     writer = PdfWriter()
 
     for sheet_index in range(sheets):
         output_page = PageObject.create_blank_page(
             width=sheet_width, height=sheet_height
         )
-        remaining = placements_total - sheet_index * slots_per_sheet
-        placements_on_sheet = min(slots_per_sheet, remaining)
+        if duplex_groups:
+            pair_index = sheet_index // 2
+            side_index = sheet_index % 2
+            group_start, group_pages = duplex_groups[side_index]
+            group_offset = pair_index * slots_per_sheet
+            remaining = group_pages - group_offset
+            placements_on_sheet = (
+                slots_per_sheet
+                if fill_last_sheet
+                else min(slots_per_sheet, max(0, remaining))
+            )
+        else:
+            group_start = 0
+            group_pages = input_pages
+            group_offset = sheet_index * slots_per_sheet
+            remaining = placements_total - group_offset
+            placements_on_sheet = min(slots_per_sheet, remaining)
 
         for slot_index in range(placements_on_sheet):
             row = slot_index // columns
             column = slot_index % columns
+            is_back_sheet = (
+                sheet_index % 2 == 1
+                if duplex_groups
+                else sheet_index % 2 == 1 and double_sided_mode != "none"
+            )
+            if is_back_sheet and double_sided_mode == "horizontal":
+                column = columns - 1 - column
+            elif is_back_sheet and double_sided_mode == "vertical":
+                row = rows - 1 - row
             grows_left = anchor.endswith("right")
             grows_up = anchor.startswith("bottom")
             if grows_left:
@@ -196,7 +260,10 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
                     placed_height + gap_y
                 )
 
-            source = reader.pages[(sheet_index * slots_per_sheet + slot_index) % input_pages]
+            source_index = group_start + (
+                (group_offset + slot_index) % group_pages
+            )
+            source = reader.pages[source_index]
 
             if rotate:
                 transform = (
@@ -230,6 +297,13 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         "input_pages": input_pages,
         "placed_pages": placements_total,
         "sheets": sheets,
+        "double_sided_mode": double_sided_mode,
+        "side_page_counts": (
+            [duplex_groups[0][1], duplex_groups[1][1]]
+            if duplex_groups
+            else None
+        ),
+        "sheet_pairs": sheets // 2 if duplex_groups else None,
         "scale": 1.0,
     }
 

@@ -1,0 +1,22 @@
+[Unit]
+Description=Gestionale Print Orchestrator
+After=network-online.target postgresql.service
+Wants=network-online.target postgresql.service
+
+[Service]
+Type=simple
+User=magenta
+Group=magenta
+WorkingDirectory=/home/magenta/apps/print-orchestrator
+EnvironmentFile=/home/magenta/apps/print-orchestrator/.env
+Environment="PATH=/home/magenta/apps/print-orchestrator/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/usr/bin/bundle exec puma -b tcp://0.0.0.0:5000 config.ru
+Restart=on-failure
+RestartSec=5
+UMask=0027
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=print-orchestrator
+
+[Install]
+WantedBy=multi-user.target

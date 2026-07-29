@@ -1,0 +1,22 @@
+[Unit]
+Description=Gestionale Automation Worker
+After=network-online.target postgresql.service print-orchestrator.service
+Wants=network-online.target postgresql.service
+
+[Service]
+Type=simple
+User=magenta
+Group=magenta
+WorkingDirectory=/home/magenta/apps/print-orchestrator
+EnvironmentFile=/home/magenta/apps/print-orchestrator/.env
+Environment="PATH=/home/magenta/apps/print-orchestrator/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/usr/bin/bundle exec ruby -r./app -eAutomationWorker.run
+Restart=on-failure
+RestartSec=5
+UMask=0027
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=print-orchestrator-worker
+
+[Install]
+WantedBy=multi-user.target
