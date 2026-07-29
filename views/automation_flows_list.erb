@@ -10,9 +10,13 @@
     <h1 class="mb-1"><i class="fas fa-diagram-project me-2"></i>Automazioni</h1>
     <p class="text-muted mb-0">Flussi programmabili, lavorazioni Adobe, imposizione e consegna alle hot folder.</p>
   </div>
-  <form method="post" action="/automations/seed_plectrum">
-    <button class="btn btn-primary"><i class="fas fa-wand-magic-sparkles me-2"></i>Prepara flusso plettri</button>
-  </form>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary" href="/automation_presets"><i class="fas fa-sliders me-2"></i>Preset</a>
+    <a class="btn btn-outline-secondary" href="/automation_runs"><i class="fas fa-clock-rotate-left me-2"></i>Esecuzioni</a>
+    <form method="post" action="/automations/seed_plectrum">
+      <button class="btn btn-primary"><i class="fas fa-wand-magic-sparkles me-2"></i>Prepara flusso plettri</button>
+    </form>
+  </div>
 </div>
 
 <div class="row g-4">
@@ -198,6 +202,7 @@
       </div>
     </div>
 
+    <% if false %>
     <div class="card shadow-sm mt-4">
       <div class="card-header d-flex justify-content-between align-items-center">
         <strong>Esecuzioni recenti</strong>
@@ -240,6 +245,7 @@
         </table>
       </div>
     </div>
+    <% end %>
   </div>
 
   <div class="col-xl-4">
@@ -286,36 +292,18 @@
     </div>
 
     <div class="card shadow-sm mt-4">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <strong>Macchine Adobe</strong>
-        <span class="badge bg-secondary"><%= @automation_agents.size %></span>
-      </div>
-      <div class="card-body">
-        <% @automation_agents.each do |agent| %>
-          <div class="border rounded p-2 mb-2">
-            <div class="d-flex justify-content-between gap-2">
-              <strong><%= Rack::Utils.escape_html(agent.name) %></strong>
-              <span class="badge <%= agent.online? ? 'bg-success' : 'bg-secondary' %>">
-                <%= agent.online? ? 'online' : 'offline' %>
-              </span>
-            </div>
-            <div class="small text-muted">
-              <%= Rack::Utils.escape_html(agent.agent_key) %>
-              <% if agent.hostname.present? %> · <%= Rack::Utils.escape_html(agent.hostname) %><% end %>
-            </div>
-            <div class="small mt-1">
-              <%= Array(agent.capabilities).map { |item| Rack::Utils.escape_html(item) }.join(' · ') %>
-            </div>
-          </div>
-        <% end %>
-        <% if @automation_agents.empty? %>
-          <p class="small text-muted mb-0">
-            Nessuna macchina collegata. Avvia l’agente sul Mac di prestampa: comparirà automaticamente qui.
-          </p>
-        <% end %>
+      <div class="card-body d-flex justify-content-between align-items-center gap-3">
+        <div>
+          <strong>Macchine Adobe</strong>
+          <div class="small text-muted"><%= @automation_agents.count(&:online?) %> online su <%= @automation_agents.size %></div>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" href="/automation_agents">
+          <i class="fas fa-desktop me-1"></i>Configura
+        </a>
       </div>
     </div>
 
+    <% if false %>
     <div class="card shadow-sm mt-4">
       <div class="card-header"><strong>Preset riutilizzabili</strong></div>
       <div class="card-body">
@@ -524,5 +512,6 @@
         </details>
       </div>
     </div>
+    <% end %>
   </div>
 </div>

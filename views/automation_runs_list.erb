@@ -1,0 +1,132 @@
+<% if params[:text].present? %>
+  <div class="alert alert-<%= params[:msg] == 'error' ? 'danger' : 'success' %> alert-dismissible fade show">
+    <%= Rack::Utils.escape_html(params[:text]) %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <a href="/automations" class="small text-decoration-none"><i class="fas fa-arrow-left me-1"></i>Automazioni</a>
+    <h1 class="mb-1 mt-2"><i class="fas fa-clock-rotate-left me-2"></i>Esecuzioni e debug</h1>
+    <p class="text-muted mb-0">Storico dei flussi, stati di attesa ed errori utili alla diagnosi.</p>
+  </div>
+  <span class="badge bg-secondary fs-6"><%= @automation_runs_count %> esecuzioni</span>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <form method="get" action="/automation_runs" class="row g-3 align-items-end">
+      <div class="col-lg-3">
+        <label class="form-label" for="run-status">Stato</label>
+        <select class="form-select" id="run-status" name="status">
+          <option value="">Tutti gli stati</option>
+          <% AutomationRun::STATUSES.each do |status| %>
+            <option value="<%= status %>" <%= 'selected' if @selected_status == status %>><%= status %></option>
+          <% end %>
+        </select>
+      </div>
+      <div class="col-lg-4">
+        <label class="form-label" for="run-flow">Flusso</label>
+        <select class="form-select" id="run-flow" name="flow_id">
+          <option value="">Tutti i flussi</option>
+          <% @automation_flows.each do |flow| %>
+            <option value="<%= flow.id %>" <%= 'selected' if @selected_flow_id == flow.id.to_s %>>
+              <%= Rack::Utils.escape_html(flow.name) %>
+            </option>
+          <% end %>
+        </select>
+      </div>
+      <div class="col-lg-3">
+        <label class="form-label" for="run-order">Codice ordine</label>
+        <input class="form-control" id="run-order" name="order"
+               value="<%= Rack::Utils.escape_html(@order_query) %>" placeholder="Cerca anche parzialmente">
+      </div>
+      <div class="col-lg-2 d-flex gap-2">
+        <button class="btn btn-primary flex-grow-1"><i class="fas fa-filter me-1"></i>Filtra</button>
+        <a class="btn btn-outline-secondary" href="/automation_runs" title="Azzera filtri"><i class="fas fa-rotate-left"></i></a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Flusso</th>
+          <th>Ordine / SKU</th>
+          <th>Operazione</th>
+          <th>Stato</th>
+          <th>Ultimo blocco</th>
+          <th>Avvio</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @automation_runs.each do |run| %>
+          <% badge = {
+            'completed' => 'success',
+            'failed' => 'danger',
+            'waiting_external' => 'warning text-dark',
+            'waiting_review' => 'info text-dark',
+            'waiting_group' => 'warning text-dark',
+            'cancelled' => 'secondary'
+          }.fetch(run.status, 'primary') %>
+          <% modules_count = run.chain_runs.count - 1 %>
+          <tr class="<%= 'table-danger' if run.status == 'failed' %>">
+            <td><a class="fw-semibold" href="/automation_runs/<%= run.id %>">#<%= run.id %></a></td>
+            <td>
+              <%= Rack::Utils.escape_html(run.flow.name) %>
+              <span class="text-muted">v<%= run.automation_flow_version.version_number %></span>
+              <% if modules_count.positive? %>
+                <div class="small text-muted"><%= modules_count %> <%= modules_count == 1 ? 'sottomodulo' : 'sottomoduli' %></div>
+              <% end %>
+            </td>
+            <td>
+              <%= Rack::Utils.escape_html(run.context.dig('order', 'code').to_s.presence || '—') %>
+              <% if run.context.dig('item', 'sku').present? %>
+                <div class="small text-muted"><%= Rack::Utils.escape_html(run.context.dig('item', 'sku').to_s) %></div>
+              <% end %>
+            </td>
+            <td><%= Rack::Utils.escape_html(run.operation_type.to_s.presence || 'manuale') %></td>
+            <td><span class="badge bg-<%= badge %>"><%= run.status %></span></td>
+            <td>
+              <%= Rack::Utils.escape_html(run.current_node_key.to_s.presence || '—') %>
+              <% if run.error_message.present? %>
+                <div class="small text-danger text-truncate" style="max-width: 280px" title="<%= Rack::Utils.escape_html(run.error_message) %>">
+                  <%= Rack::Utils.escape_html(run.error_message) %>
+                </div>
+              <% end %>
+            </td>
+            <td class="text-nowrap"><%= run.created_at.strftime('%d/%m/%Y %H:%M:%S') %></td>
+          </tr>
+        <% end %>
+        <% if @automation_runs.empty? %>
+          <tr><td colspan="7" class="text-center text-muted py-5">Nessuna esecuzione corrisponde ai filtri.</td></tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<% total_pages = [(@automation_runs_count.to_f / @per_page).ceil, 1].max %>
+<% if total_pages > 1 %>
+  <% query = {status: @selected_status, flow_id: @selected_flow_id, order: @order_query}.reject { |_key, value| value.blank? } %>
+  <nav class="d-flex justify-content-between align-items-center mt-3" aria-label="Pagine esecuzioni">
+    <div class="small text-muted">Pagina <%= @page %> di <%= total_pages %></div>
+    <div class="btn-group">
+      <% if @page > 1 %>
+        <a class="btn btn-outline-secondary" href="/automation_runs?<%= URI.encode_www_form(query.merge(page: @page - 1)) %>">
+          <i class="fas fa-chevron-left me-1"></i>Precedenti
+        </a>
+      <% end %>
+      <% if @page < total_pages %>
+        <a class="btn btn-outline-secondary" href="/automation_runs?<%= URI.encode_www_form(query.merge(page: @page + 1)) %>">
+          Successive<i class="fas fa-chevron-right ms-1"></i>
+        </a>
+      <% end %>
+    </div>
+  </nav>
+<% end %>

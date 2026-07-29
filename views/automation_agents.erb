@@ -1,0 +1,209 @@
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+  <div>
+    <h1 class="mb-1">Macchine Adobe</h1>
+    <p class="text-muted mb-0">
+      Collega i Mac che eseguono Photoshop e Illustrator e controlla le risorse disponibili.
+    </p>
+  </div>
+  <a class="btn btn-outline-secondary" href="/automations">
+    <i class="fas fa-arrow-left me-1"></i>Flussi
+  </a>
+</div>
+
+<% if @pairing_code %>
+  <div class="alert alert-success shadow-sm mb-4" id="pairing-panel"
+       data-expires-at="<%= @pairing_expires_at&.iso8601 %>">
+    <div class="row align-items-center g-3">
+      <div class="col-lg-7">
+        <div class="small text-uppercase fw-semibold mb-1">Codice temporaneo</div>
+        <div class="display-5 fw-bold font-monospace" id="pairing-code">
+          <%= Rack::Utils.escape_html(@pairing_code) %>
+        </div>
+        <div class="small">
+          Inseriscilo nel configuratore Magenta Adobe Agent.
+          <span id="pairing-countdown">Scade tra 10 minuti.</span>
+        </div>
+      </div>
+      <div class="col-lg-5 d-flex flex-wrap gap-2 justify-content-lg-end">
+        <button class="btn btn-success" type="button" id="copy-pairing-code">
+          <i class="fas fa-copy me-1"></i>Copia codice
+        </button>
+        <button class="btn btn-outline-success" type="button" data-bs-toggle="collapse"
+                data-bs-target="#pairing-help">
+          <i class="fas fa-circle-question me-1"></i>Cosa fare sul Mac
+        </button>
+      </div>
+    </div>
+    <div class="collapse mt-3" id="pairing-help">
+      <div class="bg-white border rounded p-3 text-dark">
+        <ol class="mb-0">
+          <li>Apri <strong>Magenta Adobe Agent</strong> sul Mac di prestampa.</li>
+          <li>Inserisci l’indirizzo di questo gestionale e il codice mostrato sopra.</li>
+          <li>Conferma Photoshop 2024, Illustrator e le cartelle proposte.</li>
+          <li>Esegui il controllo finale: il Mac comparirà online in questa pagina.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<div class="row g-4">
+  <div class="col-xl-8">
+    <div class="card shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>Mac collegati</strong>
+        <span class="badge bg-secondary"><%= @automation_agents.size %></span>
+      </div>
+      <div class="card-body">
+        <% @automation_agents.each do |agent| %>
+          <% metadata = agent.metadata.is_a?(Hash) ? agent.metadata : {} %>
+          <% templates = Array(metadata['illustrator_templates']) %>
+          <% scripts = Array(metadata['illustrator_scripts']) %>
+          <% actions = Array(metadata['photoshop_actions']) %>
+          <div class="border rounded p-3 mb-3 <%= 'bg-light opacity-75' unless agent.active? %>">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+              <div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <h5 class="mb-0"><%= Rack::Utils.escape_html(agent.name) %></h5>
+                  <% if !agent.active? %>
+                    <span class="badge bg-danger">revocato</span>
+                  <% elsif agent.online? %>
+                    <span class="badge bg-success">online</span>
+                  <% else %>
+                    <span class="badge bg-secondary">offline</span>
+                  <% end %>
+                </div>
+                <div class="small text-muted mt-1">
+                  <%= Rack::Utils.escape_html(agent.hostname.presence || agent.agent_key) %>
+                  <% if agent.platform.present? %> · <%= Rack::Utils.escape_html(agent.platform) %><% end %>
+                </div>
+              </div>
+              <% if agent.active? %>
+                <form method="post" action="/automation_agents/<%= agent.id %>/revoke"
+                      onsubmit="return confirm('Disconnettere questo Mac? I flussi non potranno più utilizzarlo finché non verrà associato di nuovo.');">
+                  <button class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-link-slash me-1"></i>Disconnetti
+                  </button>
+                </form>
+              <% end %>
+            </div>
+
+            <div class="row g-2 mt-2">
+              <div class="col-md-6">
+                <div class="border rounded p-2 h-100">
+                  <div class="small fw-semibold"><i class="fas fa-image me-1"></i>Photoshop</div>
+                  <div class="small text-muted"><%= Rack::Utils.escape_html(metadata['photoshop_app'].presence || 'Non rilevato') %></div>
+                  <div class="small mt-1">
+                    <%= actions.any? ? "#{actions.size} azioni rilevate" : 'Azioni non ancora sincronizzate' %>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="border rounded p-2 h-100">
+                  <div class="small fw-semibold"><i class="fas fa-pen-nib me-1"></i>Illustrator</div>
+                  <div class="small text-muted"><%= Rack::Utils.escape_html(metadata['illustrator_app'].presence || 'Non rilevato') %></div>
+                  <div class="small mt-1"><%= scripts.size %> script · <%= templates.size %> maschere</div>
+                </div>
+              </div>
+            </div>
+
+            <details class="mt-2">
+              <summary class="small text-muted">Dettagli e risorse</summary>
+              <div class="small mt-2">
+                <div><strong>Script:</strong> <%= scripts.any? ? scripts.map { |name| Rack::Utils.escape_html(name) }.join(', ') : 'nessuno' %></div>
+                <div><strong>Maschere:</strong> <%= templates.any? ? templates.map { |name| Rack::Utils.escape_html(name) }.join(', ') : 'nessuna' %></div>
+                <div><strong>Ultimo contatto:</strong> <%= agent.last_seen_at&.strftime('%d/%m/%Y %H:%M:%S') || 'mai' %></div>
+                <% if agent.last_error.present? %>
+                  <div class="text-danger"><strong>Ultimo errore:</strong> <%= Rack::Utils.escape_html(agent.last_error) %></div>
+                <% end %>
+              </div>
+            </details>
+          </div>
+        <% end %>
+
+        <% if @automation_agents.empty? %>
+          <div class="text-center text-muted py-5">
+            <i class="fas fa-desktop fa-3x mb-3 opacity-50"></i>
+            <h5>Nessun Mac collegato</h5>
+            <p class="mb-0">Crea il primo codice dal riquadro a destra.</p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><strong>Collega un nuovo Mac</strong></div>
+      <div class="card-body">
+        <form method="post" action="/automation_agents/pairings">
+          <label class="form-label" for="agent-name">Nome riconoscibile</label>
+          <input class="form-control mb-2" id="agent-name" name="name"
+                 placeholder="Es. Mac prestampa 1">
+          <div class="form-text mb-3">
+            Il nome può essere modificato dal configuratore sul Mac.
+          </div>
+          <button class="btn btn-primary w-100">
+            <i class="fas fa-link me-1"></i>Genera codice
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header"><strong>Procedura di installazione</strong></div>
+      <div class="card-body">
+        <a class="btn btn-outline-primary w-100 mb-4" href="/automation_agents/installer">
+          <i class="fab fa-apple me-1"></i>Scarica per macOS
+        </a>
+        <div class="alert alert-light border small py-2">
+          Versione locale di test: al primo avvio usa tasto destro → <strong>Apri</strong>.
+          La firma distributiva verrà aggiunta dopo la conferma dei test.
+        </div>
+        <div class="d-flex gap-3 mb-3">
+          <span class="badge bg-primary rounded-circle p-2">1</span>
+          <div><strong>Installa l’agente</strong><div class="small text-muted">Una sola volta sul Mac Adobe.</div></div>
+        </div>
+        <div class="d-flex gap-3 mb-3">
+          <span class="badge bg-primary rounded-circle p-2">2</span>
+          <div><strong>Associa il Mac</strong><div class="small text-muted">Con il codice temporaneo.</div></div>
+        </div>
+        <div class="d-flex gap-3">
+          <span class="badge bg-primary rounded-circle p-2">3</span>
+          <div><strong>Verifica Adobe</strong><div class="small text-muted">Applicazioni, permessi e risorse.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (() => {
+    const copyButton = document.getElementById('copy-pairing-code');
+    const codeElement = document.getElementById('pairing-code');
+    if (copyButton && codeElement) {
+      copyButton.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(codeElement.textContent.trim());
+        copyButton.innerHTML = '<i class="fas fa-check me-1"></i>Copiato';
+      });
+    }
+
+    const panel = document.getElementById('pairing-panel');
+    const countdown = document.getElementById('pairing-countdown');
+    if (!panel || !countdown || !panel.dataset.expiresAt) return;
+    const refreshCountdown = () => {
+      const remaining = new Date(panel.dataset.expiresAt).getTime() - Date.now();
+      if (remaining <= 0) {
+        countdown.textContent = 'Il codice è scaduto: generane uno nuovo.';
+        panel.classList.remove('alert-success');
+        panel.classList.add('alert-warning');
+        return;
+      }
+      const minutes = Math.floor(remaining / 60000);
+      const seconds = Math.floor((remaining % 60000) / 1000);
+      countdown.textContent = `Scade tra ${minutes}:${String(seconds).padStart(2, '0')}.`;
+      window.setTimeout(refreshCountdown, 1000);
+    };
+    refreshCountdown();
+  })();
+</script>

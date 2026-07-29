@@ -50,3 +50,6 @@ replit.nix
 # Python
 __pycache__/
 *.pyc
+
+# Generated macOS installer
+/tools/adobe_agent/dist/

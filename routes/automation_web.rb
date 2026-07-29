@@ -43,6 +43,7 @@ class PrintOrchestrator < Sinatra::Base
     {type: 'step_repeat', label: 'Step and repeat', icon: 'fa-grip', outputs: ['default']},
     {type: 'barcode', label: 'Barcode', icon: 'fa-barcode', outputs: ['default']},
     {type: 'hot_folder', label: 'Hot folder', icon: 'fa-folder-open', outputs: ['default']},
+    {type: 'label_printer', label: 'Stampa etichetta', icon: 'fa-print', outputs: ['default']},
     {type: 'approval', label: 'Approvazione', icon: 'fa-user-check', outputs: ['default']},
     {type: 'handoff', label: 'Passa a un’altra automazione', icon: 'fa-arrow-right-to-bracket', outputs: []},
     {type: 'finish', label: 'Completato', icon: 'fa-flag-checkered', outputs: []}
@@ -56,18 +57,32 @@ class PrintOrchestrator < Sinatra::Base
       halt 400, {success: false, error: 'JSON non valido'}.to_json
     end
 
-    def automation_agent_authorized?
+    def automation_bearer_token
+      request.env['HTTP_AUTHORIZATION'].to_s.sub(/\ABearer\s+/i, '')
+    end
+
+    def automation_legacy_agent_authorized?
       expected = ENV['AUTOMATION_AGENT_TOKEN'].to_s
       return true if expected.empty? && settings.development?
 
-      supplied = request.env['HTTP_AUTHORIZATION'].to_s.sub(/\ABearer\s+/i, '')
+      supplied = automation_bearer_token
+      return false if supplied.empty? || supplied.bytesize != expected.bytesize
+
       supplied.bytesize == expected.bytesize &&
         Rack::Utils.secure_compare(supplied, expected)
     end
 
-    def require_automation_agent!
+    def automation_agent_authorized?(agent = nil)
+      return false if agent&.revoked_at.present?
+      return agent.authenticate_token?(automation_bearer_token) if agent&.token_digest.present?
+
+      automation_legacy_agent_authorized?
+    end
+
+    def require_automation_agent!(agent = nil)
       content_type :json
-      halt 401, {success: false, error: 'Agente non autorizzato'}.to_json unless automation_agent_authorized?
+      halt 401, {success: false, error: 'Agente non autorizzato'}.to_json unless
+        automation_agent_authorized?(agent)
     end
 
     def resolve_automation_config(value, context)
@@ -109,6 +124,31 @@ class PrintOrchestrator < Sinatra::Base
       config
     end
 
+    def automation_destination_config(kind)
+      case kind
+      when 'network_folder'
+        {
+          'network_uri' => params[:network_uri].to_s.strip,
+          'host_mount_path' => params[:host_mount_path].to_s.strip,
+          'container_path' => params[:container_path].to_s.strip
+        }
+      when 'ipp_printer'
+        copies = Integer(params[:copies].presence || 1)
+        raise ArgumentError, 'Il numero di copie deve essere compreso tra 1 e 999' unless copies.between?(1, 999)
+
+        {
+          'cups_server' => params[:cups_server].to_s.strip,
+          'queue' => params[:queue].to_s.strip,
+          'media' => params[:media].to_s.strip,
+          'fit_to_page' => params[:fit_to_page] == '1',
+          'cut_mode' => params[:cut_mode].to_s.strip,
+          'copies' => copies
+        }
+      else
+        raise ArgumentError, 'Tipo di destinazione non valido'
+      end
+    end
+
     def automation_chain_rows(folder)
       folder.automation_folder_flows.map do |membership|
         {flow: membership.automation_flow, membership: membership}
@@ -135,9 +175,103 @@ class PrintOrchestrator < Sinatra::Base
     @organized_flow_ids = @automation_folders.flat_map(&:chain_flows).map(&:id).uniq
     @unorganized_flows = @automation_flows.reject { |flow| @organized_flow_ids.include?(flow.id) }
     @automation_presets = AutomationPreset.ordered
+    @automation_destinations = AutomationDestination.ordered
     @automation_agents = AutomationAgent.ordered
     @automation_items = OrderItem.includes(:order).order(created_at: :desc).limit(100)
     erb :automation_flows_list
+  end
+
+  get '/automation_presets' do
+    @automation_presets = AutomationPreset.ordered
+    @automation_destinations = AutomationDestination.ordered
+    @automation_agents = AutomationAgent.active.ordered
+    erb :automation_presets
+  end
+
+  get '/automation_runs' do
+    @automation_flows = AutomationFlow.ordered
+    @selected_status = params[:status].to_s
+    @selected_flow_id = params[:flow_id].to_s
+    @order_query = params[:order].to_s.strip
+    @page = [params[:page].to_i, 1].max
+    @per_page = 50
+
+    scope = AutomationRun.where(parent_run_id: nil)
+                         .includes(:order_item, automation_flow_version: :automation_flow)
+                         .recent
+    scope = scope.where(status: @selected_status) if AutomationRun::STATUSES.include?(@selected_status)
+    if @selected_flow_id.match?(/\A\d+\z/)
+      scope = scope.joins(:automation_flow_version)
+                   .where(automation_flow_versions: {automation_flow_id: @selected_flow_id.to_i})
+    end
+    if @order_query.present?
+      escaped_query = ActiveRecord::Base.sanitize_sql_like(@order_query)
+      scope = scope.where("automation_runs.context -> 'order' ->> 'code' ILIKE ?", "%#{escaped_query}%")
+    end
+
+    @automation_runs_count = scope.count
+    @automation_runs = scope.offset((@page - 1) * @per_page).limit(@per_page)
+    erb :automation_runs_list
+  end
+
+  get '/automation_agents' do
+    @automation_agents = AutomationAgent.ordered
+    @pending_pairings = AutomationAgentPairing.pending.recent
+    @pairing_code = params[:pairing_code].to_s.presence
+    @pairing_expires_at = Time.iso8601(params[:expires_at].to_s) rescue nil
+    erb :automation_agents
+  end
+
+  get '/automation_agents/installer' do
+    installer_path = File.join(
+      Dir.pwd,
+      'tools',
+      'adobe_agent',
+      'dist',
+      'Magenta-Adobe-Agent.zip'
+    )
+    halt 404, 'Installer non ancora generato' unless File.file?(installer_path)
+
+    send_file installer_path,
+              filename: 'Magenta-Adobe-Agent.zip',
+              disposition: 'attachment',
+              type: 'application/zip'
+  end
+
+  post '/automation_agents/pairings' do
+    pairing, code = AutomationAgentPairing.issue!(requested_name: params[:name])
+    query = URI.encode_www_form(
+      pairing_code: code,
+      expires_at: pairing.expires_at.iso8601,
+      msg: 'success',
+      text: 'Codice di associazione creato'
+    )
+    redirect "/automation_agents?#{query}"
+  rescue StandardError => e
+    redirect "/automation_agents?msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
+  post '/automation_agents/:id/revoke' do
+    agent = AutomationAgent.find(params[:id])
+    agent.update!(
+      revoked_at: Time.current,
+      token_digest: nil,
+      last_error: 'Associazione revocata dal gestionale'
+    )
+    redirect '/automation_agents?msg=success&text=Mac+disconnesso'
+  rescue StandardError => e
+    redirect "/automation_agents?msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
+  post '/automation_agents/:id/sync' do
+    agent = AutomationAgent.active.find(params[:id])
+    agent_version = agent.metadata.is_a?(Hash) ? agent.metadata['agent_version'].to_i : 0
+    raise ArgumentError, 'Aggiorna prima Magenta Adobe Agent su questo Mac' if agent_version < 3
+
+    agent.update!(resource_sync_requested_at: Time.current, last_error: nil)
+    redirect '/automation_presets?msg=success&text=Sincronizzazione+Adobe+richiesta'
+  rescue StandardError => e
+    redirect "/automation_presets?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end
 
   post '/automation_folders' do
@@ -316,7 +450,8 @@ class PrintOrchestrator < Sinatra::Base
     @automation_version = @automation_flow.draft_version
     @node_catalog = NODE_CATALOG
     @automation_presets = AutomationPreset.active.ordered
-    @automation_agents = AutomationAgent.ordered
+    @automation_destinations = AutomationDestination.active.ordered
+    @automation_agents = AutomationAgent.active.ordered
     @automation_target_flows = AutomationFlow.where.not(id: @automation_flow.id)
                                                .where.not(active_version_id: nil)
                                                .ordered
@@ -347,7 +482,16 @@ class PrintOrchestrator < Sinatra::Base
       presets: AutomationPreset.active.ordered.map { |preset|
         {id: preset.id, kind: preset.kind, code: preset.code, name: preset.name}
       },
-      agents: AutomationAgent.ordered.map { |agent|
+      destinations: AutomationDestination.active.ordered.map { |destination|
+        {
+          id: destination.id,
+          kind: destination.kind,
+          code: destination.code,
+          name: destination.name,
+          available: destination.available?
+        }
+      },
+      agents: AutomationAgent.active.ordered.map { |agent|
         {
           key: agent.agent_key,
           name: agent.name,
@@ -483,17 +627,71 @@ class PrintOrchestrator < Sinatra::Base
       config: config,
       active: params[:active] == '1'
     )
-    redirect '/automations?msg=success&text=Preset+salvato'
+    redirect '/automation_presets?msg=success&text=Preset+salvato'
   rescue StandardError => e
-    redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
+    redirect "/automation_presets?msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
+  post '/automation_destinations' do
+    destination = if params[:id].present?
+                    AutomationDestination.find(params[:id])
+                  else
+                    AutomationDestination.new
+                  end
+    destination.update!(
+      code: params[:code].to_s.strip,
+      name: params[:name].to_s.strip,
+      kind: params[:destination_kind].to_s,
+      config: automation_destination_config(params[:destination_kind].to_s),
+      active: params[:active] == '1'
+    )
+    redirect '/automation_presets?tab=output&msg=success&text=Destinazione+salvata'
+  rescue StandardError => e
+    redirect "/automation_presets?tab=output&msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
+  post '/automation_destinations/:id/check' do
+    destination = AutomationDestination.find(params[:id])
+    result = AutomationDestinationService.check(destination)
+    destination.update!(
+      last_checked_at: Time.current,
+      last_check_status: result.success? ? 'ok' : 'error',
+      last_check_message: result.message
+    )
+    level = result.success? ? 'success' : 'error'
+    redirect "/automation_presets?tab=output&msg=#{level}&text=#{URI.encode_www_form_component(result.message)}"
+  rescue StandardError => e
+    redirect "/automation_presets?tab=output&msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
+  post '/automation_destinations/:id/delete' do
+    destination = AutomationDestination.find(params[:id])
+    flows = destination.referenced_by_flows
+    raise ArgumentError, "Destinazione usata da: #{flows.map(&:name).join(', ')}" if flows.any?
+
+    destination.destroy!
+    redirect '/automation_presets?tab=output&msg=success&text=Destinazione+eliminata'
+  rescue StandardError => e
+    redirect "/automation_presets?tab=output&msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
+  get '/api/automation/destinations/printers' do
+    content_type :json
+    printers = AutomationDestinationService.discover_printers(params[:cups_server])
+    {success: true, printers: printers}.to_json
+  rescue StandardError => e
+    status 422
+    {success: false, error: e.message}.to_json
   end
 
   post '/api/automation/agent/claim' do
-    require_automation_agent!
     payload = automation_json_body
     worker_id = payload['worker_id'].to_s
     capabilities = Array(payload['capabilities']).map(&:to_s)
     halt 422, {success: false, error: 'worker_id mancante'}.to_json if worker_id.empty?
+
+    existing_agent = AutomationAgent.find_by(agent_key: worker_id)
+    require_automation_agent!(existing_agent)
 
     agent_data = payload['agent'].is_a?(Hash) ? payload['agent'] : {}
     agent = AutomationAgent.find_or_initialize_by(agent_key: worker_id)
@@ -507,6 +705,22 @@ class PrintOrchestrator < Sinatra::Base
       last_error: agent_data['last_error']
     )
     agent.save!
+
+    sync_pending = agent.resource_sync_requested_at.present? &&
+                   (
+                     agent.resource_synced_at.blank? ||
+                     agent.resource_synced_at < agent.resource_sync_requested_at
+                   )
+    if sync_pending && agent.metadata['agent_version'].to_i >= 3
+      return {
+        success: true,
+        task: nil,
+        command: {
+          type: 'sync_resources',
+          requested_at: agent.resource_sync_requested_at.iso8601
+        }
+      }.to_json
+    end
 
     step = AutomationStepRun.transaction do
       candidates = AutomationStepRun.where(status: 'waiting_external', node_type: capabilities)
@@ -552,9 +766,76 @@ class PrintOrchestrator < Sinatra::Base
     }.to_json
   end
 
+  post '/api/automation/agent/pair' do
+    content_type :json
+    payload = automation_json_body
+    pairing = AutomationAgentPairing.find_available(payload['code'])
+    halt 422, {
+      success: false,
+      error: 'Codice non valido, scaduto o già utilizzato'
+    }.to_json unless pairing
+
+    agent_data = payload['agent'].is_a?(Hash) ? payload['agent'] : {}
+    requested_key = payload['worker_id'].to_s
+    agent = if requested_key.present?
+              AutomationAgent.find_or_initialize_by(agent_key: requested_key)
+            else
+              AutomationAgent.new(agent_key: "adobe-#{SecureRandom.uuid}")
+            end
+
+    token = nil
+    AutomationAgent.transaction do
+      agent.assign_attributes(
+        name: agent_data['name'].presence || pairing.requested_name.presence ||
+              agent_data['hostname'].presence || 'Mac Adobe',
+        hostname: agent_data['hostname'],
+        platform: agent_data['platform'],
+        capabilities: Array(payload['capabilities']).map(&:to_s),
+        metadata: agent_data['metadata'].is_a?(Hash) ? agent_data['metadata'] : {},
+        last_seen_at: Time.current,
+        last_error: nil
+      )
+      agent.save!
+      token = agent.issue_token!
+      pairing.consume!(agent)
+    end
+
+    {
+      success: true,
+      agent: {
+        key: agent.agent_key,
+        name: agent.name,
+        token: token,
+        paired_at: agent.paired_at.iso8601
+      }
+    }.to_json
+  rescue ActiveRecord::RecordInvalid, ArgumentError => e
+    status 422
+    {success: false, error: e.message}.to_json
+  end
+
+  post '/api/automation/agent/sync_complete' do
+    payload = automation_json_body
+    worker_id = payload['worker_id'].to_s
+    agent = AutomationAgent.find_by(agent_key: worker_id)
+    require_automation_agent!(agent)
+    halt 404, {success: false, error: 'Mac Adobe non trovato'}.to_json unless agent
+
+    agent_data = payload['agent'].is_a?(Hash) ? payload['agent'] : {}
+    sync_error = payload['error'].to_s.presence
+    agent.update!(
+      capabilities: Array(payload['capabilities']).map(&:to_s).presence || agent.capabilities,
+      metadata: agent_data['metadata'].is_a?(Hash) ? agent_data['metadata'] : agent.metadata,
+      last_seen_at: Time.current,
+      last_error: sync_error,
+      resource_synced_at: Time.current
+    )
+    {success: sync_error.nil?, synced_at: agent.resource_synced_at.iso8601}.to_json
+  end
+
   post '/api/automation/agent/steps/:id/complete' do
-    require_automation_agent!
     step = AutomationStepRun.find(params[:id])
+    require_automation_agent!(AutomationAgent.find_by(agent_key: step.worker_id))
     upload = params[:file]
     tempfile = upload && (upload[:tempfile] || upload['tempfile'])
     uploaded_name = upload && (upload[:filename] || upload['filename'])
@@ -581,9 +862,9 @@ class PrintOrchestrator < Sinatra::Base
   end
 
   post '/api/automation/agent/steps/:id/fail' do
-    require_automation_agent!
-    payload = automation_json_body
     step = AutomationStepRun.find(params[:id])
+    require_automation_agent!(AutomationAgent.find_by(agent_key: step.worker_id))
+    payload = automation_json_body
     AutomationAgent.find_by(agent_key: step.worker_id)&.update!(
       last_seen_at: Time.current,
       last_error: payload['error']

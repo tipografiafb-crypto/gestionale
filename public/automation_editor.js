@@ -11,6 +11,7 @@
     catalog: initial.node_catalog || [],
     fieldCatalog: initial.field_catalog || [],
     presets: initial.presets || [],
+    destinations: initial.destinations || [],
     agents: initial.agents || [],
     flows: initial.flows || [],
     selectedNodeId: null,
@@ -91,11 +92,15 @@
       output_kind: 'barcode_pdf'
     },
     hot_folder: {
-      preset_code: 'LOCAL_TEST',
-      destination_key: 'print_destination',
+      destination_code: 'LOCAL_PRINT',
       artifact_kind: 'imposition_pdf',
       filename: '{{order.code}}-plancia.pdf',
       output_kind: 'delivered'
+    },
+    label_printer: {
+      destination_code: '',
+      artifact_kind: 'barcode_pdf',
+      output_kind: 'printed_label'
     },
     approval: {},
     handoff: {target_flow_id: ''},
@@ -239,8 +244,12 @@
       {key: 'output_kind', label: 'Tipo risultato', default: 'barcode_pdf'}
     ],
     hot_folder: [
-      {key: 'preset_code', label: 'Preset destinazione', choices: 'output'},
-      {key: 'destination_key', label: 'Destinazione del preset', default: 'print_destination'},
+      {
+        key: 'destination_code',
+        label: 'Hot folder',
+        choices: 'network_destinations',
+        help: 'La cartella deve essere configurata nel menu Destinazioni.'
+      },
       {key: 'artifact_kind', label: 'File da consegnare'},
       {
         key: 'filename',
@@ -249,6 +258,16 @@
         help: 'Puoi usare {{order.code}}, {{item.sku}} e {{file.filename}}.'
       },
       {key: 'output_kind', label: 'Tipo risultato', default: 'delivered'}
+    ],
+    label_printer: [
+      {
+        key: 'destination_code',
+        label: 'Stampante etichette',
+        choices: 'printer_destinations',
+        help: 'La coda CUPS e il formato si configurano una sola volta nel menu Destinazioni.'
+      },
+      {key: 'artifact_kind', label: 'PDF etichetta da stampare', default: 'barcode_pdf'},
+      {key: 'output_kind', label: 'Tipo risultato', default: 'printed_label'}
     ],
     handoff: [
       {
@@ -462,6 +481,18 @@
           agent.key,
           `${agent.name}${agent.online ? ' · online' : ' · offline'}`
         ])
+      ];
+    }
+    if (value === 'network_destinations' || value === 'printer_destinations') {
+      const kind = value === 'network_destinations' ? 'network_folder' : 'ipp_printer';
+      return [
+        ['', '-- Seleziona destinazione --'],
+        ...state.destinations
+          .filter((destination) => destination.kind === kind)
+          .map((destination) => [
+            destination.code,
+            `${destination.name} (${destination.code})${destination.available ? ' · verificata' : ''}`
+          ])
       ];
     }
     if (value === 'flows') {

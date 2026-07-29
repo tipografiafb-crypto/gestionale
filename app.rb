@@ -83,6 +83,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'services/asset_downloader'
   require_relative 'services/switch_client'
   require_relative 'services/ftp_poller'
+  require_relative 'services/automation_destination_service'
   require_relative 'services/automation_engine'
   require_relative 'services/automation_action_dispatcher'
   require_relative 'services/automation_adobe_agent'

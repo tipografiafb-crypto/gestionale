@@ -3,6 +3,8 @@
 
 require 'digest'
 require 'pathname'
+require 'securerandom'
+require 'active_support/security_utils'
 
 class AutomationFlow < ActiveRecord::Base
   STATUSES = %w[draft published archived].freeze
@@ -202,7 +204,7 @@ class AutomationArtifact < ActiveRecord::Base
 end
 
 class AutomationPreset < ActiveRecord::Base
-  KINDS = %w[imposition adobe mask output].freeze
+  KINDS = %w[imposition adobe mask].freeze
 
   validates :kind, inclusion: { in: KINDS }
   validates :code, :name, presence: true
@@ -212,14 +214,152 @@ class AutomationPreset < ActiveRecord::Base
   scope :ordered, -> { order(:kind, :name) }
 end
 
+class AutomationDestination < ActiveRecord::Base
+  KINDS = %w[network_folder ipp_printer].freeze
+  CODE_FORMAT = /\A[A-Za-z0-9_-]+\z/
+
+  validates :kind, inclusion: {in: KINDS}
+  validates :code, :name, presence: true
+  validates :code, uniqueness: true, format: {
+    with: CODE_FORMAT,
+    message: 'può contenere solo lettere, numeri, trattino e underscore'
+  }
+  validate :validate_configuration
+
+  scope :active, -> { where(active: true) }
+  scope :ordered, -> { order(:kind, :name) }
+
+  def network_folder?
+    kind == 'network_folder'
+  end
+
+  def ipp_printer?
+    kind == 'ipp_printer'
+  end
+
+  def checked?
+    last_checked_at.present?
+  end
+
+  def available?
+    last_check_status == 'ok'
+  end
+
+  def referenced_by_flows
+    AutomationFlowVersion.includes(:automation_flow).select do |version|
+      Array(version.graph['nodes']).any? do |node|
+        node.dig('config', 'destination_code').to_s == code
+      end
+    end.map(&:automation_flow).uniq
+  end
+
+  private
+
+  def validate_configuration
+    values = config.is_a?(Hash) ? config : {}
+    if network_folder?
+      container_path = values['container_path'].to_s.strip
+      root = ENV.fetch('AUTOMATION_DESTINATIONS_ROOT', '/destinations')
+      errors.add(:config, 'deve indicare il percorso visto dal container') if container_path.empty?
+      errors.add(:config, "deve trovarsi sotto #{root}") unless
+        container_path == root || container_path.start_with?("#{root}/")
+    elsif ipp_printer?
+      errors.add(:config, 'deve indicare il nome della coda di stampa') if
+        values['queue'].to_s.strip.empty?
+      copies = values['copies'].to_i
+      errors.add(:config, 'deve avere un numero di copie compreso tra 1 e 999') unless
+        copies.between?(1, 999)
+    end
+  end
+end
+
 class AutomationAgent < ActiveRecord::Base
+  has_many :pairings,
+           class_name: 'AutomationAgentPairing',
+           dependent: :nullify
+
   validates :agent_key, :name, presence: true
   validates :agent_key, uniqueness: true
 
-  scope :ordered, -> { order(:name) }
+  scope :ordered, -> {
+    order(Arel.sql('CASE WHEN revoked_at IS NULL THEN 0 ELSE 1 END'), name: :asc)
+  }
+  scope :active, -> { where(revoked_at: nil) }
 
   def online?
-    last_seen_at.present? && last_seen_at >= 15.seconds.ago
+    active? && last_seen_at.present? && last_seen_at >= 15.seconds.ago
+  end
+
+  def active?
+    revoked_at.nil?
+  end
+
+  def authenticate_token?(token)
+    return false if token_digest.blank? || token.blank? || !active?
+
+    candidate = Digest::SHA256.hexdigest(token.to_s)
+    candidate.bytesize == token_digest.bytesize &&
+      ActiveSupport::SecurityUtils.secure_compare(candidate, token_digest)
+  end
+
+  def issue_token!
+    token = SecureRandom.urlsafe_base64(36)
+    update!(
+      token_digest: Digest::SHA256.hexdigest(token),
+      paired_at: Time.current,
+      revoked_at: nil
+    )
+    token
+  end
+end
+
+class AutomationAgentPairing < ActiveRecord::Base
+  LIFETIME = 10.minutes
+
+  belongs_to :automation_agent, optional: true
+
+  validates :code_digest, :expires_at, presence: true
+  validates :code_digest, uniqueness: true
+
+  scope :recent, -> { order(created_at: :desc) }
+  scope :pending, -> {
+    where(consumed_at: nil)
+      .where('expires_at > ?', Time.current)
+  }
+
+  def self.issue!(requested_name: nil)
+    20.times do
+      code = format('%06d', SecureRandom.random_number(1_000_000))
+      pairing = create!(
+        code_digest: digest_code(code),
+        requested_name: requested_name.to_s.strip.presence,
+        expires_at: LIFETIME.from_now
+      )
+      return [pairing, "#{code[0, 3]}-#{code[3, 3]}"]
+    rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
+      next
+    end
+    raise 'Impossibile generare un codice di associazione univoco'
+  end
+
+  def self.find_available(code)
+    normalized = code.to_s.gsub(/\D/, '')
+    return nil unless normalized.match?(/\A\d{6}\z/)
+
+    pending.find_by(code_digest: digest_code(normalized))
+  end
+
+  def self.digest_code(code)
+    Digest::SHA256.hexdigest(code.to_s.gsub(/\D/, ''))
+  end
+
+  def consume!(agent)
+    with_lock do
+      raise ArgumentError, 'Codice di associazione già utilizzato' if consumed_at.present?
+      raise ArgumentError, 'Codice di associazione scaduto' if expires_at <= Time.current
+
+      update!(automation_agent: agent, consumed_at: Time.current)
+    end
   end
 end
 

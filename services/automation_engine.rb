@@ -42,6 +42,17 @@ class AutomationGraphValidator
       end
     end
 
+    nodes.select { |node| node['type'] == 'hot_folder' }.each do |node|
+      if node.dig('config', 'destination_code').to_s.strip.empty?
+        result << "Seleziona la hot folder nel blocco #{node['label'].presence || node['id']}"
+      end
+    end
+    nodes.select { |node| node['type'] == 'label_printer' }.each do |node|
+      if node.dig('config', 'destination_code').to_s.strip.empty?
+        result << "Seleziona la stampante nel blocco #{node['label'].presence || node['id']}"
+      end
+    end
+
     result << 'Il flusso contiene un ciclo non consentito' if cyclic?(ids, edges)
     result.uniq
   end
@@ -177,15 +188,6 @@ class AutomationBootstrap
           'fill_last_sheet' => false
         }
       )
-      upsert_preset(
-        'output',
-        'LOCAL_TEST',
-        'Hot folder locale di test',
-        {
-          'print_destination' => 'print',
-          'label_destination' => 'labels'
-        }
-      )
     end
 
     def plectrum_graph
@@ -268,8 +270,7 @@ class AutomationBootstrap
           'output_kind' => 'imposition_pdf'
         }),
         node('print_hotfolder', 'hot_folder', 'Hot folder stampa', 2390, 360, {
-          'preset_code' => 'LOCAL_TEST',
-          'destination_key' => 'print_destination',
+          'destination_code' => 'LOCAL_PRINT',
           'artifact_kind' => 'imposition_pdf',
           'filename' => '{{order.code}}-{{item.id}}-plancia.pdf',
           'output_kind' => 'delivered_print'
@@ -282,8 +283,7 @@ class AutomationBootstrap
           'output_kind' => 'barcode_pdf'
         }),
         node('label_hotfolder', 'hot_folder', 'Hot folder etichetta', 2850, 360, {
-          'preset_code' => 'LOCAL_TEST',
-          'destination_key' => 'label_destination',
+          'destination_code' => 'LOCAL_LABELS',
           'artifact_kind' => 'barcode_pdf',
           'filename' => '{{order.code}}-barcode.pdf',
           'output_kind' => 'delivered_label'
@@ -810,6 +810,7 @@ class AutomationNodeExecutor
     when 'step_repeat' then execute_step_repeat
     when 'barcode' then execute_barcode
     when 'hot_folder' then execute_hot_folder
+    when 'label_printer' then execute_label_printer
     when 'approval' then {'state' => 'waiting_review'}
     when 'handoff' then execute_handoff
     when 'finish' then {}
@@ -1178,29 +1179,31 @@ class AutomationNodeExecutor
   end
 
   def execute_hot_folder
-    source = if @config['artifact_kind'].present?
-               @run.artifact_by_kind(@config['artifact_kind'])
-             else
-               @run.current_artifact
-             end
+    source = delivery_source
     raise ArgumentError, "File sorgente non trovato per #{@config['artifact_kind']}" unless source&.available?
 
-    preset_code = AutomationEngine.resolve(@config['preset_code'], @context)
-    preset = AutomationPreset.active.find_by(kind: 'output', code: preset_code)
-    raise ArgumentError, "Preset di uscita non trovato: #{preset_code}" unless preset
-
-    destination = preset.config[@config['destination_key']]
-    root = File.expand_path(ENV.fetch('AUTOMATION_OUTPUT_ROOT', 'storage/automation/hotfolders'), Dir.pwd)
-    target_dir = File.expand_path(destination.to_s, root)
-    raise ArgumentError, 'Destinazione hot folder non consentita' unless target_dir == root || target_dir.start_with?("#{root}/")
-
-    FileUtils.mkdir_p(target_dir)
     filename = AutomationEngine.resolve(@config['filename'], @context).presence || source.filename
     filename = File.basename(filename)
-    target = File.join(target_dir, filename)
-    temporary = "#{target}.partial-#{@run.id}-#{@step.id}"
-    FileUtils.cp(source.full_path, temporary)
-    File.rename(temporary, target)
+    destination_code = AutomationEngine.resolve(@config['destination_code'], @context).to_s
+
+    raise ArgumentError, 'Seleziona una hot folder' if destination_code.blank?
+
+    destination = AutomationDestination.active.find_by(code: destination_code)
+    raise ArgumentError, "Destinazione non trovata: #{destination_code}" unless destination
+
+    delivery = AutomationDestinationService.deliver(
+      destination: destination,
+      source_path: source.full_path,
+      filename: filename,
+      simulation: simulation?
+    )
+    target = delivery[:simulated] ? source.full_path : delivery[:target]
+    metadata = {
+      'source_artifact_id' => source.id,
+      'destination_code' => destination.code,
+      'delivered_to' => delivery[:target],
+      'simulated' => delivery[:simulated]
+    }
 
     artifact = AutomationEngine.create_artifact!(
       run: @run,
@@ -1209,11 +1212,61 @@ class AutomationNodeExecutor
       path: target,
       filename: filename,
       media_type: source.media_type,
-      metadata: {'source_artifact_id' => source.id, 'preset_code' => preset_code}
+      metadata: metadata
     )
-    {'artifact_id' => artifact.id, 'delivered_to' => target}
-  ensure
-    File.delete(temporary) if defined?(temporary) && temporary && File.exist?(temporary)
+    {
+      'artifact_id' => artifact.id,
+      'delivered_to' => metadata['delivered_to'] || target,
+      'simulated' => metadata['simulated'] == true
+    }
+  end
+
+  def execute_label_printer
+    source = delivery_source
+    raise ArgumentError, "PDF etichetta non trovato per #{@config['artifact_kind']}" unless source&.available?
+
+    destination_code = AutomationEngine.resolve(@config['destination_code'], @context).to_s
+    destination = AutomationDestination.active.find_by(code: destination_code)
+    raise ArgumentError, "Stampante etichette non trovata: #{destination_code}" unless destination
+
+    result = AutomationDestinationService.print_label(
+      destination: destination,
+      source_path: source.full_path,
+      simulation: simulation?
+    )
+    artifact = AutomationEngine.create_artifact!(
+      run: @run,
+      step: @step,
+      kind: @config['output_kind'].presence || 'printed_label',
+      path: source.full_path,
+      filename: source.filename,
+      media_type: source.media_type,
+      metadata: {
+        'source_artifact_id' => source.id,
+        'destination_code' => destination.code,
+        'cups_job_id' => result[:job_id],
+        'cups_output' => result[:output],
+        'simulated' => result[:simulated]
+      }
+    )
+    {
+      'artifact_id' => artifact.id,
+      'destination_code' => destination.code,
+      'cups_job_id' => result[:job_id],
+      'simulated' => result[:simulated]
+    }
+  end
+
+  def delivery_source
+    if @config['artifact_kind'].present?
+      @run.artifact_by_kind(@config['artifact_kind'])
+    else
+      @run.current_artifact
+    end
+  end
+
+  def simulation?
+    @context.dig('runtime', 'simulation') == true
   end
 
   def compare(left, operator, right)

@@ -1,0 +1,621 @@
+<% if params[:text].present? %>
+  <div class="alert alert-<%= params[:msg] == 'error' ? 'danger' : 'success' %> alert-dismissible fade show">
+    <%= Rack::Utils.escape_html(params[:text]) %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <a href="/automations" class="small text-decoration-none"><i class="fas fa-arrow-left me-1"></i>Automazioni</a>
+    <h1 class="mb-1 mt-2"><i class="fas fa-sliders me-2"></i>Preset e risorse</h1>
+    <p class="text-muted mb-0">Configurazioni condivise e risorse rilevate sui Mac Adobe.</p>
+  </div>
+  <span class="badge bg-secondary fs-6"><%= @automation_presets.size + Array(@automation_destinations).size %> risorse</span>
+</div>
+
+<%
+  resource_agents = Array(@automation_agents)
+  photoshop_actions_count = resource_agents.sum do |agent|
+    Array(agent.metadata.is_a?(Hash) ? agent.metadata['photoshop_actions'] : nil).size
+  end
+  illustrator_scripts_count = resource_agents.sum do |agent|
+    Array(agent.metadata.is_a?(Hash) ? agent.metadata['illustrator_scripts'] : nil).size
+  end
+  illustrator_masks_count = resource_agents.sum do |agent|
+    Array(agent.metadata.is_a?(Hash) ? agent.metadata['illustrator_templates'] : nil).size
+  end
+  preset_tabs = [
+    ['imposition', 'Plance', 'fa-grip', @automation_presets.count { |preset| preset.kind == 'imposition' }],
+    ['output', 'Destinazioni', 'fa-folder-open', Array(@automation_destinations).size],
+    ['adobe', 'Adobe', 'fa-wand-magic-sparkles', photoshop_actions_count + illustrator_scripts_count],
+    ['mask', 'Maschere', 'fa-crop-simple', illustrator_masks_count]
+  ]
+  active_tab = preset_tabs.any? { |tab| tab.first == params[:tab] } ? params[:tab] : 'imposition'
+%>
+
+<ul class="nav nav-tabs mb-4" role="tablist">
+  <% preset_tabs.each do |(kind, label, icon, count)| %>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link <%= 'active' if active_tab == kind %>" data-bs-toggle="tab"
+              data-bs-target="#preset-kind-<%= kind %>" type="button">
+        <i class="fas <%= icon %> me-1"></i><%= label %>
+        <span class="badge bg-light text-dark ms-1"><%= count %></span>
+      </button>
+    </li>
+  <% end %>
+</ul>
+
+<div class="tab-content">
+  <% preset_tabs.each do |(kind, _label, _icon, _count)| %>
+    <div class="tab-pane fade <%= 'show active' if active_tab == kind %>" id="preset-kind-<%= kind %>">
+      <% if kind == 'adobe' %>
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+          <div>
+            <h4 class="mb-1">Risorse Adobe rilevate</h4>
+            <p class="text-muted mb-0">Azioni Photoshop e script Illustrator letti direttamente dai Mac collegati.</p>
+          </div>
+          <a class="btn btn-outline-secondary btn-sm" href="/automation_agents">
+            <i class="fas fa-desktop me-1"></i>Gestisci Mac
+          </a>
+        </div>
+
+        <div class="row g-4">
+          <% resource_agents.each do |agent| %>
+            <%
+              metadata = agent.metadata.is_a?(Hash) ? agent.metadata : {}
+              actions = Array(metadata['photoshop_actions'])
+              scripts = Array(metadata['illustrator_scripts'])
+              supports_sync = metadata['agent_version'].to_i >= 3
+            %>
+            <div class="col-xl-6">
+              <div class="card shadow-sm h-100">
+                <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                  <span><i class="fas fa-desktop me-2"></i><%= Rack::Utils.escape_html(agent.name) %></span>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge <%= agent.online? ? 'bg-success' : 'bg-secondary' %>"><%= agent.online? ? 'online' : 'offline' %></span>
+                    <form method="post" action="/automation_agents/<%= agent.id %>/sync">
+                      <button class="btn btn-outline-primary btn-sm"
+                              <%= 'disabled' unless agent.online? && supports_sync %>
+                              title="<%= supports_sync ? 'Rileggi azioni, script e maschere' : 'Aggiorna Magenta Adobe Agent' %>">
+                        <i class="fas fa-rotate me-1"></i>Sincronizza
+                      </button>
+                    </form>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <% if agent.last_error.present? %>
+                    <div class="alert alert-danger small py-2">
+                      <strong>Ultima sincronizzazione non completata:</strong>
+                      <%= Rack::Utils.escape_html(agent.last_error) %>
+                      <% if agent.last_error.include?('(-1743)') %>
+                        <div class="mt-1">
+                          In macOS abilita <strong>Python → Adobe Photoshop 2024</strong> in
+                          Impostazioni di Sistema → Privacy e sicurezza → Automazione.
+                        </div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                  <% unless supports_sync %>
+                    <div class="alert alert-warning small py-2">
+                      Questa macchina usa una versione precedente dell’agente. Scarica la nuova versione da
+                      <a href="/automation_agents">Macchine Adobe</a> per sincronizzare le azioni.
+                    </div>
+                  <% end %>
+                  <h6><i class="fas fa-image me-1"></i>Azioni Photoshop</h6>
+                  <% if actions.any? %>
+                    <div class="list-group list-group-flush border rounded mb-4">
+                      <% actions.each do |action| %>
+                        <% action_set = action.is_a?(Hash) ? action['set'].to_s : '' %>
+                        <% action_name = action.is_a?(Hash) ? action['name'].to_s : action.to_s %>
+                        <div class="list-group-item">
+                          <strong><%= Rack::Utils.escape_html(action_name) %></strong>
+                          <% if action_set.present? %>
+                            <div class="small text-muted">Set: <%= Rack::Utils.escape_html(action_set) %></div>
+                          <% end %>
+                        </div>
+                      <% end %>
+                    </div>
+                  <% else %>
+                    <div class="alert alert-light border small">
+                      Nessuna azione sincronizzata. Apri Magenta Adobe Agent sul Mac e usa
+                      <strong>Controlla Photoshop</strong>.
+                    </div>
+                  <% end %>
+
+                  <h6><i class="fas fa-code me-1"></i>Script Illustrator</h6>
+                  <% if scripts.any? %>
+                    <div class="d-flex flex-wrap gap-2">
+                      <% scripts.each do |script| %>
+                        <span class="badge bg-light text-dark border"><%= Rack::Utils.escape_html(script) %></span>
+                      <% end %>
+                    </div>
+                  <% else %>
+                    <p class="small text-muted mb-0">Nessuno script trovato nella cartella configurata.</p>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+          <% if resource_agents.empty? %>
+            <div class="col-12">
+              <div class="card shadow-sm"><div class="card-body text-center text-muted py-5">
+                Nessun Mac Adobe collegato. <a href="/automation_agents">Collega una macchina</a> per leggere le risorse.
+              </div></div>
+            </div>
+          <% end %>
+        </div>
+      <% elsif kind == 'mask' %>
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+          <div>
+            <h4 class="mb-1">Maschere Illustrator rilevate</h4>
+            <p class="text-muted mb-0">File `.ai` presenti nella cartella maschere di ciascun Mac collegato.</p>
+          </div>
+          <a class="btn btn-outline-secondary btn-sm" href="/automation_agents">
+            <i class="fas fa-folder-open me-1"></i>Gestisci cartelle
+          </a>
+        </div>
+
+        <div class="row g-4">
+          <% resource_agents.each do |agent| %>
+            <%
+              metadata = agent.metadata.is_a?(Hash) ? agent.metadata : {}
+              masks = Array(metadata['illustrator_templates'])
+            %>
+            <div class="col-xl-6">
+              <div class="card shadow-sm h-100">
+                <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                  <span><i class="fas fa-desktop me-2"></i><%= Rack::Utils.escape_html(agent.name) %></span>
+                  <span class="badge <%= agent.online? ? 'bg-success' : 'bg-secondary' %>"><%= agent.online? ? 'online' : 'offline' %></span>
+                </div>
+                <div class="card-body">
+                  <% if masks.any? %>
+                    <div class="list-group list-group-flush border rounded">
+                      <% masks.each do |mask| %>
+                        <div class="list-group-item d-flex align-items-center gap-2">
+                          <i class="fas fa-crop-simple text-muted"></i>
+                          <strong><%= Rack::Utils.escape_html(mask) %></strong>
+                        </div>
+                      <% end %>
+                    </div>
+                  <% else %>
+                    <div class="alert alert-light border small mb-0">
+                      Nessuna maschera trovata in
+                      <code><%= Rack::Utils.escape_html(metadata['template_root'].to_s.presence || 'cartella non comunicata') %></code>.
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+          <% if resource_agents.empty? %>
+            <div class="col-12">
+              <div class="card shadow-sm"><div class="card-body text-center text-muted py-5">
+                Nessun Mac Adobe collegato. <a href="/automation_agents">Collega una macchina</a> per leggere le maschere.
+              </div></div>
+            </div>
+          <% end %>
+        </div>
+      <% elsif kind == 'output' %>
+        <div class="alert alert-info border-0 shadow-sm">
+          <div class="d-flex gap-3">
+            <i class="fas fa-circle-info mt-1"></i>
+            <div>
+              <strong>Ubuntu esegue direttamente gli invii.</strong>
+              Le hot folder vengono montate sul server e rese visibili a Docker sotto
+              <code>/destinations</code>. Le stampanti etichette vengono raggiunte tramite il servizio CUPS di Ubuntu.
+              Il Mac Adobe non è coinvolto.
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-xl-8">
+            <% Array(@automation_destinations).each do |destination| %>
+              <% config = destination.config.is_a?(Hash) ? destination.config : {} %>
+              <details class="card shadow-sm mb-3" <%= 'open' if params[:destination_id].to_s == destination.id.to_s %>>
+                <summary class="card-header d-flex align-items-center justify-content-between gap-3">
+                  <span>
+                    <i class="fas <%= destination.network_folder? ? 'fa-folder-open' : 'fa-print' %> me-2"></i>
+                    <strong><%= Rack::Utils.escape_html(destination.name) %></strong>
+                    <code class="ms-2"><%= Rack::Utils.escape_html(destination.code) %></code>
+                  </span>
+                  <span class="d-flex align-items-center gap-2">
+                    <% if destination.checked? %>
+                      <span class="badge <%= destination.available? ? 'bg-success' : 'bg-danger' %>">
+                        <%= destination.available? ? 'raggiungibile' : 'non disponibile' %>
+                      </span>
+                    <% else %>
+                      <span class="badge bg-warning text-dark">da verificare</span>
+                    <% end %>
+                    <span class="badge <%= destination.active? ? 'bg-primary' : 'bg-secondary' %>">
+                      <%= destination.active? ? 'attiva' : 'disattivata' %>
+                    </span>
+                  </span>
+                </summary>
+                <div class="card-body">
+                  <% if destination.last_check_message.present? %>
+                    <div class="alert <%= destination.available? ? 'alert-success' : 'alert-danger' %> py-2 small">
+                      <%= Rack::Utils.escape_html(destination.last_check_message) %>
+                      <% if destination.last_checked_at %>
+                        <span class="text-muted ms-1">· <%= destination.last_checked_at.strftime('%d/%m/%Y %H:%M') %></span>
+                      <% end %>
+                    </div>
+                  <% end %>
+
+                  <form method="post" action="/automation_destinations" class="automation-destination-form">
+                    <input type="hidden" name="id" value="<%= destination.id %>">
+                    <input type="hidden" name="destination_kind" value="<%= destination.kind %>">
+                    <div class="row g-3">
+                      <div class="col-md-4">
+                        <label class="form-label">Codice stabile</label>
+                        <input class="form-control" name="code" value="<%= Rack::Utils.escape_html(destination.code) %>" required>
+                      </div>
+                      <div class="col-md-8">
+                        <label class="form-label">Nome visualizzato</label>
+                        <input class="form-control" name="name" value="<%= Rack::Utils.escape_html(destination.name) %>" required>
+                      </div>
+
+                      <% if destination.network_folder? %>
+                        <div class="col-12">
+                          <label class="form-label">Condivisione di rete</label>
+                          <input class="form-control" name="network_uri"
+                                 value="<%= Rack::Utils.escape_html(config['network_uri'].to_s) %>"
+                                 placeholder="//192.168.1.100/hotfolder/signracer">
+                          <div class="form-text">Riferimento per l’installatore; le credenziali non vengono salvate nel gestionale.</div>
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">Percorso montato su Ubuntu</label>
+                          <input class="form-control" name="host_mount_path"
+                                 value="<%= Rack::Utils.escape_html(config['host_mount_path'].to_s) %>"
+                                 placeholder="/mnt/gestionale/signracer">
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">Percorso visto da Docker</label>
+                          <input class="form-control" name="container_path"
+                                 value="<%= Rack::Utils.escape_html(config['container_path'].to_s) %>"
+                                 placeholder="/destinations/signracer" required>
+                          <div class="form-text">Deve iniziare con <code>/destinations</code>.</div>
+                        </div>
+                      <% else %>
+                        <div class="col-md-6">
+                          <label class="form-label">Server CUPS</label>
+                          <input class="form-control" name="cups_server"
+                                 value="<%= Rack::Utils.escape_html(config['cups_server'].to_s) %>"
+                                 placeholder="host.docker.internal:631">
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label">Nome coda</label>
+                          <input class="form-control" name="queue"
+                                 value="<%= Rack::Utils.escape_html(config['queue'].to_s) %>"
+                                 placeholder="signracer" required>
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label">Formato etichetta</label>
+                          <input class="form-control" name="media"
+                                 value="<%= Rack::Utils.escape_html(config['media'].to_s) %>"
+                                 placeholder="29x90mm">
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label">Taglio</label>
+                          <select class="form-select" name="cut_mode">
+                            <% [['None', 'Nessun taglio'], ['EndOfPage', 'Dopo ogni etichetta'], ['EndOfJob', 'A fine lavoro']].each do |value, label| %>
+                              <option value="<%= value %>" <%= 'selected' if config['cut_mode'].to_s == value %>><%= label %></option>
+                            <% end %>
+                          </select>
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label">Copie</label>
+                          <input class="form-control" type="number" name="copies" min="1" max="999"
+                                 value="<%= config.fetch('copies', 1) %>" required>
+                        </div>
+                        <div class="col-12">
+                          <input type="hidden" name="fit_to_page" value="0">
+                          <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="fit_to_page" value="1"
+                                   id="fit-<%= destination.id %>" <%= 'checked' if config.fetch('fit_to_page', true) %>>
+                            <label class="form-check-label" for="fit-<%= destination.id %>">Adatta il PDF al formato dell’etichetta</label>
+                          </div>
+                        </div>
+                      <% end %>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between mt-3">
+                      <div class="form-check">
+                        <input type="hidden" name="active" value="0">
+                        <input class="form-check-input" type="checkbox" name="active" value="1"
+                               id="destination-active-<%= destination.id %>" <%= 'checked' if destination.active? %>>
+                        <label class="form-check-label" for="destination-active-<%= destination.id %>">Destinazione attiva</label>
+                      </div>
+                      <button class="btn btn-primary"><i class="fas fa-floppy-disk me-1"></i>Salva</button>
+                    </div>
+                  </form>
+
+                  <div class="d-flex justify-content-between mt-3 pt-3 border-top">
+                    <form method="post" action="/automation_destinations/<%= destination.id %>/delete"
+                          onsubmit="return confirm('Eliminare questa destinazione?')">
+                      <button class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-trash me-1"></i>Elimina
+                      </button>
+                    </form>
+                    <form method="post" action="/automation_destinations/<%= destination.id %>/check">
+                      <button class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-plug me-1"></i>Verifica senza inviare file
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </details>
+            <% end %>
+
+            <% if Array(@automation_destinations).empty? %>
+              <div class="card shadow-sm"><div class="card-body text-center text-muted py-5">Nessuna destinazione configurata.</div></div>
+            <% end %>
+
+          </div>
+
+          <div class="col-xl-4">
+            <div class="card shadow-sm position-sticky" style="top: 1rem">
+              <div class="card-header"><strong>Nuova destinazione</strong></div>
+              <div class="card-body">
+                <form method="post" action="/automation_destinations" id="new-automation-destination">
+                  <label class="form-label">Tipo</label>
+                  <select class="form-select mb-3" name="destination_kind" id="new-destination-kind">
+                    <option value="network_folder">Hot folder di rete</option>
+                    <option value="ipp_printer">Stampante etichette</option>
+                  </select>
+                  <label class="form-label">Codice stabile</label>
+                  <input class="form-control mb-3" name="code" required placeholder="SIGNRACER_PRINT">
+                  <label class="form-label">Nome visualizzato</label>
+                  <input class="form-control mb-3" name="name" required placeholder="Signracer – stampa">
+
+                  <div data-destination-fields="network_folder">
+                    <label class="form-label">Condivisione di rete</label>
+                    <input class="form-control mb-3" name="network_uri" placeholder="//server/share/cartella">
+                    <label class="form-label">Percorso Ubuntu</label>
+                    <input class="form-control mb-3" name="host_mount_path" placeholder="/mnt/gestionale/signracer">
+                    <label class="form-label">Percorso Docker</label>
+                    <input class="form-control mb-3" name="container_path" value="/destinations/signracer">
+                  </div>
+
+                  <div data-destination-fields="ipp_printer" hidden>
+                    <label class="form-label">Server CUPS</label>
+                    <div class="input-group mb-2">
+                      <input class="form-control" name="cups_server" id="new-cups-server" value="host.docker.internal:631">
+                      <button class="btn btn-outline-secondary" type="button" id="discover-cups-printers">
+                        <i class="fas fa-magnifying-glass me-1"></i>Rileva
+                      </button>
+                    </div>
+                    <div class="form-text mb-3" id="cups-discovery-result">Cerca le code configurate sul server Ubuntu.</div>
+                    <label class="form-label">Nome coda</label>
+                    <input class="form-control mb-3" name="queue" placeholder="signracer" list="cups-printer-queues">
+                    <datalist id="cups-printer-queues"></datalist>
+                    <label class="form-label">Formato</label>
+                    <input class="form-control mb-3" name="media" value="29x90mm">
+                    <label class="form-label">Taglio</label>
+                    <select class="form-select mb-3" name="cut_mode">
+                      <option value="None">Nessun taglio</option>
+                      <option value="EndOfPage">Dopo ogni etichetta</option>
+                      <option value="EndOfJob">A fine lavoro</option>
+                    </select>
+                    <label class="form-label">Copie</label>
+                    <input class="form-control mb-3" type="number" min="1" max="999" name="copies" value="1">
+                    <input type="hidden" name="fit_to_page" value="0">
+                    <div class="form-check mb-3">
+                      <input class="form-check-input" type="checkbox" name="fit_to_page" value="1" id="new-fit" checked>
+                      <label class="form-check-label" for="new-fit">Adatta alla pagina</label>
+                    </div>
+                  </div>
+
+                  <input type="hidden" name="active" value="1">
+                  <button class="btn btn-outline-primary w-100">
+                    <i class="fas fa-plus me-1"></i>Crea destinazione
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% else %>
+      <div class="row g-4">
+        <div class="col-xl-8">
+          <% @automation_presets.select { |preset| preset.kind == kind }.each do |preset| %>
+            <details class="card shadow-sm mb-3">
+              <summary class="card-header d-flex align-items-center justify-content-between gap-3">
+                <span>
+                  <strong><%= Rack::Utils.escape_html(preset.name) %></strong>
+                  <code class="ms-2"><%= Rack::Utils.escape_html(preset.code) %></code>
+                </span>
+                <span class="badge <%= preset.active ? 'bg-success' : 'bg-secondary' %>"><%= preset.active ? 'attivo' : 'disattivato' %></span>
+              </summary>
+              <div class="card-body">
+                <form method="post" action="/automations/presets">
+                  <input type="hidden" name="id" value="<%= preset.id %>">
+                  <input type="hidden" name="kind" value="<%= kind %>">
+                  <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                      <label class="form-label">Codice</label>
+                      <input class="form-control" name="code" value="<%= Rack::Utils.escape_html(preset.code) %>" required>
+                    </div>
+                    <div class="col-md-8">
+                      <label class="form-label">Nome</label>
+                      <input class="form-control" name="name" value="<%= Rack::Utils.escape_html(preset.name) %>" required>
+                    </div>
+                  </div>
+                  <% if kind == 'imposition' %>
+                    <% config = preset.config %>
+                    <% anchor = config['anchor'].presence || 'bottom_left' %>
+                    <div class="row g-3">
+                      <div class="col-md-3">
+                        <label class="form-label">Foglio L (mm)</label>
+                        <input class="form-control" type="number" step="0.01" min="0.01" name="sheet_width_mm" value="<%= config['sheet_width_mm'] %>" required>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label">Foglio H (mm)</label>
+                        <input class="form-control" type="number" step="0.01" min="0.01" name="sheet_height_mm" value="<%= config['sheet_height_mm'] %>" required>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label">Partenza X (mm)</label>
+                        <input class="form-control" type="number" step="0.01" min="0" name="offset_x_mm" value="<%= config.fetch('offset_x_mm', 0) %>" required>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label">Partenza Y (mm)</label>
+                        <input class="form-control" type="number" step="0.01" min="0" name="offset_y_mm" value="<%= config.fetch('offset_y_mm', 0) %>" required>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label">Spazio X (mm)</label>
+                        <input class="form-control" type="number" step="0.01" min="0" name="gap_x_mm" value="<%= config.fetch('gap_x_mm', 0) %>" required>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label">Spazio Y (mm)</label>
+                        <input class="form-control" type="number" step="0.01" min="0" name="gap_y_mm" value="<%= config.fetch('gap_y_mm', 0) %>" required>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label">Colonne</label>
+                        <input class="form-control" type="number" step="1" min="0" name="columns" value="<%= config.fetch('columns', 0) %>" required>
+                        <div class="form-text">0 = automatiche</div>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label">Righe</label>
+                        <input class="form-control" type="number" step="1" min="0" name="rows" value="<%= config.fetch('rows', 0) %>" required>
+                        <div class="form-text">0 = automatiche</div>
+                      </div>
+                    </div>
+                    <label class="form-label mt-3">Punto di ancoraggio</label>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                      <% [['top_left', '↖ Alto sinistra'], ['top_right', 'Alto destra ↗'], ['bottom_left', '↙ Basso sinistra'], ['bottom_right', 'Basso destra ↘']].each do |value, label| %>
+                        <input class="btn-check" type="radio" name="anchor" id="anchor-<%= preset.id %>-<%= value %>"
+                               value="<%= value %>" <%= 'checked' if anchor == value %>>
+                        <label class="btn btn-outline-secondary" for="anchor-<%= preset.id %>-<%= value %>"><%= label %></label>
+                      <% end %>
+                    </div>
+                    <div class="d-flex flex-wrap gap-4 mb-3">
+                      <div class="form-check">
+                        <input type="hidden" name="rotate" value="0">
+                        <input class="form-check-input" type="checkbox" name="rotate" value="1" id="rotate-<%= preset.id %>" <%= 'checked' if config['rotate'] %>>
+                        <label class="form-check-label" for="rotate-<%= preset.id %>">Ruota 90°</label>
+                      </div>
+                      <div class="form-check">
+                        <input type="hidden" name="fill_last_sheet" value="0">
+                        <input class="form-check-input" type="checkbox" name="fill_last_sheet" value="1" id="fill-<%= preset.id %>" <%= 'checked' if config['fill_last_sheet'] %>>
+                        <label class="form-check-label" for="fill-<%= preset.id %>">Completa ultima plancia</label>
+                      </div>
+                    </div>
+                  <% else %>
+                    <label class="form-label">Configurazione JSON avanzata</label>
+                    <textarea class="form-control font-monospace mb-3" name="config" rows="10"><%= Rack::Utils.escape_html(JSON.pretty_generate(preset.config)) %></textarea>
+                  <% end %>
+                  <div class="d-flex align-items-center justify-content-between">
+                    <div class="form-check">
+                      <input type="hidden" name="active" value="0">
+                      <input class="form-check-input" type="checkbox" name="active" value="1" id="active-<%= preset.id %>" <%= 'checked' if preset.active %>>
+                      <label class="form-check-label" for="active-<%= preset.id %>">Preset attivo</label>
+                    </div>
+                    <button class="btn btn-primary"><i class="fas fa-floppy-disk me-1"></i>Salva preset</button>
+                  </div>
+                </form>
+              </div>
+            </details>
+          <% end %>
+          <% unless @automation_presets.any? { |preset| preset.kind == kind } %>
+            <div class="card shadow-sm"><div class="card-body text-center text-muted py-5">Nessun preset di questo tipo.</div></div>
+          <% end %>
+        </div>
+
+        <div class="col-xl-4">
+          <div class="card shadow-sm position-sticky" style="top: 1rem">
+            <div class="card-header"><strong>Nuovo preset <%= kind == 'imposition' ? 'plancia' : kind %></strong></div>
+            <div class="card-body">
+              <form method="post" action="/automations/presets">
+                <input type="hidden" name="kind" value="<%= kind %>">
+                <label class="form-label">Codice</label>
+                <input class="form-control mb-3" name="code" required placeholder="Codice univoco">
+                <label class="form-label">Nome</label>
+                <input class="form-control mb-3" name="name" required placeholder="Nome leggibile">
+                <% if kind == 'imposition' %>
+                  <div class="row g-2">
+                    <% [
+                      ['sheet_width_mm', 'Foglio L', 0.01, 0.01],
+                      ['sheet_height_mm', 'Foglio H', 0.01, 0.01],
+                      ['offset_x_mm', 'Partenza X', 0.01, 0],
+                      ['offset_y_mm', 'Partenza Y', 0.01, 0],
+                      ['gap_x_mm', 'Spazio X', 0.01, 0],
+                      ['gap_y_mm', 'Spazio Y', 0.01, 0],
+                      ['columns', 'Colonne', 1, 0],
+                      ['rows', 'Righe', 1, 0]
+                    ].each do |field, label, step, minimum| %>
+                      <div class="col-6">
+                        <label class="form-label small"><%= label %><%= ' (mm)' unless %w[columns rows].include?(field) %></label>
+                        <input class="form-control" type="number" name="<%= field %>" step="<%= step %>" min="<%= minimum %>"
+                               value="<%= %w[offset_x_mm offset_y_mm gap_x_mm gap_y_mm columns rows].include?(field) ? 0 : '' %>" required>
+                      </div>
+                    <% end %>
+                  </div>
+                  <label class="form-label mt-3">Punto di ancoraggio</label>
+                  <select class="form-select mb-3" name="anchor">
+                    <option value="top_left">Alto sinistra</option>
+                    <option value="top_right">Alto destra</option>
+                    <option value="bottom_left">Basso sinistra</option>
+                    <option value="bottom_right">Basso destra</option>
+                  </select>
+                  <input type="hidden" name="rotate" value="0">
+                  <input type="hidden" name="fill_last_sheet" value="0">
+                <% else %>
+                  <label class="form-label">Configurazione JSON</label>
+                  <textarea class="form-control font-monospace mb-3" name="config" rows="10">{}</textarea>
+                <% end %>
+                <input type="hidden" name="active" value="1">
+                <button class="btn btn-outline-primary w-100"><i class="fas fa-plus me-1"></i>Crea preset</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>
+
+<script>
+(() => {
+  const kind = document.getElementById('new-destination-kind');
+  if (!kind) return;
+  const update = () => {
+    document.querySelectorAll('[data-destination-fields]').forEach((section) => {
+      const enabled = section.dataset.destinationFields === kind.value;
+      section.hidden = !enabled;
+      section.querySelectorAll('input, select').forEach((field) => {
+        field.disabled = !enabled;
+      });
+    });
+  };
+  kind.addEventListener('change', update);
+  update();
+
+  const discover = document.getElementById('discover-cups-printers');
+  discover?.addEventListener('click', async () => {
+    const server = document.getElementById('new-cups-server').value.trim();
+    const result = document.getElementById('cups-discovery-result');
+    const options = document.getElementById('cups-printer-queues');
+    discover.disabled = true;
+    result.textContent = 'Ricerca in corso…';
+    try {
+      const response = await fetch(`/api/automation/destinations/printers?cups_server=${encodeURIComponent(server)}`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+      options.replaceChildren(...payload.printers.map((printer) => {
+        const option = document.createElement('option');
+        option.value = printer.queue;
+        option.label = printer.status;
+        return option;
+      }));
+      result.textContent = payload.printers.length
+        ? `${payload.printers.length} stampanti trovate. Seleziona il nome della coda.`
+        : 'Server raggiunto, ma non risultano code configurate.';
+    } catch (error) {
+      result.textContent = error.message;
+    } finally {
+      discover.disabled = false;
+    }
+  });
+})();
+</script>

@@ -6,7 +6,9 @@ import json
 import mimetypes
 import os
 import platform
+import plistlib
 import re
+import shutil
 import socket
 import subprocess
 import tempfile
@@ -18,20 +20,191 @@ from pathlib import Path
 
 
 class AdobeAgent:
-    def __init__(self):
-        self.base_url = os.environ.get("AUTOMATION_BASE_URL", "http://localhost:5010").rstrip("/")
-        self.agent_key = os.environ.get("AUTOMATION_AGENT_ID", f"adobe-{socket.gethostname().lower()}")
-        self.agent_name = os.environ.get("AUTOMATION_AGENT_NAME", socket.gethostname())
-        self.token = os.environ.get("AUTOMATION_AGENT_TOKEN", "")
-        self.photoshop_app = os.environ.get("ADOBE_PHOTOSHOP_APP", "Adobe Photoshop 2024")
-        self.illustrator_app = os.environ.get("ADOBE_ILLUSTRATOR_APP", "Adobe Illustrator")
+    KEYCHAIN_SERVICE = "it.magenta.adobe-agent"
+
+    def __init__(self, config_path=None):
+        default_config_path = (
+            Path.home() / "Library" / "Application Support" / "Magenta Adobe Agent" / "config.json"
+        )
+        self.config_path = Path(
+            config_path or os.environ.get("AUTOMATION_AGENT_CONFIG", default_config_path)
+        ).expanduser()
+        self.config = self.load_config()
+        shared_root = (
+            Path("/Users/Shared/MagentaAdobe")
+            if platform.system() == "Darwin"
+            else Path.home() / "MagentaAdobe"
+        )
+        self.base_url = self.setting(
+            "AUTOMATION_BASE_URL", "base_url", "http://localhost:5010"
+        ).rstrip("/")
+        configured_agent_key = self.setting("AUTOMATION_AGENT_ID", "agent_key", "")
+        self.agent_key_was_configured = bool(configured_agent_key)
+        self.agent_key = configured_agent_key or f"adobe-{socket.gethostname().lower()}"
+        self.agent_name = self.setting(
+            "AUTOMATION_AGENT_NAME", "agent_name", socket.gethostname()
+        )
+        self.photoshop_app = self.setting(
+            "ADOBE_PHOTOSHOP_APP", "photoshop_app", "Adobe Photoshop 2024"
+        )
+        self.illustrator_app = self.setting(
+            "ADOBE_ILLUSTRATOR_APP", "illustrator_app", "Adobe Illustrator"
+        )
         self.template_root = Path(
-            os.environ.get("AUTOMATION_TEMPLATE_ROOT", str(Path.home() / "AutomationAdobe" / "templates"))
+            self.setting(
+                "AUTOMATION_TEMPLATE_ROOT",
+                "template_root",
+                str(shared_root / "illustrator" / "templates"),
+            )
+        ).expanduser()
+        legacy_resource_root = (
+            self.template_root.parent
+            if "AUTOMATION_TEMPLATE_ROOT" in os.environ
+            else None
         )
         self.script_root = Path(
-            os.environ.get("AUTOMATION_SCRIPT_ROOT", str(Path.home() / "AutomationAdobe" / "scripts"))
-        )
+            self.setting(
+                "AUTOMATION_SCRIPT_ROOT",
+                "script_root",
+                str(
+                    legacy_resource_root / "scripts"
+                    if legacy_resource_root
+                    else shared_root / "illustrator" / "scripts"
+                ),
+            )
+        ).expanduser()
+        self.action_inventory_path = Path(
+            self.setting(
+                "AUTOMATION_ACTION_INVENTORY",
+                "action_inventory_path",
+                str(
+                    legacy_resource_root / "photoshop-actions.json"
+                    if legacy_resource_root
+                    else shared_root / "photoshop" / "actions.json"
+                ),
+            )
+        ).expanduser()
+        self.token = os.environ.get("AUTOMATION_AGENT_TOKEN", "") or self.load_saved_token()
         self.last_error = None
+
+    def setting(self, environment_name, config_name, default):
+        return os.environ.get(environment_name, self.config.get(config_name, default))
+
+    def load_config(self):
+        if not self.config_path.is_file():
+            return {}
+        try:
+            value = json.loads(self.config_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise RuntimeError(f"Configurazione agente non leggibile: {error}") from error
+        if not isinstance(value, dict):
+            raise RuntimeError("La configurazione agente deve essere un oggetto JSON")
+        return value
+
+    def load_saved_token(self):
+        if platform.system() == "Darwin" and self.agent_key_was_configured:
+            result = subprocess.run(
+                [
+                    "security",
+                    "find-generic-password",
+                    "-s",
+                    self.KEYCHAIN_SERVICE,
+                    "-a",
+                    self.agent_key,
+                    "-w",
+                ],
+                text=True,
+                capture_output=True,
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
+        # Fallback per sviluppo e sistemi senza Portachiavi macOS.
+        return str(self.config.get("token") or "")
+
+    def save_token(self, token):
+        if platform.system() != "Darwin":
+            self.config["token"] = token
+            return
+        result = subprocess.run(
+            [
+                "security",
+                "add-generic-password",
+                "-U",
+                "-s",
+                self.KEYCHAIN_SERVICE,
+                "-a",
+                self.agent_key,
+                "-w",
+                token,
+            ],
+            text=True,
+            capture_output=True,
+        )
+        if result.returncode:
+            raise RuntimeError(
+                result.stderr.strip() or "Impossibile salvare la credenziale nel Portachiavi macOS"
+            )
+        self.config.pop("token", None)
+
+    def save_config(self):
+        self.config.update(
+            {
+                "base_url": self.base_url,
+                "agent_key": self.agent_key,
+                "agent_name": self.agent_name,
+                "photoshop_app": self.photoshop_app,
+                "illustrator_app": self.illustrator_app,
+                "template_root": str(self.template_root),
+                "script_root": str(self.script_root),
+                "action_inventory_path": str(self.action_inventory_path),
+            }
+        )
+        self.config_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path = self.config_path.with_suffix(".tmp")
+        temporary_path.write_text(
+            json.dumps(self.config, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        os.chmod(temporary_path, 0o600)
+        temporary_path.replace(self.config_path)
+
+    def prepare_directories(self):
+        for directory in (
+            self.template_root,
+            self.script_root,
+            self.action_inventory_path.parent,
+        ):
+            directory.mkdir(parents=True, exist_ok=True)
+
+    def photoshop_actions(self):
+        if self.action_inventory_path.is_file():
+            try:
+                actions = json.loads(self.action_inventory_path.read_text(encoding="utf-8"))
+                if isinstance(actions, list):
+                    return actions
+            except (OSError, json.JSONDecodeError):
+                pass
+
+        # Compatibilità con l’inventario TSV prodotto dall’agente precedente.
+        legacy_inventory = Path.home() / "AutomationAdobe" / "photoshop-actions.txt"
+        if not legacy_inventory.is_file():
+            return []
+        try:
+            actions = []
+            for line in legacy_inventory.read_text(encoding="utf-8-sig").splitlines():
+                action_set, separator, action_name = line.partition("\t")
+                if separator and action_set.strip() and action_name.strip():
+                    actions.append({"set": action_set.strip(), "name": action_name.strip()})
+            return actions
+        except OSError:
+            return []
+
+    @staticmethod
+    def application_installed(app_name):
+        applications_root = Path("/Applications")
+        direct = applications_root / f"{app_name}.app"
+        nested = applications_root.glob(f"*/{app_name}.app")
+        return direct.is_dir() or any(candidate.is_dir() for candidate in nested)
 
     def request(self, path, *, payload=None, data=None, headers=None, timeout=60):
         request_headers = {"Accept": "application/json"}
@@ -45,9 +218,17 @@ class AdobeAgent:
         request = urllib.request.Request(
             f"{self.base_url}{path}", data=body, headers=request_headers, method="POST" if body is not None else "GET"
         )
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            content = response.read()
-            return json.loads(content.decode("utf-8")) if content else {}
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                content = response.read()
+                return json.loads(content.decode("utf-8")) if content else {}
+        except urllib.error.HTTPError as error:
+            content = error.read().decode("utf-8", errors="replace")
+            try:
+                message = json.loads(content).get("error")
+            except json.JSONDecodeError:
+                message = content.strip()
+            raise RuntimeError(message or f"Errore HTTP {error.code}") from error
 
     def agent_payload(self):
         return {
@@ -57,14 +238,134 @@ class AdobeAgent:
             "metadata": {
                 "photoshop_app": self.photoshop_app,
                 "illustrator_app": self.illustrator_app,
+                "photoshop_installed": self.application_installed(self.photoshop_app),
+                "illustrator_installed": self.application_installed(self.illustrator_app),
                 "template_root": str(self.template_root),
                 "script_root": str(self.script_root),
                 "illustrator_templates": sorted(path.name for path in self.template_root.glob("*.ai")),
                 "illustrator_scripts": sorted(path.name for path in self.script_root.glob("*.jsx")),
-                "agent_version": 2,
+                "photoshop_actions": self.photoshop_actions(),
+                "agent_version": 3,
             },
             "last_error": self.last_error,
         }
+
+    def pair(self, code):
+        self.prepare_directories()
+        response = self.request(
+            "/api/automation/agent/pair",
+            payload={
+                "code": code,
+                "worker_id": self.agent_key if self.agent_key_was_configured else None,
+                "capabilities": ["photoshop", "illustrator"],
+                "agent": self.agent_payload(),
+            },
+        )
+        agent = response.get("agent") or {}
+        self.agent_key = str(agent["key"])
+        self.agent_name = str(agent.get("name") or self.agent_name)
+        self.token = str(agent["token"])
+        self.agent_key_was_configured = True
+        self.save_token(self.token)
+        self.save_config()
+        return response
+
+    def scan_photoshop_actions(self):
+        self.prepare_directories()
+        with tempfile.TemporaryDirectory(prefix="magenta-adobe-actions-") as directory:
+            workdir = Path(directory)
+            report_path = workdir / "photoshop-actions.tsv"
+            jsx = f"""#target photoshop
+app.displayDialogs = DialogModes.NO;
+var output = new File({self.jsx_string(report_path)});
+output.encoding = "UTF8";
+output.open("w");
+var setIndex = 1;
+while (true) {{
+  try {{
+    var setReference = new ActionReference();
+    setReference.putIndex(charIDToTypeID("ASet"), setIndex);
+    var setDescriptor = executeActionGet(setReference);
+    var setName = setDescriptor.getString(charIDToTypeID("Nm  "));
+    var actionCount = setDescriptor.getInteger(charIDToTypeID("NmbC"));
+    for (var actionIndex = 1; actionIndex <= actionCount; actionIndex++) {{
+      var actionReference = new ActionReference();
+      actionReference.putIndex(charIDToTypeID("Actn"), actionIndex);
+      actionReference.putIndex(charIDToTypeID("ASet"), setIndex);
+      var actionDescriptor = executeActionGet(actionReference);
+      output.writeln(setName + "\\t" + actionDescriptor.getString(charIDToTypeID("Nm  ")));
+    }}
+    setIndex++;
+  }} catch (error) {{ break; }}
+}}
+output.close();
+"""
+            self.execute_jsx(self.photoshop_app, jsx, workdir / "list-actions.jsx")
+            if not report_path.is_file():
+                raise RuntimeError("Photoshop non ha restituito l’elenco delle azioni")
+            actions = []
+            for line in report_path.read_text(encoding="utf-8-sig").splitlines():
+                action_set, separator, action_name = line.partition("\t")
+                if separator and action_set.strip() and action_name.strip():
+                    actions.append({"set": action_set.strip(), "name": action_name.strip()})
+            self.action_inventory_path.write_text(
+                json.dumps(actions, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            return actions
+
+    def install_launch_agent(self):
+        if platform.system() != "Darwin":
+            raise RuntimeError("L’avvio automatico è disponibile soltanto su macOS")
+
+        support_root = (
+            Path.home() / "Library" / "Application Support" / "Magenta Adobe Agent"
+        )
+        helper_root = support_root / "agent"
+        logs_root = support_root / "logs"
+        launch_agents_root = Path.home() / "Library" / "LaunchAgents"
+        for directory in (helper_root, logs_root, launch_agents_root):
+            directory.mkdir(parents=True, exist_ok=True)
+
+        installed_helper = helper_root / "adobe_agent.py"
+        current_helper = Path(__file__).resolve()
+        if current_helper != installed_helper:
+            shutil.copy2(current_helper, installed_helper)
+        os.chmod(installed_helper, 0o755)
+
+        label = self.KEYCHAIN_SERVICE
+        plist_path = launch_agents_root / f"{label}.plist"
+        plist = {
+            "Label": label,
+            "ProgramArguments": [
+                "/usr/bin/python3",
+                str(installed_helper),
+                "--poll-seconds",
+                "2",
+            ],
+            "RunAtLoad": True,
+            "KeepAlive": True,
+            "StandardOutPath": str(logs_root / "agent.log"),
+            "StandardErrorPath": str(logs_root / "agent-error.log"),
+        }
+        plist_path.write_bytes(plistlib.dumps(plist))
+
+        domain = f"gui/{os.getuid()}"
+        subprocess.run(
+            ["/bin/launchctl", "bootout", domain, str(plist_path)],
+            text=True,
+            capture_output=True,
+        )
+        result = subprocess.run(
+            ["/bin/launchctl", "bootstrap", domain, str(plist_path)],
+            text=True,
+            capture_output=True,
+        )
+        if result.returncode:
+            raise RuntimeError(
+                result.stderr.strip() or "Impossibile avviare Magenta Adobe Agent"
+            )
+        return plist_path
 
     def claim(self):
         response = self.request(
@@ -75,7 +376,41 @@ class AdobeAgent:
                 "agent": self.agent_payload(),
             },
         )
+        command = response.get("command")
+        if command:
+            self.process_command(command)
         return response.get("task")
+
+    def process_command(self, command):
+        if command.get("type") != "sync_resources":
+            raise RuntimeError(f"Comando agente non supportato: {command.get('type')}")
+        try:
+            actions = self.scan_photoshop_actions()
+            self.last_error = None
+            self.request(
+                "/api/automation/agent/sync_complete",
+                payload={
+                    "worker_id": self.agent_key,
+                    "capabilities": ["photoshop", "illustrator"],
+                    "agent": self.agent_payload(),
+                },
+            )
+            print(
+                f"[AdobeAgent] Risorse sincronizzate: {len(actions)} azioni Photoshop",
+                flush=True,
+            )
+        except Exception as error:
+            self.last_error = f"{type(error).__name__}: {error}"
+            self.request(
+                "/api/automation/agent/sync_complete",
+                payload={
+                    "worker_id": self.agent_key,
+                    "capabilities": ["photoshop", "illustrator"],
+                    "agent": self.agent_payload(),
+                    "error": self.last_error,
+                },
+            )
+            raise
 
     def run(self, once=False, poll_seconds=2):
         print(f"[AdobeAgent] {self.agent_key} collegato a {self.base_url}", flush=True)
@@ -431,11 +766,78 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--config", help="Percorso del file di configurazione")
+    parser.add_argument("--server", help="Indirizzo del gestionale")
+    parser.add_argument("--name", help="Nome riconoscibile del Mac")
+    parser.add_argument("--photoshop-app", help="Nome applicazione Photoshop")
+    parser.add_argument("--illustrator-app", help="Nome applicazione Illustrator")
+    parser.add_argument("--template-root", help="Cartella maschere Illustrator")
+    parser.add_argument("--script-root", help="Cartella script Illustrator")
+    parser.add_argument("--pair", metavar="CODICE", help="Associa il Mac con un codice temporaneo")
+    parser.add_argument(
+        "--scan-photoshop-actions",
+        action="store_true",
+        help="Legge e salva le azioni disponibili in Photoshop",
+    )
+    parser.add_argument(
+        "--install-service",
+        action="store_true",
+        help="Installa e avvia l’agente automaticamente all’accesso",
+    )
+    parser.add_argument("--show-config", action="store_true")
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--poll-seconds", type=float, default=2)
     args = parser.parse_args()
-    agent = AdobeAgent()
+    agent = AdobeAgent(config_path=args.config)
+    if args.server:
+        agent.base_url = args.server.rstrip("/")
+    if args.name:
+        agent.agent_name = args.name
+    if args.photoshop_app:
+        agent.photoshop_app = args.photoshop_app
+    if args.illustrator_app:
+        agent.illustrator_app = args.illustrator_app
+    if args.template_root:
+        agent.template_root = Path(args.template_root).expanduser()
+    if args.script_root:
+        agent.script_root = Path(args.script_root).expanduser()
     try:
+        if args.pair:
+            agent.pair(args.pair)
+            print(
+                f"[AdobeAgent] Mac associato come {agent.agent_name} ({agent.agent_key})",
+                flush=True,
+            )
+            if args.install_service:
+                path = agent.install_launch_agent()
+                print(f"[AdobeAgent] Avvio automatico installato: {path}", flush=True)
+            return
+        if args.install_service:
+            path = agent.install_launch_agent()
+            print(f"[AdobeAgent] Avvio automatico installato: {path}", flush=True)
+            return
+        if args.scan_photoshop_actions:
+            actions = agent.scan_photoshop_actions()
+            print(f"[AdobeAgent] {len(actions)} azioni Photoshop rilevate", flush=True)
+            return
+        if args.show_config:
+            safe_config = {
+                key: value for key, value in agent.config.items() if key != "token"
+            }
+            print(
+                json.dumps(
+                    {
+                        **safe_config,
+                        "base_url": agent.base_url,
+                        "agent_key": agent.agent_key,
+                        "agent_name": agent.agent_name,
+                        "token_available": bool(agent.token),
+                    },
+                    indent=2,
+                    ensure_ascii=False,
+                )
+            )
+            return
         agent.run(once=args.once, poll_seconds=args.poll_seconds)
     except Exception as error:
         print(f"[AdobeAgent] ERRORE: {type(error).__name__}: {error}", flush=True)
