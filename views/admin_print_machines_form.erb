@@ -22,6 +22,44 @@
           <textarea class="form-control" id="description" name="description" rows="3" placeholder="Descrizione opzionale della macchina"><%= @machine.description %></textarea>
         </div>
 
+        <div class="mb-3">
+          <label for="automation_destination_id" class="form-label">Hot folder di stampa</label>
+          <select class="form-select" id="automation_destination_id" name="automation_destination_id">
+            <option value="">-- Nessuna hot folder associata --</option>
+            <% Array(@network_destinations).each do |destination| %>
+              <option value="<%= destination.id %>"
+                      <%= 'selected' if @machine.automation_destination_id == destination.id %>>
+                <%= Rack::Utils.escape_html(destination.name) %>
+                (<%= Rack::Utils.escape_html(destination.code) %>)
+                <%= destination.available? ? '· raggiungibile' : '· da verificare' %>
+              </option>
+            <% end %>
+          </select>
+          <div class="form-text">
+            Quando questa macchina viene scelta dall’ordine, il flusso può usare automaticamente questa cartella.
+            <a href="/automation_presets?tab=output">Configura le destinazioni</a>.
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label for="label_automation_destination_id" class="form-label">Stampante etichette associata</label>
+          <select class="form-select" id="label_automation_destination_id" name="label_automation_destination_id">
+            <option value="">-- Nessuna stampante etichette associata --</option>
+            <% Array(@label_destinations).each do |destination| %>
+              <option value="<%= destination.id %>"
+                      <%= 'selected' if @machine.label_automation_destination_id == destination.id %>>
+                <%= Rack::Utils.escape_html(destination.name) %>
+                (<%= Rack::Utils.escape_html(destination.code) %>)
+                <%= destination.available? ? '· raggiungibile' : '· da verificare' %>
+              </option>
+            <% end %>
+          </select>
+          <div class="form-text">
+            Verrà usata quando l’operatore sceglie questa macchina nella finestra “Etichetta”.
+            <a href="/automation_presets?tab=output">Configura le stampanti</a>.
+          </div>
+        </div>
+
         <div class="form-check mb-3">
           <input class="form-check-input" type="checkbox" id="active" name="active" <%= 'checked' if @machine.active != false %>>
           <label class="form-check-label" for="active">

@@ -448,23 +448,33 @@
       <form action="/orders/<%= @order.id %>/items/<%= @item.id %>/send_label" method="post">
         <div class="modal-body">
           <p class="text-muted mb-3">Seleziona stampante per questa etichetta:</p>
-          <% available_machines.each do |machine| %>
+          <% label_machines = available_machines.select { |machine| machine.active? && machine.label_automation_destination&.active? } %>
+          <% label_machines.each do |machine| %>
             <div class="form-check mb-2">
               <input class="form-check-input" type="radio" name="print_machine_id" 
                      value="<%= machine.id %>" id="label_machine_<%= machine.id %>"
-                     <%= 'checked' if available_machines.first.id == machine.id %>>
+                     <%= 'checked' if label_machines.first.id == machine.id %>>
               <label class="form-check-label" for="label_machine_<%= machine.id %>">
                 <strong><%= machine.name %></strong>
+                <span class="text-muted">→ <%= machine.label_automation_destination.name %></span>
                 <% if machine.description %>
                   <br><small class="text-muted"><%= machine.description %></small>
                 <% end %>
               </label>
             </div>
           <% end %>
+          <% if label_machines.empty? %>
+            <div class="alert alert-warning mb-0">
+              Nessuna stampante etichette è associata alle macchine disponibili.
+              Configurala in <a href="/admin/print_machines">Macchine da stampa</a>.
+            </div>
+          <% end %>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-          <button type="submit" class="btn btn-primary">🏷️ Invia Etichetta</button>
+          <button type="submit" class="btn btn-primary" <%= 'disabled' if label_machines.empty? %>>
+            🏷️ Invia Etichetta
+          </button>
         </div>
       </form>
     </div>

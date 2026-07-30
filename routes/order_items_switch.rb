@@ -318,19 +318,13 @@ class PrintOrchestrator < Sinatra::Base
       redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Flusso+di+stampa+non+configurato"
     end
 
-    # Get all print assets (assets are auto-downloaded during import)
-    print_assets = item.switch_print_assets
-    unless print_assets.any?
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
-    end
-
     if print_flow.executor_for('label') == 'automation'
       begin
-        result = AutomationActionDispatcher.dispatch!(
+        AutomationActionDispatcher.dispatch!(
           print_flow: print_flow,
           action: 'label',
           order_item: item,
-          assets: [print_assets.first],
+          assets: [],
           print_machine: print_machine
         )
         redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=Flusso+interno+etichetta+avviato"
@@ -341,6 +335,13 @@ class PrintOrchestrator < Sinatra::Base
 
     unless print_flow.executor_for('label') == 'webhook' && print_flow.label_webhook&.hook_path.present?
       redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Azione+etichetta+non+configurata"
+    end
+
+    # Switch usa il primo asset come lavoro di ingresso, anche se l'etichetta
+    # contiene soltanto i metadati dell'ordine.
+    print_assets = item.switch_print_assets
+    unless print_assets.any?
+      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
     end
 
     product = item.product

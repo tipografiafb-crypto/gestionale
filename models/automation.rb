@@ -228,6 +228,14 @@ class AutomationDestination < ActiveRecord::Base
   KINDS = %w[network_folder ipp_printer].freeze
   CODE_FORMAT = /\A[A-Za-z0-9_-]+\z/
 
+  has_many :print_machines,
+           foreign_key: :automation_destination_id,
+           dependent: :restrict_with_error
+  has_many :label_print_machines,
+           class_name: 'PrintMachine',
+           foreign_key: :label_automation_destination_id,
+           dependent: :restrict_with_error
+
   validates :kind, inclusion: {in: KINDS}
   validates :code, :name, presence: true
   validates :code, uniqueness: true, format: {

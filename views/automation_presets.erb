@@ -197,14 +197,16 @@
           <% end %>
         </div>
       <% elsif kind == 'output' %>
+        <% destinations_root = ENV.fetch('AUTOMATION_DESTINATIONS_ROOT', '/destinations') %>
         <div class="alert alert-info border-0 shadow-sm">
           <div class="d-flex gap-3">
             <i class="fas fa-circle-info mt-1"></i>
             <div>
-              <strong>Ubuntu esegue direttamente gli invii.</strong>
-              Le hot folder vengono montate sul server e rese visibili a Docker sotto
-              <code>/destinations</code>. Le stampanti etichette vengono raggiunte tramite il servizio CUPS di Ubuntu.
-              Il Mac Adobe non è coinvolto.
+              <strong>L’invio può essere eseguito dal server o da un agente Mac.</strong>
+              Configura il PC che condivide la cartella e scegli dove la condivisione è già montata.
+              Questa installazione può scrivere soltanto sotto <code><%= destinations_root %></code>.
+              Le stampanti etichette vengono raggiunte tramite il servizio CUPS di Ubuntu.
+              Se scegli un agente, il PDF viene scaricato e depositato dal Mac nel percorso autorizzato.
             </div>
           </div>
         </div>
@@ -257,25 +259,59 @@
                       </div>
 
                       <% if destination.network_folder? %>
+                        <input type="hidden" name="network_uri"
+                               value="<%= Rack::Utils.escape_html(config['network_uri'].to_s) %>">
+                        <input type="hidden" name="host_mount_path"
+                               value="<%= Rack::Utils.escape_html(config['host_mount_path'].to_s) %>">
+                        <div class="col-md-4">
+                          <label class="form-label">Server o PC</label>
+                          <input class="form-control" name="server_host"
+                                 value="<%= Rack::Utils.escape_html(config['server_host'].to_s) %>"
+                                 placeholder="DEBIAN oppure 192.168.1.100">
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label">Condivisione</label>
+                          <input class="form-control" name="share_name"
+                                 value="<%= Rack::Utils.escape_html(config['share_name'].to_s) %>"
+                                 placeholder="Public">
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label">Cartella nella condivisione</label>
+                          <input class="form-control" name="remote_path"
+                                 value="<%= Rack::Utils.escape_html(config['remote_path'].to_s) %>"
+                                 placeholder="hotfolder/signrare-plettri">
+                        </div>
                         <div class="col-12">
-                          <label class="form-label">Condivisione di rete</label>
-                          <input class="form-control" name="network_uri"
-                                 value="<%= Rack::Utils.escape_html(config['network_uri'].to_s) %>"
-                                 placeholder="//192.168.1.100/hotfolder/signracer">
-                          <div class="form-text">Riferimento per l’installatore; le credenziali non vengono salvate nel gestionale.</div>
-                        </div>
-                        <div class="col-md-6">
-                          <label class="form-label">Percorso montato su Ubuntu</label>
-                          <input class="form-control" name="host_mount_path"
-                                 value="<%= Rack::Utils.escape_html(config['host_mount_path'].to_s) %>"
-                                 placeholder="/mnt/gestionale/signracer">
-                        </div>
-                        <div class="col-md-6">
-                          <label class="form-label">Percorso visto da Docker</label>
+                          <label class="form-label">Percorso montato per il gestionale</label>
                           <input class="form-control" name="container_path"
                                  value="<%= Rack::Utils.escape_html(config['container_path'].to_s) %>"
-                                 placeholder="/destinations/signracer" required>
-                          <div class="form-text">Deve iniziare con <code>/destinations</code>.</div>
+                                 placeholder="<%= destinations_root %>/signracer" required>
+                          <div class="form-text">
+                            Percorso locale sul server Ubuntu. Deve iniziare con <code><%= destinations_root %></code>.
+                            Le credenziali SMB restano nella configurazione protetta del sistema operativo.
+                          </div>
+                        </div>
+                        <div class="col-md-5">
+                          <label class="form-label">Invia tramite agente Mac</label>
+                          <select class="form-select" name="agent_key">
+                            <option value="">No, invia direttamente da Ubuntu</option>
+                            <% Array(@automation_agents).each do |agent| %>
+                              <option value="<%= Rack::Utils.escape_html(agent.agent_key) %>"
+                                      <%= 'selected' if config['agent_key'].to_s == agent.agent_key %>>
+                                <%= Rack::Utils.escape_html(agent.name) %>
+                                <%= agent.online? ? '· online' : '· offline' %>
+                              </option>
+                            <% end %>
+                          </select>
+                        </div>
+                        <div class="col-md-7">
+                          <label class="form-label">Percorso sul Mac agente</label>
+                          <input class="form-control" name="agent_path"
+                                 value="<%= Rack::Utils.escape_html(config['agent_path'].to_s) %>"
+                                 placeholder="/Volumes/Public/hotfolder/signrarer-plettri">
+                          <div class="form-text">
+                            Usato soltanto quando è selezionato un agente Mac.
+                          </div>
                         </div>
                       <% else %>
                         <div class="col-md-6">
@@ -369,12 +405,29 @@
                   <input class="form-control mb-3" name="name" required placeholder="Signracer – stampa">
 
                   <div data-destination-fields="network_folder">
-                    <label class="form-label">Condivisione di rete</label>
-                    <input class="form-control mb-3" name="network_uri" placeholder="//server/share/cartella">
-                    <label class="form-label">Percorso Ubuntu</label>
-                    <input class="form-control mb-3" name="host_mount_path" placeholder="/mnt/gestionale/signracer">
-                    <label class="form-label">Percorso Docker</label>
-                    <input class="form-control mb-3" name="container_path" value="/destinations/signracer">
+                    <input type="hidden" name="network_uri">
+                    <input type="hidden" name="host_mount_path">
+                    <label class="form-label">Server o PC</label>
+                    <input class="form-control mb-3" name="server_host" placeholder="DEBIAN oppure 192.168.1.100">
+                    <label class="form-label">Condivisione</label>
+                    <input class="form-control mb-3" name="share_name" placeholder="Public">
+                    <label class="form-label">Cartella nella condivisione</label>
+                    <input class="form-control mb-3" name="remote_path" placeholder="hotfolder/signrare-plettri">
+                    <label class="form-label">Percorso montato per il gestionale</label>
+                    <input class="form-control mb-3" name="container_path" value="<%= destinations_root %>/">
+                    <label class="form-label">Invia tramite agente Mac</label>
+                    <select class="form-select mb-3" name="agent_key">
+                      <option value="">No, invia direttamente da Ubuntu</option>
+                      <% Array(@automation_agents).each do |agent| %>
+                        <option value="<%= Rack::Utils.escape_html(agent.agent_key) %>">
+                          <%= Rack::Utils.escape_html(agent.name) %>
+                          <%= agent.online? ? '· online' : '· offline' %>
+                        </option>
+                      <% end %>
+                    </select>
+                    <label class="form-label">Percorso sul Mac agente</label>
+                    <input class="form-control mb-3" name="agent_path"
+                           placeholder="/Volumes/Public/hotfolder/signrarer-plettri">
                   </div>
 
                   <div data-destination-fields="ipp_printer" hidden>

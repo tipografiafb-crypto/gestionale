@@ -24,6 +24,8 @@
             <th>Nome</th>
             <th>Descrizione</th>
             <th>Stato</th>
+            <th>Hot folder</th>
+            <th>Etichette</th>
             <th>Flussi Collegati</th>
             <th>Azioni</th>
           </tr>
@@ -38,6 +40,28 @@
                   <span class="badge bg-success">Attiva</span>
                 <% else %>
                   <span class="badge bg-secondary">Inattiva</span>
+                <% end %>
+              </td>
+              <td>
+                <% if machine.automation_destination %>
+                  <strong><%= machine.automation_destination.name %></strong><br>
+                  <code><%= machine.automation_destination.code %></code>
+                  <span class="badge <%= machine.automation_destination.available? ? 'bg-success' : 'bg-warning text-dark' %>">
+                    <%= machine.automation_destination.available? ? 'raggiungibile' : 'da verificare' %>
+                  </span>
+                <% else %>
+                  <span class="text-muted">Non configurata</span>
+                <% end %>
+              </td>
+              <td>
+                <% if machine.label_automation_destination %>
+                  <strong><%= machine.label_automation_destination.name %></strong><br>
+                  <code><%= machine.label_automation_destination.code %></code>
+                  <span class="badge <%= machine.label_automation_destination.available? ? 'bg-success' : 'bg-warning text-dark' %>">
+                    <%= machine.label_automation_destination.available? ? 'raggiungibile' : 'da verificare' %>
+                  </span>
+                <% else %>
+                  <span class="text-muted">Non configurata</span>
                 <% end %>
               </td>
               <td><%= machine.print_flows.count %></td>

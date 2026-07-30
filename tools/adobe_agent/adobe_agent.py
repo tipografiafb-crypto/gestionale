@@ -84,6 +84,14 @@ class AdobeAgent:
                 ),
             )
         ).expanduser()
+        configured_hotfolder_roots = self.config.get(
+            "hotfolder_roots", ["/Volumes/Public/hotfolder"]
+        )
+        self.hotfolder_roots = [
+            Path(value).expanduser()
+            for value in configured_hotfolder_roots
+            if str(value).strip()
+        ]
         self.token = os.environ.get("AUTOMATION_AGENT_TOKEN", "") or self.load_saved_token()
         self.last_error = None
 
@@ -157,6 +165,7 @@ class AdobeAgent:
                 "template_root": str(self.template_root),
                 "script_root": str(self.script_root),
                 "action_inventory_path": str(self.action_inventory_path),
+                "hotfolder_roots": [str(path) for path in self.hotfolder_roots],
             }
         )
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -245,7 +254,15 @@ class AdobeAgent:
                 "illustrator_templates": sorted(path.name for path in self.template_root.glob("*.ai")),
                 "illustrator_scripts": sorted(path.name for path in self.script_root.glob("*.jsx")),
                 "photoshop_actions": self.photoshop_actions(),
-                "agent_version": 3,
+                "hotfolder_roots": [
+                    {
+                        "path": str(path),
+                        "available": path.is_dir(),
+                        "writable": os.access(path, os.W_OK),
+                    }
+                    for path in self.hotfolder_roots
+                ],
+                "agent_version": 4,
             },
             "last_error": self.last_error,
         }
@@ -257,7 +274,7 @@ class AdobeAgent:
             payload={
                 "code": code,
                 "worker_id": self.agent_key if self.agent_key_was_configured else None,
-                "capabilities": ["photoshop", "illustrator"],
+                "capabilities": ["photoshop", "illustrator", "hot_folder"],
                 "agent": self.agent_payload(),
             },
         )
@@ -372,7 +389,7 @@ output.close();
             "/api/automation/agent/claim",
             payload={
                 "worker_id": self.agent_key,
-                "capabilities": ["photoshop", "illustrator"],
+                "capabilities": ["photoshop", "illustrator", "hot_folder"],
                 "agent": self.agent_payload(),
             },
         )
@@ -391,7 +408,7 @@ output.close();
                 "/api/automation/agent/sync_complete",
                 payload={
                     "worker_id": self.agent_key,
-                    "capabilities": ["photoshop", "illustrator"],
+                    "capabilities": ["photoshop", "illustrator", "hot_folder"],
                     "agent": self.agent_payload(),
                 },
             )
@@ -405,7 +422,7 @@ output.close();
                 "/api/automation/agent/sync_complete",
                 payload={
                     "worker_id": self.agent_key,
-                    "capabilities": ["photoshop", "illustrator"],
+                    "capabilities": ["photoshop", "illustrator", "hot_folder"],
                     "agent": self.agent_payload(),
                     "error": self.last_error,
                 },
@@ -465,8 +482,13 @@ output.close();
                         flush=True,
                     )
                     self.execute_illustrator(input_path, output_path, config, workdir)
+                elif task["node_type"] == "hot_folder":
+                    execution_metadata = self.execute_hot_folder(input_path, config)
+                    output_path = input_path.with_name(
+                        execution_metadata["delivered_filename"]
+                    )
                 else:
-                    raise RuntimeError(f"Tipo Adobe non supportato: {task['node_type']}")
+                    raise RuntimeError(f"Tipo agente non supportato: {task['node_type']}")
 
                 if not output_path.is_file() or output_path.stat().st_size == 0:
                     raise RuntimeError("Adobe non ha prodotto il PDF atteso")
@@ -576,6 +598,59 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
             if candidate.is_file():
                 return candidate.resolve()
         raise FileNotFoundError(f"Maschera Illustrator non trovata: {configured} (cartella {self.template_root})")
+
+    def execute_hot_folder(self, input_path, config):
+        configured_path = Path(str(config.get("agent_path") or "")).expanduser()
+        if not configured_path.is_absolute():
+            raise RuntimeError("Il percorso hot folder sul Mac deve essere assoluto")
+
+        target_directory = configured_path.resolve(strict=True)
+        allowed_roots = [
+            root.resolve(strict=True) for root in self.hotfolder_roots if root.is_dir()
+        ]
+        if not any(
+            target_directory == root or root in target_directory.parents
+            for root in allowed_roots
+        ):
+            raise RuntimeError(
+                f"Hot folder non autorizzata: {target_directory}"
+            )
+        if not target_directory.is_dir() or not os.access(target_directory, os.W_OK):
+            raise RuntimeError(f"Hot folder non scrivibile: {target_directory}")
+
+        filename = Path(str(config.get("filename") or input_path.name)).name
+        target = target_directory / filename
+        local_delivery = input_path.with_name(filename)
+        if local_delivery != input_path:
+            shutil.copyfile(input_path, local_delivery)
+
+        # Il volume Public è montato e autorizzato da Finder. I servizi Python
+        # avviati da launchd possono invece ricevere EPERM sui volumi di rete:
+        # deleghiamo quindi a Finder la stessa copia già usata operativamente.
+        apple_script = (
+            f"set sourceFile to POSIX file {json.dumps(str(local_delivery))} as alias\n"
+            f"set destinationFolder to POSIX file {json.dumps(str(target_directory) + '/')} as alias\n"
+            "tell application \"Finder\"\n"
+            "duplicate sourceFile to destinationFolder with replacing\n"
+            "end tell\n"
+        )
+        result = subprocess.run(
+            ["/usr/bin/osascript", "-e", apple_script],
+            text=True,
+            capture_output=True,
+            timeout=180,
+        )
+        if result.returncode:
+            raise RuntimeError(
+                result.stderr.strip() or result.stdout.strip() or
+                "Finder non ha consegnato il file nella hotfolder"
+            )
+        return {
+            "destination_code": str(config.get("destination_code") or ""),
+            "delivered_to": str(target),
+            "delivered_filename": filename,
+            "delivery_agent": self.agent_key,
+        }
 
     def resolve_script(self, configured):
         configured = str(configured or "").strip()
@@ -713,13 +788,15 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
 
     def complete(self, task, output_path, config, execution_metadata=None):
         boundary = f"----AutomationAdobe{uuid.uuid4().hex}"
-        metadata_values = {"agent": self.agent_key, "real_adobe": True}
+        metadata_values = {"agent": self.agent_key}
         if task["node_type"] == "photoshop":
+            metadata_values["real_adobe"] = True
             metadata_values.update({
                 "action_set": str(config.get("action_set") or ""),
                 "action_name": str(config.get("action_name") or ""),
             })
         elif task["node_type"] == "illustrator":
+            metadata_values["real_adobe"] = True
             metadata_values.update({
                 "script_name": str(config.get("script_name") or ""),
                 "template_path": str(config.get("template_path") or ""),

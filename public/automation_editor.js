@@ -56,6 +56,22 @@
       copies_field: 'variables.production_copies',
       output_kind: 'multipage_pdf'
     },
+    insert_blanks: {
+      quantity_field: 'item.quantity',
+      rules: [{
+        label: 'Regola 1',
+        enabled: true,
+        target: 'all',
+        position: 'after',
+        after_page: 9,
+        count: 1,
+        repeat: false,
+        interval: 0,
+        min_quantity: 0,
+        max_quantity: 0
+      }],
+      output_kind: 'blank_padded_pdf'
+    },
     pair_sides: {
       front_suffix: '_F',
       back_suffix: '_R',
@@ -86,19 +102,20 @@
     },
     barcode: {
       data_field: 'order.code',
-      width_mm: 70,
-      height_mm: 35,
-      bar_height_mm: 18,
+      width_mm: 90,
+      height_mm: 29,
+      bar_height_mm: 20,
+      bar_width: 0.75,
       output_kind: 'barcode_pdf'
     },
     hot_folder: {
-      destination_code: 'LOCAL_PRINT',
-      artifact_kind: 'imposition_pdf',
-      filename: '{{order.code}}-plancia.pdf',
+      destination_code: '{{machine.destination_code}}',
+      artifact_kind: 'source',
+      filename: '{{file.filename}}',
       output_kind: 'delivered'
     },
     label_printer: {
-      destination_code: '',
+      destination_code: '{{machine.label_destination_code}}',
       artifact_kind: 'barcode_pdf',
       output_kind: 'printed_label'
     },
@@ -238,9 +255,16 @@
     ],
     barcode: [
       {key: 'data_field', label: 'Valore barcode', choices: 'fields', default: 'order.code'},
-      {key: 'width_mm', label: 'Larghezza (mm)', type: 'number', default: 70},
-      {key: 'height_mm', label: 'Altezza (mm)', type: 'number', default: 35},
-      {key: 'bar_height_mm', label: 'Altezza barre (mm)', type: 'number', default: 18},
+      {key: 'width_mm', label: 'Larghezza (mm)', type: 'number', default: 90},
+      {key: 'height_mm', label: 'Altezza (mm)', type: 'number', default: 29},
+      {key: 'bar_height_mm', label: 'Altezza barre (mm)', type: 'number', default: 20},
+      {
+        key: 'bar_width',
+        label: 'Spessore barre (mm)',
+        type: 'number',
+        default: 0.75,
+        help: 'Aumenta o riduce la larghezza complessiva del barcode.'
+      },
       {key: 'output_kind', label: 'Tipo risultato', default: 'barcode_pdf'}
     ],
     hot_folder: [
@@ -485,15 +509,29 @@
     }
     if (value === 'network_destinations' || value === 'printer_destinations') {
       const kind = value === 'network_destinations' ? 'network_folder' : 'ipp_printer';
-      return [
+      const choices = [
         ['', '-- Seleziona destinazione --'],
+      ];
+      if (value === 'network_destinations') {
+        choices.push([
+          '{{machine.destination_code}}',
+          'Hot folder della macchina selezionata'
+        ]);
+      } else {
+        choices.push([
+          '{{machine.label_destination_code}}',
+          'Stampante etichette della macchina selezionata'
+        ]);
+      }
+      choices.push(
         ...state.destinations
           .filter((destination) => destination.kind === kind)
           .map((destination) => [
             destination.code,
             `${destination.name} (${destination.code})${destination.available ? ' · verificata' : ''}`
           ])
-      ];
+      );
+      return choices;
     }
     if (value === 'flows') {
       return [
@@ -675,6 +713,180 @@
     container.appendChild(row);
   }
 
+  function renumberBlankRules(container) {
+    container.querySelectorAll('.automation-blank-rule').forEach((card, index) => {
+      const title = card.querySelector('.automation-blank-rule-title');
+      if (title) title.textContent = `Regola ${index + 1}`;
+    });
+  }
+
+  function appendBlankRule(container, rule = {}) {
+    const card = document.createElement('div');
+    card.className = 'automation-blank-rule border rounded p-2 mb-3 bg-light';
+    const heading = document.createElement('div');
+    heading.className = 'd-flex align-items-center justify-content-between gap-2 mb-2';
+    const title = document.createElement('strong');
+    title.className = 'automation-blank-rule-title small';
+    const actions = document.createElement('div');
+    actions.className = 'btn-group btn-group-sm';
+    const moveUp = document.createElement('button');
+    moveUp.type = 'button';
+    moveUp.className = 'btn btn-outline-secondary py-0 px-2';
+    moveUp.title = 'Sposta prima';
+    moveUp.textContent = '↑';
+    moveUp.addEventListener('click', () => {
+      if (card.previousElementSibling) {
+        container.insertBefore(card, card.previousElementSibling);
+        renumberBlankRules(container);
+      }
+    });
+    const moveDown = document.createElement('button');
+    moveDown.type = 'button';
+    moveDown.className = 'btn btn-outline-secondary py-0 px-2';
+    moveDown.title = 'Sposta dopo';
+    moveDown.textContent = '↓';
+    moveDown.addEventListener('click', () => {
+      if (card.nextElementSibling) {
+        container.insertBefore(card.nextElementSibling, card);
+        renumberBlankRules(container);
+      }
+    });
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn btn-outline-danger py-0 px-2';
+    remove.title = 'Elimina regola';
+    remove.textContent = '×';
+    remove.addEventListener('click', () => {
+      card.remove();
+      renumberBlankRules(container);
+    });
+    actions.append(moveUp, moveDown, remove);
+    heading.append(title, actions);
+
+    const positionField = configField({
+      label: 'Dove inserire',
+      choices: [
+        ['start', 'All’inizio'],
+        ['after', 'Dopo una pagina'],
+        ['end', 'Alla fine']
+      ]
+    }, rule.position || 'after', 'blank_position');
+    const afterField = configField({
+      label: 'Dopo la pagina',
+      type: 'number',
+      default: 1,
+      help: 'La numerazione considera le pagine presenti prima di questa regola.'
+    }, rule.after_page ?? 1, 'blank_after_page');
+    afterField.dataset.blankAfterFields = '1';
+    const repeatField = configField({
+      label: 'Ripetizione',
+      choices: [
+        ['false', 'Una sola volta'],
+        ['true', 'Ripeti a intervalli']
+      ]
+    }, String(rule.repeat === true), 'blank_repeat');
+    repeatField.dataset.blankAfterFields = '1';
+    const intervalField = configField({
+      label: 'Ogni quante pagine',
+      type: 'number',
+      default: 1,
+      help: 'Esempio: dopo pagina 9, ogni 9 pagine.'
+    }, rule.interval || 1, 'blank_interval');
+    intervalField.dataset.blankIntervalField = '1';
+
+    card.append(
+      heading,
+      configField({label: 'Nome della regola'}, rule.label || '', 'blank_label'),
+      configField({
+        label: 'Applica a',
+        choices: [
+          ['all', 'Documento intero / entrambi i lati'],
+          ['front', 'Solo fronte'],
+          ['back', 'Solo retro']
+        ],
+        help: 'Su un PDF bifacciale “entrambi i lati” applica la stessa regola separatamente a fronte e retro.'
+      }, rule.target || 'all', 'blank_target'),
+      configField({
+        label: 'Stato',
+        choices: [['true', 'Attiva'], ['false', 'Disattivata']]
+      }, String(rule.enabled !== false), 'blank_enabled'),
+      positionField,
+      afterField,
+      configField({
+        label: 'Quante pagine vuote',
+        type: 'number',
+        default: 1
+      }, rule.count ?? 1, 'blank_count'),
+      repeatField,
+      intervalField,
+      configField({
+        label: 'Quantità minima ordine',
+        type: 'number',
+        default: 0,
+        help: '0 significa nessun limite minimo.'
+      }, rule.min_quantity || 0, 'blank_min_quantity'),
+      configField({
+        label: 'Quantità massima ordine',
+        type: 'number',
+        default: 0,
+        help: '0 significa nessun limite massimo.'
+      }, rule.max_quantity || 0, 'blank_max_quantity')
+    );
+
+    const updateVisibility = () => {
+      const isAfter = configValue('blank_position', card) === 'after';
+      const repeats = configValue('blank_repeat', card) === 'true';
+      card.querySelectorAll('[data-blank-after-fields]').forEach((element) => {
+        element.hidden = !isAfter;
+      });
+      card.querySelector('[data-blank-interval-field]').hidden = !(isAfter && repeats);
+    };
+    card.querySelector('[data-config-role="blank_position"]').addEventListener('change', updateVisibility);
+    card.querySelector('[data-config-role="blank_repeat"]').addEventListener('change', updateVisibility);
+    container.appendChild(card);
+    renumberBlankRules(container);
+    updateVisibility();
+  }
+
+  function renderBlankPagesConfig(node) {
+    configHint('Le regole vengono applicate dall’alto verso il basso. Nei PDF bifacciali fronte e retro restano gruppi separati, così le posizioni vuote rimangono allineate.');
+    nodeConfigForm.appendChild(configField(
+      {label: 'Quantità usata per le condizioni', choices: 'fields'},
+      node.config?.quantity_field || 'item.quantity',
+      'blank_quantity_field'
+    ));
+    const rules = document.createElement('div');
+    rules.className = 'automation-blank-rules';
+    (Array.isArray(node.config?.rules) ? node.config.rules : []).forEach((rule) => {
+      appendBlankRule(rules, rule);
+    });
+    nodeConfigForm.appendChild(rules);
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'btn btn-sm btn-outline-primary w-100 mb-3';
+    add.textContent = '+ Aggiungi regola';
+    add.addEventListener('click', () => appendBlankRule(rules, {
+      label: `Regola ${rules.querySelectorAll('.automation-blank-rule').length + 1}`,
+      enabled: true,
+      target: 'all',
+      position: 'after',
+      after_page: 1,
+      count: 1,
+      repeat: false,
+      interval: 1,
+      min_quantity: 0,
+      max_quantity: 0
+    }));
+    nodeConfigForm.append(
+      add,
+      configField(
+        {label: 'Tipo risultato', default: 'blank_padded_pdf'},
+        node.config?.output_kind || 'blank_padded_pdf',
+        'blank_output_kind'
+      )
+    );
+  }
+
   function configList(value) {
     return String(value || 'any').split(/[;,]/).map((item) => item.trim()).filter(Boolean);
   }
@@ -846,6 +1058,10 @@
       );
       return;
     }
+    if (node.type === 'insert_blanks') {
+      renderBlankPagesConfig(node);
+      return;
+    }
 
     const schema = simpleConfigSchemas[node.type];
     if (!schema) {
@@ -917,6 +1133,49 @@
         output_key: configValue('output_key') || 'production_copies',
         range_overrides: rangeOverrides,
         exact_overrides: exactOverrides
+      };
+    }
+    if (node.type === 'insert_blanks') {
+      const rules = Array.from(
+        nodeConfigForm.querySelectorAll('.automation-blank-rule')
+      ).map((card, index) => {
+        const count = Number(configValue('blank_count', card));
+        const afterPage = Number(configValue('blank_after_page', card));
+        const interval = Number(configValue('blank_interval', card));
+        const minimum = Number(configValue('blank_min_quantity', card));
+        const maximum = Number(configValue('blank_max_quantity', card));
+        const position = configValue('blank_position', card) || 'after';
+        const repeat = position === 'after' &&
+          configValue('blank_repeat', card) === 'true';
+        if (![count, afterPage, interval, minimum, maximum].every(Number.isFinite)) {
+          throw new Error(`Valore numerico non valido nella regola ${index + 1}.`);
+        }
+        if (count < 0 || afterPage < 0 || minimum < 0 || maximum < 0) {
+          throw new Error(`I valori della regola ${index + 1} non possono essere negativi.`);
+        }
+        if (repeat && interval < 1) {
+          throw new Error(`Indica un intervallo nella regola ${index + 1}.`);
+        }
+        if (minimum > 0 && maximum > 0 && minimum > maximum) {
+          throw new Error(`Intervallo quantità invertito nella regola ${index + 1}.`);
+        }
+        return {
+          label: configValue('blank_label', card) || `Regola ${index + 1}`,
+          enabled: configValue('blank_enabled', card) !== 'false',
+          target: configValue('blank_target', card) || 'all',
+          position,
+          after_page: afterPage,
+          count,
+          repeat,
+          interval: repeat ? interval : 0,
+          min_quantity: minimum,
+          max_quantity: maximum
+        };
+      });
+      return {
+        quantity_field: configValue('blank_quantity_field') || 'item.quantity',
+        rules,
+        output_kind: configValue('blank_output_kind') || 'blank_padded_pdf'
       };
     }
 

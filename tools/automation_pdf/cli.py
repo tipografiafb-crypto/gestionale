@@ -12,6 +12,7 @@ from pathlib import Path
 
 from PIL import Image
 from pypdf import PdfReader, PdfWriter, Transformation
+from pypdf.generic import RectangleObject
 from pypdf._page import PageObject
 from reportlab.graphics.barcode import code128
 from reportlab.lib.units import mm
@@ -109,6 +110,170 @@ def merge_pages(input_paths: list[str], output_path: str) -> dict:
         "input_files": len(input_paths),
         "input_page_counts": page_counts,
         "output_pages": sum(page_counts),
+    }
+
+
+def insert_blank_pages(input_path: str, output_path: str, config: dict) -> dict:
+    reader = PdfReader(input_path)
+    if not reader.pages:
+        raise ValueError("Il PDF sorgente non contiene pagine")
+
+    rules = config.get("rules", [])
+    if not isinstance(rules, list):
+        raise ValueError("Le regole delle pagine vuote non sono valide")
+
+    input_pages = len(reader.pages)
+    side_page_counts = config.get("side_page_counts")
+    if side_page_counts is not None:
+        if (
+            not isinstance(side_page_counts, list)
+            or len(side_page_counts) != 2
+        ):
+            raise ValueError("I conteggi fronte/retro devono contenere due numeri")
+        original_counts = [int(value) for value in side_page_counts]
+        if any(value < 1 for value in original_counts):
+            raise ValueError("Fronte e retro devono contenere almeno una pagina")
+        if sum(original_counts) != input_pages:
+            raise ValueError(
+                "I conteggi fronte/retro non corrispondono alle pagine del PDF"
+            )
+        groups = [
+            ("front", list(reader.pages[: original_counts[0]])),
+            ("back", list(reader.pages[original_counts[0] :])),
+        ]
+    else:
+        original_counts = None
+        groups = [("document", list(reader.pages))]
+
+    def blank_like(reference):
+        blank = PageObject.create_blank_page(
+            width=float(reference.mediabox.width),
+            height=float(reference.mediabox.height),
+        )
+        for box_name in ("cropbox", "trimbox", "bleedbox", "artbox"):
+            source_box = getattr(reference, box_name, None)
+            if source_box is not None:
+                setattr(blank, box_name, RectangleObject(list(source_box)))
+        if reference.rotation:
+            blank.rotate(reference.rotation)
+        return blank
+
+    def rule_applies(rule: dict, side: str) -> bool:
+        target = str(rule.get("target", "all"))
+        if target not in {"all", "front", "back"}:
+            raise ValueError(f"Destinazione regola non valida: {target}")
+        if side == "document":
+            return target == "all"
+        return target == "all" or target == side
+
+    def apply_rule(pages: list, rule: dict) -> tuple[list, int]:
+        count = int(rule.get("count", 0) or 0)
+        if count < 0:
+            raise ValueError("Il numero di pagine vuote non può essere negativo")
+        if count == 0:
+            return pages, 0
+
+        position = str(rule.get("position", "after"))
+        if position not in {"start", "after", "end"}:
+            raise ValueError(f"Posizione pagine vuote non valida: {position}")
+        if position == "start":
+            return [blank_like(pages[0]) for _ in range(count)] + pages, count
+        if position == "end":
+            return pages + [blank_like(pages[-1]) for _ in range(count)], count
+
+        after_page = int(rule.get("after_page", 0) or 0)
+        if after_page < 0:
+            raise ValueError("La pagina di inserimento non può essere negativa")
+        repeat = bool(rule.get("repeat", False))
+        interval = int(rule.get("interval", 0) or 0)
+        if repeat and interval < 1:
+            raise ValueError(
+                "L'intervallo deve essere maggiore di zero quando la ripetizione è attiva"
+            )
+
+        positions = []
+        if after_page == 0:
+            positions.append(0)
+        elif after_page <= len(pages):
+            positions.append(after_page)
+        if repeat:
+            next_position = after_page + interval
+            while next_position <= len(pages):
+                positions.append(next_position)
+                next_position += interval
+        if not positions:
+            return pages, 0
+
+        positions_set = set(positions)
+        result = []
+        inserted = 0
+        if 0 in positions_set:
+            result.extend(blank_like(pages[0]) for _ in range(count))
+            inserted += count
+        for page_number, page in enumerate(pages, start=1):
+            result.append(page)
+            if page_number in positions_set:
+                result.extend(blank_like(page) for _ in range(count))
+                inserted += count
+        return result, inserted
+
+    quantity = int(config.get("quantity", 0) or 0)
+    rule_results = []
+    processed_groups = []
+    inserted_by_side = {}
+    for side, source_pages in groups:
+        pages = source_pages
+        side_inserted = 0
+        for index, raw_rule in enumerate(rules):
+            if not isinstance(raw_rule, dict):
+                raise ValueError(f"La regola {index + 1} non è valida")
+            if raw_rule.get("enabled", True) is False:
+                continue
+            minimum = int(raw_rule.get("min_quantity", 0) or 0)
+            maximum = int(raw_rule.get("max_quantity", 0) or 0)
+            if minimum < 0 or maximum < 0:
+                raise ValueError("Le condizioni di quantità non possono essere negative")
+            if minimum and quantity < minimum:
+                continue
+            if maximum and quantity > maximum:
+                continue
+            if not rule_applies(raw_rule, side):
+                continue
+
+            pages, inserted = apply_rule(pages, raw_rule)
+            side_inserted += inserted
+            rule_results.append(
+                {
+                    "rule": index + 1,
+                    "label": str(raw_rule.get("label", "") or ""),
+                    "side": side,
+                    "inserted": inserted,
+                }
+            )
+        processed_groups.append((side, pages))
+        inserted_by_side[side] = side_inserted
+
+    writer = PdfWriter()
+    for _side, pages in processed_groups:
+        for page in pages:
+            writer.add_page(page)
+        writer.reset_translation(reader)
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "wb") as output_file:
+        writer.write(output_file)
+
+    output_counts = [len(pages) for _side, pages in processed_groups]
+    inserted_total = sum(inserted_by_side.values())
+    return {
+        "input_pages": input_pages,
+        "output_pages": input_pages + inserted_total,
+        "inserted_blank_pages": inserted_total,
+        "inserted_by_side": inserted_by_side,
+        "quantity": quantity,
+        "rules_applied": rule_results,
+        "original_input_page_counts": original_counts,
+        "input_page_counts": output_counts if original_counts else None,
     }
 
 
@@ -309,9 +474,9 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
 
 
 def barcode_pdf(data: str, output_path: str, config: dict) -> dict:
-    width_mm = float(config.get("width_mm", 70))
-    height_mm = float(config.get("height_mm", 35))
-    bar_height_mm = float(config.get("bar_height_mm", 18))
+    width_mm = float(config.get("width_mm", 90))
+    height_mm = float(config.get("height_mm", 29))
+    bar_height_mm = float(config.get("bar_height_mm", 20))
     quiet_mm = float(config.get("quiet_mm", 4))
     human_readable = bool(config.get("human_readable", True))
 
@@ -319,7 +484,7 @@ def barcode_pdf(data: str, output_path: str, config: dict) -> dict:
     barcode = code128.Code128(
         data,
         barHeight=bar_height_mm * mm,
-        barWidth=float(config.get("bar_width", 0.38)) * mm,
+        barWidth=float(config.get("bar_width", 0.75)) * mm,
         humanReadable=human_readable,
         quiet=True,
     )
@@ -375,6 +540,11 @@ def parse_args():
     merge_parser.add_argument("--input", required=True, action="append")
     merge_parser.add_argument("--output", required=True)
 
+    blanks_parser = subparsers.add_parser("insert-blanks")
+    blanks_parser.add_argument("--input", required=True)
+    blanks_parser.add_argument("--output", required=True)
+    blanks_parser.add_argument("--config", required=True)
+
     barcode_parser = subparsers.add_parser("barcode")
     barcode_parser.add_argument("--data", required=True)
     barcode_parser.add_argument("--output", required=True)
@@ -399,6 +569,10 @@ def main():
         result = duplicate_pages(args.input, args.output, args.copies)
     elif args.command == "merge-pages":
         result = merge_pages(args.input, args.output)
+    elif args.command == "insert-blanks":
+        result = insert_blank_pages(
+            args.input, args.output, json.loads(args.config)
+        )
     elif args.command == "impose":
         result = impose(args.input, args.output, json.loads(args.config))
     elif args.command == "barcode":

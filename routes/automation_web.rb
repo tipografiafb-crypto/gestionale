@@ -21,6 +21,7 @@ class PrintOrchestrator < Sinatra::Base
     {path: 'operation.source', label: 'Sorgente evento', type: 'text'},
     {path: 'operation.handoff_from_flow_name', label: 'Automazione precedente', type: 'text'},
     {path: 'machine.name', label: 'Macchina selezionata', type: 'text'},
+    {path: 'machine.destination_code', label: 'Hot folder della macchina', type: 'text'},
     {path: 'variables.print_mode', label: 'Tipo stampa (mono/bifa)', type: 'text'},
     {path: 'variables.side_count', label: 'Numero lati', type: 'number'},
     {path: 'payload.campi_webhook.percentuale', label: 'Correzione percentuale', type: 'number'}
@@ -32,6 +33,7 @@ class PrintOrchestrator < Sinatra::Base
     {type: 'set_variables', label: 'Imposta variabili', icon: 'fa-tags', outputs: ['default']},
     {type: 'calculate_copies', label: 'Calcola quantità', icon: 'fa-calculator', outputs: ['default']},
     {type: 'duplicate_pages', label: 'Moltiplica pagine', icon: 'fa-copy', outputs: ['default']},
+    {type: 'insert_blanks', label: 'Inserisci pagine vuote', icon: 'fa-file-circle-plus', outputs: ['default']},
     {
       type: 'pair_sides',
       label: 'Abbina fronte e retro',
@@ -132,10 +134,24 @@ class PrintOrchestrator < Sinatra::Base
     def automation_destination_config(kind)
       case kind
       when 'network_folder'
+        server_host = params[:server_host].to_s.strip.gsub(%r{\A/+|/+\z}, '')
+        share_name = params[:share_name].to_s.strip.gsub(%r{\A/+|/+\z}, '')
+        remote_path = params[:remote_path].to_s.strip.gsub(%r{\A/+|/+\z}, '')
+        network_uri = params[:network_uri].to_s.strip
+        if server_host.present? && share_name.present?
+          network_uri = "//#{server_host}/#{share_name}"
+          network_uri = "#{network_uri}/#{remote_path}" if remote_path.present?
+        end
+        application_path = params[:container_path].to_s.strip
         {
-          'network_uri' => params[:network_uri].to_s.strip,
-          'host_mount_path' => params[:host_mount_path].to_s.strip,
-          'container_path' => params[:container_path].to_s.strip
+          'server_host' => server_host,
+          'share_name' => share_name,
+          'remote_path' => remote_path,
+          'network_uri' => network_uri,
+          'host_mount_path' => params[:host_mount_path].presence || application_path,
+          'container_path' => application_path,
+          'agent_key' => params[:agent_key].to_s.strip,
+          'agent_path' => params[:agent_path].to_s.strip
         }
       when 'ipp_printer'
         copies = Integer(params[:copies].presence || 1)
@@ -158,6 +174,23 @@ class PrintOrchestrator < Sinatra::Base
       folder.automation_folder_flows.map do |membership|
         {flow: membership.automation_flow, membership: membership}
       end
+    end
+
+    def automation_agent_task_config(node, run)
+      resolved = resolve_automation_config(node['config'] || {}, run.context)
+      return resolved unless node['type'] == 'hot_folder'
+
+      destination = AutomationDestination.active.find_by(
+        code: resolved['destination_code'].to_s
+      )
+      return resolved unless destination
+
+      destination_config = destination.config.is_a?(Hash) ? destination.config : {}
+      resolved.merge(
+        'agent_key' => destination_config['agent_key'].to_s,
+        'agent_path' => destination_config['agent_path'].to_s,
+        'destination_code' => destination.code
+      )
     end
   end
 
@@ -673,6 +706,10 @@ class PrintOrchestrator < Sinatra::Base
     destination = AutomationDestination.find(params[:id])
     flows = destination.referenced_by_flows
     raise ArgumentError, "Destinazione usata da: #{flows.map(&:name).join(', ')}" if flows.any?
+    if destination.print_machines.any?
+      raise ArgumentError,
+            "Destinazione associata alle macchine: #{destination.print_machines.pluck(:name).join(', ')}"
+    end
 
     destination.destroy!
     redirect '/automation_presets?tab=output&msg=success&text=Destinazione+eliminata'
@@ -736,7 +773,7 @@ class PrintOrchestrator < Sinatra::Base
       candidate = candidates.find do |queued_step|
         queued_run = queued_step.automation_run
         queued_node = AutomationEngine.node_for(queued_step)
-        resolved = resolve_automation_config(queued_node['config'] || {}, queued_run.context)
+        resolved = automation_agent_task_config(queued_node, queued_run)
         target_agent = resolved['agent_key'].to_s
         target_agent.empty? || target_agent == worker_id
       end
@@ -750,7 +787,12 @@ class PrintOrchestrator < Sinatra::Base
 
     run = step.automation_run
     node = AutomationEngine.node_for(step)
-    artifact = run.current_artifact
+    task_config = automation_agent_task_config(node, run)
+    artifact = if node['type'] == 'hot_folder' && task_config['artifact_kind'].present?
+                 run.artifact_by_kind(task_config['artifact_kind'])
+               else
+                 run.current_artifact
+               end
     unless artifact&.available?
       AutomationEngine.fail_external_step!(step, 'File di input non disponibile')
       halt 422, {success: false, error: 'File di input non disponibile'}.to_json
@@ -763,7 +805,7 @@ class PrintOrchestrator < Sinatra::Base
         run_id: run.id,
         node_key: step.node_key,
         node_type: step.node_type,
-        config: resolve_automation_config(node['config'] || {}, run.context),
+        config: task_config,
         context: run.context,
         input_filename: artifact.filename,
         input_url: "/automation_artifacts/#{artifact.id}/download"

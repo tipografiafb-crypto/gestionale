@@ -53,6 +53,27 @@ class AutomationGraphValidator
         result << "Seleziona la stampante nel blocco #{node['label'].presence || node['id']}"
       end
     end
+    nodes.select { |node| node['type'] == 'insert_blanks' }.each do |node|
+      label = node['label'].presence || node['id']
+      Array(node.dig('config', 'rules')).each_with_index do |rule, index|
+        rule_label = "regola #{index + 1} di #{label}"
+        unless %w[start after end].include?(rule['position'].to_s)
+          result << "Posizione non valida nella #{rule_label}"
+        end
+        unless %w[all front back].include?(rule.fetch('target', 'all').to_s)
+          result << "Lato non valido nella #{rule_label}"
+        end
+        result << "Numero di pagine vuote non valido nella #{rule_label}" if rule['count'].to_i.negative?
+        if rule['repeat'] == true && rule['interval'].to_i < 1
+          result << "Intervallo mancante nella #{rule_label}"
+        end
+        minimum = rule['min_quantity'].to_i
+        maximum = rule['max_quantity'].to_i
+        if minimum.positive? && maximum.positive? && minimum > maximum
+          result << "Intervallo quantità invertito nella #{rule_label}"
+        end
+      end
+    end
 
     result << 'Il flusso contiene un ciclo non consentito' if cyclic?(ids, edges)
     result.uniq
@@ -273,7 +294,7 @@ class AutomationBootstrap
         node('print_hotfolder', 'hot_folder', 'Hot folder stampa', 2390, 360, {
           'destination_code' => 'LOCAL_PRINT',
           'artifact_kind' => 'imposition_pdf',
-          'filename' => '{{order.code}}-{{item.id}}-plancia.pdf',
+          'filename' => '{{order.code}}-{{item.position}}.pdf',
           'output_kind' => 'delivered_print'
         }),
         node('barcode', 'barcode', 'Barcode ordine', 2620, 360, {
@@ -373,11 +394,18 @@ class AutomationEngine
       trigger_source = extra_context['trigger_source'].presence || 'manual'
       validate_trigger!(trigger, event_key: operation_type.to_s, source: trigger_source)
 
-      asset = source_asset ||
-              order_item.switch_print_assets.find(&:downloaded?) ||
-              order_item.assets.find(&:downloaded?)
-      raise ArgumentError, 'Nessun asset locale disponibile per la riga ordine' unless asset
-      raise ArgumentError, 'Il file sorgente non è disponibile localmente' unless asset.downloaded?
+      asset_optional = operation_type.to_s == 'label'
+      asset = source_asset
+      unless asset || asset_optional
+        asset = order_item.switch_print_assets.find(&:downloaded?) ||
+                order_item.assets.find(&:downloaded?)
+      end
+      unless asset || asset_optional
+        raise ArgumentError, 'Nessun asset locale disponibile per la riga ordine'
+      end
+      if asset && !asset.downloaded?
+        raise ArgumentError, 'Il file sorgente non è disponibile localmente'
+      end
 
       run = nil
       AutomationRun.transaction do
@@ -398,20 +426,22 @@ class AutomationEngine
             extra_context: extra_context
           )
         )
-        artifact = create_artifact!(
-          run: run,
-          step: nil,
-          kind: 'source',
-          path: asset.local_path_full,
-          filename: File.basename(asset.local_path_full),
-          media_type: media_type_for(asset.local_path_full),
-          metadata: {
-            'asset_id' => asset.id,
-            'operation_type' => operation_type,
-            'action_batch_id' => action_batch_id
-          }.compact
-        )
-        update_runtime!(run, 'current_artifact_id' => artifact.id)
+        if asset
+          artifact = create_artifact!(
+            run: run,
+            step: nil,
+            kind: 'source',
+            path: asset.local_path_full,
+            filename: File.basename(asset.local_path_full),
+            media_type: media_type_for(asset.local_path_full),
+            metadata: {
+              'asset_id' => asset.id,
+              'operation_type' => operation_type,
+              'action_batch_id' => action_batch_id
+            }.compact
+          )
+          update_runtime!(run, 'current_artifact_id' => artifact.id)
+        end
         enqueue_node!(run, trigger)
       end
       run
@@ -748,10 +778,13 @@ class AutomationEngine
           'print_flow_name' => print_flow&.name
         },
         'file' => {
-          'asset_id' => asset.id,
-          'asset_type' => asset.asset_type,
-          'filename' => item.switch_filename_for_asset(asset) || asset.filename_from_url,
-          'local_path' => asset.local_path,
+          'asset_id' => asset&.id,
+          'asset_type' => asset&.asset_type,
+          'filename' => if asset
+                          item.switch_filename_for_asset(asset) ||
+                            asset.filename_from_url
+                        end,
+          'local_path' => asset&.local_path,
           'index' => extra_context['file_index'] || 1,
           'count' => extra_context['file_count'] || 1
         },
@@ -806,6 +839,7 @@ class AutomationNodeExecutor
     when 'set_variables' then execute_set_variables
     when 'calculate_copies' then execute_calculate_copies
     when 'duplicate_pages' then execute_duplicate_pages
+    when 'insert_blanks' then execute_insert_blanks
     when 'pair_sides' then execute_pair_sides
     when 'photoshop', 'illustrator' then execute_adobe
     when 'step_repeat' then execute_step_repeat
@@ -943,6 +977,44 @@ class AutomationNodeExecutor
       filename: File.basename(output),
       media_type: 'application/pdf',
       metadata: metadata
+    )
+    {
+      'artifact_id' => artifact.id,
+      'context_updates' => {'runtime.current_artifact_id' => artifact.id}
+    }
+  end
+
+  def execute_insert_blanks
+    source = require_artifact!
+    quantity_field = @config['quantity_field'].presence || 'item.quantity'
+    quantity = AutomationEngine.context_value(@context, quantity_field).to_i
+    pdf_config = {
+      'quantity' => quantity,
+      'rules' => resolve_nested_config(Array(@config['rules']))
+    }
+    side_page_counts = Array(source.metadata.to_h['input_page_counts']).map(&:to_i)
+    if side_page_counts.length == 2 && side_page_counts.all?(&:positive?)
+      pdf_config['side_page_counts'] = side_page_counts
+    end
+
+    output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
+    metadata = run_pdf_tool(
+      'insert-blanks',
+      '--input', source.full_path,
+      '--output', output,
+      '--config', JSON.generate(pdf_config)
+    )
+    artifact = AutomationEngine.create_artifact!(
+      run: @run,
+      step: @step,
+      kind: @config['output_kind'].presence || 'blank_padded_pdf',
+      path: output,
+      filename: File.basename(output),
+      media_type: 'application/pdf',
+      metadata: metadata.merge(
+        'source_artifact_id' => source.id,
+        'quantity_field' => quantity_field
+      )
     )
     {
       'artifact_id' => artifact.id,
@@ -1200,6 +1272,13 @@ class AutomationNodeExecutor
     destination = AutomationDestination.active.find_by(code: destination_code)
     raise ArgumentError, "Destinazione non trovata: #{destination_code}" unless destination
 
+    if destination.config['agent_key'].present? && !simulation?
+      raise ArgumentError, 'Percorso hot folder sul Mac non configurato' if
+        destination.config['agent_path'].to_s.strip.empty?
+
+      return {'state' => 'waiting_external'}
+    end
+
     delivery = AutomationDestinationService.deliver(
       destination: destination,
       source_path: source.full_path,
@@ -1276,6 +1355,17 @@ class AutomationNodeExecutor
 
   def simulation?
     @context.dig('runtime', 'simulation') == true
+  end
+
+  def resolve_nested_config(value)
+    case value
+    when Hash
+      value.transform_values { |nested| resolve_nested_config(nested) }
+    when Array
+      value.map { |nested| resolve_nested_config(nested) }
+    else
+      AutomationEngine.resolve(value, @context)
+    end
   end
 
   def compare(left, operator, right)

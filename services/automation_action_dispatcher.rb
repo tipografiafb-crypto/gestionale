@@ -45,13 +45,30 @@ class AutomationActionDispatcher
       raise ArgumentError, "Pubblica il flusso interno #{automation_flow.name} prima di usarlo" unless automation_flow.active_version
 
       source_assets = Array(assets).compact
-      raise ArgumentError, 'Nessun file disponibile per avviare il flusso' if source_assets.empty?
+      if source_assets.empty? && event_key != 'label'
+        raise ArgumentError, 'Nessun file disponibile per avviare il flusso'
+      end
+
+      if %w[print label].include?(event_key)
+        raise ArgumentError, 'Seleziona una macchina di stampa' unless print_machine
+        unless print_machine.active? && print_flow.print_machines.active.exists?(id: print_machine.id)
+          raise ArgumentError, "La macchina #{print_machine.name} non è disponibile per questo flusso"
+        end
+      end
+      if event_key == 'label'
+        label_destination = print_machine.label_automation_destination
+        unless label_destination&.active? && label_destination.ipp_printer?
+          raise ArgumentError,
+                "La macchina #{print_machine.name} non ha una stampante etichette configurata"
+        end
+      end
 
       unavailable = source_assets.reject(&:downloaded?)
       raise ArgumentError, "File locale non disponibile: #{unavailable.first&.filename_from_url}" if unavailable.any?
 
       batch_id = SecureRandom.uuid
-      runs = source_assets.each_with_index.map do |asset, index|
+      run_sources = source_assets.empty? ? [nil] : source_assets
+      runs = run_sources.each_with_index.map do |asset, index|
         AutomationEngine.start_run(
           flow: automation_flow,
           order_item: order_item,
@@ -68,7 +85,13 @@ class AutomationActionDispatcher
             'file_count' => source_assets.length,
             'machine' => print_machine && {
               'id' => print_machine.id,
-              'name' => print_machine.name
+              'name' => print_machine.name,
+              'destination_code' => print_machine.automation_destination&.code,
+              'destination_name' => print_machine.automation_destination&.name,
+              'label_destination_code' =>
+                print_machine.label_automation_destination&.code,
+              'label_destination_name' =>
+                print_machine.label_automation_destination&.name
             }
           }
         )

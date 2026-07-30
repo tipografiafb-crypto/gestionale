@@ -99,6 +99,30 @@ class AutomationDestinationService
     private
 
     def check_network_folder(destination)
+      config = destination.config
+      if config['agent_key'].present?
+        agent = AutomationAgent.active.find_by(agent_key: config['agent_key'])
+        return Result.new(
+          success?: false,
+          message: 'Agente Mac non collegato',
+          details: {agent_key: config['agent_key']}
+        ) unless agent&.online?
+
+        roots = Array(agent.metadata['hotfolder_roots'])
+        available = roots.any? do |root|
+          root.is_a?(Hash) && root['available'] == true && root['writable'] == true
+        end
+        return Result.new(
+          success?: available,
+          message: available ? 'Agente Mac online e volume hotfolder scrivibile' :
+            'Agente Mac online ma volume hotfolder non disponibile',
+          details: {
+            agent_key: agent.agent_key,
+            agent_path: config['agent_path']
+          }
+        )
+      end
+
       path = allowed_folder_path!(destination)
       if !File.exist?(path)
         Result.new(

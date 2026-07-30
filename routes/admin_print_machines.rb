@@ -12,6 +12,7 @@ class PrintOrchestrator < Sinatra::Base
   # GET /admin/print_machines/new - Form to create new machine
   get '/admin/print_machines/new' do
     @machine = PrintMachine.new
+    load_machine_destinations
     erb :admin_print_machines_form
   end
 
@@ -20,13 +21,17 @@ class PrintOrchestrator < Sinatra::Base
     @machine = PrintMachine.new(
       name: params[:name],
       description: params[:description],
-      active: params[:active] == 'on'
+      active: params[:active] == 'on',
+      automation_destination_id: params[:automation_destination_id].presence,
+      label_automation_destination_id:
+        params[:label_automation_destination_id].presence
     )
 
     if @machine.save
       redirect "/admin/print_machines?msg=success&text=Macchina+creata+con+successo"
     else
       @error_message = @machine.errors.full_messages.join(', ')
+      load_machine_destinations
       erb :admin_print_machines_form
     end
   end
@@ -34,6 +39,7 @@ class PrintOrchestrator < Sinatra::Base
   # GET /admin/print_machines/:id/edit - Form to edit machine
   get '/admin/print_machines/:id/edit' do
     @machine = PrintMachine.find(params[:id])
+    load_machine_destinations
     erb :admin_print_machines_form
   end
 
@@ -44,11 +50,15 @@ class PrintOrchestrator < Sinatra::Base
     if @machine.update(
       name: params[:name],
       description: params[:description],
-      active: params[:active] == 'on'
+      active: params[:active] == 'on',
+      automation_destination_id: params[:automation_destination_id].presence,
+      label_automation_destination_id:
+        params[:label_automation_destination_id].presence
     )
       redirect "/admin/print_machines?msg=success&text=Macchina+aggiornata+con+successo"
     else
       @error_message = @machine.errors.full_messages.join(', ')
+      load_machine_destinations
       erb :admin_print_machines_form
     end
   end
@@ -86,5 +96,16 @@ class PrintOrchestrator < Sinatra::Base
     end
 
     redirect "/admin/print_machines?msg=success&text=Associazioni+aggiornate"
+  end
+
+  private
+
+  def load_machine_destinations
+    @network_destinations = AutomationDestination.active
+                                                 .where(kind: 'network_folder')
+                                                 .ordered
+    @label_destinations = AutomationDestination.active
+                                               .where(kind: 'ipp_printer')
+                                               .ordered
   end
 end
