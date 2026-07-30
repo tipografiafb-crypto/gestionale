@@ -237,15 +237,6 @@ class AutomationBootstrap
       end
       flow.publish_draft! unless active_has_dynamic_imposition
 
-      print_flow = PrintFlow.where('LOWER(name) LIKE ?', '%scatolin%').ordered.first
-      if print_flow && print_flow.event_route_for('aggregation').nil?
-        print_flow.event_routes.create!(
-          event_key: 'aggregation',
-          label: 'Aggregazione scatoline',
-          automation_flow: flow,
-          active: true
-        )
-      end
       flow
     end
 
@@ -1321,7 +1312,7 @@ class AutomationNodeExecutor
       'quantity' => quantity,
       'rules' => resolve_nested_config(Array(@config['rules']))
     }
-    side_page_counts = Array(source.metadata.to_h['input_page_counts']).map(&:to_i)
+    side_page_counts = Array(source.metadata.to_h['side_page_counts']).map(&:to_i)
     if side_page_counts.length == 2 && side_page_counts.all?(&:positive?)
       pdf_config['side_page_counts'] = side_page_counts
     end
@@ -1341,6 +1332,9 @@ class AutomationNodeExecutor
       filename: File.basename(output),
       media_type: 'application/pdf',
       metadata: metadata.merge(
+        'side_page_counts' => (
+          metadata['input_page_counts'] if side_page_counts.length == 2
+        ),
         'source_artifact_id' => source.id,
         'quantity_field' => quantity_field
       )
@@ -1451,6 +1445,7 @@ class AutomationNodeExecutor
       filename: File.basename(output),
       media_type: 'application/pdf',
       metadata: metadata.merge(
+        'side_page_counts' => metadata['input_page_counts'],
         'front_artifact_id' => front.id,
         'back_artifact_id' => back.id,
         'paired_run_id' => counterpart_run.id
@@ -1541,10 +1536,10 @@ class AutomationNodeExecutor
 
     output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
     impose_config = preset.config.deep_dup
-    side_page_counts = Array(source.metadata.to_h['input_page_counts']).map(&:to_i)
+    side_page_counts = Array(source.metadata.to_h['side_page_counts']).map(&:to_i)
     if side_page_counts.length == 2 &&
        side_page_counts.all?(&:positive?) &&
-       impose_config['double_sided_mode'].to_s != 'none'
+       %w[horizontal vertical].include?(impose_config['double_sided_mode'].to_s)
       impose_config['side_page_counts'] = side_page_counts
     end
 

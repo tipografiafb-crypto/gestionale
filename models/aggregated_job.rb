@@ -46,11 +46,13 @@ class AggregatedJob < ActiveRecord::Base
   end
 
   def start_internal_aggregation!
-    route = print_flow&.event_route_for('aggregation')
-    raise ArgumentError, 'Il flusso di stampa non ha un evento interno “aggregation” configurato' unless route
-
-    flow = route.automation_flow
-    raise ArgumentError, "Pubblica prima l’automazione #{flow.name}" unless flow&.active_version
+    unless print_flow&.preprint_executor == 'automation'
+      raise ArgumentError, 'La Prestampa del PrintFlow non usa un flusso interno'
+    end
+    flow = print_flow.preprint_automation_flow
+    unless flow&.active_version
+      raise ArgumentError, "Pubblica prima l’automazione #{flow&.name || 'di aggregazione'}"
+    end
     raise ArgumentError, 'Il lavoro non è in attesa' unless status == 'pending'
 
     members = aggregated_job_items.includes(order_item: [:order, :assets]).to_a
@@ -107,6 +109,72 @@ class AggregatedJob < ActiveRecord::Base
     }
   rescue StandardError => e
     update!(status: 'failed') if persisted? && status == 'pending'
+    {success: false, error: e.message}
+  end
+
+  def start_internal_file_operation!(operation, print_machine: nil)
+    operation = operation.to_s
+    raise ArgumentError, "Operazione aggregata non supportata: #{operation}" unless
+      %w[preprint print label].include?(operation)
+    raise ArgumentError, "L’azione #{operation} non usa un flusso interno" unless
+      print_flow&.executor_for(operation) == 'automation'
+    if %w[print label].include?(operation)
+      raise ArgumentError, 'Seleziona una macchina di stampa' unless print_machine
+      unless print_machine.active? && print_flow.print_machines.active.exists?(id: print_machine.id)
+        raise ArgumentError, "La macchina #{print_machine.name} non è disponibile per questo flusso"
+      end
+    end
+
+    flow = print_flow.automation_flow_for(operation)
+    unless flow&.active_version
+      raise ArgumentError, "Pubblica prima l’automazione #{flow&.name || operation}"
+    end
+    source_path = File.join(Dir.pwd, 'storage', 'aggregated', notes.to_s)
+    raise ArgumentError, 'Il PDF aggregato non è disponibile localmente' unless File.file?(source_path)
+
+    item = order_items.order(:id).first
+    raise ArgumentError, 'Il lavoro aggregato non contiene righe' unless item
+
+    relative_path = source_path.delete_prefix("#{Dir.pwd}/")
+    asset = item.assets.find_or_initialize_by(
+      asset_type: "aggregation_#{operation}_source",
+      local_path: relative_path
+    )
+    asset.original_url = aggregated_filename || File.basename(source_path)
+    asset.save!
+
+    run = AutomationEngine.start_run(
+      flow: flow,
+      order_item: item,
+      source_asset: asset,
+      operation_type: operation,
+      print_flow: print_flow,
+      action_batch_id: nil,
+      simulation: false,
+      extra_context: {
+        'event_key' => operation,
+        'trigger_source' => 'aggregated_job',
+        'file_index' => 1,
+        'file_count' => 1,
+        'aggregated_job' => {'id' => id, 'name' => name},
+        'machine' => print_machine && {
+          'id' => print_machine.id,
+          'name' => print_machine.name,
+          'destination_code' => print_machine.automation_destination&.code,
+          'destination_name' => print_machine.automation_destination&.name,
+          'label_destination_code' => print_machine.label_automation_destination&.code,
+          'label_destination_name' => print_machine.label_automation_destination&.name
+        }
+      }
+    )
+    update!(preprint_sent_at: Time.current) if operation == 'preprint'
+    update!(status: 'printing') if operation == 'print'
+    {
+      success: true,
+      message: "File aggregato avviato nel flusso interno #{flow.name}",
+      runs: [run]
+    }
+  rescue StandardError => e
     {success: false, error: e.message}
   end
   
@@ -405,4 +473,5 @@ class AggregatedJob < ActiveRecord::Base
     else 'secondary'
     end
   end
+
 end

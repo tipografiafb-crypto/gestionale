@@ -152,6 +152,8 @@ class AutomationActionLifecycle
     end
 
     def aggregation_run_completed!(run)
+      return unless run.operation_type == 'aggregation'
+
       aggregation_id = run.context.dig('aggregation', 'id').to_i
       return unless aggregation_id.positive?
 

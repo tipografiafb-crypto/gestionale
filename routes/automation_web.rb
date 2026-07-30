@@ -377,12 +377,7 @@ class PrintOrchestrator < Sinatra::Base
 
   post '/automations/seed_scatoline_aggregation' do
     flow = AutomationBootstrap.seed_scatoline_aggregation_flow!
-    text = if PrintFlow.where('LOWER(name) LIKE ?', '%scatolin%')
-                       .any? { |print_flow| print_flow.event_route_for('aggregation')&.automation_flow_id == flow.id }
-             'Flusso di esempio creato e collegato all’evento aggregazione di Scatoline'
-           else
-             'Flusso di esempio creato; collegalo all’evento personalizzato aggregation del flusso di stampa'
-           end
+    text = 'Flusso di esempio creato; puoi selezionarlo quando crei un gruppo di aggregazione'
     redirect "/automations/#{flow.id}/edit?msg=success&text=#{URI.encode_www_form_component(text)}"
   rescue StandardError => e
     redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"

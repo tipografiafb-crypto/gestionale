@@ -88,14 +88,18 @@
           </div>
 
           <div class="mb-3">
-            <label for="print_flow_id" class="form-label">Flusso di Stampa <span class="text-danger">*</span></label>
+            <label for="print_flow_id" class="form-label">
+              Prestampa, stampa ed etichetta <span class="text-danger">*</span>
+            </label>
             <select class="form-select" id="print_flow_id" name="print_flow_id" required>
               <option value="">-- Seleziona un flusso --</option>
               <% @print_flows.each do |pf| %>
                 <option value="<%= pf.id %>"><%= pf.name %></option>
               <% end %>
             </select>
-            <small class="text-muted">Obbligatorio - il flusso da usare per la presstampa e stampa del file aggregato</small>
+            <small class="text-muted">
+              La Prestampa configurata nel PrintFlow crea la plancia tramite Switch oppure flusso interno.
+            </small>
           </div>
 
           <div class="mb-3">

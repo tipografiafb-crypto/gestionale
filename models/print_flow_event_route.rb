@@ -2,7 +2,7 @@
 # @domain data-models
 
 class PrintFlowEventRoute < ActiveRecord::Base
-  RESERVED_EVENT_KEYS = %w[preprint print label].freeze
+  RESERVED_EVENT_KEYS = %w[aggregation preprint print label].freeze
   EVENT_KEY_FORMAT = /\A[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*\z/
 
   belongs_to :print_flow

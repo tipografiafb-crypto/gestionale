@@ -89,6 +89,37 @@
         </div>
       </div>
     <% end %>
+
+    <% if @aggregation_runs.any? %>
+      <div class="card mb-4">
+        <div class="card-header">
+          <strong><i class="fas fa-bug"></i> Log aggregazione</strong>
+        </div>
+        <div class="card-body">
+          <% @aggregation_runs.each do |run| %>
+            <% status_class = run.status == 'completed' ? 'success' : (run.status == 'failed' ? 'danger' : 'info') %>
+            <div class="border rounded p-3 mb-2">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <a href="/automation_runs/<%= run.id %>"><strong>Esecuzione #<%= run.id %></strong></a>
+                  · <%= Rack::Utils.escape_html(run.flow.name) %>
+                </div>
+                <span class="badge bg-<%= status_class %>"><%= run.status %></span>
+              </div>
+              <small class="text-muted">
+                Ordine <%= Rack::Utils.escape_html(run.context.dig('order', 'code').to_s) %>
+                · SKU <%= Rack::Utils.escape_html(run.context.dig('item', 'sku').to_s) %>
+              </small>
+              <% if run.error_message.present? %>
+                <div class="alert alert-danger mt-2 mb-0">
+                  <%= Rack::Utils.escape_html(run.error_message.lines.last.to_s.strip.presence || run.error_message) %>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
   </div>
 
   <div class="col-md-4">
@@ -100,6 +131,8 @@
         <p>
           <strong>ID:</strong> #<%= @aggregated_job.id %><br>
           <strong>File:</strong> <%= @aggregated_job.nr_files %><br>
+          <strong>PrintFlow:</strong>
+          <%= Rack::Utils.escape_html(@aggregated_job.print_flow&.name || 'Non configurate') %><br>
           <strong>Creato:</strong> <%= @aggregated_job.created_at.strftime('%d/%m/%Y %H:%M') %><br>
           <% if @aggregated_job.sent_at %>
             <strong>Inviato:</strong> <%= @aggregated_job.sent_at.strftime('%d/%m/%Y %H:%M') %><br>
@@ -125,9 +158,9 @@
             <div class="mb-2">
               <label class="form-label small"><strong>Operazioni Disponibili:</strong></label>
             </div>
-            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_preprint" method="post" class="mb-2">
-              <button type="submit" class="btn btn-info w-100" onclick="return confirm('Invia file aggregato a pre-stampa?')">
-                <i class="fas fa-scissors"></i> Pre-Stampa
+            <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_aggregation" method="post" class="mb-2">
+              <button type="submit" class="btn btn-info w-100" onclick="return confirm('Creare la plancia aggregata?')">
+                <i class="fas fa-layer-group"></i> Crea plancia
               </button>
             </form>
             <button type="button" class="btn btn-primary w-100 mb-2" 
@@ -135,7 +168,7 @@
                     disabled title="Completa prima la pre-stampa">
               <i class="fas fa-print"></i> Stampa
             </button>
-            <% if @aggregated_job.print_flow&.label_webhook.present? %>
+            <% if @aggregated_job.print_flow&.label_executor != 'none' %>
             <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_label" method="post" class="mb-2">
               <button type="submit" class="btn btn-secondary w-100" disabled title="Completa prima la pre-stampa">
                 <i class="fas fa-tag"></i> Etichetta
@@ -159,7 +192,7 @@
             <div class="alert alert-info mb-0">
               <i class="fas fa-spinner fa-spin"></i> Aggregazione in corso...
               <br><small>
-                <% if @aggregated_job.print_flow&.event_route_for('aggregation') %>
+                <% if @aggregated_job.print_flow&.preprint_executor == 'automation' %>
                   Il flusso interno sta raccogliendo e unendo le righe.
                   <% if @aggregation_collection %>
                     <br><strong>
@@ -192,7 +225,7 @@
                     <% if !@aggregated_job.preprint_sent_at.present? %>disabled title="Conferma prima la pre-stampa"<% end %>>
               <i class="fas fa-print"></i> Stampa
             </button>
-            <% if @aggregated_job.print_flow&.label_webhook.present? %>
+            <% if @aggregated_job.print_flow&.label_executor != 'none' %>
             <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_label" method="post" class="mb-2">
               <button type="submit" class="btn btn-secondary w-100" onclick="return confirm('Invia file aggregato a etichetta?')">
                 <i class="fas fa-tag"></i> Etichetta
@@ -288,13 +321,13 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <form action="/aggregated_jobs/<%= @aggregated_job.id %>/send_print" method="post">
-        <% if @aggregated_job.print_flow&.print_webhook %>
+        <% if @aggregated_job.print_flow&.print_executor == 'webhook' && @aggregated_job.print_flow.print_webhook %>
           <input type="hidden" name="webhook_path" value="<%= @aggregated_job.print_flow.print_webhook.hook_path %>">
         <% end %>
         <div class="modal-body">
           <p class="text-muted mb-3">Seleziona stampante per questo aggregato:</p>
           <% available_machines = @aggregated_job.print_flow&.print_machines || [] %>
-          <% if @aggregated_job.print_flow&.print_webhook %>
+          <% if %w[webhook automation].include?(@aggregated_job.print_flow&.print_executor) %>
             <% if available_machines.any? %>
             <% available_machines.each do |machine| %>
               <div class="form-check mb-2">
@@ -314,7 +347,7 @@
             <% end %>
           <% else %>
             <div class="alert alert-danger">
-              <i class="fas fa-exclamation-triangle"></i> Webhook di stampa non configurato nel flusso
+              <i class="fas fa-exclamation-triangle"></i> Azione Stampa non configurata nel flusso
             </div>
           <% end %>
         </div>

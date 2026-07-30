@@ -36,8 +36,8 @@ class PrintOrchestrator < Sinatra::Base
       return redirect '/aggregated_jobs/new?msg=error&text=Alcuni+item+non+hanno+preprint+completato' if items.count != item_ids.count
 
       job = AggregatedJob.create_from_items(
-        items, 
-        name: params[:name], 
+        items,
+        name: params[:name],
         print_flow_id: print_flow_id
       )
       redirect "/aggregated_jobs/#{job.id}?msg=success&text=Aggregazione+creata+con+#{items.count}+file"
@@ -54,6 +54,10 @@ class PrintOrchestrator < Sinatra::Base
                               .where("metadata ->> 'aggregation_id' = ?", @aggregated_job.id.to_s)
                               .order(created_at: :desc)
                               .first
+    @aggregation_runs = AutomationRun
+                        .includes(automation_flow_version: :automation_flow)
+                        .where("context -> 'aggregation' ->> 'id' = ?", @aggregated_job.id.to_s)
+                        .order(created_at: :desc)
     @switch_webhooks = SwitchWebhook.ordered
     @print_flows = PrintFlow.ordered
     
@@ -87,28 +91,6 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
-  # POST /aggregated_jobs/:id/send_aggregation - Send files to Switch for aggregation
-  post '/aggregated_jobs/:id/send_aggregation' do
-    @aggregated_job = AggregatedJob.find(params[:id])
-    webhook_path = params[:webhook_path]
-    
-    unless webhook_path.present?
-      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Seleziona+un+webhook+per+l'aggregazione"
-    end
-    
-    unless @aggregated_job.status == 'pending'
-      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Job+già+inviato"
-    end
-
-    result = @aggregated_job.send_aggregation_to_switch(webhook_path)
-    
-    if result[:success]
-      redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=#{URI.encode_www_form_component(result[:message])}"
-    else
-      redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=#{URI.encode_www_form_component(result[:error])}"
-    end
-  end
-
   # POST /aggregated_jobs/:id/mark_completed - Manually mark as completed
   post '/aggregated_jobs/:id/mark_completed' do
     @aggregated_job = AggregatedJob.find(params[:id])
@@ -116,27 +98,27 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=Aggregazione+completata"
   end
 
-  # POST /aggregated_jobs/:id/send_preprint - Send files to Switch for aggregation (only when pending)
-  post '/aggregated_jobs/:id/send_preprint' do
+  # POST /aggregated_jobs/:id/send_aggregation - Create the aggregate board
+  post '/aggregated_jobs/:id/send_aggregation' do
     @aggregated_job = AggregatedJob.find(params[:id])
-    
     unless @aggregated_job.status == 'pending'
-      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Job+già+in+anteprima"
+      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=La+plancia+è+già+stata+avviata"
     end
-    
-    result = if @aggregated_job.print_flow&.event_route_for('aggregation')
+
+    result = case @aggregated_job.print_flow&.preprint_executor
+             when 'automation'
                @aggregated_job.start_internal_aggregation!
-             elsif @aggregated_job.print_flow&.preprint_webhook
-               @aggregated_job.send_aggregation_to_switch(
-                 @aggregated_job.print_flow.preprint_webhook.hook_path
-               )
+             when 'webhook'
+               webhook = @aggregated_job.print_flow.preprint_webhook
+               if webhook
+                 @aggregated_job.send_aggregation_to_switch(webhook.hook_path)
+               else
+                 {success: false, error: 'Webhook Aggregazione non configurato'}
+               end
              else
-               {
-                 success: false,
-                 error: 'Configura l’evento interno aggregation oppure un webhook di pre-stampa'
-               }
+               {success: false, error: 'Azione Aggregazione non configurata'}
              end
-    
+
     if result[:success]
       redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=#{URI.encode_www_form_component(result[:message])}"
     else
@@ -156,7 +138,7 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=Pre-stampa+confermata"
   end
 
-  # POST /aggregated_jobs/:id/send_print - Send aggregated file to Switch for print (post-confirmation)
+  # POST /aggregated_jobs/:id/send_print - Send the completed board to print
   post '/aggregated_jobs/:id/send_print' do
     @aggregated_job = AggregatedJob.find(params[:id])
     print_machine_id = params[:print_machine_id]
@@ -175,68 +157,26 @@ class PrintOrchestrator < Sinatra::Base
       return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Seleziona+una+stampante"
     end
     
-    unless @aggregated_job.print_flow&.print_webhook
-      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Webhook+di+stampa+non+configurato+nel+flusso"
+    machine = @aggregated_job.print_flow&.print_machines&.find_by(id: print_machine_id)
+    unless machine
+      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Stampante+non+disponibile+nel+flusso"
     end
-    
-    # Get the aggregated file URL (from callback or fallback)
-    file_url = @aggregated_job.aggregated_file_url
-    if !file_url.present? && @aggregated_job.notes.present?
-      file_url = "/file/agg_#{@aggregated_job.id}/#{@aggregated_job.notes}"
-    end
-    
-    unless file_url.present?
-      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=File+aggregato+non+disponibile"
-    end
-    
-    webhook_path = @aggregated_job.print_flow.print_webhook.hook_path
-    server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
-    
-    # Convert relative URL to absolute if needed
-    unless file_url.start_with?('http')
-      file_url = "#{server_url}#{file_url}"
-    end
-    
-    # Build Switch payload (same as normal order items)
-    product = @aggregated_job.order_items.first&.product
-    job_data = {
-      aggregated_job_id: @aggregated_job.id,
-      nr_files: 1,
-      file_index: 1,
-      id_riga: @aggregated_job.id,
-      codice_ordine: "AGG-#{@aggregated_job.id}",
-      product: "#{product&.sku} - #{product&.name}",
-      operation_id: 2,  # 1=prepress, 2=stampa, 3=etichetta
-      job_operation_id: "agg-print-#{@aggregated_job.id}",
-      url: file_url,
-      widegest_url: "#{server_url}/api/v1/aggregation_print_callback",
-      filename: @aggregated_job.aggregated_filename || "aggregated_#{@aggregated_job.id}.pdf",
-      quantita: @aggregated_job.order_items.sum(:quantity),
-      materiale: product&.notes || '',
-      print_machine_id: print_machine_id,
-      campi_custom: {},
-      opzioni_stampa: {},
-      taglio: false,
-      stampa: true,
-      plancia: false,
-      scala: '1:1'
-    }
-    
-    begin
-      result = SwitchClient.send_to_switch(
-        webhook_path: webhook_path,
-        job_data: job_data
-      )
-      
-      if result[:success]
-        @aggregated_job.update(status: 'printing')
-        redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=File+inviato+a+stampa"
-      else
-        redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=#{URI.encode_www_form_component(result[:error])}"
-      end
-    rescue => e
-      puts "[SEND_PRINT_ERROR] #{e.class}: #{e.message}"
-      redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=#{URI.encode_www_form_component('Errore: ' + e.message)}"
+
+    result = case @aggregated_job.print_flow.print_executor
+             when 'automation'
+               @aggregated_job.start_internal_file_operation!('print', print_machine: machine)
+             when 'webhook'
+               webhook = @aggregated_job.print_flow.print_webhook
+               webhook ? @aggregated_job.send_to_switch_operation('print', machine.id, webhook.hook_path) :
+                         {success: false, error: 'Webhook Stampa non configurato'}
+             else
+               {success: false, error: 'Azione Stampa non configurata'}
+             end
+
+    if result[:success]
+      redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=#{URI.encode_www_form_component(result[:message])}"
+    else
+      redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=#{URI.encode_www_form_component(result[:error])}"
     end
   end
 
@@ -248,7 +188,16 @@ class PrintOrchestrator < Sinatra::Base
       return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Job+non+in+anteprima"
     end
 
-    result = @aggregated_job.send_to_switch_operation('label')
+    result = case @aggregated_job.print_flow&.label_executor
+             when 'automation'
+               {success: false, error: 'Per l’etichetta interna seleziona prima una macchina di stampa'}
+             when 'webhook'
+               webhook = @aggregated_job.print_flow.label_webhook
+               webhook ? @aggregated_job.send_to_switch_operation('label', nil, webhook.hook_path) :
+                         {success: false, error: 'Webhook Etichetta non configurato'}
+             else
+               {success: false, error: 'Azione Etichetta non configurata'}
+             end
     
     if result[:success]
       redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=#{URI.encode_www_form_component(result[:message])}"

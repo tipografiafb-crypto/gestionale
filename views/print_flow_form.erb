@@ -19,8 +19,10 @@
     <div class="mb-4">
       <div class="d-flex align-items-center justify-content-between mb-2">
         <div>
-          <h2 class="h5 mb-1">Eventi personalizzati</h2>
-          <p class="text-muted small mb-0">Collega eventi programmabili alle automazioni di questo flusso di stampa.</p>
+          <h2 class="h5 mb-1">Eventi personalizzati <span class="badge bg-secondary">Avanzato</span></h2>
+          <p class="text-muted small mb-0">
+            Solo azioni aggiuntive. Prestampa, stampa ed etichetta si configurano più sotto.
+          </p>
         </div>
         <button type="button" class="btn btn-sm btn-outline-primary" id="add-custom-event">
           <i class="fas fa-plus"></i> Aggiungi evento
@@ -67,7 +69,7 @@
           </div>
         <% end %>
       </div>
-      <div class="form-text">Prestampa, stampa ed etichetta restano configurati separatamente per compatibilità.</div>
+      <div class="form-text">La destinazione dell’aggregazione si sceglie quando si crea il gruppo.</div>
     </div>
 
     <template id="custom-event-template">
