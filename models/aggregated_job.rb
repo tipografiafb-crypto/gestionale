@@ -44,6 +44,71 @@ class AggregatedJob < ActiveRecord::Base
     webhook = print_flow.preprint_webhook
     send_aggregation_to_switch(webhook.hook_path)
   end
+
+  def start_internal_aggregation!
+    route = print_flow&.event_route_for('aggregation')
+    raise ArgumentError, 'Il flusso di stampa non ha un evento interno “aggregation” configurato' unless route
+
+    flow = route.automation_flow
+    raise ArgumentError, "Pubblica prima l’automazione #{flow.name}" unless flow&.active_version
+    raise ArgumentError, 'Il lavoro non è in attesa' unless status == 'pending'
+
+    members = aggregated_job_items.includes(order_item: [:order, :assets]).to_a
+    raise ArgumentError, 'Il lavoro aggregato non contiene righe' if members.empty?
+
+    missing = members.find do |member|
+      item = member.order_item
+      asset = item.assets.where(asset_type: %w[preprint print_output]).order(created_at: :desc).first ||
+              item.assets.order(created_at: :desc).first
+      asset.nil? || !asset.downloaded?
+    end
+    if missing
+      raise ArgumentError,
+            "File di prestampa non disponibile per la riga #{missing.order_item.id}"
+    end
+
+    batch_id = SecureRandom.uuid
+    token = "aggregated-job-#{id}-#{batch_id}"
+    runs = []
+    transaction do
+      members.each_with_index do |member, index|
+        item = member.order_item
+        asset = item.assets.where(asset_type: %w[preprint print_output]).order(created_at: :desc).first ||
+                item.assets.order(created_at: :desc).first
+        runs << AutomationEngine.start_run(
+          flow: flow,
+          order_item: item,
+          source_asset: asset,
+          operation_type: 'aggregation',
+          print_flow: print_flow,
+          action_batch_id: batch_id,
+          simulation: false,
+          extra_context: {
+            'event_key' => 'aggregation',
+            'trigger_source' => 'aggregated_job',
+            'file_index' => index + 1,
+            'file_count' => members.length,
+            'aggregation' => {
+              'id' => id,
+              'token' => token,
+              'name' => name,
+              'expected_count' => members.length,
+              'position' => index + 1
+            }
+          }
+        )
+      end
+      update!(status: 'aggregating', sent_at: Time.current)
+    end
+    {
+      success: true,
+      message: "#{runs.length}/#{members.length} file avviati nel flusso interno",
+      runs: runs
+    }
+  rescue StandardError => e
+    update!(status: 'failed') if persisted? && status == 'pending'
+    {success: false, error: e.message}
+  end
   
   # Send aggregation request to Switch (step 1: aggregate files)
   def send_aggregation_to_switch(webhook_path)

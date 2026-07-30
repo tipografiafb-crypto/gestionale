@@ -17,6 +17,10 @@ class PrintOrchestrator < Sinatra::Base
     {path: 'file.filename', label: 'Nome file', type: 'text'},
     {path: 'file.index', label: 'Indice file', type: 'number'},
     {path: 'file.count', label: 'Numero file della riga', type: 'number'},
+    {path: 'aggregation.id', label: 'ID lavoro aggregato', type: 'number'},
+    {path: 'aggregation.token', label: 'Identificativo univoco del tentativo', type: 'text'},
+    {path: 'aggregation.expected_count', label: 'Numero righe attese', type: 'number'},
+    {path: 'aggregation.position', label: 'Posizione nel gruppo', type: 'number'},
     {path: 'operation.type', label: 'Codice evento', type: 'text'},
     {path: 'operation.source', label: 'Sorgente evento', type: 'text'},
     {path: 'operation.handoff_from_flow_name', label: 'Automazione precedente', type: 'text'},
@@ -33,6 +37,7 @@ class PrintOrchestrator < Sinatra::Base
     {type: 'set_variables', label: 'Imposta variabili', icon: 'fa-tags', outputs: ['default']},
     {type: 'calculate_copies', label: 'Calcola quantità', icon: 'fa-calculator', outputs: ['default']},
     {type: 'duplicate_pages', label: 'Moltiplica pagine', icon: 'fa-copy', outputs: ['default']},
+    {type: 'collect_group', label: 'Raccogli gruppo', icon: 'fa-layer-group', outputs: ['default']},
     {type: 'insert_blanks', label: 'Inserisci pagine vuote', icon: 'fa-file-circle-plus', outputs: ['default']},
     {
       type: 'pair_sides',
@@ -366,6 +371,19 @@ class PrintOrchestrator < Sinatra::Base
   post '/automations/seed_plectrum' do
     flow = AutomationBootstrap.seed_plectrum_flow!
     redirect "/automations/#{flow.id}/edit?msg=success&text=Flusso+plettri+preparato"
+  rescue StandardError => e
+    redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
+  post '/automations/seed_scatoline_aggregation' do
+    flow = AutomationBootstrap.seed_scatoline_aggregation_flow!
+    text = if PrintFlow.where('LOWER(name) LIKE ?', '%scatolin%')
+                       .any? { |print_flow| print_flow.event_route_for('aggregation')&.automation_flow_id == flow.id }
+             'Flusso di esempio creato e collegato all’evento aggregazione di Scatoline'
+           else
+             'Flusso di esempio creato; collegalo all’evento personalizzato aggregation del flusso di stampa'
+           end
+    redirect "/automations/#{flow.id}/edit?msg=success&text=#{URI.encode_www_form_component(text)}"
   rescue StandardError => e
     redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end

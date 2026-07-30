@@ -74,6 +74,29 @@ class AutomationGraphValidator
         end
       end
     end
+    nodes.select { |node| node['type'] == 'collect_group' }.each do |node|
+      label = node['label'].presence || node['id']
+      config = node['config'] || {}
+      result << "Campo gruppo mancante nel blocco #{label}" if config['group_field'].to_s.strip.empty?
+      result << "Numero atteso mancante nel blocco #{label}" if config['expected_count_field'].to_s.strip.empty?
+      result << "Timeout non valido nel blocco #{label}" if config.fetch('timeout_minutes', 15).to_f <= 0
+      unless %w[fail process_received].include?(config.fetch('timeout_policy', 'fail').to_s)
+        result << "Comportamento timeout non valido nel blocco #{label}"
+      end
+    end
+    nodes.select { |node| node['type'] == 'step_repeat' }.each do |node|
+      label = node['label'].presence || node['id']
+      config = node['config'] || {}
+      source = config.fetch('preset_source', 'fixed').to_s
+      unless %w[fixed variable].include?(source)
+        result << "Origine preset non valida nel blocco #{label}"
+      end
+      if source == 'variable' && config['preset_variable'].to_s.strip.empty?
+        result << "Variabile preset mancante nel blocco #{label}"
+      elsif source == 'fixed' && config['preset_code'].to_s.strip.empty?
+        result << "Preset imposizione mancante nel blocco #{label}"
+      end
+    end
 
     result << 'Il flusso contiene un ciclo non consentito' if cyclic?(ids, edges)
     result.uniq
@@ -188,6 +211,41 @@ class AutomationBootstrap
         )
       end
       draft.update!(graph: plectrum_graph) if draft.graph.blank? || Array(draft.graph['nodes']).size <= 2
+      flow
+    end
+
+    def seed_scatoline_aggregation_flow!
+      flow = AutomationFlow.find_or_initialize_by(name: 'SCATOLINE · Aggregazione esempio')
+      flow.description =
+        'Moltiplica ogni PDF per la quantità, attende tutte le righe del lavoro e crea un PDF multipagina aggregato.'
+      flow.status ||= 'draft'
+      flow.save!
+
+      draft = flow.versions.where(status: 'draft').order(version_number: :desc).first ||
+              flow.versions.create!(
+                version_number: (flow.versions.maximum(:version_number) || 0) + 1,
+                status: 'draft',
+                graph: scatoline_aggregation_graph
+              )
+      active_has_dynamic_imposition = Array(flow.active_version&.graph&.dig('nodes')).any? do |node|
+        node['type'] == 'step_repeat' &&
+          node.dig('config', 'preset_source') == 'variable'
+      end
+      if draft.graph.blank? || Array(draft.graph['nodes']).size <= 2 ||
+         !active_has_dynamic_imposition
+        draft.update!(graph: scatoline_aggregation_graph)
+      end
+      flow.publish_draft! unless active_has_dynamic_imposition
+
+      print_flow = PrintFlow.where('LOWER(name) LIKE ?', '%scatolin%').ordered.first
+      if print_flow && print_flow.event_route_for('aggregation').nil?
+        print_flow.event_routes.create!(
+          event_key: 'aggregation',
+          label: 'Aggregazione scatoline',
+          automation_flow: flow,
+          active: true
+        )
+      end
       flow
     end
 
@@ -344,6 +402,73 @@ class AutomationBootstrap
         edge('e27', 'print_hotfolder', 'barcode'),
         edge('e28', 'barcode', 'label_hotfolder'),
         edge('e29', 'label_hotfolder', 'finish')
+      ]
+      {'schema_version' => 1, 'nodes' => nodes, 'edges' => edges}
+    end
+
+    def scatoline_aggregation_graph
+      nodes = [
+        node('input', 'trigger', 'Ingresso lavoro aggregato', 80, 260, {
+          'operation_type' => 'aggregation',
+          'source_type' => 'aggregated_job'
+        }),
+        node('route_preset', 'router', 'Scegli impose dallo SKU', 320, 260, {
+          'cases' => [
+            {
+              'port' => 'large',
+              'label' => 'Formati grandi (esempio)',
+              'field' => 'item.sku',
+              'operator' => 'contains',
+              'value' => 'SCAT-XL;BOX-XL'
+            }
+          ],
+          'default_port' => 'standard'
+        }),
+        node('preset_large', 'set_variables', 'Impose grande (esempio)', 590, 140, {
+          'values' => {'imposition_preset' => 'FLOW_MONO'}
+        }),
+        node('preset_standard', 'set_variables', 'Impose standard (esempio)', 590, 380, {
+          'values' => {'imposition_preset' => 'STANDARD_MONO'}
+        }),
+        node('copies', 'calculate_copies', 'Quantità della riga', 850, 260, {
+          'quantity_field' => 'item.quantity',
+          'output_key' => 'aggregation_copies',
+          'range_overrides' => [],
+          'exact_overrides' => {}
+        }),
+        node('duplicate', 'duplicate_pages', 'Moltiplica pagine', 1110, 260, {
+          'copies_field' => 'variables.aggregation_copies',
+          'output_kind' => 'aggregation_item_pdf'
+        }),
+        node('collect', 'collect_group', 'Raccogli tutte le righe', 1370, 260, {
+          'group_field' => 'aggregation.token',
+          'expected_count_field' => 'aggregation.expected_count',
+          'order_field' => 'aggregation.position',
+          'consistency_field' => 'variables.imposition_preset',
+          'timeout_minutes' => 15,
+          'timeout_policy' => 'fail',
+          'output_kind' => 'aggregated_pdf'
+        }),
+        node('impose', 'step_repeat', 'Componi plancia dal preset scelto', 1630, 260, {
+          'preset_source' => 'variable',
+          'preset_variable' => 'variables.imposition_preset',
+          'preset_code' => '',
+          'output_kind' => 'imposition_pdf'
+        }),
+        node('finish', 'finish', 'Plancia aggregata pronta', 1890, 260, {
+          'result_artifact_kind' => 'imposition_pdf'
+        })
+      ]
+      edges = [
+        edge('e1', 'input', 'route_preset'),
+        edge('e2', 'route_preset', 'preset_large', 'large'),
+        edge('e3', 'route_preset', 'preset_standard', 'standard'),
+        edge('e4', 'preset_large', 'copies'),
+        edge('e5', 'preset_standard', 'copies'),
+        edge('e6', 'copies', 'duplicate'),
+        edge('e7', 'duplicate', 'collect'),
+        edge('e8', 'collect', 'impose'),
+        edge('e9', 'impose', 'finish')
       ]
       {'schema_version' => 1, 'nodes' => nodes, 'edges' => edges}
     end
@@ -649,6 +774,15 @@ class AutomationEngine
       run.update!(context: context)
     end
 
+    def complete_absorbed_run!(run)
+      run.update!(
+        status: 'completed',
+        current_node_key: nil,
+        completed_at: Time.current
+      )
+      complete_chain_ancestors!(run)
+    end
+
     def propagate_chain_failure!(run, message)
       ancestor = run.parent_run
       while ancestor
@@ -788,6 +922,7 @@ class AutomationEngine
           'index' => extra_context['file_index'] || 1,
           'count' => extra_context['file_count'] || 1
         },
+        'aggregation' => extra_context['aggregation'],
         'machine' => extra_context['machine'],
         'payload' => payload,
         'variables' => {},
@@ -839,6 +974,7 @@ class AutomationNodeExecutor
     when 'set_variables' then execute_set_variables
     when 'calculate_copies' then execute_calculate_copies
     when 'duplicate_pages' then execute_duplicate_pages
+    when 'collect_group' then execute_collect_group
     when 'insert_blanks' then execute_insert_blanks
     when 'pair_sides' then execute_pair_sides
     when 'photoshop', 'illustrator' then execute_adobe
@@ -982,6 +1118,199 @@ class AutomationNodeExecutor
       'artifact_id' => artifact.id,
       'context_updates' => {'runtime.current_artifact_id' => artifact.id}
     }
+  end
+
+  def execute_collect_group
+    source = require_artifact!
+    group_field = @config['group_field'].presence || 'aggregation.token'
+    expected_field = @config['expected_count_field'].presence || 'aggregation.expected_count'
+    order_field = @config['order_field'].presence || 'aggregation.position'
+    group_key = AutomationEngine.context_value(@context, group_field).to_s.strip
+    expected_count = AutomationEngine.context_value(@context, expected_field).to_i
+    position = AutomationEngine.context_value(@context, order_field).to_i
+    consistency_field = @config['consistency_field'].to_s.strip.presence
+    consistency_value = if consistency_field
+                          AutomationEngine.context_value(@context, consistency_field).to_s.strip
+                        end
+
+    raise ArgumentError, "Il valore di #{group_field} è vuoto" if group_key.empty?
+    raise ArgumentError, "Il valore di #{expected_field} deve essere maggiore di zero" unless expected_count.positive?
+    if consistency_field && consistency_value.empty?
+      raise ArgumentError, "Il valore di #{consistency_field} è vuoto"
+    end
+
+    timeout_minutes = [@config.fetch('timeout_minutes', 15).to_f, 0.1].max
+    timeout_at = Time.current + timeout_minutes.minutes
+    result = nil
+
+    AutomationGroupCollection.transaction do
+      lock_key = [
+        @run.automation_flow_version_id,
+        @step.node_key,
+        group_key
+      ].join(':')
+      ActiveRecord::Base.connection.execute(
+        "SELECT pg_advisory_xact_lock(hashtext(#{ActiveRecord::Base.connection.quote(lock_key)}))"
+      )
+
+      collection = AutomationGroupCollection.find_or_create_by!(
+        automation_flow_version: @run.automation_flow_version,
+        node_key: @step.node_key,
+        group_key: group_key
+      ) do |record|
+        record.expected_count = expected_count
+        record.timeout_at = timeout_at
+        record.metadata = {
+          'group_field' => group_field,
+          'expected_count_field' => expected_field,
+          'aggregation_id' => @context.dig('aggregation', 'id'),
+          'aggregation_name' => @context.dig('aggregation', 'name'),
+          'consistency_field' => consistency_field,
+          'consistency_value' => consistency_value
+        }
+      end
+      collection.lock!
+      if collection.expected_count != expected_count
+        raise ArgumentError,
+              "Il gruppo #{group_key} attende #{collection.expected_count} file, " \
+              "ma questa esecuzione ne dichiara #{expected_count}"
+      end
+      stored_consistency_field = collection.metadata['consistency_field'].to_s.presence
+      stored_consistency_value = collection.metadata['consistency_value'].to_s
+      if stored_consistency_field != consistency_field ||
+         (consistency_field && stored_consistency_value != consistency_value)
+        raise ArgumentError,
+              "Gruppo incompatibile: #{consistency_field || stored_consistency_field} " \
+              "vale “#{stored_consistency_value}” nel gruppo e “#{consistency_value}” in questa riga"
+      end
+      if collection.status == 'completed'
+        if collection.coordinator_run_id == @run.id && collection.output_artifact&.available?
+          artifact = collection.output_artifact
+          result = {
+            'artifact_id' => artifact.id,
+            'collection_id' => collection.id,
+            'group_key' => group_key,
+            'received_count' => collection.items.count,
+            'expected_count' => collection.expected_count,
+            'recovered_completed_collection' => true,
+            'context_updates' => {'runtime.current_artifact_id' => artifact.id}
+          }
+          next
+        end
+        raise ArgumentError, "Il gruppo #{group_key} è già stato completato"
+      end
+
+      collection.items.find_or_create_by!(automation_run: @run) do |member|
+        member.automation_artifact = source
+        member.position = position
+        member.metadata = {
+          'filename' => source.filename,
+          'order_code' => @context.dig('order', 'code'),
+          'order_item_id' => @run.order_item_id,
+          'consistency_value' => consistency_value
+        }
+      end
+
+      received_count = collection.items.count
+      complete = received_count >= expected_count
+      if !complete && Time.current >= collection.timeout_at
+        if @config.fetch('timeout_policy', 'fail') == 'process_received'
+          complete = received_count.positive?
+        else
+          raise ArgumentError,
+                "Gruppo incompleto: ricevuti #{received_count}/#{expected_count} file"
+        end
+      end
+
+      unless complete
+        result = {
+          'state' => 'waiting_group',
+          'wait_until' => collection.timeout_at.iso8601,
+          'collection_id' => collection.id,
+          'group_key' => group_key,
+          'received_count' => received_count,
+          'expected_count' => expected_count
+        }
+        next
+      end
+
+      members = collection.items.includes(:automation_artifact, :automation_run)
+                          .order(:position, :id).to_a
+      unavailable = members.find { |member| !member.automation_artifact.available? }
+      raise ArgumentError, "File del gruppo non disponibile: #{unavailable&.automation_artifact&.filename}" if unavailable
+
+      output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
+      metadata = if members.one?
+                   FileUtils.cp(members.first.automation_artifact.full_path, output)
+                   {
+                     'input_files' => 1,
+                     'single_file_passthrough' => true
+                   }
+                 else
+                   run_pdf_tool(
+                     'merge-pages',
+                     *members.flat_map { |member| ['--input', member.automation_artifact.full_path] },
+                     '--output', output
+                   )
+                 end
+      artifact = AutomationEngine.create_artifact!(
+        run: @run,
+        step: @step,
+        kind: @config['output_kind'].presence || 'aggregated_pdf',
+        path: output,
+        filename: File.basename(output),
+        media_type: 'application/pdf',
+        metadata: metadata.merge(
+          'collection_id' => collection.id,
+          'group_key' => group_key,
+          'expected_count' => expected_count,
+          'received_count' => members.length,
+          'member_run_ids' => members.map(&:automation_run_id)
+        )
+      )
+
+      absorbed_run_ids = []
+      members.each do |member|
+        next if member.automation_run_id == @run.id
+
+        waiting_step = member.automation_run.automation_step_runs.find_by(node_key: @step.node_key)
+        next unless waiting_step && waiting_step.status == 'queued' &&
+                    waiting_step.output_data['state'] == 'waiting_group'
+
+        waiting_step.update!(
+          status: 'completed',
+          output_data: waiting_step.output_data.merge(
+            'absorbed_into_run_id' => @run.id,
+            'collection_id' => collection.id,
+            'output_artifact_id' => artifact.id
+          ),
+          available_at: nil,
+          finished_at: Time.current
+        )
+        AutomationEngine.complete_absorbed_run!(member.automation_run)
+        absorbed_run_ids << member.automation_run_id
+      end
+
+      collection.update!(
+        status: 'completed',
+        coordinator_run: @run,
+        output_artifact: artifact,
+        completed_at: Time.current
+      )
+      result = {
+        'artifact_id' => artifact.id,
+        'collection_id' => collection.id,
+        'group_key' => group_key,
+        'received_count' => members.length,
+        'expected_count' => expected_count,
+        'absorbed_run_ids' => absorbed_run_ids,
+        'context_updates' => {
+          'runtime.current_artifact_id' => artifact.id,
+          'aggregation.received_count' => members.length
+        }
+      }
+    end
+    result
   end
 
   def execute_insert_blanks
@@ -1185,7 +1514,14 @@ class AutomationNodeExecutor
 
   def execute_step_repeat
     source = require_artifact!
-    preset_code = AutomationEngine.resolve(@config['preset_code'], @context)
+    preset_code = if @config.fetch('preset_source', 'fixed') == 'variable'
+                    variable = @config['preset_variable'].presence || 'variables.imposition_preset'
+                    AutomationEngine.context_value(@context, variable)
+                  else
+                    AutomationEngine.resolve(@config['preset_code'], @context)
+                  end
+    preset_code = preset_code.to_s.strip
+    raise ArgumentError, 'Il preset di imposizione risolto è vuoto' if preset_code.empty?
     preset = AutomationPreset.active.find_by(kind: 'imposition', code: preset_code)
     raise ArgumentError, "Preset di imposizione non trovato: #{preset_code}" unless preset
 

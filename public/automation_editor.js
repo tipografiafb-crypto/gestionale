@@ -56,6 +56,14 @@
       copies_field: 'variables.production_copies',
       output_kind: 'multipage_pdf'
     },
+    collect_group: {
+      group_field: 'aggregation.token',
+      expected_count_field: 'aggregation.expected_count',
+      order_field: 'aggregation.position',
+      timeout_minutes: 15,
+      timeout_policy: 'fail',
+      output_kind: 'aggregated_pdf'
+    },
     insert_blanks: {
       quantity_field: 'item.quantity',
       rules: [{
@@ -97,7 +105,9 @@
       output_kind: 'unit_pdf'
     },
     step_repeat: {
+      preset_source: 'fixed',
       preset_code: 'STANDARD_MONO',
+      preset_variable: 'variables.imposition_preset',
       output_kind: 'imposition_pdf'
     },
     barcode: {
@@ -208,6 +218,61 @@
       },
       {key: 'output_kind', label: 'Tipo risultato', default: 'multipage_pdf'}
     ],
+    collect_group: [
+      {
+        key: 'group_field',
+        label: 'Raggruppa usando',
+        choices: [
+          ['aggregation.token', 'Lavoro aggregato (consigliato)'],
+          ['aggregation.id', 'ID lavoro aggregato'],
+          ['order.code', 'Codice ordine'],
+          ['operation.id', 'Identificativo operazione']
+        ],
+        default: 'aggregation.token',
+        help: 'Tutti i file con lo stesso valore entreranno nella stessa raccolta.'
+      },
+      {
+        key: 'expected_count_field',
+        label: 'Numero di file attesi da',
+        choices: [
+          ['aggregation.expected_count', 'Righe del lavoro aggregato'],
+          ['file.count', 'Numero file dell’azione']
+        ],
+        default: 'aggregation.expected_count'
+      },
+      {
+        key: 'order_field',
+        label: 'Ordina i file usando',
+        choices: [
+          ['aggregation.position', 'Posizione nel lavoro'],
+          ['file.index', 'Indice file'],
+          ['item.position', 'Posizione riga ordine']
+        ],
+        default: 'aggregation.position'
+      },
+      {
+        key: 'consistency_field',
+        label: 'Verifica compatibilità usando',
+        default: 'variables.imposition_preset',
+        help: 'Tutte le righe devono avere lo stesso valore. Lascia vuoto per disattivare il controllo.'
+      },
+      {
+        key: 'timeout_minutes',
+        label: 'Attesa massima (minuti)',
+        type: 'number',
+        default: 15
+      },
+      {
+        key: 'timeout_policy',
+        label: 'Se il gruppo è incompleto',
+        choices: [
+          ['fail', 'Ferma con errore (consigliato)'],
+          ['process_received', 'Procedi con i file ricevuti']
+        ],
+        default: 'fail'
+      },
+      {key: 'output_kind', label: 'Tipo risultato', default: 'aggregated_pdf'}
+    ],
     pair_sides: [
       {
         key: 'front_suffix',
@@ -250,7 +315,22 @@
       {key: 'output_kind', label: 'Tipo risultato bifacciale', default: 'paired_pdf'}
     ],
     step_repeat: [
-      {key: 'preset_code', label: 'Preset plancia', choices: 'imposition'},
+      {
+        key: 'preset_source',
+        label: 'Selezione preset',
+        choices: [
+          ['fixed', 'Preset fisso'],
+          ['variable', 'Preset indicato da una variabile']
+        ],
+        default: 'fixed'
+      },
+      {key: 'preset_code', label: 'Preset fisso', choices: 'imposition'},
+      {
+        key: 'preset_variable',
+        label: 'Variabile contenente il preset',
+        default: 'variables.imposition_preset',
+        help: 'Usata quando “Selezione preset” è impostata su variabile.'
+      },
       {key: 'output_kind', label: 'Tipo risultato', default: 'imposition_pdf'}
     ],
     barcode: [
@@ -1062,6 +1142,35 @@
       renderBlankPagesConfig(node);
       return;
     }
+    if (node.type === 'step_repeat') {
+      configHint('Puoi scegliere un preset fisso oppure leggere il codice del preset da una variabile impostata nei blocchi precedenti.');
+      const sourceField = configField(
+        simpleConfigSchemas.step_repeat[0],
+        node.config?.preset_source || 'fixed'
+      );
+      const fixedField = configField(
+        simpleConfigSchemas.step_repeat[1],
+        node.config?.preset_code
+      );
+      const variableField = configField(
+        simpleConfigSchemas.step_repeat[2],
+        node.config?.preset_variable || 'variables.imposition_preset'
+      );
+      const outputField = configField(
+        simpleConfigSchemas.step_repeat[3],
+        node.config?.output_kind
+      );
+      const updatePresetFields = () => {
+        const variableMode = configValue('preset_source') === 'variable';
+        fixedField.hidden = variableMode;
+        variableField.hidden = !variableMode;
+      };
+      nodeConfigForm.append(sourceField, fixedField, variableField, outputField);
+      sourceField.querySelector('[data-config-role="preset_source"]')
+        .addEventListener('change', updatePresetFields);
+      updatePresetFields();
+      return;
+    }
 
     const schema = simpleConfigSchemas[node.type];
     if (!schema) {
@@ -1070,6 +1179,9 @@
     }
     if (node.type === 'pair_sides') {
       configHint('I file senza suffisso escono subito come monofacciali. I file fronte e retro vengono attesi, ordinati e uniti in un PDF a due pagine.');
+    }
+    if (node.type === 'collect_group') {
+      configHint('Ogni esecuzione attende qui. Quando arrivano tutte le righe, i PDF vengono uniti nell’ordine scelto e il flusso prosegue una sola volta. Il controllo compatibilità impedisce di mescolare preset diversi.');
     }
     schema.forEach((field) => {
       nodeConfigForm.appendChild(configField(field, node.config?.[field.key]));

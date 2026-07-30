@@ -50,6 +50,10 @@ class PrintOrchestrator < Sinatra::Base
   get '/aggregated_jobs/:id' do
     @aggregated_job = AggregatedJob.find(params[:id])
     @order_items = @aggregated_job.order_items.includes(:order, :assets)
+    @aggregation_collection = AutomationGroupCollection
+                              .where("metadata ->> 'aggregation_id' = ?", @aggregated_job.id.to_s)
+                              .order(created_at: :desc)
+                              .first
     @switch_webhooks = SwitchWebhook.ordered
     @print_flows = PrintFlow.ordered
     
@@ -120,12 +124,18 @@ class PrintOrchestrator < Sinatra::Base
       return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Job+già+in+anteprima"
     end
     
-    # Aggregate files using preprint_webhook from print_flow
-    unless @aggregated_job.print_flow&.preprint_webhook
-      return redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=error&text=Print+flow+non+ha+webhook+di+pre-stampa"
-    end
-    
-    result = @aggregated_job.send_aggregation_to_switch(@aggregated_job.print_flow.preprint_webhook.hook_path)
+    result = if @aggregated_job.print_flow&.event_route_for('aggregation')
+               @aggregated_job.start_internal_aggregation!
+             elsif @aggregated_job.print_flow&.preprint_webhook
+               @aggregated_job.send_aggregation_to_switch(
+                 @aggregated_job.print_flow.preprint_webhook.hook_path
+               )
+             else
+               {
+                 success: false,
+                 error: 'Configura l’evento interno aggregation oppure un webhook di pre-stampa'
+               }
+             end
     
     if result[:success]
       redirect "/aggregated_jobs/#{@aggregated_job.id}?msg=success&text=#{URI.encode_www_form_component(result[:message])}"

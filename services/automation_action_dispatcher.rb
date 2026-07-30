@@ -133,6 +133,7 @@ end
 class AutomationActionLifecycle
   class << self
     def run_completed!(run)
+      aggregation_run_completed!(run)
       return unless managed_action?(run)
 
       register_preprint_output!(run) if run.operation_type == 'preprint'
@@ -150,7 +151,35 @@ class AutomationActionLifecycle
       end
     end
 
+    def aggregation_run_completed!(run)
+      aggregation_id = run.context.dig('aggregation', 'id').to_i
+      return unless aggregation_id.positive?
+
+      job = AggregatedJob.find_by(id: aggregation_id)
+      return unless job
+
+      artifact = result_artifact(run)
+      return unless artifact&.available? && artifact.kind != 'source'
+
+      destination_dir = File.join(Dir.pwd, 'storage', 'aggregated')
+      FileUtils.mkdir_p(destination_dir)
+      filename = "aggregazione-#{job.id}-#{File.basename(artifact.filename)}"
+      destination = File.join(destination_dir, filename)
+      FileUtils.cp(artifact.full_path, destination)
+      job.update!(
+        status: 'preview_pending',
+        aggregated_file_url: "/file/agg_#{job.id}/#{filename}",
+        aggregated_filename: filename,
+        aggregated_at: Time.current,
+        notes: filename
+      )
+    end
+
     def run_failed!(run)
+      aggregation_id = run.context.dig('aggregation', 'id').to_i
+      if aggregation_id.positive?
+        AggregatedJob.where(id: aggregation_id).update_all(status: 'failed')
+      end
       return unless managed_action?(run)
 
       case run.operation_type

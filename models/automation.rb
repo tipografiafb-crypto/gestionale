@@ -213,6 +213,31 @@ class AutomationArtifact < ActiveRecord::Base
   end
 end
 
+class AutomationGroupCollection < ActiveRecord::Base
+  STATUSES = %w[collecting completed failed].freeze
+
+  belongs_to :automation_flow_version
+  belongs_to :coordinator_run, class_name: 'AutomationRun', optional: true
+  belongs_to :output_artifact, class_name: 'AutomationArtifact', optional: true
+  has_many :items,
+           class_name: 'AutomationGroupCollectionItem',
+           dependent: :destroy,
+           inverse_of: :automation_group_collection
+
+  validates :node_key, :group_key, presence: true
+  validates :expected_count, numericality: {only_integer: true, greater_than: 0}
+  validates :status, inclusion: {in: STATUSES}
+end
+
+class AutomationGroupCollectionItem < ActiveRecord::Base
+  belongs_to :automation_group_collection, inverse_of: :items
+  belongs_to :automation_run
+  belongs_to :automation_artifact
+
+  validates :automation_run_id,
+            uniqueness: {scope: :automation_group_collection_id}
+end
+
 class AutomationPreset < ActiveRecord::Base
   KINDS = %w[imposition adobe mask].freeze
 

@@ -158,7 +158,18 @@
           <% elsif @aggregated_job.status == 'aggregating' %>
             <div class="alert alert-info mb-0">
               <i class="fas fa-spinner fa-spin"></i> Aggregazione in corso...
-              <br><small>In attesa del file aggregato da Switch</small>
+              <br><small>
+                <% if @aggregated_job.print_flow&.event_route_for('aggregation') %>
+                  Il flusso interno sta raccogliendo e unendo le righe.
+                  <% if @aggregation_collection %>
+                    <br><strong>
+                      Ricevuti <%= @aggregation_collection.items.count %>/<%= @aggregation_collection.expected_count %> file
+                    </strong>
+                  <% end %>
+                <% else %>
+                  In attesa del file aggregato da Switch.
+                <% end %>
+              </small>
             </div>
 
           <% elsif @aggregated_job.status == 'preview_pending' %>
@@ -315,4 +326,3 @@
     </div>
   </div>
 </div>
-
