@@ -34,9 +34,12 @@ class PrintOrchestrator < Sinatra::Base
   NODE_CATALOG = [
     {type: 'trigger', label: 'Ingresso', icon: 'fa-play', outputs: ['default']},
     {type: 'router', label: 'Condizione multipla', icon: 'fa-code-branch', outputs: ['configurabili']},
+    {type: 'fork', label: 'Dirama lavoro', icon: 'fa-code-fork', outputs: ['default']},
     {type: 'set_variables', label: 'Imposta variabili', icon: 'fa-tags', outputs: ['default']},
     {type: 'calculate_copies', label: 'Calcola quantità', icon: 'fa-calculator', outputs: ['default']},
     {type: 'duplicate_pages', label: 'Moltiplica pagine', icon: 'fa-copy', outputs: ['default']},
+    {type: 'pdf_label', label: 'Aggiungi testo al PDF', icon: 'fa-font', outputs: ['default']},
+    {type: 'resize_pdf', label: 'Ridimensiona PDF', icon: 'fa-expand', outputs: ['default']},
     {type: 'collect_group', label: 'Raccogli gruppo', icon: 'fa-layer-group', outputs: ['default']},
     {type: 'insert_blanks', label: 'Inserisci pagine vuote', icon: 'fa-file-circle-plus', outputs: ['default']},
     {
@@ -113,13 +116,14 @@ class PrintOrchestrator < Sinatra::Base
       end
 
       config = {
-        'sheet_width_mm' => Float(params[:sheet_width_mm]),
-        'sheet_height_mm' => Float(params[:sheet_height_mm]),
+        'folder' => params[:folder].to_s.strip.presence || 'Principale',
+        'sheet_width_mm' => Float(params[:sheet_width_mm].to_s.tr(',', '.')),
+        'sheet_height_mm' => Float(params[:sheet_height_mm].to_s.tr(',', '.')),
         'anchor' => anchor,
-        'offset_x_mm' => Float(params[:offset_x_mm]),
-        'offset_y_mm' => Float(params[:offset_y_mm]),
-        'gap_x_mm' => Float(params[:gap_x_mm]),
-        'gap_y_mm' => Float(params[:gap_y_mm]),
+        'offset_x_mm' => Float(params[:offset_x_mm].to_s.tr(',', '.')),
+        'offset_y_mm' => Float(params[:offset_y_mm].to_s.tr(',', '.')),
+        'gap_x_mm' => Float(params[:gap_x_mm].to_s.tr(',', '.')),
+        'gap_y_mm' => Float(params[:gap_y_mm].to_s.tr(',', '.')),
         'columns' => Integer(params[:columns].presence || 0),
         'rows' => Integer(params[:rows].presence || 0),
         'rotate' => params[:rotate] == '1',
@@ -226,6 +230,7 @@ class PrintOrchestrator < Sinatra::Base
 
   get '/automation_presets' do
     @automation_presets = AutomationPreset.ordered
+    @automation_preset_folders = AutomationPresetFolder.where(kind: 'imposition').ordered
     @automation_destinations = AutomationDestination.ordered
     @automation_agents = AutomationAgent.active.ordered
     erb :automation_presets
@@ -681,6 +686,13 @@ class PrintOrchestrator < Sinatra::Base
     redirect '/automation_presets?msg=success&text=Preset+salvato'
   rescue StandardError => e
     redirect "/automation_presets?msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
+  post '/automation_preset_folders' do
+    AutomationPresetFolder.create!(kind: 'imposition', name: params[:name].to_s.strip)
+    redirect '/automation_presets?tab=imposition&msg=success&text=Cartella+creata'
+  rescue StandardError => e
+    redirect "/automation_presets?tab=imposition&msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end
 
   post '/automation_destinations' do

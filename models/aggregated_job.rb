@@ -60,8 +60,7 @@ class AggregatedJob < ActiveRecord::Base
 
     missing = members.find do |member|
       item = member.order_item
-      asset = item.assets.where(asset_type: %w[preprint print_output]).order(created_at: :desc).first ||
-              item.assets.order(created_at: :desc).first
+      asset = item.latest_preprint_asset
       asset.nil? || !asset.downloaded?
     end
     if missing
@@ -75,8 +74,7 @@ class AggregatedJob < ActiveRecord::Base
     transaction do
       members.each_with_index do |member, index|
         item = member.order_item
-        asset = item.assets.where(asset_type: %w[preprint print_output]).order(created_at: :desc).first ||
-                item.assets.order(created_at: :desc).first
+        asset = item.latest_preprint_asset
         runs << AutomationEngine.start_run(
           flow: flow,
           order_item: item,
@@ -441,6 +439,9 @@ class AggregatedJob < ActiveRecord::Base
       status: 'pending',
       aggregated_file_url: nil,
       aggregated_filename: nil,
+      identification_sheet_file_url: nil,
+      identification_sheet_filename: nil,
+      identification_sheet_at: nil,
       sent_at: nil,
       aggregated_at: nil,
       completed_at: nil,

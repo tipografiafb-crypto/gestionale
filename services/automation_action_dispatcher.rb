@@ -160,11 +160,25 @@ class AutomationActionLifecycle
       job = AggregatedJob.find_by(id: aggregation_id)
       return unless job
 
-      artifact = result_artifact(run)
-      return unless artifact&.available? && artifact.kind != 'source'
-
       destination_dir = File.join(Dir.pwd, 'storage', 'aggregated')
       FileUtils.mkdir_p(destination_dir)
+
+      identification_artifact = run.artifact_by_kind('identification_sheet_pdf')
+      if identification_artifact&.available?
+        identification_filename = "aggregazione-#{job.id}-scheda-ordini.pdf"
+        identification_destination = File.join(destination_dir, identification_filename)
+        FileUtils.cp(identification_artifact.full_path, identification_destination)
+        job.update!(
+          identification_sheet_file_url: "/file/agg_#{job.id}/#{identification_filename}",
+          identification_sheet_filename: identification_filename,
+          identification_sheet_at: Time.current
+        )
+      end
+
+      artifact = result_artifact(run)
+      return unless artifact&.available? && artifact.kind != 'source'
+      return if artifact.kind == 'identification_sheet_pdf'
+
       filename = "aggregazione-#{job.id}-#{File.basename(artifact.filename)}"
       destination = File.join(destination_dir, filename)
       FileUtils.cp(artifact.full_path, destination)
@@ -206,7 +220,11 @@ class AutomationActionLifecycle
     end
 
     def register_preprint_output!(run)
-      artifact = result_artifact(run)
+      # A handoff chain registers the root and child completions separately.
+      # Resolve the terminal run so an intermediate Photoshop PDF cannot
+      # overwrite the final Illustrator output on the order item.
+      terminal_run = run.chain_runs.max_by(&:created_at) || run
+      artifact = result_artifact(terminal_run)
       return unless artifact&.available?
       return if artifact.kind == 'source'
 

@@ -76,6 +76,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'models/log'
   require_relative 'models/halftone_preset'
   require_relative 'models/automation'
+  require_relative 'models/automation_preset_folder'
 
   # Load services
   require_relative 'lib/backup'

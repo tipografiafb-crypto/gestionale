@@ -90,6 +90,23 @@
       </div>
     <% end %>
 
+    <% if @aggregated_job.identification_sheet_file_url.present? && @aggregated_job.identification_sheet_at.present? %>
+      <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+          <strong><i class="fas fa-list-ol"></i> Scheda ordine per lo stampatore</strong>
+        </div>
+        <div class="card-body">
+          <p>
+            <strong>File:</strong> <%= @aggregated_job.identification_sheet_filename %><br>
+            <strong>Creata:</strong> <%= @aggregated_job.identification_sheet_at.strftime('%d/%m/%Y %H:%M') %>
+          </p>
+          <a href="<%= @aggregated_job.identification_sheet_file_url %>" target="_blank" class="btn btn-dark">
+            <i class="fas fa-download"></i> Scarica scheda ordine
+          </a>
+        </div>
+      </div>
+    <% end %>
+
     <% if @aggregation_runs.any? %>
       <div class="card mb-4">
         <div class="card-header">

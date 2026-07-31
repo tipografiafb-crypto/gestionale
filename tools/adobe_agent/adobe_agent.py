@@ -240,6 +240,16 @@ class AdobeAgent:
             raise RuntimeError(message or f"Errore HTTP {error.code}") from error
 
     def agent_payload(self):
+        def relative_resources(root, suffix):
+            """Return stable relative paths, preserving subfolders for the UI."""
+            if not root.is_dir():
+                return []
+            values = []
+            for path in root.rglob(f"*{suffix}"):
+                if path.is_file():
+                    values.append(path.relative_to(root).as_posix())
+            return sorted(values, key=str.casefold)
+
         return {
             "name": self.agent_name,
             "hostname": socket.gethostname(),
@@ -251,8 +261,8 @@ class AdobeAgent:
                 "illustrator_installed": self.application_installed(self.illustrator_app),
                 "template_root": str(self.template_root),
                 "script_root": str(self.script_root),
-                "illustrator_templates": sorted(path.name for path in self.template_root.glob("*.ai")),
-                "illustrator_scripts": sorted(path.name for path in self.script_root.glob("*.jsx")),
+                "illustrator_templates": relative_resources(self.template_root, ".ai"),
+                "illustrator_scripts": relative_resources(self.script_root, ".jsx"),
                 "photoshop_actions": self.photoshop_actions(),
                 "hotfolder_roots": [
                     {
@@ -262,7 +272,7 @@ class AdobeAgent:
                     }
                     for path in self.hotfolder_roots
                 ],
-                "agent_version": 4,
+                "agent_version": 5,
             },
             "last_error": self.last_error,
         }
@@ -591,12 +601,12 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
         if not configured:
             return None
         direct = Path(configured).expanduser()
-        candidates = [direct]
-        if not direct.is_absolute():
-            candidates.extend([self.template_root / direct, self.template_root / direct.name])
+        candidates = [direct] if direct.is_absolute() else [self.template_root / direct]
         for candidate in candidates:
             if candidate.is_file():
-                return candidate.resolve()
+                resolved = candidate.resolve()
+                if direct.is_absolute() or resolved.is_relative_to(self.template_root.resolve()):
+                    return resolved
         raise FileNotFoundError(f"Maschera Illustrator non trovata: {configured} (cartella {self.template_root})")
 
     def execute_hot_folder(self, input_path, config):
@@ -657,12 +667,12 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
         if not configured:
             return None
         direct = Path(configured).expanduser()
-        candidates = [direct]
-        if not direct.is_absolute():
-            candidates.extend([self.script_root / direct, self.script_root / direct.name])
+        candidates = [direct] if direct.is_absolute() else [self.script_root / direct]
         for candidate in candidates:
             if candidate.is_file() and candidate.suffix.lower() == ".jsx":
-                return candidate.resolve()
+                resolved = candidate.resolve()
+                if direct.is_absolute() or resolved.is_relative_to(self.script_root.resolve()):
+                    return resolved
         raise FileNotFoundError(f"Script Illustrator non trovato: {configured} (cartella {self.script_root})")
 
     def prepare_illustrator_script(self, script, template, input_path):

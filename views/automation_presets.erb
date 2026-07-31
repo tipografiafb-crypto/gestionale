@@ -16,6 +16,17 @@
 
 <%
   resource_agents = Array(@automation_agents)
+  resource_path = lambda do |entry|
+    entry.is_a?(Hash) ? (entry['path'] || entry['relative_path'] || entry['name']).to_s : entry.to_s
+  end
+  resource_folder = lambda do |entry|
+    path = resource_path.call(entry)
+    path.include?('/') ? path.split('/')[0...-1].join('/') : 'Principale'
+  end
+  resource_label = lambda do |entry|
+    path = resource_path.call(entry)
+    path.empty? ? 'Senza nome' : path
+  end
   photoshop_actions_count = resource_agents.sum do |agent|
     Array(agent.metadata.is_a?(Hash) ? agent.metadata['photoshop_actions'] : nil).size
   end
@@ -28,8 +39,8 @@
   preset_tabs = [
     ['imposition', 'Plance', 'fa-grip', @automation_presets.count { |preset| preset.kind == 'imposition' }],
     ['output', 'Destinazioni', 'fa-folder-open', Array(@automation_destinations).size],
-    ['adobe', 'Adobe', 'fa-wand-magic-sparkles', photoshop_actions_count + illustrator_scripts_count],
-    ['mask', 'Maschere', 'fa-crop-simple', illustrator_masks_count]
+    ['adobe', 'Adobe', 'fa-wand-magic-sparkles', photoshop_actions_count],
+    ['mask', 'Illustrator', 'fa-pen-nib', illustrator_masks_count + illustrator_scripts_count]
   ]
   active_tab = preset_tabs.any? { |tab| tab.first == params[:tab] } ? params[:tab] : 'imposition'
 %>
@@ -53,7 +64,7 @@
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
           <div>
             <h4 class="mb-1">Risorse Adobe rilevate</h4>
-            <p class="text-muted mb-0">Azioni Photoshop e script Illustrator letti direttamente dai Mac collegati.</p>
+            <p class="text-muted mb-0">Azioni Photoshop lette direttamente dai Mac collegati.</p>
           </div>
           <a class="btn btn-outline-secondary btn-sm" href="/automation_agents">
             <i class="fas fa-desktop me-1"></i>Gestisci Mac
@@ -65,7 +76,6 @@
             <%
               metadata = agent.metadata.is_a?(Hash) ? agent.metadata : {}
               actions = Array(metadata['photoshop_actions'])
-              scripts = Array(metadata['illustrator_scripts'])
               supports_sync = metadata['agent_version'].to_i >= 3
             %>
             <div class="col-xl-6">
@@ -104,16 +114,21 @@
                   <% end %>
                   <h6><i class="fas fa-image me-1"></i>Azioni Photoshop</h6>
                   <% if actions.any? %>
-                    <div class="list-group list-group-flush border rounded mb-4">
-                      <% actions.each do |action| %>
-                        <% action_set = action.is_a?(Hash) ? action['set'].to_s : '' %>
-                        <% action_name = action.is_a?(Hash) ? action['name'].to_s : action.to_s %>
-                        <div class="list-group-item">
-                          <strong><%= Rack::Utils.escape_html(action_name) %></strong>
-                          <% if action_set.present? %>
-                            <div class="small text-muted">Set: <%= Rack::Utils.escape_html(action_set) %></div>
-                          <% end %>
-                        </div>
+                    <div class="d-flex flex-column gap-2 mb-4">
+                      <% actions.group_by { |action| action.is_a?(Hash) ? action['folder'].to_s.presence || 'Principale' : 'Principale' }.sort.each do |folder, entries| %>
+                        <details class="border rounded">
+                          <summary class="px-3 py-2 bg-light small fw-semibold"><i class="fas fa-folder me-1"></i><%= Rack::Utils.escape_html(folder) %> <span class="badge bg-secondary ms-1"><%= entries.size %></span></summary>
+                          <div class="list-group list-group-flush">
+                            <% entries.each do |action| %>
+                              <% action_set = action.is_a?(Hash) ? action['set'].to_s : '' %>
+                              <% action_name = action.is_a?(Hash) ? action['name'].to_s : action.to_s %>
+                              <div class="list-group-item">
+                                <strong><%= Rack::Utils.escape_html(action_name) %></strong>
+                                <% if action_set.present? %><div class="small text-muted">Set: <%= Rack::Utils.escape_html(action_set) %></div><% end %>
+                              </div>
+                            <% end %>
+                          </div>
+                        </details>
                       <% end %>
                     </div>
                   <% else %>
@@ -123,16 +138,6 @@
                     </div>
                   <% end %>
 
-                  <h6><i class="fas fa-code me-1"></i>Script Illustrator</h6>
-                  <% if scripts.any? %>
-                    <div class="d-flex flex-wrap gap-2">
-                      <% scripts.each do |script| %>
-                        <span class="badge bg-light text-dark border"><%= Rack::Utils.escape_html(script) %></span>
-                      <% end %>
-                    </div>
-                  <% else %>
-                    <p class="small text-muted mb-0">Nessuno script trovato nella cartella configurata.</p>
-                  <% end %>
                 </div>
               </div>
             </div>
@@ -149,7 +154,7 @@
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
           <div>
             <h4 class="mb-1">Maschere Illustrator rilevate</h4>
-            <p class="text-muted mb-0">File `.ai` presenti nella cartella maschere di ciascun Mac collegato.</p>
+            <p class="text-muted mb-0">Script `.jsx` e maschere `.ai` organizzati nelle cartelle Illustrator di ciascun Mac collegato.</p>
           </div>
           <a class="btn btn-outline-secondary btn-sm" href="/automation_agents">
             <i class="fas fa-folder-open me-1"></i>Gestisci cartelle
@@ -161,6 +166,7 @@
             <%
               metadata = agent.metadata.is_a?(Hash) ? agent.metadata : {}
               masks = Array(metadata['illustrator_templates'])
+              scripts = Array(metadata['illustrator_scripts'])
             %>
             <div class="col-xl-6">
               <div class="card shadow-sm h-100">
@@ -169,13 +175,24 @@
                   <span class="badge <%= agent.online? ? 'bg-success' : 'bg-secondary' %>"><%= agent.online? ? 'online' : 'offline' %></span>
                 </div>
                 <div class="card-body">
-                  <% if masks.any? %>
-                    <div class="list-group list-group-flush border rounded">
-                      <% masks.each do |mask| %>
-                        <div class="list-group-item d-flex align-items-center gap-2">
-                          <i class="fas fa-crop-simple text-muted"></i>
-                          <strong><%= Rack::Utils.escape_html(mask) %></strong>
-                        </div>
+                  <% if masks.any? || scripts.any? %>
+                    <div class="d-flex flex-column gap-2">
+                      <% { 'Script' => scripts, 'Maschere' => masks }.each do |type, resources| %>
+                        <% next if resources.empty? %>
+                        <h6 class="mb-0 mt-2"><i class="fas <%= type == 'Script' ? 'fa-code' : 'fa-crop-simple' %> me-1"></i><%= type %></h6>
+                        <% resources.group_by { |entry| resource_folder.call(entry) }.sort.each do |folder, entries| %>
+                          <details class="border rounded">
+                            <summary class="px-3 py-2 bg-light small fw-semibold"><i class="fas fa-folder me-1"></i><%= Rack::Utils.escape_html(folder) %> <span class="badge bg-secondary ms-1"><%= entries.size %></span></summary>
+                            <div class="list-group list-group-flush">
+                              <% entries.sort_by { |entry| resource_label.call(entry) }.each do |entry| %>
+                                <div class="list-group-item d-flex align-items-center gap-2">
+                                  <i class="fas <%= type == 'Script' ? 'fa-code' : 'fa-crop-simple' %> text-muted"></i>
+                                  <strong><%= Rack::Utils.escape_html(resource_label.call(entry)) %></strong>
+                                </div>
+                              <% end %>
+                            </div>
+                          </details>
+                        <% end %>
                       <% end %>
                     </div>
                   <% else %>
@@ -469,9 +486,30 @@
           </div>
         </div>
       <% else %>
+      <% if kind == 'imposition' %>
+        <div class="card shadow-sm mb-3">
+          <div class="card-body d-flex flex-wrap align-items-end justify-content-between gap-3">
+            <div>
+              <h6 class="mb-1"><i class="fas fa-folder-plus me-1"></i>Cartelle plance</h6>
+              <div class="small text-muted">Crea qui le cartelle per organizzare i preset. Sono solo organizzative.</div>
+            </div>
+            <form method="post" action="/automation_preset_folders" class="d-flex gap-2">
+              <input class="form-control" name="name" placeholder="Nome cartella" required>
+              <button class="btn btn-outline-primary" type="submit"><i class="fas fa-plus me-1"></i>Crea cartella</button>
+            </form>
+          </div>
+        </div>
+      <% end %>
       <div class="row g-4">
         <div class="col-xl-8">
-          <% @automation_presets.select { |preset| preset.kind == kind }.each do |preset| %>
+          <% @automation_presets.select { |preset| preset.kind == kind }.group_by { |preset| preset.config.is_a?(Hash) ? (preset.config['folder'].to_s.presence || 'Principale') : 'Principale' }.sort.each do |folder, folder_presets| %>
+            <details class="border rounded mb-3" open>
+              <summary class="px-3 py-2 bg-light d-flex align-items-center justify-content-between">
+                <span><i class="fas fa-folder me-1"></i><strong><%= Rack::Utils.escape_html(folder) %></strong></span>
+                <span class="badge bg-secondary"><%= folder_presets.size %></span>
+              </summary>
+              <div class="p-3">
+          <% folder_presets.each do |preset| %>
             <details class="card shadow-sm mb-3">
               <summary class="card-header d-flex align-items-center justify-content-between gap-3">
                 <span>
@@ -493,6 +531,11 @@
                       <label class="form-label">Nome</label>
                       <input class="form-control" name="name" value="<%= Rack::Utils.escape_html(preset.name) %>" required>
                     </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Cartella</label>
+                      <input class="form-control" name="folder" list="imposition-folders" value="<%= Rack::Utils.escape_html(preset.config.is_a?(Hash) ? (preset.config['folder'].to_s.presence || 'Principale') : 'Principale') %>" placeholder="Plettri">
+                      <div class="form-text">Solo organizzazione visiva, non cambia il codice del preset.</div>
+                    </div>
                   </div>
                   <% if kind == 'imposition' %>
                     <% config = preset.config %>
@@ -500,27 +543,27 @@
                     <div class="row g-3">
                       <div class="col-md-3">
                         <label class="form-label">Foglio L (mm)</label>
-                        <input class="form-control" type="number" step="0.01" min="0.01" name="sheet_width_mm" value="<%= config['sheet_width_mm'] %>" required>
+                        <input class="form-control" type="number" step="0.000001" min="0.000001" name="sheet_width_mm" value="<%= config['sheet_width_mm'] %>" required>
                       </div>
                       <div class="col-md-3">
                         <label class="form-label">Foglio H (mm)</label>
-                        <input class="form-control" type="number" step="0.01" min="0.01" name="sheet_height_mm" value="<%= config['sheet_height_mm'] %>" required>
+                        <input class="form-control" type="number" step="0.000001" min="0.000001" name="sheet_height_mm" value="<%= config['sheet_height_mm'] %>" required>
                       </div>
                       <div class="col-md-3">
                         <label class="form-label">Partenza X (mm)</label>
-                        <input class="form-control" type="number" step="0.01" min="0" name="offset_x_mm" value="<%= config.fetch('offset_x_mm', 0) %>" required>
+                        <input class="form-control" type="number" step="0.000001" min="0" name="offset_x_mm" value="<%= config.fetch('offset_x_mm', 0) %>" required>
                       </div>
                       <div class="col-md-3">
                         <label class="form-label">Partenza Y (mm)</label>
-                        <input class="form-control" type="number" step="0.01" min="0" name="offset_y_mm" value="<%= config.fetch('offset_y_mm', 0) %>" required>
+                        <input class="form-control" type="number" step="0.000001" min="0" name="offset_y_mm" value="<%= config.fetch('offset_y_mm', 0) %>" required>
                       </div>
                       <div class="col-md-3">
                         <label class="form-label">Spazio X (mm)</label>
-                        <input class="form-control" type="number" step="0.01" min="0" name="gap_x_mm" value="<%= config.fetch('gap_x_mm', 0) %>" required>
+                        <input class="form-control" type="number" step="0.000001" min="0" name="gap_x_mm" value="<%= config.fetch('gap_x_mm', 0) %>" required>
                       </div>
                       <div class="col-md-3">
                         <label class="form-label">Spazio Y (mm)</label>
-                        <input class="form-control" type="number" step="0.01" min="0" name="gap_y_mm" value="<%= config.fetch('gap_y_mm', 0) %>" required>
+                        <input class="form-control" type="number" step="0.000001" min="0" name="gap_y_mm" value="<%= config.fetch('gap_y_mm', 0) %>" required>
                       </div>
                       <div class="col-md-3">
                         <label class="form-label">Colonne</label>
@@ -578,6 +621,9 @@
               </div>
             </details>
           <% end %>
+              </div>
+            </details>
+          <% end %>
           <% unless @automation_presets.any? { |preset| preset.kind == kind } %>
             <div class="card shadow-sm"><div class="card-body text-center text-muted py-5">Nessun preset di questo tipo.</div></div>
           <% end %>
@@ -594,14 +640,19 @@
                 <label class="form-label">Nome</label>
                 <input class="form-control mb-3" name="name" required placeholder="Nome leggibile">
                 <% if kind == 'imposition' %>
+                  <label class="form-label">Cartella</label>
+                  <input class="form-control mb-3" name="folder" list="imposition-folders" value="Principale" placeholder="Plettri">
+                  <div class="form-text mb-3">Solo organizzazione visiva, non cambia il codice del preset.</div>
+                <% end %>
+                <% if kind == 'imposition' %>
                   <div class="row g-2">
                     <% [
-                      ['sheet_width_mm', 'Foglio L', 0.01, 0.01],
-                      ['sheet_height_mm', 'Foglio H', 0.01, 0.01],
-                      ['offset_x_mm', 'Partenza X', 0.01, 0],
-                      ['offset_y_mm', 'Partenza Y', 0.01, 0],
-                      ['gap_x_mm', 'Spazio X', 0.01, 0],
-                      ['gap_y_mm', 'Spazio Y', 0.01, 0],
+                      ['sheet_width_mm', 'Foglio L', 0.000001, 0.000001],
+                      ['sheet_height_mm', 'Foglio H', 0.000001, 0.000001],
+                      ['offset_x_mm', 'Partenza X', 0.000001, 0],
+                      ['offset_y_mm', 'Partenza Y', 0.000001, 0],
+                      ['gap_x_mm', 'Spazio X', 0.000001, 0],
+                      ['gap_y_mm', 'Spazio Y', 0.000001, 0],
                       ['columns', 'Colonne', 1, 0],
                       ['rows', 'Righe', 1, 0]
                     ].each do |field, label, step, minimum| %>
@@ -642,6 +693,13 @@
     </div>
   <% end %>
 </div>
+
+<datalist id="imposition-folders">
+  <option value="Principale"></option>
+  <% Array(@automation_preset_folders).each do |folder| %>
+    <option value="<%= Rack::Utils.escape_html(folder.name) %>"></option>
+  <% end %>
+</datalist>
 
 <script>
 (() => {

@@ -3,6 +3,11 @@
 # Asset model - Images and files associated with order items
 class Asset < ActiveRecord::Base
   belongs_to :order_item
+  # Automation history may outlive the order that supplied the asset.
+  # Keep the history, but remove the live asset reference when it is deleted.
+  has_many :automation_runs,
+           foreign_key: :source_asset_id,
+           dependent: :nullify
 
   validates :original_url, presence: true
   

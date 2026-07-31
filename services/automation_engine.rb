@@ -43,6 +43,12 @@ class AutomationGraphValidator
       end
     end
 
+    nodes.select { |node| node['type'] == 'fork' }.each do |node|
+      label = node['label'].presence || node['id']
+      outgoing = edges.count { |edge| edge['source'].to_s == node['id'].to_s }
+      result << "Collega almeno due uscite al blocco #{label}" if outgoing < 2
+    end
+
     nodes.select { |node| node['type'] == 'hot_folder' }.each do |node|
       if node.dig('config', 'destination_code').to_s.strip.empty?
         result << "Seleziona la hot folder nel blocco #{node['label'].presence || node['id']}"
@@ -95,6 +101,26 @@ class AutomationGraphValidator
         result << "Variabile preset mancante nel blocco #{label}"
       elsif source == 'fixed' && config['preset_code'].to_s.strip.empty?
         result << "Preset imposizione mancante nel blocco #{label}"
+      end
+    end
+    nodes.select { |node| node['type'] == 'pdf_label' }.each do |node|
+      label = node['label'].presence || node['id']
+      config = node['config'] || {}
+      result << "Testo mancante nel blocco #{label}" if config['text'].to_s.strip.empty?
+      result << "Dimensione testo non valida nel blocco #{label}" unless config.fetch('font_size_pt', 8.5).to_f.positive?
+      unless %w[top_left top_center top_right bottom_left bottom_center bottom_right].include?(config.fetch('anchor', 'top_left').to_s)
+        result << "Posizione testo non valida nel blocco #{label}"
+      end
+    end
+    nodes.select { |node| node['type'] == 'resize_pdf' }.each do |node|
+      label = node['label'].presence || node['id']
+      config = node['config'] || {}
+      unless config['width_mm'].to_f.positive? && config['height_mm'].to_f.positive?
+        result << "Dimensioni finali non valide nel blocco #{label}"
+      end
+      mode = config.fetch('mode', 'contain').to_s
+      unless %w[contain stretch].include?(mode) || mode.match?(/\A\{\{[^}]+\}\}\z/)
+        result << "Adattamento non valido nel blocco #{label}"
       end
     end
 
@@ -215,9 +241,10 @@ class AutomationBootstrap
     end
 
     def seed_scatoline_aggregation_flow!
+      seed_presets!
       flow = AutomationFlow.find_or_initialize_by(name: 'SCATOLINE · Aggregazione esempio')
       flow.description =
-        'Moltiplica ogni PDF per la quantità, attende tutte le righe del lavoro e crea un PDF multipagina aggregato.'
+        'Crea in parallelo la plancia di stampa e la plancia A4 identificativa con i numeri ordine.'
       flow.status ||= 'draft'
       flow.save!
 
@@ -259,6 +286,32 @@ class AutomationBootstrap
           'fill_last_sheet' => false
         }
       )
+
+      [
+        ['SCAT_TPH500', 'Scatoline TPH500 · TINPICK 10', 485, 250, 10, 5, 5],
+        ['SCAT_TPH501', 'Scatoline TPH501 · TINPICK 20', 500, 350, 7, 5, 10],
+        ['SCAT_TPH502', 'Scatoline TPH502 · TINPICK 50', 500, 350, 4, 4, 10],
+        ['SCAT_TPH503', 'Scatoline TPH503 · TINPICK 100/500', 500, 350, 4, 4, 10]
+      ].each do |code, name, width, height, columns, rows, gap|
+        upsert_preset(
+          'imposition',
+          code,
+          name,
+          {
+            'sheet_width_mm' => width,
+            'sheet_height_mm' => height,
+            'anchor' => 'bottom_left',
+            'offset_x_mm' => 10,
+            'offset_y_mm' => 10,
+            'gap_x_mm' => gap,
+            'gap_y_mm' => gap,
+            'columns' => columns,
+            'rows' => rows,
+            'rotate' => false,
+            'fill_last_sheet' => false
+          }
+        )
+      end
     end
 
     def plectrum_graph
@@ -405,33 +458,38 @@ class AutomationBootstrap
         }),
         node('route_preset', 'router', 'Scegli impose dallo SKU', 320, 260, {
           'cases' => [
-            {
-              'port' => 'large',
-              'label' => 'Formati grandi (esempio)',
-              'field' => 'item.sku',
-              'operator' => 'contains',
-              'value' => 'SCAT-XL;BOX-XL'
-            }
+            {'port' => 'tph500', 'label' => 'TPH500 · TINPICK 10', 'field' => 'item.sku', 'operator' => 'contains', 'value' => 'TPH500'},
+            {'port' => 'tph501', 'label' => 'TPH501 · TINPICK 20', 'field' => 'item.sku', 'operator' => 'contains', 'value' => 'TPH501'},
+            {'port' => 'tph502', 'label' => 'TPH502 · TINPICK 50', 'field' => 'item.sku', 'operator' => 'contains', 'value' => 'TPH502'},
+            {'port' => 'tph503', 'label' => 'TPH503 · TINPICK 100/500', 'field' => 'item.sku', 'operator' => 'contains', 'value' => 'TPH503'}
           ],
-          'default_port' => 'standard'
+          'default_port' => 'unsupported'
         }),
-        node('preset_large', 'set_variables', 'Impose grande (esempio)', 590, 140, {
-          'values' => {'imposition_preset' => 'FLOW_MONO'}
+        node('preset_tph500', 'set_variables', 'Preset TPH500', 580, 40, {
+          'values' => {'imposition_preset' => 'SCAT_TPH500', 'label_resize_mode' => 'contain'}
         }),
-        node('preset_standard', 'set_variables', 'Impose standard (esempio)', 590, 380, {
-          'values' => {'imposition_preset' => 'STANDARD_MONO'}
+        node('preset_tph501', 'set_variables', 'Preset TPH501', 580, 180, {
+          'values' => {'imposition_preset' => 'SCAT_TPH501', 'label_resize_mode' => 'stretch'}
         }),
-        node('copies', 'calculate_copies', 'Quantità della riga', 850, 260, {
+        node('preset_tph502', 'set_variables', 'Preset TPH502', 580, 320, {
+          'values' => {'imposition_preset' => 'SCAT_TPH502', 'label_resize_mode' => 'contain'}
+        }),
+        node('preset_tph503', 'set_variables', 'Preset TPH503 (predefinito)', 580, 460, {
+          'values' => {'imposition_preset' => 'SCAT_TPH503', 'label_resize_mode' => 'contain'}
+        }),
+        node('unsupported_sku', 'approval', 'SKU scatolina non configurato', 840, 560),
+        node('copies', 'calculate_copies', 'Quantità della riga', 840, 260, {
           'quantity_field' => 'item.quantity',
           'output_key' => 'aggregation_copies',
           'range_overrides' => [],
           'exact_overrides' => {}
         }),
-        node('duplicate', 'duplicate_pages', 'Moltiplica pagine', 1110, 260, {
+        node('duplicate', 'duplicate_pages', 'Moltiplica pagine', 1090, 260, {
           'copies_field' => 'variables.aggregation_copies',
           'output_kind' => 'aggregation_item_pdf'
         }),
-        node('collect', 'collect_group', 'Raccogli tutte le righe', 1370, 260, {
+        node('fork_outputs', 'fork', 'Crea entrambe le plance', 1320, 260),
+        node('collect_print', 'collect_group', 'Raccogli file per la stampa', 1570, 100, {
           'group_field' => 'aggregation.token',
           'expected_count_field' => 'aggregation.expected_count',
           'order_field' => 'aggregation.position',
@@ -440,26 +498,74 @@ class AutomationBootstrap
           'timeout_policy' => 'fail',
           'output_kind' => 'aggregated_pdf'
         }),
-        node('impose', 'step_repeat', 'Componi plancia dal preset scelto', 1630, 260, {
+        node('impose_print', 'step_repeat', 'Componi plancia di stampa', 1820, 100, {
           'preset_source' => 'variable',
           'preset_variable' => 'variables.imposition_preset',
           'preset_code' => '',
           'output_kind' => 'imposition_pdf'
         }),
-        node('finish', 'finish', 'Plancia aggregata pronta', 1890, 260, {
+        node('finish_print', 'finish', 'Plancia di stampa pronta', 2070, 100, {
           'result_artifact_kind' => 'imposition_pdf'
+        }),
+        node('label_order', 'pdf_label', 'Scrivi numero ordine', 1570, 430, {
+          'text' => '{{order.code}}',
+          'anchor' => 'top_left',
+          'font' => 'Times-Roman',
+          'font_size_pt' => 18,
+          'background_color' => '#222222',
+          'text_color' => '#ffffff',
+          'padding_x_mm' => 2,
+          'padding_y_mm' => 1.5,
+          'offset_x_mm' => 0,
+          'offset_y_mm' => 5,
+          'output_kind' => 'numbered_item_pdf'
+        }),
+        node('collect_labels', 'collect_group', 'Raccogli file numerati', 1820, 430, {
+          'group_field' => 'aggregation.token',
+          'expected_count_field' => 'aggregation.expected_count',
+          'order_field' => 'aggregation.position',
+          'consistency_field' => 'variables.imposition_preset',
+          'timeout_minutes' => 15,
+          'timeout_policy' => 'fail',
+          'output_kind' => 'numbered_aggregated_pdf'
+        }),
+        node('impose_labels', 'step_repeat', 'Componi plancia con numeri', 2070, 430, {
+          'preset_source' => 'variable',
+          'preset_variable' => 'variables.imposition_preset',
+          'preset_code' => '',
+          'output_kind' => 'label_imposition_pdf'
+        }),
+        node('resize_labels', 'resize_pdf', 'Adatta la plancia ad A4', 2320, 430, {
+          'width_mm' => 297,
+          'height_mm' => 210,
+          'mode' => '{{variables.label_resize_mode}}',
+          'output_kind' => 'identification_sheet_pdf'
+        }),
+        node('finish_labels', 'finish', 'Plancia identificativa pronta', 2570, 430, {
+          'result_artifact_kind' => 'identification_sheet_pdf'
         })
       ]
       edges = [
         edge('e1', 'input', 'route_preset'),
-        edge('e2', 'route_preset', 'preset_large', 'large'),
-        edge('e3', 'route_preset', 'preset_standard', 'standard'),
-        edge('e4', 'preset_large', 'copies'),
-        edge('e5', 'preset_standard', 'copies'),
-        edge('e6', 'copies', 'duplicate'),
-        edge('e7', 'duplicate', 'collect'),
-        edge('e8', 'collect', 'impose'),
-        edge('e9', 'impose', 'finish')
+        edge('e2', 'route_preset', 'preset_tph500', 'tph500'),
+        edge('e3', 'route_preset', 'preset_tph501', 'tph501'),
+        edge('e4', 'route_preset', 'preset_tph502', 'tph502'),
+        edge('e5', 'route_preset', 'preset_tph503', 'tph503'),
+        edge('e5b', 'route_preset', 'unsupported_sku', 'unsupported'),
+        edge('e6', 'preset_tph500', 'copies'),
+        edge('e7', 'preset_tph501', 'copies'),
+        edge('e8', 'preset_tph502', 'copies'),
+        edge('e9', 'preset_tph503', 'copies'),
+        edge('e10', 'copies', 'duplicate'),
+        edge('e11', 'duplicate', 'fork_outputs'),
+        edge('e12', 'fork_outputs', 'collect_print'),
+        edge('e13', 'fork_outputs', 'label_order'),
+        edge('e14', 'collect_print', 'impose_print'),
+        edge('e15', 'impose_print', 'finish_print'),
+        edge('e16', 'label_order', 'collect_labels'),
+        edge('e17', 'collect_labels', 'impose_labels'),
+        edge('e18', 'impose_labels', 'resize_labels'),
+        edge('e19', 'resize_labels', 'finish_labels')
       ]
       {'schema_version' => 1, 'nodes' => nodes, 'edges' => edges}
     end
@@ -626,6 +732,58 @@ class AutomationEngine
       child
     end
 
+    def start_branch_run!(parent_run:, branch_step:, target_node:, branch_index:, branch_count:)
+      child = nil
+      AutomationRun.transaction do
+        context = deep_copy(parent_run.context)
+        context['runtime'] ||= {}
+        context['runtime'].delete('current_artifact_id')
+        context['runtime']['parent_run_id'] = parent_run.id
+        context['runtime']['root_run_id'] = parent_run.root_run_id || parent_run.id
+        context['runtime']['branch_run'] = true
+        context['runtime']['branch_step_id'] = branch_step.id
+        context['runtime']['branch_source_node'] = branch_step.node_key
+        context['runtime']['branch_target_node'] = target_node['id']
+        context['runtime']['branch_index'] = branch_index
+        context['runtime']['branch_count'] = branch_count
+
+        child = AutomationRun.create!(
+          automation_flow_version: parent_run.automation_flow_version,
+          order_item: parent_run.order_item,
+          source_asset: parent_run.source_asset,
+          print_flow: parent_run.print_flow,
+          operation_type: parent_run.operation_type,
+          action_batch_id: parent_run.action_batch_id,
+          parent_run: parent_run,
+          root_run: parent_run.root_run || parent_run,
+          status: 'queued',
+          context: context
+        )
+
+        current_parent_id = parent_run.context.dig('runtime', 'current_artifact_id').to_i
+        current_child_id = nil
+        parent_run.automation_artifacts.order(:created_at).each do |artifact|
+          clone = AutomationArtifact.create!(
+            automation_run: child,
+            kind: artifact.kind,
+            filename: artifact.filename,
+            media_type: artifact.media_type,
+            local_path: artifact.local_path,
+            checksum: artifact.checksum,
+            metadata: deep_copy(artifact.metadata).merge(
+              'branch_parent_run_id' => parent_run.id,
+              'branch_parent_artifact_id' => artifact.id
+            )
+          )
+          current_child_id = clone.id if artifact.id == current_parent_id
+        end
+        current_child_id ||= child.automation_artifacts.order(:created_at).last&.id
+        update_runtime!(child, 'current_artifact_id' => current_child_id) if current_child_id
+        enqueue_node!(child, target_node)
+      end
+      child
+    end
+
     def enqueue_node!(run, node)
       raise ArgumentError, 'Blocco di destinazione non trovato' unless node
 
@@ -661,7 +819,10 @@ class AutomationEngine
           )
           return
         end
-        schedule_next!(step, result['next_port'] || 'default')
+        branch_ids = schedule_next!(step, result['next_port'] || 'default')
+        if branch_ids.present?
+          step.update!(output_data: step.output_data.merge('branch_child_run_ids' => branch_ids))
+        end
       end
     end
 
@@ -789,18 +950,32 @@ class AutomationEngine
     def complete_chain_ancestors!(run)
       ancestor = run.parent_run
       while ancestor
-        ancestor.update!(
-          status: 'completed',
-          error_message: nil,
-          current_node_key: nil,
-          completed_at: Time.current
-        )
+        completed_now = false
+        ancestor.with_lock do
+          if ancestor.status != 'failed' && ancestor.status != 'completed' &&
+             ancestor.child_runs.where.not(status: 'completed').none?
+            ancestor.update!(
+              status: 'completed',
+              error_message: nil,
+              current_node_key: nil,
+              completed_at: Time.current
+            )
+            completed_now = true
+          end
+        end
+        break unless completed_now
+
+        AutomationActionLifecycle.run_completed!(ancestor) if defined?(AutomationActionLifecycle)
         ancestor = ancestor.parent_run
       end
     end
 
     def context_value(context, path)
-      path.to_s.split('.').reduce(context) do |value, key|
+      normalized_path = path.to_s.strip
+      if (match = normalized_path.match(/\A\{\{\s*([^}]+?)\s*\}\}\z/))
+        normalized_path = match[1].strip
+      end
+      normalized_path.split('.').reduce(context) do |value, key|
         value.is_a?(Hash) ? value[key] : nil
       end
     end
@@ -840,24 +1015,43 @@ class AutomationEngine
     def schedule_next!(step, port)
       run = step.automation_run
       graph = run.automation_flow_version.graph
-      edge = Array(graph['edges']).find do |candidate|
+      edges = Array(graph['edges']).select do |candidate|
         candidate['source'] == step.node_key &&
           candidate.fetch('source_port', 'default').to_s == port.to_s
       end
-      edge ||= Array(graph['edges']).find do |candidate|
+      edges = Array(graph['edges']).select do |candidate|
         candidate['source'] == step.node_key &&
           candidate.fetch('source_port', 'default').to_s == 'default'
-      end
+      end if edges.empty?
 
-      unless edge
+      if edges.empty?
         run.update!(status: 'completed', current_node_key: nil, completed_at: Time.current)
-        complete_chain_ancestors!(run)
         AutomationActionLifecycle.run_completed!(run) if defined?(AutomationActionLifecycle)
-        return
+        complete_chain_ancestors!(run)
+        return nil
       end
 
-      node = Array(graph['nodes']).find { |candidate| candidate['id'] == edge['target'] }
-      enqueue_node!(run, node)
+      if edges.one?
+        node = Array(graph['nodes']).find { |candidate| candidate['id'] == edges.first['target'] }
+        enqueue_node!(run, node)
+        return nil
+      end
+
+      branch_ids = edges.each_with_index.map do |edge, index|
+        node = Array(graph['nodes']).find { |candidate| candidate['id'] == edge['target'] }
+        raise ArgumentError, "Blocco di destinazione non trovato: #{edge['target']}" unless node
+
+        start_branch_run!(
+          parent_run: run,
+          branch_step: step,
+          target_node: node,
+          branch_index: index + 1,
+          branch_count: edges.length
+        ).id
+      end
+      update_runtime!(run, 'branch_child_run_ids' => branch_ids)
+      run.update!(status: 'running', current_node_key: nil, completed_at: nil)
+      branch_ids
     end
 
     def build_context(item, simulation, asset:, operation_type:, print_flow:, extra_context:)
@@ -962,9 +1156,12 @@ class AutomationNodeExecutor
     case @step.node_type
     when 'trigger' then {}
     when 'router' then execute_router
+    when 'fork' then {}
     when 'set_variables' then execute_set_variables
     when 'calculate_copies' then execute_calculate_copies
     when 'duplicate_pages' then execute_duplicate_pages
+    when 'pdf_label' then execute_pdf_label
+    when 'resize_pdf' then execute_resize_pdf
     when 'collect_group' then execute_collect_group
     when 'insert_blanks' then execute_insert_blanks
     when 'pair_sides' then execute_pair_sides
@@ -1104,6 +1301,74 @@ class AutomationNodeExecutor
       filename: File.basename(output),
       media_type: 'application/pdf',
       metadata: metadata
+    )
+    {
+      'artifact_id' => artifact.id,
+      'context_updates' => {'runtime.current_artifact_id' => artifact.id}
+    }
+  end
+
+  def execute_pdf_label
+    source = require_artifact!
+    text = AutomationEngine.resolve(@config['text'].presence || '{{order.code}}', @context).to_s
+    raise ArgumentError, 'Il testo da inserire nel PDF è vuoto' if text.strip.empty?
+
+    output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
+    label_config = {
+      'anchor' => @config.fetch('anchor', 'top_left'),
+      'font' => @config.fetch('font', 'Times-Roman'),
+      'font_size_pt' => @config.fetch('font_size_pt', 18).to_f,
+      'background_color' => @config.fetch('background_color', '#222222'),
+      'text_color' => @config.fetch('text_color', '#ffffff'),
+      'padding_x_mm' => @config.fetch('padding_x_mm', 2).to_f,
+      'padding_y_mm' => @config.fetch('padding_y_mm', 1.5).to_f,
+      'offset_x_mm' => @config.fetch('offset_x_mm', 0).to_f,
+      'offset_y_mm' => @config.fetch('offset_y_mm', 5).to_f
+    }
+    metadata = run_pdf_tool(
+      'add-text-label',
+      '--input', source.full_path,
+      '--output', output,
+      '--text', text,
+      '--config', JSON.generate(label_config)
+    )
+    artifact = AutomationEngine.create_artifact!(
+      run: @run,
+      step: @step,
+      kind: @config['output_kind'].presence || 'labeled_pdf',
+      path: output,
+      filename: File.basename(output),
+      media_type: 'application/pdf',
+      metadata: metadata.merge('source_artifact_id' => source.id)
+    )
+    {
+      'artifact_id' => artifact.id,
+      'context_updates' => {'runtime.current_artifact_id' => artifact.id}
+    }
+  end
+
+  def execute_resize_pdf
+    source = require_artifact!
+    output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
+    resize_config = {
+      'width_mm' => @config.fetch('width_mm', 297).to_f,
+      'height_mm' => @config.fetch('height_mm', 210).to_f,
+      'mode' => AutomationEngine.resolve(@config.fetch('mode', 'contain'), @context).to_s
+    }
+    metadata = run_pdf_tool(
+      'resize-pages',
+      '--input', source.full_path,
+      '--output', output,
+      '--config', JSON.generate(resize_config)
+    )
+    artifact = AutomationEngine.create_artifact!(
+      run: @run,
+      step: @step,
+      kind: @config['output_kind'].presence || 'resized_pdf',
+      path: output,
+      filename: File.basename(output),
+      media_type: 'application/pdf',
+      metadata: metadata.merge('source_artifact_id' => source.id)
     )
     {
       'artifact_id' => artifact.id,

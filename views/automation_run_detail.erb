@@ -33,14 +33,19 @@
 <% chain_runs = run.chain_runs.includes(automation_flow_version: :automation_flow) %>
 <% if chain_runs.size > 1 || run.parent_run_id.present? %>
   <div class="card shadow-sm mb-4">
-    <div class="card-header"><strong>Catena di automazioni</strong></div>
+    <div class="card-header"><strong>Catena e diramazioni</strong></div>
     <div class="card-body d-flex flex-wrap align-items-center gap-2">
       <% chain_runs.each_with_index do |chain_run, index| %>
         <% chain_badge = {'completed' => 'success', 'failed' => 'danger', 'waiting_external' => 'warning', 'waiting_review' => 'info'}.fetch(chain_run.status, 'primary') %>
-        <% if index.positive? %><i class="fas fa-arrow-right text-muted"></i><% end %>
+        <% if index.positive? %>
+          <i class="fas <%= chain_run.context.dig('runtime', 'branch_run') ? 'fa-code-branch' : 'fa-arrow-right' %> text-muted"></i>
+        <% end %>
         <a href="/automation_runs/<%= chain_run.id %>"
            class="btn btn-sm <%= chain_run.id == run.id ? 'btn-primary' : 'btn-outline-secondary' %>">
           <%= Rack::Utils.escape_html(chain_run.flow.name) %>
+          <% if chain_run.context.dig('runtime', 'branch_run') %>
+            <span class="small">ramo <%= chain_run.context.dig('runtime', 'branch_index') %>/<%= chain_run.context.dig('runtime', 'branch_count') %></span>
+          <% end %>
           <span class="badge bg-<%= chain_badge %> ms-1"><%= chain_run.status %></span>
         </a>
       <% end %>
@@ -69,6 +74,11 @@
                   <% if step.output_data['handoff_child_run_id'].present? %>
                     <a class="small text-decoration-none" href="/automation_runs/<%= step.output_data['handoff_child_run_id'] %>">
                       <i class="fas fa-arrow-right me-1"></i>Apri automazione successiva
+                    </a>
+                  <% end %>
+                  <% Array(step.output_data['branch_child_run_ids']).each_with_index do |child_id, branch_index| %>
+                    <a class="small text-decoration-none d-block" href="/automation_runs/<%= child_id %>">
+                      <i class="fas fa-code-branch me-1"></i>Apri ramo <%= branch_index + 1 %>
                     </a>
                   <% end %>
                 </td>

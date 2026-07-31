@@ -4,6 +4,9 @@
 class OrderItem < ActiveRecord::Base
   belongs_to :order
   has_many :assets, dependent: :destroy
+  # Runs are historical records and must remain available for debugging after
+  # an order item is removed.
+  has_many :automation_runs, dependent: :nullify
   belongs_to :preprint_job, class_name: 'SwitchJob', foreign_key: 'preprint_job_id', optional: true
   belongs_to :print_job, class_name: 'SwitchJob', foreign_key: 'print_job_id', optional: true
   belongs_to :preprint_print_flow, class_name: 'PrintFlow', optional: true
@@ -67,6 +70,28 @@ class OrderItem < ActiveRecord::Base
   # Includes both 'print' (manual upload) and 'print_file_*' (FTP import) assets
   def switch_print_assets
     assets.where("asset_type LIKE ? OR asset_type = ?", 'print_file%', 'print').order(:id)
+  end
+
+  # Return the final PDF produced by prestampa. A chained Adobe flow can leave
+  # an intermediate Photoshop PDF and a final Illustrator PDF; the latter must
+  # be sent to aggregation and printing.
+  def latest_preprint_asset
+    candidates = assets.where(asset_type: %w[preprint print_output])
+                       .order(created_at: :desc)
+                       .select(&:downloaded?)
+    return nil if candidates.empty?
+
+    illustrator = candidates.find do |asset|
+      name = [asset.original_url, asset.local_path].compact.join(' ').downcase
+      name.include?('illustrator')
+    end
+    return illustrator if illustrator
+
+    non_photoshop = candidates.find do |asset|
+      name = [asset.original_url, asset.local_path].compact.join(' ').downcase
+      !name.include?('photoshop')
+    end
+    non_photoshop || candidates.first
   end
 
   # Get the item number (position in order)

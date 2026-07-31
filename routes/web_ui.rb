@@ -1298,16 +1298,17 @@ class PrintOrchestrator < Sinatra::Base
   # DELETE /orders/:id - Delete order
   delete '/orders/:id' do
     order = Order.find(params[:id])
-    
-    # Restore inventory before deleting order
-    order.order_items.each do |item|
-      product = Product.find_by(sku: item.sku)
-      if product && product.inventory
-        product.inventory.add_stock(item.quantity)
+
+    ActiveRecord::Base.transaction do
+      # Restore inventory only if the order is actually deleted. If a
+      # dependent record blocks deletion, the whole operation rolls back.
+      order.order_items.each do |item|
+        product = Product.find_by(sku: item.sku)
+        product.inventory.add_stock(item.quantity) if product&.inventory
       end
+
+      order.destroy!
     end
-    
-    order.destroy
     redirect '/orders'
   rescue ActiveRecord::RecordNotFound
     status 404

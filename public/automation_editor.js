@@ -45,6 +45,7 @@
       cases: [{port: 'yes', label: 'Condizione', field: 'item.sku', operator: 'contains', value: 'CODICE'}],
       default_port: 'other'
     },
+    fork: {},
     set_variables: {values: {preset: 'STANDARD'}},
     calculate_copies: {
       quantity_field: 'item.quantity',
@@ -55,6 +56,21 @@
     duplicate_pages: {
       copies_field: 'variables.production_copies',
       output_kind: 'multipage_pdf'
+    },
+    pdf_label: {
+      text: '{{order.code}}',
+      anchor: 'top_left',
+      font: 'Times-Roman',
+      font_size_pt: 8.5,
+      offset_x_mm: 0,
+      offset_y_mm: 5,
+      output_kind: 'labeled_pdf'
+    },
+    resize_pdf: {
+      width_mm: 297,
+      height_mm: 210,
+      mode: 'contain',
+      output_kind: 'resized_pdf'
     },
     collect_group: {
       group_field: 'aggregation.token',
@@ -217,6 +233,51 @@
         default: 'variables.production_copies'
       },
       {key: 'output_kind', label: 'Tipo risultato', default: 'multipage_pdf'}
+    ],
+    pdf_label: [
+      {
+        key: 'text',
+        label: 'Testo da inserire',
+        default: '{{order.code}}',
+        help: 'Puoi usare variabili come {{order.code}}, {{item.sku}} e {{item.position}}.'
+      },
+      {
+        key: 'anchor',
+        label: 'Posizione',
+        choices: [
+          ['top_left', 'In alto a sinistra'],
+          ['top_center', 'In alto al centro'],
+          ['top_right', 'In alto a destra'],
+          ['bottom_left', 'In basso a sinistra'],
+          ['bottom_center', 'In basso al centro'],
+          ['bottom_right', 'In basso a destra']
+        ],
+        default: 'top_left'
+      },
+      {key: 'font', label: 'Font PDF', default: 'Times-Roman'},
+      {key: 'font_size_pt', label: 'Dimensione testo (pt)', type: 'number', default: 18},
+      {key: 'background_color', label: 'Sfondo etichetta', default: '#222222'},
+      {key: 'text_color', label: 'Colore testo', default: '#ffffff'},
+      {key: 'padding_x_mm', label: 'Margine orizzontale (mm)', type: 'number', default: 2},
+      {key: 'padding_y_mm', label: 'Margine verticale (mm)', type: 'number', default: 1.5},
+      {key: 'offset_x_mm', label: 'Spostamento orizzontale (mm)', type: 'number', default: 0},
+      {key: 'offset_y_mm', label: 'Spostamento verticale (mm)', type: 'number', default: 5},
+      {key: 'output_kind', label: 'Tipo risultato', default: 'labeled_pdf'}
+    ],
+    resize_pdf: [
+      {key: 'width_mm', label: 'Larghezza finale (mm)', type: 'number', default: 297},
+      {key: 'height_mm', label: 'Altezza finale (mm)', type: 'number', default: 210},
+      {
+        key: 'mode',
+        label: 'Adattamento contenuto',
+        choices: [
+          ['contain', 'Mantieni proporzioni'],
+          ['stretch', 'Adatta esattamente al foglio'],
+          ['{{variables.label_resize_mode}}', 'Leggi dalla variabile del flusso']
+        ],
+        default: 'contain'
+      },
+      {key: 'output_kind', label: 'Tipo risultato', default: 'resized_pdf'}
     ],
     collect_group: [
       {
@@ -623,12 +684,21 @@
       const metadataKey = value === 'illustrator_scripts'
         ? 'illustrator_scripts'
         : 'illustrator_templates';
-      const values = [...new Set(state.agents.flatMap(
-        (agent) => Array.isArray(agent.metadata?.[metadataKey]) ? agent.metadata[metadataKey] : []
-      ))].sort();
+      const resources = state.agents.flatMap((agent) =>
+        Array.isArray(agent.metadata?.[metadataKey]) ? agent.metadata[metadataKey] : []
+      );
+      const resourcePath = (entry) => {
+        if (entry && typeof entry === 'object') {
+          return String(entry.path || entry.relative_path || entry.name || '').trim();
+        }
+        return String(entry || '').trim();
+      };
+      const values = [...new Set(resources.map(resourcePath).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true })
+      );
       return [
         ['', value === 'illustrator_scripts' ? '-- Seleziona script --' : '-- Seleziona maschera --'],
-        ...values.map((name) => [name, name])
+        ...values.map((name) => [name, name.includes('/') ? name.replaceAll('/', ' / ') : name])
       ];
     }
     return value || null;
@@ -1392,9 +1462,23 @@
   function finishConnection(target) {
     const pending = state.pendingConnection;
     if (!pending || pending.source === target) return;
-    state.graph.edges = state.graph.edges.filter(
-      (edge) => !(edge.source === pending.source && String(edge.source_port || 'default') === pending.source_port)
-    );
+    const sourceNode = nodeFor(pending.source);
+    const duplicate = state.graph.edges.some((edge) => (
+      edge.source === pending.source &&
+      edge.target === target &&
+      String(edge.source_port || 'default') === pending.source_port
+    ));
+    if (duplicate) {
+      state.pendingConnection = null;
+      showMessage('Questo collegamento esiste già.', 'error');
+      renderNodes();
+      return;
+    }
+    if (sourceNode?.type !== 'fork') {
+      state.graph.edges = state.graph.edges.filter(
+        (edge) => !(edge.source === pending.source && String(edge.source_port || 'default') === pending.source_port)
+      );
+    }
     state.graph.edges.push({
       id: `edge_${Date.now()}_${Math.random().toString(16).slice(2, 7)}`,
       source: pending.source,
@@ -1404,6 +1488,10 @@
     state.pendingConnection = null;
     markDirty();
     render();
+    if (sourceNode?.type === 'fork') {
+      const branches = state.graph.edges.filter((edge) => edge.source === pending.source).length;
+      showMessage(`Diramazione aggiornata: ${branches} rami collegati.`, 'success');
+    }
   }
 
   function removeEdge(id) {

@@ -6,6 +6,7 @@ invoke it without shell interpolation.
 """
 
 import argparse
+import io
 import json
 import math
 from pathlib import Path
@@ -15,6 +16,8 @@ from pypdf import PdfReader, PdfWriter, Transformation
 from pypdf.generic import RectangleObject
 from pypdf._page import PageObject
 from reportlab.graphics.barcode import code128
+from reportlab.lib import colors
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 
@@ -473,6 +476,147 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
     }
 
 
+def add_text_label(
+    input_path: str, output_path: str, text: str, config: dict
+) -> dict:
+    reader = PdfReader(input_path)
+    if not reader.pages:
+        raise ValueError("Il PDF sorgente non contiene pagine")
+
+    anchor = str(config.get("anchor", "top_left"))
+    allowed_anchors = {
+        "top_left", "top_center", "top_right",
+        "bottom_left", "bottom_center", "bottom_right",
+    }
+    if anchor not in allowed_anchors:
+        raise ValueError(f"Posizione testo non valida: {anchor}")
+
+    font = str(config.get("font", "Times-Roman"))
+    font_size = float(config.get("font_size_pt", 18))
+    if font_size <= 0:
+        raise ValueError("La dimensione del testo deve essere maggiore di zero")
+    offset_x = float(config.get("offset_x_mm", 0)) * mm
+    offset_y = float(config.get("offset_y_mm", 5)) * mm
+    padding_x = float(config.get("padding_x_mm", 2)) * mm
+    padding_y = float(config.get("padding_y_mm", 1.5)) * mm
+    try:
+        background_color = colors.HexColor(str(config.get("background_color", "#222222")))
+        text_color = colors.HexColor(str(config.get("text_color", "#ffffff")))
+    except ValueError as exc:
+        raise ValueError("Colore testo o sfondo non valido") from exc
+
+    writer = PdfWriter()
+    for page in reader.pages:
+        width = float(page.mediabox.width)
+        height = float(page.mediabox.height)
+        overlay_buffer = io.BytesIO()
+        overlay = canvas.Canvas(overlay_buffer, pagesize=(width, height))
+        try:
+            overlay.setFont(font, font_size)
+        except KeyError as exc:
+            raise ValueError(f"Font PDF non disponibile: {font}") from exc
+
+        text_width = stringWidth(text, font, font_size)
+        box_width = text_width + (2 * padding_x)
+        box_height = font_size + (2 * padding_y)
+        if anchor.endswith("left"):
+            box_x = offset_x
+        elif anchor.endswith("right"):
+            box_x = width - offset_x - box_width
+        else:
+            box_x = (width - box_width) / 2 + offset_x
+        if anchor.startswith("top"):
+            box_y = height - offset_y - box_height
+        else:
+            box_y = offset_y
+
+        overlay.setFillColor(background_color)
+        overlay.roundRect(box_x, box_y, box_width, box_height, 1.5 * mm, fill=1, stroke=0)
+        overlay.setFillColor(text_color)
+        overlay.drawString(box_x + padding_x, box_y + padding_y, text)
+        overlay.showPage()
+        overlay.save()
+        overlay_buffer.seek(0)
+        page.merge_page(PdfReader(overlay_buffer).pages[0], over=True)
+        writer.add_page(page)
+        writer.reset_translation(reader)
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "wb") as output_file:
+        writer.write(output_file)
+
+    return {
+        "text": text,
+        "pages_labeled": len(reader.pages),
+        "anchor": anchor,
+        "font": font,
+        "font_size_pt": font_size,
+        "background_color": str(config.get("background_color", "#222222")),
+        "text_color": str(config.get("text_color", "#ffffff")),
+        "padding_x_mm": float(config.get("padding_x_mm", 2)),
+        "padding_y_mm": float(config.get("padding_y_mm", 1.5)),
+        "offset_x_mm": float(config.get("offset_x_mm", 0)),
+        "offset_y_mm": float(config.get("offset_y_mm", 5)),
+    }
+
+
+def resize_pdf_pages(input_path: str, output_path: str, config: dict) -> dict:
+    reader = PdfReader(input_path)
+    if not reader.pages:
+        raise ValueError("Il PDF sorgente non contiene pagine")
+
+    target_width = float(config.get("width_mm", 0)) * mm
+    target_height = float(config.get("height_mm", 0)) * mm
+    if target_width <= 0 or target_height <= 0:
+        raise ValueError("Le dimensioni finali devono essere maggiori di zero")
+    mode = str(config.get("mode", "contain"))
+    if mode not in {"contain", "stretch"}:
+        raise ValueError(f"Modalità ridimensionamento non valida: {mode}")
+
+    writer = PdfWriter()
+    scales = []
+    for source in reader.pages:
+        source_width = float(source.mediabox.width)
+        source_height = float(source.mediabox.height)
+        output_page = PageObject.create_blank_page(
+            width=target_width, height=target_height
+        )
+        if mode == "stretch":
+            scale_x = target_width / source_width
+            scale_y = target_height / source_height
+            translate_x = 0
+            translate_y = 0
+        else:
+            scale_x = scale_y = min(
+                target_width / source_width,
+                target_height / source_height,
+            )
+            translate_x = (target_width - source_width * scale_x) / 2
+            translate_y = (target_height - source_height * scale_y) / 2
+        transformation = (
+            Transformation()
+            .scale(scale_x, scale_y)
+            .translate(translate_x, translate_y)
+        )
+        output_page.merge_transformed_page(source, transformation, over=True)
+        writer.add_page(output_page)
+        writer.reset_translation(reader)
+        scales.append([scale_x, scale_y])
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "wb") as output_file:
+        writer.write(output_file)
+
+    return {
+        "input_pages": len(reader.pages),
+        "output_pages": len(reader.pages),
+        "width_mm": float(config.get("width_mm", 0)),
+        "height_mm": float(config.get("height_mm", 0)),
+        "mode": mode,
+        "scales": scales,
+    }
+
+
 def barcode_pdf(data: str, output_path: str, config: dict) -> dict:
     width_mm = float(config.get("width_mm", 90))
     height_mm = float(config.get("height_mm", 29))
@@ -545,6 +689,17 @@ def parse_args():
     blanks_parser.add_argument("--output", required=True)
     blanks_parser.add_argument("--config", required=True)
 
+    label_parser = subparsers.add_parser("add-text-label")
+    label_parser.add_argument("--input", required=True)
+    label_parser.add_argument("--output", required=True)
+    label_parser.add_argument("--text", required=True)
+    label_parser.add_argument("--config", default="{}")
+
+    resize_parser = subparsers.add_parser("resize-pages")
+    resize_parser.add_argument("--input", required=True)
+    resize_parser.add_argument("--output", required=True)
+    resize_parser.add_argument("--config", required=True)
+
     barcode_parser = subparsers.add_parser("barcode")
     barcode_parser.add_argument("--data", required=True)
     barcode_parser.add_argument("--output", required=True)
@@ -571,6 +726,14 @@ def main():
         result = merge_pages(args.input, args.output)
     elif args.command == "insert-blanks":
         result = insert_blank_pages(
+            args.input, args.output, json.loads(args.config)
+        )
+    elif args.command == "add-text-label":
+        result = add_text_label(
+            args.input, args.output, args.text, json.loads(args.config)
+        )
+    elif args.command == "resize-pages":
+        result = resize_pdf_pages(
             args.input, args.output, json.loads(args.config)
         )
     elif args.command == "impose":
