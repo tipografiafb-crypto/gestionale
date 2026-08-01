@@ -190,11 +190,10 @@
                     <div class="btn-group btn-group-sm mt-2" role="group">
                       <% if asset.downloaded? %>
                         <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Scarica"><i class="fas fa-download"></i></a>
-                        <% if asset.local_path_full.to_s.match?(/\.(png|jpg|jpeg|gif|webp)$/i) %>
+                        <% if asset.local_path_full.to_s.match?(/\.png$/i) %>
                           <button type="button" class="btn btn-sm btn-outline-warning btn-adjust-image" 
                                   data-asset-id="<%= asset.id %>" 
-                                  data-file-url="/file/<%= asset.id %>"
-                                  title="Modifica Offset"><i class="fas fa-arrows-alt"></i></button>
+                                  title="Editor immagine"><i class="fas fa-crop-alt"></i></button>
                           <% if asset.local_path_full.to_s.match?(/\.png$/i) && asset.asset_type != 'print_file_halftone' %>
                             <a href="/assets/<%= asset.id %>/halftone" class="btn btn-sm btn-outline-success" title="Configura retino DTF"><i class="fas fa-dot-circle"></i></a>
                           <% end %>
@@ -499,68 +498,165 @@
   </div>
 </div>
 
-<!-- Modal: Image Offset Editor -->
+<!-- Modal: Print image editor -->
 <div class="modal fade" id="imageAdjustModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-centered">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="fas fa-arrows-alt"></i> Modifica Offset Immagine</h5>
+        <div>
+          <h5 class="modal-title"><i class="fas fa-crop-alt"></i> Editor immagine</h5>
+          <small class="text-muted">Prepara il file senza perdere l’originale</small>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="row">
-          <div class="col-md-9">
-            <div style="border: 1px solid #ddd; border-radius: 4px; overflow: hidden; background: #f8f9fa; text-align: center;">
-              <canvas id="adjustCanvas" style="max-width: 100%; display: block; margin: 0 auto;"></canvas>
+        <div class="image-editor-mode mb-3" role="group" aria-label="Modalità editor">
+          <input type="radio" class="btn-check" name="imageEditMode" id="imageEditModeFixed" value="fixed" checked>
+          <label class="btn btn-outline-primary" for="imageEditModeFixed">
+            <i class="fas fa-expand-arrows-alt"></i>
+            <span><strong>Mantieni formato</strong><small>Sposta o ridimensiona; l’uscita resta identica</small></span>
+          </label>
+          <input type="radio" class="btn-check" name="imageEditMode" id="imageEditModeCrop" value="crop">
+          <label class="btn btn-outline-primary" for="imageEditModeCrop">
+            <i class="fas fa-crop-alt"></i>
+            <span><strong>Ritaglia formato</strong><small>Riduce il file eliminando lo spazio inutile</small></span>
+          </label>
+        </div>
+
+        <div class="alert alert-danger py-2 d-none" id="imageEditorError"></div>
+        <div class="row g-3">
+          <div class="col-lg-9">
+            <div class="image-editor-stage" id="imageEditorStage">
+              <div class="image-editor-loading" id="imageEditorLoading">
+                <span class="spinner-border spinner-border-sm"></span> Caricamento immagine…
+              </div>
+              <canvas id="adjustCanvas"></canvas>
+            </div>
+            <div class="d-flex flex-wrap justify-content-between gap-2 mt-2 small text-muted">
+              <span>Originale: <strong id="imageEditorSourceSize">—</strong></span>
+              <span>Uscita: <strong id="imageEditorOutputSize">—</strong></span>
+              <span>Stampa: <strong id="imageEditorPrintSize">—</strong></span>
             </div>
           </div>
-          <div class="col-md-3">
-            <div class="mb-4">
-              <label class="form-label"><strong>Zoom</strong></label>
-              <input type="range" class="form-range" id="zoomSlider" min="0.5" max="2" step="0.01" value="1">
-              <div class="d-flex gap-2 align-items-center mt-1">
-                <input type="number" class="form-control form-control-sm" id="zoomInput" value="1" min="0.5" max="2" step="0.01" style="width: 80px;">
-                <span class="text-muted">x</span>
+
+          <div class="col-lg-3">
+            <section class="image-editor-panel">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong>Disegno</strong>
+                <span class="badge bg-light text-dark" id="imageEditorDpi">300 DPI</span>
               </div>
-              <small class="text-muted d-block mt-1">0.5x - 2x</small>
-            </div>
-            <div class="mb-4">
-              <label class="form-label"><strong>Offset X (px)</strong></label>
-              <input type="range" class="form-range" id="offsetXSlider" min="-200" max="200" value="0">
-              <div class="d-flex gap-2 align-items-center mt-1">
-                <input type="number" class="form-control form-control-sm" id="offsetXInput" value="0" min="-500" max="500" style="width: 80px;">
-                <span class="text-muted">px</span>
+              <label class="form-label small mb-1" for="zoomSlider">Dimensione</label>
+              <input type="range" class="form-range" id="zoomSlider" min="0.05" max="10" step="0.01" value="1">
+              <div class="input-group input-group-sm mb-2">
+                <input type="number" class="form-control" id="zoomInput" value="100" min="5" max="1000" step="1">
+                <span class="input-group-text">%</span>
               </div>
-            </div>
-            <div class="mb-4">
-              <label class="form-label"><strong>Offset Y (px)</strong></label>
-              <input type="range" class="form-range" id="offsetYSlider" min="-200" max="200" value="0">
-              <div class="d-flex gap-2 align-items-center mt-1">
-                <input type="number" class="form-control form-control-sm" id="offsetYInput" value="0" min="-500" max="500" style="width: 80px;">
-                <span class="text-muted">px</span>
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <label class="form-label small mb-1" for="offsetXInput">Sposta X</label>
+                  <div class="input-group input-group-sm">
+                    <input type="number" class="form-control" id="offsetXInput" value="0" step="1">
+                    <span class="input-group-text">px</span>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <label class="form-label small mb-1" for="offsetYInput">Sposta Y</label>
+                  <div class="input-group input-group-sm">
+                    <input type="number" class="form-control" id="offsetYInput" value="0" step="1">
+                    <span class="input-group-text">px</span>
+                  </div>
+                </div>
               </div>
+              <div class="d-grid gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="centerImageBtn">
+                  <i class="fas fa-crosshairs"></i> Centra disegno
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="resetOffsetBtn">
+                  <i class="fas fa-undo"></i> Ripristina modifiche
+                </button>
+              </div>
+            </section>
+
+            <section class="image-editor-panel mt-3 d-none" id="imageCropControls">
+              <strong class="d-block mb-2">Ritaglio</strong>
+              <div class="btn-group btn-group-sm w-100 mb-2" role="group">
+                <button type="button" class="btn btn-primary" id="editCropBtn">Modifica ritaglio</button>
+                <button type="button" class="btn btn-outline-primary" id="editImageBtn">Muovi disegno</button>
+              </div>
+              <label class="form-label small mb-1" for="cropDetectionMode">Ritaglio automatico</label>
+              <select class="form-select form-select-sm mb-2" id="cropDetectionMode">
+                <option value="alpha">Trasparenza</option>
+                <option value="white">Bianco o trasparente</option>
+              </select>
+              <div class="row g-2 align-items-end">
+                <div class="col-6">
+                  <label class="form-label small mb-1" for="cropMarginMm">Margine</label>
+                  <div class="input-group input-group-sm">
+                    <input type="number" class="form-control" id="cropMarginMm" value="0" min="0" max="100" step="0.5">
+                    <span class="input-group-text">mm</span>
+                  </div>
+                </div>
+                <div class="col-6 d-grid">
+                  <button type="button" class="btn btn-sm btn-outline-success" id="autoCropBtn">
+                    <i class="fas fa-magic"></i> Automatico
+                  </button>
+                </div>
+              </div>
+              <small class="text-muted d-block mt-2">Puoi anche trascinare e ridimensionare direttamente il rettangolo blu.</small>
+            </section>
+
+            <div class="alert alert-info py-2 px-3 small mt-3 mb-0" id="imageEditorModeHelp">
+              L’area finale manterrà esattamente le dimensioni originali.
             </div>
-            <div class="mb-3">
-              <button type="button" class="btn btn-outline-secondary w-100" id="resetOffsetBtn">
-                <i class="fas fa-undo"></i> Reset
-              </button>
-            </div>
-            <hr>
-            <p class="text-muted small">
-              <i class="fas fa-info-circle"></i> Usa zoom per ingrandire/rimpicciolire. Offset per spostare. Lo sfondo grigio riempie le aree vuote.
-            </p>
           </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-        <button type="button" class="btn btn-success" id="saveAdjustedImageBtn">
-          <i class="fas fa-save"></i> Salva Immagine
-        </button>
+      <div class="modal-footer justify-content-between">
+        <small class="text-muted" id="imageEditorSaveHint">Il file originale rimarrà recuperabile.</small>
+        <div>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="button" class="btn btn-success" id="saveAdjustedImageBtn">
+            <i class="fas fa-save"></i> Salva immagine
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </div>
+
+<style>
+  .image-editor-mode { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+  .image-editor-mode .btn { display: flex; align-items: center; gap: .7rem; text-align: left; padding: .75rem 1rem; }
+  .image-editor-mode .btn i { font-size: 1.25rem; }
+  .image-editor-mode .btn span { display: flex; flex-direction: column; line-height: 1.2; }
+  .image-editor-mode .btn small { opacity: .75; margin-top: .2rem; }
+  .image-editor-stage {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 520px;
+    max-height: 68vh;
+    overflow: auto;
+    border: 1px solid #cfd4da;
+    border-radius: .5rem;
+    background-color: #e8eaed;
+    background-image:
+      linear-gradient(45deg, #d4d7da 25%, transparent 25%),
+      linear-gradient(-45deg, #d4d7da 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #d4d7da 75%),
+      linear-gradient(-45deg, transparent 75%, #d4d7da 75%);
+    background-size: 24px 24px;
+    background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+  }
+  .image-editor-stage .canvas-container { box-shadow: 0 3px 18px rgba(0, 0, 0, .18); flex: 0 0 auto; }
+  .image-editor-loading { position: absolute; z-index: 3; padding: .65rem 1rem; border-radius: .35rem; background: rgba(255,255,255,.92); }
+  .image-editor-panel { border: 1px solid #dee2e6; border-radius: .5rem; padding: .85rem; background: #fff; }
+  @media (max-width: 767px) {
+    .image-editor-mode { grid-template-columns: 1fr; }
+    .image-editor-stage { min-height: 360px; }
+  }
+</style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
@@ -662,8 +758,8 @@
   }
 </style>
 
-<!-- Image Offset Editor Script -->
-<script>
+<!-- Legacy editor kept inert while existing installations transition to the module below. -->
+<script type="application/x-disabled">
 (function() {
   let adjustAssetId = null;
   let originalImage = null;
@@ -881,6 +977,8 @@
   }
 })();
 </script>
+
+<script type="module" src="/image_editor.js?v=1"></script>
 
 <!-- Auto-refresh preprint result section -->
 <script>

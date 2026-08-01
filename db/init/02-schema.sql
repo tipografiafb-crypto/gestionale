@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS assets (
   original_url VARCHAR NOT NULL,
   local_path VARCHAR,
   asset_type VARCHAR,
+  image_edit_data JSONB NOT NULL DEFAULT '{}',
   deleted_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

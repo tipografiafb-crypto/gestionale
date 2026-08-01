@@ -448,7 +448,12 @@
         ],
         default: 'fixed'
       },
-      {key: 'preset_code', label: 'Preset fisso', choices: 'imposition'},
+      {
+        key: 'preset_code',
+        label: 'Preset fisso',
+        choices: 'imposition',
+        help: 'Il preset scelto stabilisce se usare una griglia regolare oppure il nesting automatico.'
+      },
       {
         key: 'preset_variable',
         label: 'Variabile contenente il preset',

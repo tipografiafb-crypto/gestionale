@@ -52,6 +52,7 @@ class ConsolidatedSchema < ActiveRecord::Migration[7.2]
       t.string :original_url, null: false
       t.string :local_path
       t.string :asset_type
+      t.jsonb :image_edit_data, default: {}, null: false
       t.timestamp :deleted_at
       t.timestamps
     end

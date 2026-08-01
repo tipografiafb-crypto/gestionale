@@ -89,6 +89,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'services/automation_flow_transfer'
   require_relative 'services/automation_action_dispatcher'
   require_relative 'services/automation_adobe_agent'
+  require_relative 'services/image_edit_service'
 
   # Serve local asset files
   get '/file/:id' do

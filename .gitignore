@@ -31,6 +31,7 @@
 # Bundler
 .bundle
 vendor/bundle
+/node_modules/
 
 # IDE
 .vscode/

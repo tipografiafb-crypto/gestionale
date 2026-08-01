@@ -58,7 +58,7 @@ class PrintOrchestrator < Sinatra::Base
     },
     {type: 'photoshop', label: 'Photoshop', icon: 'fa-image', outputs: ['default']},
     {type: 'illustrator', label: 'Illustrator', icon: 'fa-pen-nib', outputs: ['default']},
-    {type: 'step_repeat', label: 'Step and repeat', icon: 'fa-grip', outputs: ['default']},
+    {type: 'step_repeat', label: 'Step and repeat / nesting', icon: 'fa-grip', outputs: ['default']},
     {type: 'barcode', label: 'Barcode', icon: 'fa-barcode', outputs: ['default']},
     {type: 'hot_folder', label: 'Hot folder', icon: 'fa-folder-open', outputs: ['default']},
     {type: 'label_printer', label: 'Stampa etichetta', icon: 'fa-print', outputs: ['default']},
@@ -115,6 +115,10 @@ class PrintOrchestrator < Sinatra::Base
     end
 
     def imposition_preset_config
+      layout_mode = params[:layout_mode].presence || 'grid'
+      unless %w[grid nesting].include?(layout_mode)
+        raise ArgumentError, 'Tipo di disposizione non valido'
+      end
       anchor = params[:anchor].to_s
       allowed_anchors = %w[top_left top_right bottom_left bottom_right]
       raise ArgumentError, 'Punto di ancoraggio non valido' unless allowed_anchors.include?(anchor)
@@ -122,9 +126,13 @@ class PrintOrchestrator < Sinatra::Base
       unless %w[none horizontal vertical].include?(double_sided_mode)
         raise ArgumentError, 'Modalità fronte/retro non valida'
       end
+      if layout_mode == 'nesting' && double_sided_mode != 'none'
+        raise ArgumentError, 'Il nesting non supporta la modalità fronte/retro'
+      end
 
       config = {
         'folder' => params[:folder].to_s.strip.presence || 'Principale',
+        'layout_mode' => layout_mode,
         'sheet_width_mm' => Float(params[:sheet_width_mm].to_s.tr(',', '.')),
         'sheet_height_mm' => Float(params[:sheet_height_mm].to_s.tr(',', '.')),
         'anchor' => anchor,
@@ -135,6 +143,7 @@ class PrintOrchestrator < Sinatra::Base
         'columns' => Integer(params[:columns].presence || 0),
         'rows' => Integer(params[:rows].presence || 0),
         'rotate' => params[:rotate] == '1',
+        'trim_sheet_height' => params[:trim_sheet_height] == '1',
         'fill_last_sheet' => params[:fill_last_sheet] == '1',
         'double_sided_mode' => double_sided_mode
       }

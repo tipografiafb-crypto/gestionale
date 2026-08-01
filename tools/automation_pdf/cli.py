@@ -280,10 +280,275 @@ def insert_blank_pages(input_path: str, output_path: str, config: dict) -> dict:
     }
 
 
+def _rect_contains(outer: dict, inner: dict, tolerance: float = 0.01) -> bool:
+    return (
+        inner["x"] >= outer["x"] - tolerance
+        and inner["y"] >= outer["y"] - tolerance
+        and inner["x"] + inner["width"] <= outer["x"] + outer["width"] + tolerance
+        and inner["y"] + inner["height"] <= outer["y"] + outer["height"] + tolerance
+    )
+
+
+def _prune_free_rectangles(rectangles: list[dict]) -> list[dict]:
+    usable = [
+        rectangle
+        for rectangle in rectangles
+        if rectangle["width"] > 0.01 and rectangle["height"] > 0.01
+    ]
+    pruned = []
+    for index, rectangle in enumerate(usable):
+        if any(
+            index != other_index and _rect_contains(other, rectangle)
+            for other_index, other in enumerate(usable)
+        ):
+            continue
+        if not any(
+            all(abs(rectangle[key] - current[key]) <= 0.01 for key in ("x", "y", "width", "height"))
+            for current in pruned
+        ):
+            pruned.append(rectangle)
+    return pruned
+
+
+def _split_free_rectangles(rectangles: list[dict], used: dict) -> list[dict]:
+    result = []
+    used_right = used["x"] + used["width"]
+    used_bottom = used["y"] + used["height"]
+    for free in rectangles:
+        free_right = free["x"] + free["width"]
+        free_bottom = free["y"] + free["height"]
+        intersects = not (
+            used_right <= free["x"] + 0.01
+            or used["x"] >= free_right - 0.01
+            or used_bottom <= free["y"] + 0.01
+            or used["y"] >= free_bottom - 0.01
+        )
+        if not intersects:
+            result.append(free)
+            continue
+        if used["x"] > free["x"] + 0.01:
+            result.append({
+                "x": free["x"], "y": free["y"],
+                "width": used["x"] - free["x"], "height": free["height"],
+            })
+        if used_right < free_right - 0.01:
+            result.append({
+                "x": used_right, "y": free["y"],
+                "width": free_right - used_right, "height": free["height"],
+            })
+        if used["y"] > free["y"] + 0.01:
+            result.append({
+                "x": free["x"], "y": free["y"],
+                "width": free["width"], "height": used["y"] - free["y"],
+            })
+        if used_bottom < free_bottom - 0.01:
+            result.append({
+                "x": free["x"], "y": used_bottom,
+                "width": free["width"], "height": free_bottom - used_bottom,
+            })
+    return _prune_free_rectangles(result)
+
+
+def _best_nesting_position(
+    free_rectangles: list[dict], width: float, height: float,
+    gap_x: float, gap_y: float, allow_rotation: bool,
+) -> dict | None:
+    candidates = []
+    orientations = [(width, height, False)]
+    if allow_rotation and abs(width - height) > 0.01:
+        orientations.append((height, width, True))
+    for free_index, free in enumerate(free_rectangles):
+        for placed_width, placed_height, rotated in orientations:
+            slot_width = placed_width + gap_x
+            slot_height = placed_height + gap_y
+            if slot_width > free["width"] + 0.01 or slot_height > free["height"] + 0.01:
+                continue
+            remaining_width = free["width"] - slot_width
+            remaining_height = free["height"] - slot_height
+            candidates.append({
+                "free_index": free_index,
+                "x": free["x"], "y": free["y"],
+                "width": placed_width, "height": placed_height,
+                "slot_width": slot_width, "slot_height": slot_height,
+                "rotated": rotated,
+                "score": (
+                    min(remaining_width, remaining_height),
+                    max(remaining_width, remaining_height),
+                    free["y"], free["x"], int(rotated),
+                ),
+            })
+    return min(candidates, key=lambda candidate: candidate["score"]) if candidates else None
+
+
+def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
+    sheet_width = float(config["sheet_width_mm"]) * mm
+    sheet_height = float(config["sheet_height_mm"]) * mm
+    anchor = str(config.get("anchor", "top_left"))
+    if anchor not in {"top_left", "top_right", "bottom_left", "bottom_right"}:
+        raise ValueError(f"Punto di ancoraggio non valido: {anchor}")
+    margin_x = float(config.get("offset_x_mm", 0)) * mm
+    margin_y = float(config.get("offset_y_mm", 0)) * mm
+    gap_x = float(config.get("gap_x_mm", 0)) * mm
+    gap_y = float(config.get("gap_y_mm", 0)) * mm
+    allow_rotation = bool(config.get("rotate", False))
+    trim_sheet_height = bool(config.get("trim_sheet_height", False))
+    if str(config.get("double_sided_mode", "none")) != "none":
+        raise ValueError("Il nesting non supporta la modalità fronte/retro")
+    if min(margin_x, margin_y, gap_x, gap_y) < 0:
+        raise ValueError("Margini e spazi non possono essere negativi")
+
+    content_width = sheet_width - 2 * margin_x
+    content_height = sheet_height - 2 * margin_y
+    if content_width <= 0 or content_height <= 0:
+        raise ValueError("I margini del nesting non lasciano spazio utile sul foglio")
+    bin_width = content_width + gap_x
+    bin_height = content_height + gap_y
+
+    items = []
+    for page_index, page in enumerate(reader.pages):
+        width = float(page.mediabox.width)
+        height = float(page.mediabox.height)
+        items.append({"page_index": page_index, "width": width, "height": height})
+    items.sort(
+        key=lambda item: (
+            -max(item["width"], item["height"]),
+            -(item["width"] * item["height"]),
+            -min(item["width"], item["height"]),
+            item["page_index"],
+        )
+    )
+
+    sheets = []
+    for item in items:
+        selected = None
+        for sheet_index, sheet in enumerate(sheets):
+            candidate = _best_nesting_position(
+                sheet["free"], item["width"], item["height"],
+                gap_x, gap_y, allow_rotation,
+            )
+            if candidate is not None:
+                candidate["sheet_index"] = sheet_index
+                if selected is None or candidate["score"] < selected["score"]:
+                    selected = candidate
+        if selected is None:
+            sheet = {
+                "free": [{"x": 0.0, "y": 0.0, "width": bin_width, "height": bin_height}],
+                "placements": [],
+            }
+            sheets.append(sheet)
+            selected = _best_nesting_position(
+                sheet["free"], item["width"], item["height"],
+                gap_x, gap_y, allow_rotation,
+            )
+            if selected is None:
+                raise ValueError(
+                    f"La pagina {item['page_index'] + 1} "
+                    f"({item['width'] / mm:.2f}x{item['height'] / mm:.2f} mm) "
+                    "non entra nell'area utile del foglio"
+                )
+            selected["sheet_index"] = len(sheets) - 1
+
+        sheet = sheets[selected["sheet_index"]]
+        placement = {
+            **selected,
+            "page_index": item["page_index"],
+            "source_width": item["width"],
+            "source_height": item["height"],
+        }
+        placement.pop("free_index", None)
+        placement.pop("score", None)
+        sheet["placements"].append(placement)
+        used = {
+            "x": selected["x"], "y": selected["y"],
+            "width": selected["slot_width"], "height": selected["slot_height"],
+        }
+        sheet["free"] = _split_free_rectangles(sheet["free"], used)
+
+    writer = PdfWriter()
+    metadata_placements = []
+    sheet_heights = []
+    utilization = []
+    for sheet_index, sheet in enumerate(sheets):
+        used_content_height = max(
+            placement["y"] + placement["height"]
+            for placement in sheet["placements"]
+        )
+        output_height = (
+            min(sheet_height, used_content_height + 2 * margin_y)
+            if trim_sheet_height else sheet_height
+        )
+        output_page = PageObject.create_blank_page(width=sheet_width, height=output_height)
+        used_area = 0.0
+        for placement in sorted(sheet["placements"], key=lambda value: value["page_index"]):
+            local_x = placement["x"]
+            local_y = placement["y"]
+            x = (
+                output_page.mediabox.width - margin_x - local_x - placement["width"]
+                if anchor.endswith("right") else margin_x + local_x
+            )
+            y = (
+                margin_y + local_y
+                if anchor.startswith("bottom")
+                else output_height - margin_y - local_y - placement["height"]
+            )
+            source = reader.pages[placement["page_index"]]
+            transform = (
+                Transformation().rotate(90).translate(x + placement["width"], y)
+                if placement["rotated"] else Transformation().translate(x, y)
+            )
+            output_page.merge_transformed_page(source, transform, over=True)
+            used_area += placement["source_width"] * placement["source_height"]
+            metadata_placements.append({
+                "page": placement["page_index"] + 1,
+                "sheet": sheet_index + 1,
+                "x_mm": round(float(x) / mm, 4),
+                "y_mm": round(float(y) / mm, 4),
+                "width_mm": round(placement["width"] / mm, 4),
+                "height_mm": round(placement["height"] / mm, 4),
+                "rotated": placement["rotated"],
+            })
+        writer.add_page(output_page)
+        sheet_heights.append(round(output_height / mm, 4))
+        usable_area = content_width * max(output_height - 2 * margin_y, 0.01)
+        utilization.append(round(100 * used_area / usable_area, 2))
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "wb") as output_file:
+        writer.write(output_file)
+
+    return {
+        "layout_mode": "nesting",
+        "algorithm": "maxrects_best_short_side_fit",
+        "sheet_width_mm": float(config["sheet_width_mm"]),
+        "sheet_height_mm": float(config["sheet_height_mm"]),
+        "output_sheet_heights_mm": sheet_heights,
+        "anchor": anchor,
+        "margin_x_mm": float(config.get("offset_x_mm", 0)),
+        "margin_y_mm": float(config.get("offset_y_mm", 0)),
+        "gap_x_mm": float(config.get("gap_x_mm", 0)),
+        "gap_y_mm": float(config.get("gap_y_mm", 0)),
+        "rotation_allowed": allow_rotation,
+        "rotated_pages": sum(1 for placement in metadata_placements if placement["rotated"]),
+        "trim_sheet_height": trim_sheet_height,
+        "input_pages": len(reader.pages),
+        "placed_pages": len(metadata_placements),
+        "sheets": len(sheets),
+        "utilization_percent": utilization,
+        "placements": metadata_placements,
+        "scale": 1.0,
+    }
+
+
 def impose(input_path: str, output_path: str, config: dict) -> dict:
     reader = PdfReader(input_path)
     if not reader.pages:
         raise ValueError("Il PDF sorgente non contiene pagine")
+
+    layout_mode = str(config.get("layout_mode", "grid"))
+    if layout_mode == "nesting":
+        return _impose_nesting(reader, output_path, config)
+    if layout_mode != "grid":
+        raise ValueError(f"Tipo di disposizione non valido: {layout_mode}")
 
     sheet_width = float(config["sheet_width_mm"]) * mm
     sheet_height = float(config["sheet_height_mm"]) * mm

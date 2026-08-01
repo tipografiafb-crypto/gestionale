@@ -99,6 +99,125 @@ class DuplexImpositionTest(unittest.TestCase):
                 )
 
 
+class NestingImpositionTest(unittest.TestCase):
+    POINTS_PER_MM = 72 / 25.4
+
+    def make_pdf(self, path: Path, sizes_mm: list[tuple[float, float]]) -> None:
+        writer = PdfWriter()
+        for width, height in sizes_mm:
+            writer.add_blank_page(
+                width=width * self.POINTS_PER_MM,
+                height=height * self.POINTS_PER_MM,
+            )
+        with path.open("wb") as output:
+            writer.write(output)
+
+    def config(self, **overrides) -> dict:
+        config = {
+            "layout_mode": "nesting",
+            "sheet_width_mm": 100,
+            "sheet_height_mm": 100,
+            "anchor": "top_left",
+            "offset_x_mm": 5,
+            "offset_y_mm": 5,
+            "gap_x_mm": 2,
+            "gap_y_mm": 2,
+            "rotate": False,
+            "double_sided_mode": "none",
+        }
+        config.update(overrides)
+        return config
+
+    def test_mixed_page_sizes_are_packed_without_resizing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "mixed.pdf"
+            output = Path(directory) / "nested.pdf"
+            self.make_pdf(source, [(50, 35), (30, 30), (20, 40)])
+
+            metadata = impose(str(source), str(output), self.config())
+
+            self.assertEqual(1, len(PdfReader(output).pages))
+            self.assertEqual("nesting", metadata["layout_mode"])
+            self.assertEqual(3, metadata["placed_pages"])
+            self.assertEqual({1, 2, 3}, {item["page"] for item in metadata["placements"]})
+            dimensions = {
+                item["page"]: (item["width_mm"], item["height_mm"])
+                for item in metadata["placements"]
+            }
+            self.assertEqual((50.0, 35.0), dimensions[1])
+            self.assertEqual((30.0, 30.0), dimensions[2])
+            self.assertEqual((20.0, 40.0), dimensions[3])
+
+    def test_nesting_opens_additional_sheets_when_needed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "large.pdf"
+            output = Path(directory) / "nested.pdf"
+            self.make_pdf(source, [(70, 70), (70, 70)])
+
+            metadata = impose(str(source), str(output), self.config())
+
+            self.assertEqual(2, len(PdfReader(output).pages))
+            self.assertEqual(2, metadata["sheets"])
+
+    def test_rotation_can_make_an_item_fit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "rotation.pdf"
+            output = Path(directory) / "nested.pdf"
+            self.make_pdf(source, [(70, 40)])
+            config = self.config(
+                sheet_width_mm=60,
+                sheet_height_mm=90,
+                rotate=True,
+            )
+
+            metadata = impose(str(source), str(output), config)
+
+            self.assertEqual(1, metadata["rotated_pages"])
+            self.assertTrue(metadata["placements"][0]["rotated"])
+            self.assertAlmostEqual(40, metadata["placements"][0]["width_mm"], places=3)
+            self.assertAlmostEqual(70, metadata["placements"][0]["height_mm"], places=3)
+
+    def test_item_that_cannot_fit_has_a_clear_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "too-large.pdf"
+            output = Path(directory) / "nested.pdf"
+            self.make_pdf(source, [(70, 40)])
+
+            with self.assertRaisesRegex(ValueError, "pagina 1.*non entra"):
+                impose(
+                    str(source), str(output),
+                    self.config(sheet_width_mm=60, sheet_height_mm=90, rotate=False),
+                )
+
+    def test_trim_sheet_height_uses_only_the_required_roll_length(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "small.pdf"
+            output = Path(directory) / "nested.pdf"
+            self.make_pdf(source, [(30, 40)])
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(sheet_height_mm=200, trim_sheet_height=True),
+            )
+
+            page = PdfReader(output).pages[0]
+            height_mm = float(page.mediabox.height) / self.POINTS_PER_MM
+            self.assertAlmostEqual(50, height_mm, places=2)
+            self.assertAlmostEqual(50, metadata["output_sheet_heights_mm"][0], places=2)
+
+    def test_nesting_rejects_duplex_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.pdf"
+            output = Path(directory) / "nested.pdf"
+            self.make_pdf(source, [(30, 30)])
+
+            with self.assertRaisesRegex(ValueError, "non supporta.*fronte/retro"):
+                impose(
+                    str(source), str(output),
+                    self.config(double_sided_mode="horizontal"),
+                )
+
+
 class InsertBlankPagesTest(unittest.TestCase):
     def make_pdf(self, path: Path, pages: int) -> None:
         writer = PdfWriter()

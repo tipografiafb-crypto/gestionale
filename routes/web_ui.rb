@@ -5,6 +5,7 @@ require 'json'
 require 'open3'
 require 'tmpdir'
 require 'fileutils'
+require 'tempfile'
 
 class PrintOrchestrator < Sinatra::Base
   VALID_FILE_EXTENSIONS = %w[png jpg jpeg pdf svg dxf ai eps].freeze
@@ -14,11 +15,8 @@ class PrintOrchestrator < Sinatra::Base
     VALID_FILE_EXTENSIONS.include?(ext)
   end
 
-  def png_print_info(asset, target_dpi = 300)
-    return nil unless asset&.downloaded?
-    path = asset.local_path_full
+  def png_path_info(path, target_dpi = 300)
     return nil unless path && File.extname(path).downcase == '.png' && File.exist?(path)
-
     File.open(path, 'rb') do |file|
       return nil unless file.read(8) == "\x89PNG\r\n\x1a\n".b
 
@@ -58,8 +56,14 @@ class PrintOrchestrator < Sinatra::Base
       }
     end
   rescue => e
-    puts "[PNG_INFO] Error reading asset #{asset&.id}: #{e.message}"
+    puts "[PNG_INFO] Error reading #{path}: #{e.message}"
     nil
+  end
+
+  def png_print_info(asset, target_dpi = 300)
+    return nil unless asset&.downloaded?
+
+    png_path_info(asset.local_path_full, target_dpi)
   end
 
   def halftone_source_backup_path(asset)
@@ -1170,11 +1174,16 @@ class PrintOrchestrator < Sinatra::Base
       # Delete file from disk if it exists
       if asset.local_path.present? && File.exist?(asset.local_path_full)
         dtf_backup_path = halftone_source_backup_path(asset)
+        edit_backup_path = ImageEditService.backup_path(asset)
         File.delete(asset.local_path_full)
         puts "[DELETE] ✅ File deleted: #{asset.local_path_full}"
         if dtf_backup_path && File.exist?(dtf_backup_path)
           FileUtils.rm_f(dtf_backup_path)
           puts "[DELETE] ✅ DTF source backup deleted: #{dtf_backup_path}"
+        end
+        if edit_backup_path && File.exist?(edit_backup_path)
+          FileUtils.rm_f(edit_backup_path)
+          puts "[DELETE] ✅ Image editor source backup deleted: #{edit_backup_path}"
         end
       end
       
@@ -1205,13 +1214,7 @@ class PrintOrchestrator < Sinatra::Base
       item_id = params[:item_id]
       
       original_path = asset.local_path_full
-      dir = File.dirname(original_path)
-      original_filename = File.basename(original_path, '.*')
-      extension = File.extname(original_path)
-      
-      # Check if backup exists
-      backup_filename = "#{original_filename}_original_backup#{extension}"
-      backup_path = File.join(dir, backup_filename)
+      backup_path = ImageEditService.backup_path(asset)
       dtf_backup_path = halftone_source_backup_path(asset)
       backup_path = dtf_backup_path if dtf_backup_path && File.exist?(dtf_backup_path)
       
@@ -1222,6 +1225,7 @@ class PrintOrchestrator < Sinatra::Base
       
       # Restore backup by copying it back to original path
       FileUtils.copy(backup_path, original_path)
+      asset.update!(image_edit_data: {}) if asset.respond_to?(:image_edit_data)
       
       puts "[RESTORE] ✅ Image restored from backup: #{original_path}"
       
@@ -1238,7 +1242,54 @@ class PrintOrchestrator < Sinatra::Base
     end
   end
 
-  # POST /assets/:id/adjust - Save adjusted image with offset and zoom
+
+  # GET /assets/:id/edit-state - Original source and non-destructive editor recipe
+  get '/assets/:id/edit-state' do
+    content_type :json
+
+    begin
+      asset = Asset.find(params[:id])
+      source_path = ImageEditService.source_path(asset)
+      unless source_path && File.file?(source_path) && File.extname(source_path).downcase == '.png'
+        status 422
+        return { success: false, error: 'L’editor è disponibile per i file PNG' }.to_json
+      end
+
+      source_info = png_path_info(source_path)
+      unless source_info
+        status 422
+        return { success: false, error: 'Impossibile leggere le dimensioni del PNG originale' }.to_json
+      end
+
+      {
+        success: true,
+        source_url: "/assets/#{asset.id}/edit-source?v=#{File.mtime(source_path).to_i}",
+        source_width: source_info[:width_px],
+        source_height: source_info[:height_px],
+        dpi: (source_info[:declared_dpi] || source_info[:target_dpi]).round(3),
+        edit_data: asset.image_edit_data.presence || {}
+      }.to_json
+    rescue ActiveRecord::RecordNotFound
+      status 404
+      { success: false, error: 'File non trovato' }.to_json
+    rescue => e
+      puts "[IMAGE_EDITOR] State error: #{e.message}"
+      status 500
+      { success: false, error: e.message }.to_json
+    end
+  end
+
+  # GET /assets/:id/edit-source - Immutable source used to reopen the editor
+  get '/assets/:id/edit-source' do
+    asset = Asset.find(params[:id])
+    source_path = ImageEditService.source_path(asset)
+    halt 404, 'File originale non disponibile' unless source_path && File.file?(source_path)
+
+    content_type 'image/png'
+    send_file source_path, disposition: 'inline'
+  end
+
+  # POST /assets/:id/adjust - Save fixed-canvas or cropped PNG and its edit recipe
   post '/assets/:id/adjust' do
     content_type :json
     
@@ -1248,42 +1299,48 @@ class PrintOrchestrator < Sinatra::Base
       # Parse JSON body
       request.body.rewind
       data = JSON.parse(request.body.read)
-      image_data = data['image_data']
-      offset_x = data['offset_x'].to_i
-      offset_y = data['offset_y'].to_i
-      zoom = data['zoom'].to_f || 1.0
-      
-      unless image_data && image_data.start_with?('data:image/png;base64,')
-        return { success: false, error: 'Invalid image data' }.to_json
-      end
-      
-      # Decode base64 image
-      base64_data = image_data.sub('data:image/png;base64,', '')
-      image_binary = Base64.decode64(base64_data)
-      
-      # Get original file path
+      image_binary = ImageEditService.decode_png_data_url(data['image_data'])
+      output_dimensions = ImageEditService.png_dimensions(image_binary)
+      raise ArgumentError, 'Il PNG prodotto non contiene dimensioni valide' unless output_dimensions
+
       original_path = asset.local_path_full
-      dir = File.dirname(original_path)
-      original_filename = File.basename(original_path, '.*')
-      extension = File.extname(original_path)
-      
-      # Create backup of original (only if backup doesn't exist yet)
-      backup_filename = "#{original_filename}_original_backup#{extension}"
-      backup_path = File.join(dir, backup_filename)
-      
+      raise ArgumentError, 'Il file operativo deve essere un PNG' unless File.extname(original_path).downcase == '.png'
+
+      source_path = ImageEditService.source_path(asset)
+      source_dimensions = ImageEditService.png_dimensions(source_path)
+      raise ArgumentError, 'Impossibile leggere il PNG originale' unless source_dimensions
+
+      recipe = ImageEditService.normalize_recipe(
+        data['recipe'],
+        output_dimensions: output_dimensions,
+        source_dimensions: source_dimensions
+      )
+      backup_path = ImageEditService.backup_path(asset)
       unless File.exist?(backup_path)
         FileUtils.copy(original_path, backup_path)
         puts "[ADJUST] Backup created: #{backup_path}"
       end
-      
-      # Overwrite the original file with adjusted image
-      File.open(original_path, 'wb') { |f| f.write(image_binary) }
-      
-      puts "[ADJUST] Image adjusted with zoom: #{zoom.round(2)}x, offset (#{offset_x}, #{offset_y}) - saved to #{original_path}"
+
+      Tempfile.create(['image-adjust-', '.png'], File.dirname(original_path)) do |temporary|
+        temporary.binmode
+        temporary.write(image_binary)
+        temporary.flush
+        temporary.fsync
+        FileUtils.mv(temporary.path, original_path)
+      end
+      asset.update!(image_edit_data: recipe)
+
+      puts "[ADJUST] Image saved in #{recipe['mode']} mode: #{output_dimensions.join('x')} px - #{original_path}"
       puts "[ADJUST] Backup available at: #{backup_path}"
-      
-      # Asset record stays unchanged (same path, same ID)
-      { success: true, message: 'Image saved', backup_available: true }.to_json
+
+      {
+        success: true,
+        message: 'Immagine salvata',
+        backup_available: true,
+        width: output_dimensions[0],
+        height: output_dimensions[1],
+        mode: recipe['mode']
+      }.to_json
     rescue ActiveRecord::RecordNotFound
       status 404
       { success: false, error: 'Asset not found' }.to_json
