@@ -28,8 +28,11 @@ class Asset < ActiveRecord::Base
   # Get filename from URL
   def filename_from_url
     return 'unknown.png' if original_url.blank?
-    path = URI.parse(original_url).path
-    path.present? ? path.split('/').last : 'unknown.png'
+    uri = URI.parse(original_url.to_s)
+    candidate = uri.path.presence || uri.opaque
+    candidate = original_url.to_s if candidate.blank? && !original_url.to_s.include?('://')
+    name = File.basename(candidate.to_s)
+    name.present? && name != '.' ? name : 'unknown.png'
   rescue URI::InvalidURIError
     'unknown.png'
   end

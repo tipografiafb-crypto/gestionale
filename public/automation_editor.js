@@ -47,6 +47,14 @@
     },
     fork: {},
     set_variables: {values: {preset: 'STANDARD'}},
+    select_resource: {
+      asset_type: 'print',
+      asset_index: 1,
+      resource_role: 'Graphics',
+      resource_position: 1,
+      missing_policy: 'fail',
+      output_kind: 'selected_resource'
+    },
     calculate_copies: {
       quantity_field: 'item.quantity',
       output_key: 'production_copies',
@@ -74,6 +82,7 @@
     },
     collect_group: {
       group_field: 'aggregation.token',
+      expected_count: 0,
       expected_count_field: 'aggregation.expected_count',
       order_field: 'aggregation.position',
       timeout_minutes: 15,
@@ -115,8 +124,9 @@
     },
     illustrator: {
       agent_key: '',
-      script_name: 'plettro2.jsx',
-      template_path: 'STANDARD.ai',
+      script_mode: 'template',
+      script_name: 'plettri/plettro2.jsx',
+      template_path: 'plettri/STANDARD.ai',
       pdf_preset: 'PDF PLANCE',
       output_kind: 'unit_pdf'
     },
@@ -151,6 +161,39 @@
   };
 
   const simpleConfigSchemas = {
+    select_resource: [
+      {
+        key: 'asset_type',
+        label: 'Tipo di risorsa',
+        choices: [
+          ['print', 'File di stampa'],
+          ['cut', 'File di taglio'],
+          ['varnish', 'Verniciatura'],
+          ['white', 'Bianco'],
+          ['{{variables.asset_type}}', 'Leggi da una variabile']
+        ],
+        allowCustomChoice: true,
+        help: 'Puoi usare qualsiasi tipo asset registrato nel gestionale.'
+      },
+      {key: 'asset_index', label: 'Numero della risorsa', type: 'number', default: 1},
+      {
+        key: 'resource_role',
+        label: 'Nome logico',
+        default: 'Graphics',
+        help: 'Esempi: Graphics, CutContour, Varnish, White.'
+      },
+      {key: 'resource_position', label: 'Posizione nella composizione', type: 'number', default: 1},
+      {
+        key: 'missing_policy',
+        label: 'Se la risorsa non esiste',
+        choices: [
+          ['fail', 'Ferma con errore'],
+          ['route_missing', 'Usa l’uscita “Mancante”']
+        ],
+        default: 'fail'
+      },
+      {key: 'output_kind', label: 'Tipo risultato', default: 'selected_resource'}
+    ],
     photoshop: [
       {
         key: 'agent_key',
@@ -160,13 +203,13 @@
       },
       {
         key: 'action_set',
-        label: 'Gruppo azioni Photoshop',
-        help: 'Inserisci un nome fisso, ad esempio definitive_0924, oppure una variabile come {{variables.adobe_action_set}}.'
+        label: 'Gruppo azioni Photoshop (automatico se vuoto)',
+        help: 'Lascia vuoto per ricavarlo dal Mac in base al nome dell’azione. Compilalo solo se vuoi forzare un gruppo specifico.'
       },
       {
         key: 'action_name',
         label: 'Azione Photoshop',
-        help: 'Inserisci un nome fisso, ad esempio plettri bianchi, oppure una variabile come {{variables.adobe_action_name}}.'
+        help: 'Inserisci un nome fisso oppure una variabile, ad esempio {{operation.selected_photoshop_action}}.'
       },
       {
         key: 'width_mm',
@@ -199,20 +242,30 @@
         help: 'Il percorso della maschera viene interpretato su questa macchina.'
       },
       {
+        key: 'script_mode',
+        label: 'Modalità di esecuzione',
+        choices: [
+          ['template', 'Script con maschera Illustrator'],
+          ['document', 'Esegui script sul documento aperto']
+        ],
+        default: 'template',
+        help: 'La seconda modalità serve per elaborazioni generiche come taglio, verniciatura o composizione livelli.'
+      },
+      {
         key: 'script_name',
         label: 'Script JSX Illustrator',
         choices: 'illustrator_scripts',
         allowCustomChoice: true,
-        default: 'plettro2.jsx',
-        help: 'Scegli uno script rilevato oppure inserisci un nome fisso, ad esempio plettro2.jsx, o una variabile come {{variables.illustrator_script}}.'
+        default: 'plettri/plettro2.jsx',
+        help: 'Scegli uno script rilevato oppure inserisci un percorso relativo, ad esempio plettri/plettro2.jsx, o una variabile come {{variables.illustrator_script}}.'
       },
       {
         key: 'template_path',
         label: 'Maschera Illustrator',
         choices: 'illustrator_templates',
         allowCustomChoice: true,
-        default: 'STANDARD.ai',
-        help: 'Scegli una maschera rilevata oppure inserisci un nome fisso, ad esempio STANDARD.ai, o un’espressione come {{variables.template}}.ai.'
+        default: 'plettri/STANDARD.ai',
+        help: 'Richiesta soltanto nella modalità “Script con maschera”. Usa il percorso relativo mostrato nell’elenco, comprese le eventuali sottocartelle.'
       },
       {
         key: 'pdf_preset',
@@ -287,10 +340,18 @@
           ['aggregation.token', 'Lavoro aggregato (consigliato)'],
           ['aggregation.id', 'ID lavoro aggregato'],
           ['order.code', 'Codice ordine'],
-          ['operation.id', 'Identificativo operazione']
+          ['operation.id', 'Identificativo operazione'],
+          ['runtime.root_run_id', 'Esecuzione corrente']
         ],
         default: 'aggregation.token',
         help: 'Tutti i file con lo stesso valore entreranno nella stessa raccolta.'
+      },
+      {
+        key: 'expected_count',
+        label: 'Numero fisso di file attesi',
+        type: 'number',
+        default: 0,
+        help: 'Usa 0 per leggere il numero dal campo seguente.'
       },
       {
         key: 'expected_count_field',
@@ -307,7 +368,9 @@
         choices: [
           ['aggregation.position', 'Posizione nel lavoro'],
           ['file.index', 'Indice file'],
-          ['item.position', 'Posizione riga ordine']
+          ['item.position', 'Posizione riga ordine'],
+          ['file.resource_position', 'Posizione della risorsa selezionata'],
+          ['variables.resource_position', 'Posizione salvata dal flusso']
         ],
         default: 'aggregation.position'
       },
@@ -608,7 +671,9 @@
       const labels = {
         mono: 'Monofacciale',
         bifa: 'Bifacciale',
-        incomplete: 'Incompleto'
+        incomplete: 'Incompleto',
+        found: 'Trovata',
+        missing: 'Mancante'
       };
       return Array.from(catalogFor(node.type).outputs || []).map((key) => ({
         key,
@@ -629,7 +694,7 @@
 
   function choicesFor(value) {
     if (value === 'fields') {
-      return state.fieldCatalog.map((field) => [field.path, field.label]);
+      return availableDataFields().map((field) => [field.path, field.label]);
     }
     if (value === 'imposition' || value === 'output') {
       return [
@@ -702,6 +767,107 @@
       ];
     }
     return value || null;
+  }
+
+  function availableDataFields() {
+    const fields = [...state.fieldCatalog];
+    state.graph.nodes.forEach((node) => {
+      if (node.type === 'set_variables') {
+        Object.keys(node.config?.values || {}).forEach((key) => fields.push({
+          path: `variables.${key}`,
+          label: key,
+          type: 'variable',
+          category: 'Variabili del flusso',
+          produced_by: node.label || node.id
+        }));
+      }
+      if (node.type === 'calculate_copies' && node.config?.output_key) {
+        fields.push({
+          path: `variables.${node.config.output_key}`,
+          label: node.config.output_key,
+          type: 'number',
+          category: 'Variabili del flusso',
+          produced_by: node.label || node.id
+        });
+      }
+      if (node.type === 'select_resource') {
+        fields.push(
+          {path: 'variables.resource_role', label: 'Nome logico della risorsa', type: 'text', category: 'Variabili del flusso', produced_by: node.label || node.id},
+          {path: 'variables.resource_position', label: 'Posizione della risorsa', type: 'number', category: 'Variabili del flusso', produced_by: node.label || node.id}
+        );
+      }
+    });
+    const unique = new Map();
+    fields.forEach((field) => {
+      if (field?.path && !unique.has(field.path)) unique.set(field.path, field);
+    });
+    return [...unique.values()].sort((a, b) =>
+      String(a.label || a.path).localeCompare(String(b.label || b.path), 'it', {sensitivity: 'base'})
+    );
+  }
+
+  function renderDataCatalog() {
+    const container = document.getElementById('automation-data-list');
+    const search = document.getElementById('automation-data-search');
+    if (!container) return;
+    const query = String(search?.value || '').trim().toLowerCase();
+    const visible = availableDataFields().filter((field) =>
+      !query || `${field.label} ${field.path} ${field.category || ''}`.toLowerCase().includes(query)
+    );
+    const groups = new Map();
+    visible.forEach((field) => {
+      const root = field.path.split('.')[0];
+      const fallback = {
+        order: 'Ordine', item: 'Riga ordine', product: 'Prodotto', file: 'File',
+        aggregation: 'Aggregazione', operation: 'Operazione', machine: 'Macchina',
+        payload: 'Payload', variables: 'Variabili del flusso', runtime: 'Sistema'
+      }[root] || 'Altro';
+      const category = field.category || fallback;
+      if (!groups.has(category)) groups.set(category, []);
+      groups.get(category).push(field);
+    });
+    container.replaceChildren();
+    [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, 'it')).forEach(([category, fields]) => {
+      const details = document.createElement('details');
+      details.className = 'border rounded mb-2';
+      details.open = query.length > 0;
+      const summary = document.createElement('summary');
+      summary.className = 'small px-2 py-1 bg-light';
+      summary.textContent = `${category} (${fields.length})`;
+      const list = document.createElement('div');
+      list.className = 'p-1';
+      fields.forEach((field) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-sm btn-link text-start text-decoration-none w-100 px-2 py-1';
+        button.title = field.produced_by ? `Prodotta da: ${field.produced_by}` : `Tipo: ${field.type || 'testo'}`;
+        const readable = document.createElement('span');
+        readable.className = 'd-block';
+        readable.textContent = field.label || field.path;
+        const technical = document.createElement('code');
+        technical.className = 'small';
+        technical.textContent = field.path;
+        button.append(readable, technical);
+        button.addEventListener('click', async () => {
+          const expression = `{{${field.path}}}`;
+          const active = document.activeElement;
+          if (active && nodeConfigForm.contains(active) && ['INPUT', 'TEXTAREA'].includes(active.tagName)) {
+            const start = active.selectionStart ?? active.value.length;
+            const end = active.selectionEnd ?? start;
+            active.value = `${active.value.slice(0, start)}${expression}${active.value.slice(end)}`;
+            active.focus();
+            active.setSelectionRange(start + expression.length, start + expression.length);
+          } else {
+            await navigator.clipboard?.writeText(expression);
+            showMessage(`${expression} copiato.`, 'success');
+          }
+        });
+        list.appendChild(button);
+      });
+      details.append(summary, list);
+      container.appendChild(details);
+    });
+    if (!visible.length) container.innerHTML = '<div class="small text-muted">Nessun dato trovato.</div>';
   }
 
   function configField(field, value, role = field.key) {
@@ -1241,6 +1407,22 @@
       updatePresetFields();
       return;
     }
+    if (node.type === 'illustrator') {
+      configHint('Puoi usare Illustrator con una maschera oppure eseguire uno script direttamente sul documento corrente.');
+      const fields = simpleConfigSchemas.illustrator.map((field) =>
+        configField(field, node.config?.[field.key])
+      );
+      fields.forEach((field) => nodeConfigForm.appendChild(field));
+      const modeInput = nodeConfigForm.querySelector('[data-config-role="script_mode"]');
+      const templateInput = nodeConfigForm.querySelector('[data-config-role="template_path"]');
+      const templateField = templateInput?.closest('.mb-2');
+      const updateMode = () => {
+        if (templateField) templateField.hidden = modeInput?.value === 'document';
+      };
+      modeInput?.addEventListener('change', updateMode);
+      updateMode();
+      return;
+    }
 
     const schema = simpleConfigSchemas[node.type];
     if (!schema) {
@@ -1252,6 +1434,9 @@
     }
     if (node.type === 'collect_group') {
       configHint('Ogni esecuzione attende qui. Quando arrivano tutte le righe, i PDF vengono uniti nell’ordine scelto e il flusso prosegue una sola volta. Il controllo compatibilità impedisce di mescolare preset diversi.');
+    }
+    if (node.type === 'select_resource') {
+      configHint('Seleziona un file allegato alla riga ordine usando il suo tipo. Il nome logico e la posizione potranno essere letti dai blocchi successivi.');
     }
     schema.forEach((field) => {
       nodeConfigForm.appendChild(configField(field, node.config?.[field.key]));
@@ -1700,6 +1885,7 @@
   function render() {
     renderNodes();
     renderEdges();
+    renderDataCatalog();
     resizeCanvas();
     if (state.selectedNodeId) selectNode(state.selectedNodeId);
   }
@@ -1848,6 +2034,8 @@
     event.preventDefault();
     deleteNode();
   });
+
+  document.getElementById('automation-data-search')?.addEventListener('input', renderDataCatalog);
 
   window.addEventListener('beforeunload', (event) => {
     if (!state.dirty) return;

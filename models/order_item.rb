@@ -136,7 +136,8 @@ class OrderItem < ActiveRecord::Base
     
     # Handle cut files (asset_type == 'cut')
     if asset.asset_type == 'cut'
-      extension = File.extname(asset.filename_from_url).presence || '.svg'
+      extension = File.extname(asset.local_path.to_s).presence ||
+                  File.extname(asset.filename_from_url).presence || '.svg'
       return "#{order_code}-#{item_number}-cut#{extension}"
     end
     

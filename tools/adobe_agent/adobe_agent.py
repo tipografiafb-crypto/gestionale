@@ -272,7 +272,7 @@ class AdobeAgent:
                     }
                     for path in self.hotfolder_roots
                 ],
-                "agent_version": 5,
+                "agent_version": 7,
             },
             "last_error": self.last_error,
         }
@@ -607,6 +607,14 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
                 resolved = candidate.resolve()
                 if direct.is_absolute() or resolved.is_relative_to(self.template_root.resolve()):
                     return resolved
+        if not direct.is_absolute() and "/" not in configured and self.template_root.is_dir():
+            matches = sorted(path for path in self.template_root.rglob(configured) if path.is_file())
+            if len(matches) == 1:
+                return matches[0].resolve()
+            if len(matches) > 1:
+                raise FileNotFoundError(
+                    f"Maschera Illustrator ambigua: {configured}. Scegli una sottocartella."
+                )
         raise FileNotFoundError(f"Maschera Illustrator non trovata: {configured} (cartella {self.template_root})")
 
     def execute_hot_folder(self, input_path, config):
@@ -673,6 +681,14 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
                 resolved = candidate.resolve()
                 if direct.is_absolute() or resolved.is_relative_to(self.script_root.resolve()):
                     return resolved
+        if not direct.is_absolute() and "/" not in configured and self.script_root.is_dir():
+            matches = sorted(path for path in self.script_root.rglob(configured) if path.is_file())
+            if len(matches) == 1:
+                return matches[0].resolve()
+            if len(matches) > 1:
+                raise FileNotFoundError(
+                    f"Script Illustrator ambiguo: {configured}. Scegli una sottocartella."
+                )
         raise FileNotFoundError(f"Script Illustrator non trovato: {configured} (cartella {self.script_root})")
 
     def prepare_illustrator_script(self, script, template, input_path):
@@ -694,10 +710,26 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
         return source
 
     def execute_illustrator(self, input_path, output_path, config, workdir):
-        template = self.resolve_template(config.get("template_path"))
+        script_mode = str(config.get("script_mode") or "template").strip()
+        template = (
+            self.resolve_template(config.get("template_path"))
+            if script_mode == "template" else None
+        )
         script = self.resolve_script(config.get("script_name"))
         pdf_preset = str(config.get("pdf_preset") or "").strip()
-        if script:
+        if script and script_mode == "document":
+            script_source = script.read_text(encoding="utf-8-sig")
+            script_source = re.sub(
+                r"^\s*#target[^\r\n]*(?:\r?\n)?", "", script_source,
+                flags=re.MULTILINE,
+            )
+            open_and_place = f"""
+var inputFile = new File({self.jsx_string(input_path)});
+var documentRef = app.open(inputFile);
+{script_source}
+documentRef = app.activeDocument;
+"""
+        elif script:
             if not template:
                 raise RuntimeError("Lo script Illustrator richiede una maschera")
             open_and_place = self.prepare_illustrator_script(script, template, input_path)
@@ -808,6 +840,7 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
         elif task["node_type"] == "illustrator":
             metadata_values["real_adobe"] = True
             metadata_values.update({
+                "script_mode": str(config.get("script_mode") or "template"),
                 "script_name": str(config.get("script_name") or ""),
                 "template_path": str(config.get("template_path") or ""),
                 "pdf_preset": str(config.get("pdf_preset") or ""),

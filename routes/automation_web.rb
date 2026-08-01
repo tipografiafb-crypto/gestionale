@@ -7,16 +7,21 @@ require 'securerandom'
 
 class PrintOrchestrator < Sinatra::Base
   AUTOMATION_FIELD_CATALOG = [
-    {path: 'item.sku', label: 'SKU prodotto', type: 'text'},
+    {path: 'item.sku', label: 'SKU prodotto', type: 'text', category: 'Riga ordine'},
     {path: 'item.quantity', label: 'Quantità ordinata', type: 'number'},
+    {path: 'item.id', label: 'ID riga ordine', type: 'number', category: 'Riga ordine'},
     {path: 'order.code', label: 'Codice ordine', type: 'text'},
     {path: 'order.store', label: 'Negozio', type: 'text'},
     {path: 'item.position', label: 'Posizione riga', type: 'number'},
     {path: 'product.name', label: 'Nome prodotto', type: 'text'},
     {path: 'product.route_text', label: 'SKU + nome prodotto', type: 'text'},
+    {path: 'product.has_cut_file', label: 'Il prodotto prevede un file di taglio', type: 'boolean', category: 'Prodotto'},
+    {path: 'product.asset_types', label: 'Tipi di file disponibili', type: 'list', category: 'Prodotto'},
     {path: 'file.filename', label: 'Nome file', type: 'text'},
     {path: 'file.index', label: 'Indice file', type: 'number'},
     {path: 'file.count', label: 'Numero file della riga', type: 'number'},
+    {path: 'file.resource_role', label: 'Ruolo della risorsa selezionata', type: 'text', category: 'File'},
+    {path: 'file.resource_position', label: 'Posizione nella composizione', type: 'number', category: 'File'},
     {path: 'aggregation.id', label: 'ID lavoro aggregato', type: 'number'},
     {path: 'aggregation.token', label: 'Identificativo univoco del tentativo', type: 'text'},
     {path: 'aggregation.expected_count', label: 'Numero righe attese', type: 'number'},
@@ -24,11 +29,13 @@ class PrintOrchestrator < Sinatra::Base
     {path: 'operation.type', label: 'Codice evento', type: 'text'},
     {path: 'operation.source', label: 'Sorgente evento', type: 'text'},
     {path: 'operation.handoff_from_flow_name', label: 'Automazione precedente', type: 'text'},
+    {path: 'operation.selected_photoshop_action', label: 'Azione Photoshop scelta', type: 'text', category: 'Operazione'},
     {path: 'machine.name', label: 'Macchina selezionata', type: 'text'},
     {path: 'machine.destination_code', label: 'Hot folder della macchina', type: 'text'},
     {path: 'variables.print_mode', label: 'Tipo stampa (mono/bifa)', type: 'text'},
     {path: 'variables.side_count', label: 'Numero lati', type: 'number'},
-    {path: 'payload.campi_webhook.percentuale', label: 'Correzione percentuale', type: 'number'}
+    {path: 'runtime.root_run_id', label: 'Esecuzione corrente', type: 'number', category: 'Sistema'},
+    {path: 'payload.campi_webhook', label: 'Dati webhook ricevuti', type: 'object'}
   ].freeze
 
   NODE_CATALOG = [
@@ -36,6 +43,7 @@ class PrintOrchestrator < Sinatra::Base
     {type: 'router', label: 'Condizione multipla', icon: 'fa-code-branch', outputs: ['configurabili']},
     {type: 'fork', label: 'Dirama lavoro', icon: 'fa-code-fork', outputs: ['default']},
     {type: 'set_variables', label: 'Imposta variabili', icon: 'fa-tags', outputs: ['default']},
+    {type: 'select_resource', label: 'Seleziona risorsa', icon: 'fa-file-circle-check', outputs: ['found', 'missing']},
     {type: 'calculate_copies', label: 'Calcola quantità', icon: 'fa-calculator', outputs: ['default']},
     {type: 'duplicate_pages', label: 'Moltiplica pagine', icon: 'fa-copy', outputs: ['default']},
     {type: 'pdf_label', label: 'Aggiungi testo al PDF', icon: 'fa-font', outputs: ['default']},
@@ -185,8 +193,9 @@ class PrintOrchestrator < Sinatra::Base
       end
     end
 
-    def automation_agent_task_config(node, run)
+    def automation_agent_task_config(node, run, agent_key: nil)
       resolved = resolve_automation_config(node['config'] || {}, run.context)
+      resolved = resolve_photoshop_action_set!(resolved, agent_key) if node['type'] == 'photoshop'
       return resolved unless node['type'] == 'hot_folder'
 
       destination = AutomationDestination.active.find_by(
@@ -200,6 +209,29 @@ class PrintOrchestrator < Sinatra::Base
         'agent_path' => destination_config['agent_path'].to_s,
         'destination_code' => destination.code
       )
+    end
+
+    def resolve_photoshop_action_set!(config, agent_key)
+      action_name = config['action_name'].to_s.strip
+      return config if action_name.empty? || config['action_set'].to_s.strip.present?
+
+      agent = AutomationAgent.active.find_by(agent_key: agent_key.to_s)
+      raise ArgumentError, 'Mac Adobe non disponibile per risolvere l’azione Photoshop' unless agent
+
+      matches = Array(agent.metadata&.dig('photoshop_actions')).select do |action|
+        action.is_a?(Hash) && action['name'].to_s == action_name && action['set'].to_s.present?
+      end
+      sets = matches.map { |action| action['set'].to_s }.uniq
+      if sets.empty?
+        raise ArgumentError,
+              "Azione Photoshop “#{action_name}” non trovata sul Mac #{agent.name}. Sincronizza prima le risorse Adobe."
+      end
+      if sets.many?
+        raise ArgumentError,
+              "L’azione Photoshop “#{action_name}” esiste in più gruppi (#{sets.join(', ')}). Rinominala o indica il gruppo nel blocco."
+      end
+
+      config.merge('action_set' => sets.first, 'action_set_resolved_automatically' => true)
     end
   end
 
@@ -388,6 +420,22 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end
 
+  post '/automations/seed_layered_assets' do
+    flow = AutomationBootstrap.seed_layered_assets_flow!
+    text = 'Flusso generico stampa e livello tecnico creato; controlla le risorse e poi pubblicalo'
+    redirect "/automations/#{flow.id}/edit?msg=success&text=#{URI.encode_www_form_component(text)}"
+  rescue StandardError => e
+    redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
+  post '/automations/seed_manual_plectrum' do
+    flow = AutomationBootstrap.seed_manual_plectrum_flow!
+    text = 'Flusso plettri manuale preparato e collegato alla scelta azione Photoshop'
+    redirect "/automations/#{flow.id}/edit?msg=success&text=#{URI.encode_www_form_component(text)}"
+  rescue StandardError => e
+    redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
   post '/automations/:id/duplicate' do
     source = AutomationFlow.includes(:automation_folders).find(params[:id])
     base_name = "#{source.name} copia"
@@ -513,6 +561,28 @@ class PrintOrchestrator < Sinatra::Base
                                                .ordered
     @automation_items = OrderItem.includes(:order).order(created_at: :desc).limit(100)
     erb :automation_flow_editor
+  end
+
+  get '/automations/:id/export' do
+    flow = AutomationFlow.find(params[:id])
+    content_type :json
+    attachment "#{flow.name.gsub(/[^A-Za-z0-9_-]+/, '_')}.automation.json"
+    JSON.pretty_generate(AutomationFlowTransfer.export(flow))
+  rescue StandardError => e
+    status 422
+    {success: false, error: e.message}.to_json
+  end
+
+  post '/automations/import' do
+    upload = params['flow_file']
+    raise ArgumentError, 'Seleziona un file .automation.json' unless upload && upload[:tempfile]
+
+    result = AutomationFlowTransfer.import!(upload[:tempfile].read)
+    text = "Flusso importato come bozza: #{result[:flow].name}"
+    text += " (#{result[:warnings].join('; ')})" if result[:warnings].any?
+    redirect "/automations/#{result[:flow].id}/edit?msg=success&text=#{URI.encode_www_form_component(text)}"
+  rescue StandardError => e
+    redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end
 
   get '/api/automations/:id/editor' do
@@ -798,7 +868,7 @@ class PrintOrchestrator < Sinatra::Base
       candidate = candidates.find do |queued_step|
         queued_run = queued_step.automation_run
         queued_node = AutomationEngine.node_for(queued_step)
-        resolved = automation_agent_task_config(queued_node, queued_run)
+        resolved = resolve_automation_config(queued_node['config'] || {}, queued_run.context)
         target_agent = resolved['agent_key'].to_s
         target_agent.empty? || target_agent == worker_id
       end
@@ -812,7 +882,7 @@ class PrintOrchestrator < Sinatra::Base
 
     run = step.automation_run
     node = AutomationEngine.node_for(step)
-    task_config = automation_agent_task_config(node, run)
+    task_config = automation_agent_task_config(node, run, agent_key: worker_id)
     artifact = if node['type'] == 'hot_folder' && task_config['artifact_kind'].present?
                  run.artifact_by_kind(task_config['artifact_kind'])
                else

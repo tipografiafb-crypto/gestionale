@@ -84,10 +84,30 @@ class AutomationGraphValidator
       label = node['label'].presence || node['id']
       config = node['config'] || {}
       result << "Campo gruppo mancante nel blocco #{label}" if config['group_field'].to_s.strip.empty?
-      result << "Numero atteso mancante nel blocco #{label}" if config['expected_count_field'].to_s.strip.empty?
+      if config['expected_count'].to_i <= 0 && config['expected_count_field'].to_s.strip.empty?
+        result << "Numero atteso mancante nel blocco #{label}"
+      end
       result << "Timeout non valido nel blocco #{label}" if config.fetch('timeout_minutes', 15).to_f <= 0
       unless %w[fail process_received].include?(config.fetch('timeout_policy', 'fail').to_s)
         result << "Comportamento timeout non valido nel blocco #{label}"
+      end
+    end
+    nodes.select { |node| node['type'] == 'select_resource' }.each do |node|
+      label = node['label'].presence || node['id']
+      config = node['config'] || {}
+      result << "Tipo risorsa mancante nel blocco #{label}" if config['asset_type'].to_s.strip.empty?
+      result << "Indice risorsa non valido nel blocco #{label}" if config.fetch('asset_index', 1).to_i < 1
+      unless %w[fail route_missing].include?(config.fetch('missing_policy', 'fail').to_s)
+        result << "Comportamento risorsa mancante non valido nel blocco #{label}"
+      end
+    end
+    nodes.select { |node| node['type'] == 'illustrator' }.each do |node|
+      label = node['label'].presence || node['id']
+      config = node['config'] || {}
+      mode = config.fetch('script_mode', 'template').to_s
+      result << "Modalità Illustrator non valida nel blocco #{label}" unless %w[template document].include?(mode)
+      if mode == 'document' && config['script_name'].to_s.strip.empty?
+        result << "Seleziona lo script Illustrator nel blocco #{label}"
       end
     end
     nodes.select { |node| node['type'] == 'step_repeat' }.each do |node|
@@ -267,6 +287,49 @@ class AutomationBootstrap
       flow
     end
 
+    def seed_layered_assets_flow!
+      flow = AutomationFlow.find_or_initialize_by(name: 'ADESIVI · Stampa e livello tecnico')
+      flow.description =
+        'Esempio riutilizzabile: seleziona due risorse della riga, le elabora e le compone in livelli Illustrator.'
+      flow.status ||= 'draft'
+      flow.save!
+
+      draft = flow.versions.where(status: 'draft').order(version_number: :desc).first ||
+              flow.versions.create!(
+                version_number: (flow.versions.maximum(:version_number) || 0) + 1,
+                status: 'draft',
+                graph: layered_assets_graph
+              )
+      draft.update!(graph: layered_assets_graph)
+      flow
+    end
+
+    def seed_manual_plectrum_flow!
+      illustrator_flow = AutomationFlow.find_by(name: '2 - illustrator')
+      raise ArgumentError, 'Manca il modulo “2 - illustrator” richiesto dal flusso manuale' unless illustrator_flow&.active_version
+
+      flow = AutomationFlow.find_or_initialize_by(name: 'PLETTRI · Manuale')
+      flow.description = 'Usa l’azione Photoshop scelta dall’operatore e prosegue con il modulo Illustrator comune.'
+      flow.status ||= 'draft'
+      flow.save!
+
+      graph = manual_plectrum_graph(illustrator_flow.id)
+      draft = flow.versions.where(status: 'draft').order(version_number: :desc).first ||
+              flow.versions.create!(
+                version_number: (flow.versions.maximum(:version_number) || 0) + 1,
+                status: 'draft',
+                graph: graph
+              )
+      draft.update!(graph: graph) if draft.graph.blank? || Array(draft.graph['nodes']).size <= 2
+      flow.publish_draft! unless flow.active_version
+
+      PrintFlow.find_by(name: 'plettri manuale')&.update!(
+        preprint_executor: 'automation',
+        preprint_automation_flow: flow
+      )
+      flow
+    end
+
     def seed_presets!
       upsert_preset(
         'imposition',
@@ -325,13 +388,13 @@ class AutomationBootstrap
           'default_port' => 'other'
         }),
         node('white_vars', 'set_variables', 'Azione bianco', 490, 180, {
-          'values' => {'adobe_action_set' => 'definitive_0924', 'adobe_action_name' => 'plettri bianchi', 'template' => 'STANDARD', 'imposition_preset' => 'STANDARD_MONO'}
+          'values' => {'adobe_action_set' => 'definitive_0924', 'adobe_action_name' => 'plettri bianchi', 'template' => 'plettri/STANDARD', 'imposition_preset' => 'STANDARD_MONO'}
         }),
         node('black_vars', 'set_variables', 'Azione nero', 490, 360, {
-          'values' => {'adobe_action_set' => 'definitive_0924', 'adobe_action_name' => 'plettri neri', 'template' => 'STANDARD', 'imposition_preset' => 'STANDARD_MONO'}
+          'values' => {'adobe_action_set' => 'definitive_0924', 'adobe_action_name' => 'plettri neri', 'template' => 'plettri/STANDARD', 'imposition_preset' => 'STANDARD_MONO'}
         }),
         node('other_vars', 'set_variables', 'Azione altri', 490, 540, {
-          'values' => {'adobe_action_set' => 'definitive_0924', 'adobe_action_name' => 'altri plettri', 'template' => 'STANDARD', 'imposition_preset' => 'STANDARD_MONO'}
+          'values' => {'adobe_action_set' => 'definitive_0924', 'adobe_action_name' => 'altri plettri', 'template' => 'plettri/STANDARD', 'imposition_preset' => 'STANDARD_MONO'}
         }),
         node('route_template', 'router', 'Modello maschera', 740, 360, {
           'cases' => [
@@ -345,25 +408,25 @@ class AutomationBootstrap
           'default_port' => 'standard'
         }),
         node('template_sharp', 'set_variables', 'Maschera SHARP', 980, 20, {
-          'values' => {'template' => 'SHARP'}
+          'values' => {'template' => 'plettri/SHARP'}
         }),
         node('template_jazz', 'set_variables', 'Maschera JAZZ', 980, 130, {
-          'values' => {'template' => 'JAZZ'}
+          'values' => {'template' => 'plettri/JAZZ'}
         }),
         node('template_triangle', 'set_variables', 'Maschera TRIANGOLO', 980, 240, {
-          'values' => {'template' => 'TRIANGOLO'}
+          'values' => {'template' => 'plettri/TRIANGOLO'}
         }),
         node('template_flow', 'set_variables', 'Maschera FLOW', 980, 350, {
-          'values' => {'template' => 'FLOW'}
+          'values' => {'template' => 'plettri/FLOW'}
         }),
         node('template_tortex', 'set_variables', 'Maschera TORTEX', 980, 460, {
-          'values' => {'template' => 'TORTEX'}
+          'values' => {'template' => 'plettri/TORTEX'}
         }),
         node('template_gator', 'set_variables', 'Maschera GATOR', 980, 570, {
-          'values' => {'template' => 'GATOR'}
+          'values' => {'template' => 'plettri/GATOR'}
         }),
         node('template_standard', 'set_variables', 'Maschera STANDARD', 980, 680, {
-          'values' => {'template' => 'STANDARD'}
+          'values' => {'template' => 'plettri/STANDARD'}
         }),
         node('photoshop', 'photoshop', 'Photoshop', 1240, 360, {
           'action_set' => '{{variables.adobe_action_set}}',
@@ -374,7 +437,7 @@ class AutomationBootstrap
           'output_kind' => 'photoshop_pdf'
         }),
         node('illustrator', 'illustrator', 'Illustrator + maschera', 1470, 360, {
-          'script_name' => 'plettro2.jsx',
+          'script_name' => 'plettri/plettro2.jsx',
           'template_path' => '{{variables.template}}.ai',
           'pdf_preset' => 'PDF PLANCE',
           'output_kind' => 'unit_pdf'
@@ -566,6 +629,123 @@ class AutomationBootstrap
         edge('e17', 'collect_labels', 'impose_labels'),
         edge('e18', 'impose_labels', 'resize_labels'),
         edge('e19', 'resize_labels', 'finish_labels')
+      ]
+      {'schema_version' => 1, 'nodes' => nodes, 'edges' => edges}
+    end
+
+    def layered_assets_graph
+      nodes = [
+        node('input', 'trigger', 'Ingresso prestampa', 60, 300, {
+          'operation_type' => 'preprint;manual',
+          'source_type' => 'print_flow;manual'
+        }),
+        node('has_layers', 'router', 'Il prodotto ha il livello aggiuntivo?', 300, 300, {
+          'cases' => [
+            {
+              'port' => 'yes',
+              'label' => 'Sì',
+              'field' => 'product.has_cut_file',
+              'operator' => 'equals',
+              'value' => 'true'
+            }
+          ],
+          'default_port' => 'no'
+        }),
+        node('missing_setup', 'approval', 'Prodotto senza file aggiuntivo', 560, 520),
+        node('fork_resources', 'fork', 'Prepara le risorse', 560, 300),
+        node('select_print', 'select_resource', 'Seleziona grafica', 820, 150, {
+          'asset_type' => 'print',
+          'asset_index' => 1,
+          'resource_role' => 'Graphics',
+          'resource_position' => 1,
+          'missing_policy' => 'fail',
+          'output_kind' => 'selected_graphics'
+        }),
+        node('prepare_print', 'photoshop', 'Prepara grafica a 300 DPI', 1080, 150, {
+          'agent_key' => '',
+          'action_set' => '',
+          'action_name' => '',
+          'width_mm' => 0,
+          'height_mm' => 0,
+          'dpi' => 300,
+          'output_kind' => 'graphics_pdf'
+        }),
+        node('select_cut', 'select_resource', 'Seleziona livello tecnico', 820, 450, {
+          'asset_type' => 'cut',
+          'asset_index' => 1,
+          'resource_role' => 'CutContour',
+          'resource_position' => 2,
+          'missing_policy' => 'fail',
+          'output_kind' => 'selected_technical_layer'
+        }),
+        node('prepare_cut', 'illustrator', 'Prepara livello CutContour', 1080, 450, {
+          'agent_key' => '',
+          'script_mode' => 'document',
+          'script_name' => 'adesivi/convert_to_cutcontour.jsx',
+          'template_path' => '',
+          'pdf_preset' => 'PDF_plance_livelli',
+          'output_kind' => 'technical_layer_pdf'
+        }),
+        node('collect_layers', 'collect_group', 'Raccogli i livelli', 1360, 300, {
+          'group_field' => 'runtime.root_run_id',
+          'expected_count' => 2,
+          'expected_count_field' => '',
+          'order_field' => 'file.resource_position',
+          'consistency_field' => '',
+          'timeout_minutes' => 15,
+          'timeout_policy' => 'fail',
+          'output_kind' => 'layer_source_pdf'
+        }),
+        node('compose_layers', 'illustrator', 'Componi livelli', 1640, 300, {
+          'agent_key' => '',
+          'script_mode' => 'document',
+          'script_name' => 'adesivi/convert_multipage_pdf.jsx',
+          'template_path' => '',
+          'pdf_preset' => 'PDF_plance_livelli',
+          'output_kind' => 'layered_pdf'
+        }),
+        node('finish', 'finish', 'PDF a livelli pronto', 1920, 300, {
+          'result_artifact_kind' => 'layered_pdf'
+        })
+      ]
+      edges = [
+        edge('e1', 'input', 'has_layers'),
+        edge('e2', 'has_layers', 'fork_resources', 'yes'),
+        edge('e3', 'has_layers', 'missing_setup', 'no'),
+        edge('e4', 'fork_resources', 'select_print'),
+        edge('e5', 'fork_resources', 'select_cut'),
+        edge('e6', 'select_print', 'prepare_print', 'found'),
+        edge('e7', 'select_cut', 'prepare_cut', 'found'),
+        edge('e8', 'prepare_print', 'collect_layers'),
+        edge('e9', 'prepare_cut', 'collect_layers'),
+        edge('e10', 'collect_layers', 'compose_layers'),
+        edge('e11', 'compose_layers', 'finish')
+      ]
+      {'schema_version' => 1, 'nodes' => nodes, 'edges' => edges}
+    end
+
+    def manual_plectrum_graph(illustrator_flow_id)
+      nodes = [
+        node('input', 'trigger', 'Ingresso prestampa manuale', 80, 260, {
+          'operation_type' => 'preprint;manual',
+          'source_type' => 'print_flow;manual'
+        }),
+        node('photoshop', 'photoshop', 'Photoshop: azione scelta', 420, 260, {
+          'agent_key' => 'mac-switch-01',
+          'action_set' => '',
+          'action_name' => '{{operation.selected_photoshop_action}}',
+          'width_mm' => 50,
+          'height_mm' => 50,
+          'dpi' => 300,
+          'output_kind' => 'photoshop_pdf'
+        }),
+        node('handoff', 'handoff', 'Passa a Illustrator', 760, 260, {
+          'target_flow_id' => illustrator_flow_id.to_s
+        })
+      ]
+      edges = [
+        edge('e1', 'input', 'photoshop'),
+        edge('e2', 'photoshop', 'handoff')
       ]
       {'schema_version' => 1, 'nodes' => nodes, 'edges' => edges}
     end
@@ -996,6 +1176,7 @@ class AutomationEngine
       when '.pdf' then 'application/pdf'
       when '.png' then 'image/png'
       when '.jpg', '.jpeg' then 'image/jpeg'
+      when '.svg' then 'image/svg+xml'
       else 'application/octet-stream'
       end
     end
@@ -1086,7 +1267,9 @@ class AutomationEngine
           'id' => product&.id,
           'sku' => product&.sku || item.sku,
           'name' => product&.name,
-          'route_text' => route_text
+          'route_text' => route_text,
+          'has_cut_file' => product&.has_cut_file == true,
+          'asset_types' => item.assets.where.not(asset_type: nil).distinct.order(:asset_type).pluck(:asset_type)
         },
         'operation' => {
           'type' => operation_type,
@@ -1094,7 +1277,9 @@ class AutomationEngine
           'source' => extra_context['trigger_source'] || 'manual',
           'id' => extra_context['operation_id'],
           'print_flow_id' => print_flow&.id,
-          'print_flow_name' => print_flow&.name
+          'print_flow_name' => print_flow&.name,
+          'selected_photoshop_action' => webhook_fields&.fetch('azione photoshop', nil).presence ||
+                                        webhook_fields&.fetch('azione_photoshop', nil).presence
         },
         'file' => {
           'asset_id' => asset&.id,
@@ -1158,6 +1343,7 @@ class AutomationNodeExecutor
     when 'router' then execute_router
     when 'fork' then {}
     when 'set_variables' then execute_set_variables
+    when 'select_resource' then execute_select_resource
     when 'calculate_copies' then execute_calculate_copies
     when 'duplicate_pages' then execute_duplicate_pages
     when 'pdf_label' then execute_pdf_label
@@ -1215,6 +1401,66 @@ class AutomationNodeExecutor
       updates["variables.#{key}"] = AutomationEngine.resolve(value, @context)
     end
     {'context_updates' => updates}
+  end
+
+  def execute_select_resource
+    requested_type = AutomationEngine.resolve(@config['asset_type'], @context).to_s.strip
+    requested_index = [@config.fetch('asset_index', 1).to_i, 1].max
+    candidates = @run.order_item.assets.order(:id).select(&:downloaded?)
+    candidates.select! do |asset|
+      if requested_type == 'print'
+        asset.asset_type == 'print' || asset.asset_type.to_s.start_with?('print_file')
+      else
+        asset.asset_type.to_s == requested_type
+      end
+    end
+    selected = candidates[requested_index - 1]
+    unless selected
+      if @config.fetch('missing_policy', 'fail').to_s == 'route_missing'
+        return {
+          'next_port' => 'missing',
+          'requested_asset_type' => requested_type,
+          'requested_asset_index' => requested_index
+        }
+      end
+      raise ArgumentError,
+            "Risorsa #{requested_type} numero #{requested_index} non disponibile per la riga ordine"
+    end
+
+    role = AutomationEngine.resolve(@config['resource_role'], @context).to_s.strip.presence || requested_type
+    position = @config.fetch('resource_position', requested_index).to_i
+    filename = @run.order_item.switch_filename_for_asset(selected) ||
+               selected.filename_from_url || File.basename(selected.local_path_full)
+    artifact = AutomationEngine.create_artifact!(
+      run: @run,
+      step: @step,
+      kind: @config['output_kind'].to_s.strip.presence || "selected_#{role}",
+      path: selected.local_path_full,
+      filename: filename,
+      media_type: AutomationEngine.media_type_for(selected.local_path_full),
+      metadata: {
+        'asset_id' => selected.id,
+        'asset_type' => selected.asset_type,
+        'resource_role' => role,
+        'resource_position' => position
+      }
+    )
+    {
+      'next_port' => 'found',
+      'artifact_id' => artifact.id,
+      'selected_asset_id' => selected.id,
+      'context_updates' => {
+        'runtime.current_artifact_id' => artifact.id,
+        'file.asset_id' => selected.id,
+        'file.asset_type' => selected.asset_type,
+        'file.filename' => filename,
+        'file.local_path' => selected.local_path,
+        'file.resource_role' => role,
+        'file.resource_position' => position,
+        'variables.resource_role' => role,
+        'variables.resource_position' => position
+      }
+    }
   end
 
   def execute_calculate_copies
@@ -1382,7 +1628,8 @@ class AutomationNodeExecutor
     expected_field = @config['expected_count_field'].presence || 'aggregation.expected_count'
     order_field = @config['order_field'].presence || 'aggregation.position'
     group_key = AutomationEngine.context_value(@context, group_field).to_s.strip
-    expected_count = AutomationEngine.context_value(@context, expected_field).to_i
+    expected_count = @config['expected_count'].to_i
+    expected_count = AutomationEngine.context_value(@context, expected_field).to_i unless expected_count.positive?
     position = AutomationEngine.context_value(@context, order_field).to_i
     consistency_field = @config['consistency_field'].to_s.strip.presence
     consistency_value = if consistency_field

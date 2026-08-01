@@ -26,6 +26,9 @@
         <i class="fas fa-copy me-1"></i>Duplica
       </button>
     </form>
+    <a class="btn btn-outline-secondary" href="/automations/<%= @automation_flow.id %>/export">
+      <i class="fas fa-file-export me-1"></i>Esporta
+    </a>
     <button type="button" class="btn btn-outline-secondary" id="validate-automation"><i class="fas fa-check-double me-1"></i>Valida</button>
     <button type="button" class="btn btn-primary" id="save-automation"><i class="fas fa-floppy-disk me-1"></i>Salva bozza</button>
     <form method="post" action="/automations/<%= @automation_flow.id %>/publish" id="publish-automation-form">
@@ -85,6 +88,14 @@
         <label class="form-label small" for="automation-flow-description">Descrizione</label>
         <textarea class="form-control form-control-sm" id="automation-flow-description" rows="3"><%= Rack::Utils.escape_html(@automation_flow.description.to_s) %></textarea>
       </div>
+      <details class="mb-3" id="automation-data-catalog">
+        <summary class="small fw-semibold"><i class="fas fa-database me-1"></i>Dati e variabili disponibili</summary>
+        <div class="mt-2">
+          <input class="form-control form-control-sm mb-2" id="automation-data-search" placeholder="Cerca dato o variabile">
+          <div class="small text-muted mb-2">Clicca una voce per copiarla nel formato <code>{{dato}}</code>.</div>
+          <div id="automation-data-list"></div>
+        </div>
+      </details>
       <hr>
       <div id="automation-node-empty" class="text-muted small">Seleziona un blocco per modificarlo.</div>
       <div id="automation-node-form" hidden>
@@ -194,4 +205,4 @@
     {id: flow.id, name: flow.name, version: flow.active_version.version_number}
   }
 }).gsub('</', '<\/') %></script>
-<script src="/automation_editor.js?v=20260731-1"></script>
+<script src="/automation_editor.js?v=20260801-1"></script>
