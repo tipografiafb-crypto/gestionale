@@ -1048,8 +1048,9 @@ class PrintOrchestrator < Sinatra::Base
         end
 
         operational_path = asset.local_path_full
+        source_path = ImageEditService.source_path(asset)
         source_backup_path = halftone_source_backup_path(asset)
-        FileUtils.copy(operational_path, source_backup_path) unless File.exist?(source_backup_path)
+        FileUtils.copy(source_path, source_backup_path) unless File.exist?(source_backup_path)
 
         tmp_output_path = File.join(
           File.dirname(operational_path),
@@ -1066,10 +1067,10 @@ class PrintOrchestrator < Sinatra::Base
       end
 
       operational_path = asset.local_path_full
+      source_path = ImageEditService.source_path(asset)
       source_backup_path = halftone_source_backup_path(asset)
-      FileUtils.copy(operational_path, source_backup_path) unless File.exist?(source_backup_path)
+      FileUtils.copy(source_path, source_backup_path) unless File.exist?(source_backup_path)
 
-      source_path = halftone_source_path(asset)
       tmp_output_path = File.join(File.dirname(operational_path), ".#{File.basename(operational_path, '.*')}_dtf_halftone_tmp_#{Time.now.strftime('%Y%m%d%H%M%S')}.png")
       command = halftone_command(source_path, tmp_output_path, params)
 
@@ -1138,8 +1139,9 @@ class PrintOrchestrator < Sinatra::Base
       end
 
       operational_path = asset.local_path_full
+      source_path = ImageEditService.source_path(asset)
       source_backup_path = halftone_source_backup_path(asset)
-      FileUtils.copy(operational_path, source_backup_path) unless File.exist?(source_backup_path)
+      FileUtils.copy(source_path, source_backup_path) unless File.exist?(source_backup_path)
 
       tmp_output_path = File.join(
         File.dirname(operational_path),
@@ -1216,7 +1218,7 @@ class PrintOrchestrator < Sinatra::Base
       original_path = asset.local_path_full
       backup_path = ImageEditService.backup_path(asset)
       dtf_backup_path = halftone_source_backup_path(asset)
-      backup_path = dtf_backup_path if dtf_backup_path && File.exist?(dtf_backup_path)
+      backup_path = dtf_backup_path if !File.exist?(backup_path) && dtf_backup_path && File.exist?(dtf_backup_path)
       
       unless File.exist?(backup_path)
         redirect "/orders/#{order_id}/items/#{item_id}?error=No backup available for this image"
@@ -1317,7 +1319,7 @@ class PrintOrchestrator < Sinatra::Base
       )
       backup_path = ImageEditService.backup_path(asset)
       unless File.exist?(backup_path)
-        FileUtils.copy(original_path, backup_path)
+        FileUtils.copy(source_path, backup_path)
         puts "[ADJUST] Backup created: #{backup_path}"
       end
 
