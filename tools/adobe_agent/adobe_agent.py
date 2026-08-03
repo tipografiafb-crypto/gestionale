@@ -659,10 +659,22 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
             timeout=180,
         )
         if result.returncode:
-            raise RuntimeError(
-                result.stderr.strip() or result.stdout.strip() or
-                "Finder non ha consegnato il file nella hotfolder"
-            )
+            # Finder can transiently reject a network-volume copy (for
+            # example while the volume is being refreshed). The volume has
+            # already been validated and direct file I/O is a safe fallback.
+            try:
+                temporary_target = target.with_name(
+                    f".{target.name}.partial-{os.getpid()}"
+                )
+                shutil.copyfile(local_delivery, temporary_target)
+                os.replace(temporary_target, target)
+            except OSError as direct_error:
+                if 'temporary_target' in locals() and temporary_target.exists():
+                    temporary_target.unlink(missing_ok=True)
+                raise RuntimeError(
+                    result.stderr.strip() or result.stdout.strip() or
+                    f"Finder non ha consegnato il file nella hotfolder: {direct_error}"
+                ) from direct_error
         return {
             "destination_code": str(config.get("destination_code") or ""),
             "delivered_to": str(target),

@@ -1873,6 +1873,20 @@ class AutomationNodeExecutor
       }
     end
 
+    # A front-suffixed file is also used for products that are genuinely
+    # monofacial. Only wait for a back side when the order line actually has
+    # a corresponding _R asset; otherwise route the _F file as mono.
+    if side == 'front' && !back_asset_expected?
+      return {
+        'next_port' => 'mono',
+        'print_mode' => 'mono',
+        'context_updates' => {
+          'variables.print_mode' => 'mono',
+          'variables.side_count' => 1
+        }
+      }
+    end
+
     counterpart = find_waiting_counterpart(side)
     return combine_with_counterpart!(counterpart, side, source) if counterpart
 
@@ -1905,6 +1919,24 @@ class AutomationNodeExecutor
   def pairing_group_value
     field = @config['group_field'].presence || 'item.id'
     AutomationEngine.context_value(@context, field).to_s
+  end
+
+  def back_asset_expected?
+    return false unless @run.order_item
+
+    print_assets = @run.order_item.assets.where(deleted_at: nil).select do |asset|
+      asset.asset_type.to_s == 'print' || asset.asset_type.to_s.start_with?('print_file')
+    end
+    # Imported two-sided products are represented by multiple print_file_*
+    # assets. Their physical paths may not contain _R, so the asset count is
+    # the primary signal; retain the suffix check as a fallback.
+    return true if print_assets.size > 1
+
+    print_assets.any? do |asset|
+      source = [asset.original_url, asset.local_path].compact.join(' ')
+      stem = File.basename(source.to_s, File.extname(source.to_s))
+      stem.downcase.end_with?(@config.fetch('back_suffix', '_R').to_s.downcase)
+    end
   end
 
   def find_waiting_counterpart(side)

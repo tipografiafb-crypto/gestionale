@@ -142,10 +142,11 @@ class AutomationActionLifecycle
       item = run.order_item
       case run.operation_type
       when 'preprint'
-        item.update!(
-          preprint_status: 'completed',
-          preprint_completed_at: Time.current
-        )
+        # Producing the PDF is not the operator's approval. Keep the item in
+        # processing so the UI exposes the manual "Conferma pre-stampa"
+        # action; the confirm_preprint route is the only transition to
+        # completed.
+        item.update!(preprint_status: 'processing')
       when 'print'
         item.update!(print_status: 'ripped')
       end

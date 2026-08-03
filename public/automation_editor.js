@@ -958,9 +958,16 @@
     remove.textContent = '×';
     remove.addEventListener('click', () => card.remove());
     heading.append(title, remove);
+    const ruleField = String(rule.field || 'item.sku');
+    const manualVariable = ruleField.startsWith('variables.') ? ruleField : '';
+    const selectedField = manualVariable ? 'item.sku' : ruleField;
     card.append(
       heading,
-      configField({label: 'Campo', choices: 'fields'}, rule.field || 'item.sku', 'case_field'),
+      configField({label: 'Campo disponibile', choices: 'fields'}, selectedField, 'case_field'),
+      configField({
+        label: 'Variabile del flusso (opzionale)',
+        help: 'Compilalo solo per leggere una variabile runtime, ad esempio variables.plancia. Se compilato, sostituisce il campo selezionato sopra.'
+      }, manualVariable, 'case_variable'),
       configField({
         label: 'Confronto',
         choices: [
@@ -1460,7 +1467,7 @@
         cases: Array.from(nodeConfigForm.querySelectorAll('.automation-config-case')).map((card, index) => ({
           port: configValue('case_port', card) || `case_${index + 1}`,
           label: configValue('case_label', card) || `Condizione ${index + 1}`,
-          field: configValue('case_field', card) || 'item.sku',
+          field: configValue('case_variable', card).trim() || configValue('case_field', card) || 'item.sku',
           operator: configValue('case_operator', card) || 'equals',
           value: configValue('case_value', card)
         })),
