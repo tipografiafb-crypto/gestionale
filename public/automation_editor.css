@@ -178,6 +178,14 @@
   height: 1400px;
 }
 
+.automation-selection-box {
+  position: absolute;
+  z-index: 20;
+  border: 1px dashed #0d6efd;
+  background: rgba(13, 110, 253, 0.12);
+  pointer-events: none;
+}
+
 .automation-canvas-content {
   position: absolute;
   top: 0;

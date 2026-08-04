@@ -79,7 +79,6 @@
             <td><a class="fw-semibold" href="/automation_runs/<%= run.id %>">#<%= run.id %></a></td>
             <td>
               <%= Rack::Utils.escape_html(run.flow.name) %>
-              <span class="text-muted">v<%= run.automation_flow_version.version_number %></span>
               <% if modules_count.positive? %>
                 <div class="small text-muted"><%= modules_count %> <%= modules_count == 1 ? 'sottomodulo' : 'sottomoduli' %></div>
               <% end %>

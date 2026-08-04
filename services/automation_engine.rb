@@ -1293,6 +1293,9 @@ class AutomationEngine
           'count' => extra_context['file_count'] || 1
         },
         'aggregation' => extra_context['aggregation'],
+        # Available to aggregation print/label flows so the destination can
+        # name the delivered file after the board (e.g. AG0252.pdf).
+        'aggregated_job' => extra_context['aggregated_job'],
         'machine' => extra_context['machine'],
         'payload' => payload,
         'variables' => {},

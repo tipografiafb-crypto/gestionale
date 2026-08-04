@@ -166,7 +166,7 @@ class AutomationActionLifecycle
 
       identification_artifact = run.artifact_by_kind('identification_sheet_pdf')
       if identification_artifact&.available?
-        identification_filename = "aggregazione-#{job.id}-scheda-ordini.pdf"
+        identification_filename = "#{job.aggregation_code}-scheda-ordini.pdf"
         identification_destination = File.join(destination_dir, identification_filename)
         FileUtils.cp(identification_artifact.full_path, identification_destination)
         job.update!(
@@ -180,7 +180,7 @@ class AutomationActionLifecycle
       return unless artifact&.available? && artifact.kind != 'source'
       return if artifact.kind == 'identification_sheet_pdf'
 
-      filename = "aggregazione-#{job.id}-#{File.basename(artifact.filename)}"
+      filename = "#{job.aggregation_code}.pdf"
       destination = File.join(destination_dir, filename)
       FileUtils.cp(artifact.full_path, destination)
       job.update!(

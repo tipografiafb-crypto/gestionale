@@ -12,7 +12,7 @@
     <a href="/automations" class="small text-decoration-none"><i class="fas fa-arrow-left me-1"></i>Automazioni</a>
     <h1 class="mt-2 mb-1">Esecuzione #<%= run.id %></h1>
     <p class="text-muted mb-0">
-      <%= Rack::Utils.escape_html(run.flow.name) %> v<%= run.automation_flow_version.version_number %>
+      <%= Rack::Utils.escape_html(run.flow.name) %>
       · ordine <strong><%= Rack::Utils.escape_html(run.context.dig('order', 'code').to_s) %></strong>
     </p>
   </div>

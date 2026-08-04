@@ -15,6 +15,7 @@
     agents: initial.agents || [],
     flows: initial.flows || [],
     selectedNodeId: null,
+    selectedNodeIds: new Set(),
     pendingConnection: null,
     dirty: false,
     zoom: 1
@@ -115,7 +116,6 @@
     },
     photoshop: {
       agent_key: '',
-      action_set: 'AZIONI',
       action_name: 'azione',
       width_mm: 0,
       height_mm: 0,
@@ -140,7 +140,9 @@
       data_field: 'order.code',
       width_mm: 90,
       height_mm: 29,
-      bar_height_mm: 20,
+      bar_height_mm: 16,
+      font_size_pt: 18,
+      text_distance_pt: 6,
       bar_width: 0.75,
       output_kind: 'barcode_pdf'
     },
@@ -200,11 +202,6 @@
         label: 'Macchina Adobe',
         choices: 'agents',
         help: 'Seleziona il Mac che eseguirà realmente questo blocco.'
-      },
-      {
-        key: 'action_set',
-        label: 'Gruppo azioni Photoshop (automatico se vuoto)',
-        help: 'Lascia vuoto per ricavarlo dal Mac in base al nome dell’azione. Compilalo solo se vuoi forzare un gruppo specifico.'
       },
       {
         key: 'action_name',
@@ -466,7 +463,11 @@
       {key: 'data_field', label: 'Valore barcode', choices: 'fields', default: 'order.code'},
       {key: 'width_mm', label: 'Larghezza (mm)', type: 'number', default: 90},
       {key: 'height_mm', label: 'Altezza (mm)', type: 'number', default: 29},
-      {key: 'bar_height_mm', label: 'Altezza barre (mm)', type: 'number', default: 20},
+      {key: 'bar_height_mm', label: 'Altezza barre (mm)', type: 'number', default: 16},
+      {key: 'font_size_pt', label: 'Dimensione numero (pt)', type: 'number', default: 18,
+        help: 'Dimensione del codice ordine stampato sotto le barre.'},
+      {key: 'text_distance_pt', label: 'Distanza testo (px)', type: 'number', default: 6,
+        help: 'Spazio aggiuntivo tra le barre e il codice ordine.'},
       {
         key: 'bar_width',
         label: 'Spessore barre (mm)',
@@ -655,13 +656,15 @@
       levels.get(depth).push(node);
     });
     Array.from(levels.entries()).sort(([a], [b]) => a - b).forEach(([depth, nodes]) => {
-      let nextY = 40;
+      const totalHeight = nodes.reduce((sum, node) => sum + (heights.get(node.id) || 92), 0) +
+        Math.max(0, nodes.length - 1) * 72;
+      let nextY = Math.max(40, (CANVAS_HEIGHT - totalHeight) / 2);
       nodes.forEach((node) => {
         node.position = {
-          x: snapToGrid(40 + depth * 240),
+          x: snapToGrid(180 + depth * 320),
           y: snapToGrid(nextY)
         };
-        nextY += snapToGrid((heights.get(node.id) || 92) + 40);
+        nextY += snapToGrid((heights.get(node.id) || 92) + 72);
       });
     });
     markDirty();
@@ -747,7 +750,7 @@
     if (value === 'flows') {
       return [
         ['', '-- Seleziona automazione pubblicata --'],
-        ...state.flows.map((flow) => [flow.id, `${flow.name} · v${flow.version}`])
+        ...state.flows.map((flow) => [flow.id, flow.name])
       ];
     }
     if (value === 'illustrator_scripts' || value === 'illustrator_templates') {
@@ -1609,6 +1612,7 @@
 
   function selectNode(id, options = {}) {
     state.selectedNodeId = id;
+    if (!options.keepMultiSelection) state.selectedNodeIds = new Set(id ? [id] : []);
     const node = nodeFor(id);
     nodeEmpty.hidden = !!node;
     nodeForm.hidden = !node;
@@ -1625,6 +1629,7 @@
 
   function markNodeSelected(element, id) {
     state.selectedNodeId = id;
+    state.selectedNodeIds = new Set([id]);
     document.querySelectorAll('.automation-node.is-selected').forEach((nodeElement) => {
       nodeElement.classList.remove('is-selected');
     });
@@ -1728,7 +1733,7 @@
     state.graph.nodes.forEach((node) => {
       const element = document.createElement('article');
       element.className = 'automation-node';
-      if (state.selectedNodeId === node.id) element.classList.add('is-selected');
+      if (state.selectedNodeIds.has(node.id) || state.selectedNodeId === node.id) element.classList.add('is-selected');
       if (state.pendingConnection?.source === node.id) element.classList.add('is-connection-source');
       element.dataset.nodeId = node.id;
       element.style.left = `${Number(node.position?.x || 0)}px`;
@@ -1811,9 +1816,16 @@
         }
       });
 
-      element.addEventListener('click', () => {
+      element.addEventListener('click', (event) => {
         if (state.pendingConnection && state.pendingConnection.source !== node.id) {
           finishConnection(node.id);
+          return;
+        }
+        if (event.shiftKey || event.metaKey || event.ctrlKey) {
+          if (state.selectedNodeIds.has(node.id)) state.selectedNodeIds.delete(node.id);
+          else state.selectedNodeIds.add(node.id);
+          state.selectedNodeId = node.id;
+          selectNode(node.id, {keepMultiSelection: true});
           return;
         }
         selectNode(node.id);
@@ -1827,12 +1839,18 @@
     handle.addEventListener('pointerdown', (event) => {
       if (event.button !== undefined && event.button !== 0) return;
       event.preventDefault();
-      markNodeSelected(element, node.id);
-      selectNode(node.id, {render: false});
+      if (!state.selectedNodeIds.has(node.id)) {
+        markNodeSelected(element, node.id);
+        selectNode(node.id, {render: false});
+      } else {
+        state.selectedNodeId = node.id;
+      }
       const startX = event.clientX;
       const startY = event.clientY;
-      const originX = Number(node.position?.x || 0);
-      const originY = Number(node.position?.y || 0);
+      const selectedNodes = state.graph.nodes.filter((candidate) => state.selectedNodeIds.has(candidate.id));
+      const origins = new Map(selectedNodes.map((candidate) => [candidate.id, {
+        x: Number(candidate.position?.x || 0), y: Number(candidate.position?.y || 0)
+      }]));
       let moved = false;
 
       const onMove = (moveEvent) => {
@@ -1842,12 +1860,18 @@
         if (!moved && Math.abs(deltaX) < 3 && Math.abs(deltaY) < 3) return;
         moved = true;
         moveEvent.preventDefault();
-        node.position = {
-          x: snapToGrid(originX + deltaX),
-          y: snapToGrid(originY + deltaY)
-        };
-        element.style.left = `${node.position.x}px`;
-        element.style.top = `${node.position.y}px`;
+        selectedNodes.forEach((candidate) => {
+          const origin = origins.get(candidate.id);
+          candidate.position = {
+            x: snapToGrid(origin.x + deltaX),
+            y: snapToGrid(origin.y + deltaY)
+          };
+          const candidateElement = nodesLayer.querySelector(`[data-node-id="${candidate.id}"]`);
+          if (candidateElement) {
+            candidateElement.style.left = `${candidate.position.x}px`;
+            candidateElement.style.top = `${candidate.position.y}px`;
+          }
+        });
         renderEdges();
       };
       const onUp = (upEvent) => {
@@ -1865,6 +1889,56 @@
       window.addEventListener('pointermove', onMove, {passive: false});
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);
+    });
+  }
+
+  function enableMarqueeSelection() {
+    let start = null;
+    let box = null;
+    canvasContent.addEventListener('pointerdown', (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (event.button !== 0 || target?.closest('.automation-node, .automation-edge')) return;
+      event.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      start = {x: event.clientX - rect.left, y: event.clientY - rect.top};
+      const additive = event.shiftKey || event.metaKey || event.ctrlKey;
+      const initialSelection = additive ? new Set(state.selectedNodeIds) : new Set();
+      box = document.createElement('div');
+      box.className = 'automation-selection-box';
+      canvas.appendChild(box);
+      const move = (moveEvent) => {
+        if (!start) return;
+        const x = moveEvent.clientX - rect.left;
+        const y = moveEvent.clientY - rect.top;
+        const left = Math.min(start.x, x), top = Math.min(start.y, y);
+        box.style.left = `${left}px`; box.style.top = `${top}px`;
+        box.style.width = `${Math.abs(x - start.x)}px`; box.style.height = `${Math.abs(y - start.y)}px`;
+      };
+      const up = (upEvent) => {
+        if (!start) return;
+        const x = upEvent.clientX - rect.left, y = upEvent.clientY - rect.top;
+        const left = Math.min(start.x, x), top = Math.min(start.y, y);
+        const right = Math.max(start.x, x), bottom = Math.max(start.y, y);
+        const selected = state.graph.nodes.filter((candidate) => {
+          const element = nodesLayer.querySelector(`[data-node-id="${candidate.id}"]`);
+          if (!element) return false;
+          const r = element.getBoundingClientRect();
+          const ex = r.left - rect.left, ey = r.top - rect.top;
+          return ex < right && ey < bottom && ex + r.width > left && ey + r.height > top;
+        });
+        const selectedIds = new Set(selected.map((candidate) => candidate.id));
+        state.selectedNodeIds = additive
+          ? new Set([...initialSelection, ...selectedIds])
+          : selectedIds;
+        state.selectedNodeId = selected[0]?.id || [...state.selectedNodeIds][0] || null;
+        if (state.selectedNodeId) selectNode(state.selectedNodeId, {keepMultiSelection: true});
+        else selectNode(null);
+        box.remove(); box = null; start = null;
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+      };
+      window.addEventListener('pointermove', move, {passive: false});
+      window.addEventListener('pointerup', up, {once: true});
     });
   }
 
@@ -1899,7 +1973,7 @@
     renderEdges();
     renderDataCatalog();
     resizeCanvas();
-    if (state.selectedNodeId) selectNode(state.selectedNodeId);
+    if (state.selectedNodeId) selectNode(state.selectedNodeId, {keepMultiSelection: true});
   }
 
   async function request(url, options) {
@@ -1992,6 +2066,7 @@
   document.getElementById('zoom-in-automation').addEventListener('click', () => applyZoom(state.zoom + 0.1));
   document.getElementById('reset-zoom-automation').addEventListener('click', () => applyZoom(1));
   document.getElementById('fit-automation').addEventListener('click', fitAutomation);
+  enableMarqueeSelection();
 
   scrollArea.addEventListener('dragover', (event) => {
     if (!event.dataTransfer.types.includes('application/x-automation-node')) return;

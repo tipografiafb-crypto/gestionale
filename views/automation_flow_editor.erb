@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="/automation_editor.css?v=20260728-2">
+<link rel="stylesheet" href="/automation_editor.css?v=20260804-3">
 
 <% if params[:text].present? %>
   <div class="alert alert-<%= params[:msg] == 'error' ? 'danger' : 'success' %> alert-dismissible fade show mb-3">
@@ -12,9 +12,9 @@
     <a href="/automations" class="small text-decoration-none"><i class="fas fa-arrow-left me-1"></i>Automazioni</a>
     <h1 class="mb-1 mt-2"><%= Rack::Utils.escape_html(@automation_flow.name) %></h1>
     <div class="text-muted">
-      Bozza v<%= @automation_version.version_number %>
+      Bozza
       <% if @automation_flow.active_version %>
-        · attiva v<%= @automation_flow.active_version.version_number %>
+        · attiva
       <% else %>
         · non ancora pubblicata
       <% end %>
@@ -205,4 +205,4 @@
     {id: flow.id, name: flow.name, version: flow.active_version.version_number}
   }
 }).gsub('</', '<\/') %></script>
-<script src="/automation_editor.js?v=20260801-1"></script>
+<script src="/automation_editor.js?v=20260804-4"></script>

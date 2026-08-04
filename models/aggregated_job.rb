@@ -19,10 +19,17 @@ class AggregatedJob < ActiveRecord::Base
   scope :ready_for_print, -> { where(status: 'aggregated') }
   scope :printing, -> { where(status: 'printing') }
   scope :completed, -> { where(status: 'completed') }
+
+  # Stable operator-facing identifier used for both the aggregation and its PDF.
+  def aggregation_code
+    format('AG%04d', id.to_i)
+  end
+
+  alias display_name aggregation_code
   
   def self.create_from_items(order_items, name: nil, print_flow_id: nil)
     job = create!(
-      name: name.presence || "Aggregazione #{Time.current.strftime('%d-%m-%Y %H:%M')}",
+      name: name.presence || 'In preparazione',
       status: 'pending',
       nr_files: order_items.count,
       print_flow_id: print_flow_id
@@ -31,7 +38,7 @@ class AggregatedJob < ActiveRecord::Base
     order_items.each do |item|
       job.aggregated_job_items.create!(order_item_id: item.id)
     end
-    
+    job.update!(name: job.aggregation_code)
     job
   end
   
@@ -91,7 +98,7 @@ class AggregatedJob < ActiveRecord::Base
             'aggregation' => {
               'id' => id,
               'token' => token,
-              'name' => name,
+              'name' => aggregation_code,
               'expected_count' => members.length,
               'position' => index + 1
             }
@@ -154,8 +161,8 @@ class AggregatedJob < ActiveRecord::Base
         'trigger_source' => 'aggregated_job',
         'file_index' => 1,
         'file_count' => 1,
-        'aggregated_job' => {'id' => id, 'name' => name},
-        'machine' => print_machine && {
+          'aggregated_job' => {'id' => id, 'name' => aggregation_code},
+          'machine' => print_machine && {
           'id' => print_machine.id,
           'name' => print_machine.name,
           'destination_code' => print_machine.automation_destination&.code,
@@ -262,7 +269,7 @@ class AggregatedJob < ActiveRecord::Base
       job_operation_id: "agg-print-#{id}",
       url: aggregated_file_url,
       widegest_url: "#{server_url}/api/v1/aggregation_print_callback",
-      filename: aggregated_filename || "aggregated_#{id}.pdf",
+      filename: aggregated_filename || "#{aggregation_code}.pdf",
       scala: '1:1',
       quantita: order_items.sum(:quantity),
       materiale: first_item&.product&.notes || '',
@@ -289,7 +296,7 @@ class AggregatedJob < ActiveRecord::Base
     update(
       status: 'preview_pending',
       aggregated_file_url: file_url,
-      aggregated_filename: filename || File.basename(file_url),
+      aggregated_filename: "#{aggregation_code}.pdf",
       aggregated_at: Time.current
     )
   end
@@ -305,7 +312,7 @@ class AggregatedJob < ActiveRecord::Base
       FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
       
       # Save file with filename from Switch
-      local_filename = filename.present? ? filename : "agg_#{id}.pdf"
+      local_filename = "#{aggregation_code}.pdf"
       local_path = File.join(dir, local_filename)
       File.write(local_path, file_content)
       
@@ -315,7 +322,7 @@ class AggregatedJob < ActiveRecord::Base
       update(
         status: 'preview_pending',
         aggregated_file_url: "/file/agg_#{id}/#{local_filename}",
-        aggregated_filename: filename,
+        aggregated_filename: local_filename,
         aggregated_at: Time.current,
         notes: local_filename
       )
@@ -391,7 +398,7 @@ class AggregatedJob < ActiveRecord::Base
       job_operation_id: "agg-#{operation}-#{id}",
       url: file_url,
       widegest_url: "#{server_url}/api/v1/aggregation_callback",
-      filename: aggregated_filename || "aggregated_#{id}.pdf",
+      filename: aggregated_filename || "#{aggregation_code}.pdf",
       scala: '1:1',
       quantita: order_items.sum(:quantity),
       materiale: order_items.first&.product&.notes || '',

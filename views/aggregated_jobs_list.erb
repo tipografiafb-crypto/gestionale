@@ -64,7 +64,7 @@
             <% @aggregated_jobs.each do |job| %>
               <tr>
                 <td><strong>#<%= job.id %></strong></td>
-                <td><%= job.name %></td>
+                <td><%= job.aggregation_code %></td>
                 <td>
                   <span class="badge bg-info"><%= job.nr_files %> file</span>
                 </td>

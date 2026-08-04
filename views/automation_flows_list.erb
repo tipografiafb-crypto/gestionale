@@ -59,6 +59,16 @@
               </span>
               <span class="badge bg-light text-dark"><%= rows.size %> <%= rows.size == 1 ? 'flusso' : 'flussi' %></span>
             </summary>
+            <div class="border-top px-3 py-2 bg-light">
+              <form method="post" action="/automation_folders/<%= folder.id %>/update" class="d-flex flex-wrap gap-2 align-items-center">
+                <label class="small text-muted" for="folder-name-<%= folder.id %>">Nome cartella</label>
+                <input class="form-control form-control-sm" style="max-width: 320px" id="folder-name-<%= folder.id %>"
+                       name="name" value="<%= Rack::Utils.escape_html(folder.name) %>" required>
+                <button class="btn btn-sm btn-outline-primary" type="submit">
+                  <i class="fas fa-save me-1"></i>Salva nome
+                </button>
+              </form>
+            </div>
             <div class="border-top">
               <% rows.each do |row| %>
                 <% flow = row[:flow] %>
@@ -84,7 +94,7 @@
                   </div>
                   <div class="d-flex align-items-center gap-2">
                     <span class="small text-muted">
-                      <%= flow.active_version ? "pubblicato v#{flow.active_version.version_number}" : 'solo bozza' %>
+                      <%= flow.active_version ? 'pubblicato' : 'solo bozza' %>
                     </span>
                     <form method="post" action="/automations/<%= flow.id %>/duplicate">
                       <button class="btn btn-sm btn-outline-secondary" title="Duplica automazione">
@@ -149,7 +159,6 @@
             <tr>
               <th>Nome</th>
               <th>Stato</th>
-              <th>Versione attiva</th>
               <th class="text-end"></th>
             </tr>
           </thead>
@@ -170,7 +179,6 @@
                     <%= flow.active_version ? 'Pubblicato' : 'Bozza' %>
                   </span>
                 </td>
-                <td><%= flow.active_version ? "v#{flow.active_version.version_number}" : '—' %></td>
                 <td class="text-end">
                   <div class="d-inline-flex gap-1">
                     <a class="btn btn-sm btn-outline-primary" href="/automations/<%= flow.id %>/edit">
@@ -242,7 +250,7 @@
               <tr>
                 <td><a href="/automation_runs/<%= run.id %>">#<%= run.id %></a></td>
                 <td>
-                  <%= Rack::Utils.escape_html(run.flow.name) %> v<%= run.automation_flow_version.version_number %>
+                  <%= Rack::Utils.escape_html(run.flow.name) %>
                   <% if modules_count.positive? %>
                     <div class="small text-muted">
                       <%= modules_count %> <%= modules_count == 1 ? 'modulo successivo' : 'moduli successivi' %>

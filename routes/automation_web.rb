@@ -386,6 +386,14 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end
 
+  post '/automation_folders/:id/update' do
+    folder = AutomationFolder.find(params[:id])
+    folder.update!(name: params[:name].to_s.strip)
+    redirect '/automations?msg=success&text=Nome+cartella+aggiornato'
+  rescue StandardError => e
+    redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
   post '/automation_folders/:id/flows/:flow_id/delete' do
     folder = AutomationFolder.find(params[:id])
     flow = AutomationFlow.find(params[:flow_id])

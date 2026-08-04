@@ -13,7 +13,13 @@ from pathlib import Path
 
 from PIL import Image
 from pypdf import PdfReader, PdfWriter, Transformation
-from pypdf.generic import RectangleObject
+from pypdf.generic import (
+    DecodedStreamObject,
+    DictionaryObject,
+    NameObject,
+    NumberObject,
+    RectangleObject,
+)
 from pypdf._page import PageObject
 from reportlab.graphics.barcode import code128
 from reportlab.lib import colors
@@ -74,10 +80,6 @@ def duplicate_pages(input_path: str, output_path: str, copies: int) -> dict:
     for _copy_index in range(copies):
         for page in reader.pages:
             writer.add_page(page)
-        # Force independent page/content objects for the next repetition.
-        # Reusing pypdf's translation cache can make later repeated pages blank
-        # when they are subsequently merged into an imposed sheet.
-        writer.reset_translation(reader)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "wb") as output_file:
@@ -88,6 +90,106 @@ def duplicate_pages(input_path: str, output_path: str, copies: int) -> dict:
         "copies": copies,
         "output_pages": len(reader.pages) * copies,
     }
+
+
+def _pdf_number(value: float) -> str:
+    """Format a PDF number without locale or unnecessary precision."""
+    number = float(value)
+    if abs(number) < 1e-10:
+        return "0"
+    return format(number, ".12f").rstrip("0").rstrip(".")
+
+
+def _page_form_key(page: PageObject) -> tuple:
+    contents = page.get_contents()
+    content_hash = contents.hash_value() if contents is not None else b""
+    resources = page.get("/Resources")
+    resource_hash = resources.hash_value() if resources is not None else b""
+    return (
+        content_hash,
+        resource_hash,
+        round(float(page.mediabox.width), 6),
+        round(float(page.mediabox.height), 6),
+    )
+
+
+def _shared_page_form(
+    writer: PdfWriter,
+    page: PageObject,
+    form_cache: dict,
+) -> tuple[str, object]:
+    """Create one reusable Form XObject for a source page.
+
+    Quite Imposing-style repetition is achieved by referencing this form from
+    each placement. The page resources (especially images) are cloned once and
+    then shared instead of being copied into every placement.
+    """
+    key = _page_form_key(page)
+    cached = form_cache.get(key)
+    if cached is not None:
+        return cached
+
+    form = DecodedStreamObject()
+    contents = page.get_contents()
+    form.set_data(contents.get_data() if contents is not None else b"")
+    form[NameObject("/Type")] = NameObject("/XObject")
+    form[NameObject("/Subtype")] = NameObject("/Form")
+    form[NameObject("/FormType")] = NumberObject(1)
+    form[NameObject("/BBox")] = RectangleObject([
+        0,
+        0,
+        float(page.mediabox.width),
+        float(page.mediabox.height),
+    ])
+    resources = page.get("/Resources")
+    form[NameObject("/Resources")] = (
+        resources.clone(writer) if resources is not None else DictionaryObject()
+    )
+    if page.get("/Group") is not None:
+        form[NameObject("/Group")] = page.get("/Group").clone(writer)
+
+    form_ref = writer._add_object(form)
+    name = f"/Fm{len(form_cache)}"
+    form_cache[key] = (name, form_ref)
+    return name, form_ref
+
+
+def _place_shared_form(
+    output_page: PageObject,
+    writer: PdfWriter,
+    page: PageObject,
+    xobjects: DictionaryObject,
+    content_parts: list[str],
+    form_cache: dict,
+    transform: Transformation,
+) -> None:
+    name, form_ref = _shared_page_form(writer, page, form_cache)
+    xobjects[NameObject(name)] = form_ref
+    matrix = transform.matrix
+    values = (
+        matrix[0][0], matrix[0][1],
+        matrix[1][0], matrix[1][1],
+        matrix[2][0], matrix[2][1],
+    )
+    content_parts.append(
+        "q "
+        + " ".join(_pdf_number(value) for value in values)
+        + f" cm {name} Do Q\n"
+    )
+
+
+def _finish_shared_page(
+    output_page: PageObject,
+    writer: PdfWriter,
+    xobjects: DictionaryObject,
+    content_parts: list[str],
+) -> None:
+    resources = DictionaryObject()
+    resources[NameObject("/XObject")] = xobjects
+    output_page[NameObject("/Resources")] = resources
+    content = DecodedStreamObject()
+    content.set_data("".join(content_parts).encode("ascii"))
+    output_page[NameObject("/Contents")] = writer._add_object(content)
 
 
 def merge_pages(input_paths: list[str], output_path: str) -> dict:
@@ -465,6 +567,8 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
         sheet["free"] = _split_free_rectangles(sheet["free"], used)
 
     writer = PdfWriter()
+    form_cache = {}
+    use_shared_resources = config.get("shared_resources", True) is not False
     metadata_placements = []
     sheet_heights = []
     utilization = []
@@ -478,6 +582,8 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
             if trim_sheet_height else sheet_height
         )
         output_page = PageObject.create_blank_page(width=sheet_width, height=output_height)
+        xobjects = DictionaryObject()
+        content_parts = []
         used_area = 0.0
         for placement in sorted(sheet["placements"], key=lambda value: value["page_index"]):
             local_x = placement["x"]
@@ -496,7 +602,13 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
                 Transformation().rotate(90).translate(x + placement["width"], y)
                 if placement["rotated"] else Transformation().translate(x, y)
             )
-            output_page.merge_transformed_page(source, transform, over=True)
+            if use_shared_resources:
+                _place_shared_form(
+                    output_page, writer, source, xobjects, content_parts,
+                    form_cache, transform,
+                )
+            else:
+                output_page.merge_transformed_page(source, transform, over=True)
             used_area += placement["source_width"] * placement["source_height"]
             metadata_placements.append({
                 "page": placement["page_index"] + 1,
@@ -507,6 +619,8 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
                 "height_mm": round(placement["height"] / mm, 4),
                 "rotated": placement["rotated"],
             })
+        if use_shared_resources:
+            _finish_shared_page(output_page, writer, xobjects, content_parts)
         writer.add_page(output_page)
         sheet_heights.append(round(output_height / mm, 4))
         usable_area = content_width * max(output_height - 2 * margin_y, 0.01)
@@ -536,6 +650,7 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
         "utilization_percent": utilization,
         "placements": metadata_placements,
         "scale": 1.0,
+        "shared_resources": use_shared_resources,
     }
 
 
@@ -643,11 +758,15 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         sheets = math.ceil(input_pages / slots_per_sheet)
         placements_total = sheets * slots_per_sheet if fill_last_sheet else input_pages
     writer = PdfWriter()
+    form_cache = {}
+    use_shared_resources = config.get("shared_resources", True) is not False
 
     for sheet_index in range(sheets):
         output_page = PageObject.create_blank_page(
             width=sheet_width, height=sheet_height
         )
+        xobjects = DictionaryObject()
+        content_parts = []
         if duplex_groups:
             pair_index = sheet_index // 2
             side_index = sheet_index % 2
@@ -706,8 +825,16 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
                 )
             else:
                 transform = Transformation().translate(x, y)
-            output_page.merge_transformed_page(source, transform, over=True)
+            if use_shared_resources:
+                _place_shared_form(
+                    output_page, writer, source, xobjects, content_parts,
+                    form_cache, transform,
+                )
+            else:
+                output_page.merge_transformed_page(source, transform, over=True)
 
+        if use_shared_resources:
+            _finish_shared_page(output_page, writer, xobjects, content_parts)
         writer.add_page(output_page)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
@@ -738,6 +865,7 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         ),
         "sheet_pairs": sheets // 2 if duplex_groups else None,
         "scale": 1.0,
+        "shared_resources": use_shared_resources,
     }
 
 
@@ -886,6 +1014,8 @@ def barcode_pdf(data: str, output_path: str, config: dict) -> dict:
     width_mm = float(config.get("width_mm", 90))
     height_mm = float(config.get("height_mm", 29))
     bar_height_mm = float(config.get("bar_height_mm", 20))
+    font_size_pt = float(config.get("font_size_pt", 18))
+    text_distance_pt = float(config.get("text_distance_pt", 6))
     quiet_mm = float(config.get("quiet_mm", 4))
     human_readable = bool(config.get("human_readable", True))
 
@@ -897,6 +1027,11 @@ def barcode_pdf(data: str, output_path: str, config: dict) -> dict:
         humanReadable=human_readable,
         quiet=True,
     )
+    # ReportLab keeps the human-readable text size as a mutable attribute.
+    # Set it explicitly so the label can use shorter bars and a more legible
+    # order number below them.
+    barcode.fontSize = font_size_pt
+    barcode.textDistance = text_distance_pt
     x = max(quiet_mm * mm, (width_mm * mm - barcode.width) / 2)
     y = max(quiet_mm * mm, (height_mm * mm - barcode.height) / 2)
     barcode.drawOn(pdf, x, y)
@@ -908,6 +1043,8 @@ def barcode_pdf(data: str, output_path: str, config: dict) -> dict:
         "symbology": "Code 128",
         "width_mm": width_mm,
         "height_mm": height_mm,
+        "font_size_pt": font_size_pt,
+        "text_distance_pt": text_distance_pt,
     }
 
 

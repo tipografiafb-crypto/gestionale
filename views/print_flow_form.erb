@@ -55,7 +55,7 @@
                     <option value="<%= automation.id %>"
                             <%= 'selected' if route.automation_flow_id == automation.id %>
                             <%= 'disabled' unless automation.active_version %>>
-                      <%= automation.name %><%= automation.active_version ? " · v#{automation.active_version.version_number}" : ' · non pubblicato' %>
+                      <%= automation.name %><%= ' · non pubblicato' unless automation.active_version %>
                     </option>
                   <% end %>
                 </select>
@@ -93,7 +93,7 @@
               <option value="">-- Seleziona flusso pubblicato --</option>
               <% @automation_flows.each do |automation| %>
                 <option value="<%= automation.id %>" <%= 'disabled' unless automation.active_version %>>
-                  <%= automation.name %><%= automation.active_version ? " · v#{automation.active_version.version_number}" : ' · non pubblicato' %>
+                  <%= automation.name %><%= ' · non pubblicato' unless automation.active_version %>
                 </option>
               <% end %>
             </select>
@@ -146,7 +146,7 @@
                 <option value="<%= automation.id %>"
                         <%= 'selected' if @flow&.public_send("#{action}_automation_flow_id") == automation.id %>
                         <%= 'disabled' unless automation.active_version %>>
-                  <%= automation.name %><%= automation.active_version ? " · v#{automation.active_version.version_number}" : ' · non pubblicato' %>
+                  <%= automation.name %><%= ' · non pubblicato' unless automation.active_version %>
                 </option>
               <% end %>
             </select>
