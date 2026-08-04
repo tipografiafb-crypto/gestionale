@@ -18,12 +18,18 @@ if (modalElement) {
     zoomInput: document.getElementById('zoomInput'),
     offsetX: document.getElementById('offsetXInput'),
     offsetY: document.getElementById('offsetYInput'),
+    outputWidthMm: document.getElementById('outputWidthMm'),
+    outputHeightMm: document.getElementById('outputHeightMm'),
     center: document.getElementById('centerImageBtn'),
     reset: document.getElementById('resetOffsetBtn'),
     editCrop: document.getElementById('editCropBtn'),
     editImage: document.getElementById('editImageBtn'),
     detection: document.getElementById('cropDetectionMode'),
     margin: document.getElementById('cropMarginMm'),
+    cropX: document.getElementById('cropXInput'),
+    cropY: document.getElementById('cropYInput'),
+    cropWidth: document.getElementById('cropWidthInput'),
+    cropHeight: document.getElementById('cropHeightInput'),
     autoCrop: document.getElementById('autoCropBtn'),
     save: document.getElementById('saveAdjustedImageBtn')
   };
@@ -34,6 +40,8 @@ if (modalElement) {
     height: 0,
     dpi: 300,
     mode: 'fixed',
+    outputRatio: 1,
+    outputScale: 1,
     canvas: null,
     image: null,
     crop: null,
@@ -89,6 +97,47 @@ if (modalElement) {
     };
   }
 
+  function requestedOutputDimensions(bounds) {
+    const widthMm = Number(elements.outputWidthMm?.value);
+    const heightMm = Number(elements.outputHeightMm?.value);
+    const width = Number.isFinite(widthMm) && widthMm > 0
+      ? Math.max(1, Math.round(widthMm / 25.4 * state.dpi)) : bounds.width;
+    const height = Number.isFinite(heightMm) && heightMm > 0
+      ? Math.max(1, Math.round(heightMm / 25.4 * state.dpi)) : bounds.height;
+    return { width, height };
+  }
+
+  function syncOutputFields(bounds) {
+    if (!elements.outputWidthMm || !elements.outputHeightMm) return;
+    state.outputRatio = bounds.width / Math.max(bounds.height, 1);
+    state.outputScale = 1;
+    syncOutputFromBounds(bounds);
+  }
+
+  function syncOutputFromBounds(bounds) {
+    if (!elements.outputWidthMm || !elements.outputHeightMm) return;
+    elements.outputWidthMm.value = (bounds.width * state.outputScale / state.dpi * 25.4).toFixed(2);
+    elements.outputHeightMm.value = (bounds.height * state.outputScale / state.dpi * 25.4).toFixed(2);
+  }
+
+  function applyOutputWidth() {
+    const width = Number(elements.outputWidthMm.value);
+    if (!Number.isFinite(width) || width <= 0 || !state.outputRatio) return;
+    const bounds = cropBounds();
+    state.outputScale = (width / 25.4 * state.dpi) / Math.max(bounds.width, 1);
+    elements.outputHeightMm.value = (width / state.outputRatio).toFixed(2);
+    updateReadout();
+  }
+
+  function applyOutputHeight() {
+    const height = Number(elements.outputHeightMm.value);
+    if (!Number.isFinite(height) || height <= 0 || !state.outputRatio) return;
+    const bounds = cropBounds();
+    state.outputScale = (height / 25.4 * state.dpi) / Math.max(bounds.height, 1);
+    elements.outputWidthMm.value = (height * state.outputRatio).toFixed(2);
+    updateReadout();
+  }
+
   function updateReadout() {
     if (!state.image) return;
     const offset = imageOffset();
@@ -101,9 +150,21 @@ if (modalElement) {
     elements.offsetX.value = offset.x;
     elements.offsetY.value = offset.y;
     elements.sourceSize.textContent = `${state.width} × ${state.height} px`;
-    elements.outputSize.textContent = `${bounds.width} × ${bounds.height} px`;
-    elements.printSize.textContent = `${print.width.toFixed(2)} × ${print.height.toFixed(2)} cm`;
+    const output = requestedOutputDimensions(bounds);
+    const outputPrint = printDimensions(output.width, output.height);
+    elements.outputSize.textContent = `${output.width} × ${output.height} px`;
+    elements.printSize.textContent = `${outputPrint.width.toFixed(2)} × ${outputPrint.height.toFixed(2)} cm`;
+    if (state.mode === 'crop') {
+      state.outputRatio = bounds.width / Math.max(bounds.height, 1);
+      syncOutputFromBounds(bounds);
+    }
     elements.dpi.textContent = `${Math.round(state.dpi)} DPI`;
+    if (state.crop && elements.cropX && state.mode === 'crop') {
+      elements.cropX.value = bounds.x;
+      elements.cropY.value = bounds.y;
+      elements.cropWidth.value = bounds.width;
+      elements.cropHeight.value = bounds.height;
+    }
   }
 
   function fitCanvasToStage() {
@@ -159,13 +220,18 @@ if (modalElement) {
       originY: 'top',
       fill: 'rgba(13, 110, 253, 0.04)',
       stroke: '#0d6efd',
-      strokeWidth: 3,
-      strokeDashArray: [12, 8],
+      strokeWidth: 5,
+      strokeDashArray: [16, 8],
       strokeUniform: true,
       transparentCorners: false,
-      cornerColor: '#ffffff',
-      cornerStrokeColor: '#0d6efd',
-      cornerSize: 18,
+      cornerColor: '#00e5ff',
+      cornerStrokeColor: '#082f49',
+      // Large, high-contrast handles: the canvas is often displayed scaled
+      // down, so the default Fabric hit area is too hard to grab precisely.
+      cornerSize: 36,
+      touchCornerSize: 48,
+      padding: 6,
+      shadow: { color: 'rgba(0, 0, 0, 0.85)', blur: 4, offsetX: 0, offsetY: 0 },
       lockRotation: true,
       hasRotatingPoint: false
     });
@@ -202,6 +268,7 @@ if (modalElement) {
       if (state.crop) state.crop.visible = false;
       makeImageInteractive(true);
     }
+    syncOutputFields(cropBounds());
     state.canvas.requestRenderAll();
     updateReadout();
   }
@@ -422,6 +489,22 @@ if (modalElement) {
     return `data:image/png;base64,${btoa(encoded)}`;
   }
 
+  function resizePngDataUrl(dataUrl, width, height) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => {
+        const output = document.createElement('canvas');
+        output.width = width;
+        output.height = height;
+        const context = output.getContext('2d');
+        context.drawImage(image, 0, 0, width, height);
+        resolve(output.toDataURL('image/png'));
+      };
+      image.onerror = () => reject(new Error('Impossibile ridimensionare il PNG'));
+      image.src = dataUrl;
+    });
+  }
+
   async function saveImage() {
     if (!state.canvas || !state.image || state.loading) return;
     showError('');
@@ -444,6 +527,10 @@ if (modalElement) {
         multiplier: 1,
         enableRetinaScaling: false
       });
+      const outputDimensions = requestedOutputDimensions(bounds);
+      if (outputDimensions.width !== bounds.width || outputDimensions.height !== bounds.height) {
+        imageData = await resizePngDataUrl(imageData, outputDimensions.width, outputDimensions.height);
+      }
       imageData = pngWithDpi(imageData, state.dpi);
 
       if (state.crop) state.crop.visible = cropWasVisible;
@@ -467,7 +554,7 @@ if (modalElement) {
       const response = await fetch(`/assets/${state.assetId}/adjust`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ image_data: imageData, recipe })
+        body: JSON.stringify({ image_data: imageData, recipe, apply_to_group: true })
       });
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.error || 'Salvataggio fallito');
@@ -509,12 +596,30 @@ if (modalElement) {
     left: state.image.left,
     top: state.height / 2 + Number(elements.offsetY.value || 0)
   });
+  const applyCropNumeric = () => {
+    if (!state.crop || state.mode !== 'crop') return;
+    const width = clamp(rounded(elements.cropWidth.value), 1, state.width);
+    const height = clamp(rounded(elements.cropHeight.value), 1, state.height);
+    const left = clamp(rounded(elements.cropX.value), 0, state.width - width);
+    const top = clamp(rounded(elements.cropY.value), 0, state.height - height);
+    state.crop.set({ left, top, width, height, scaleX: 1, scaleY: 1 });
+    state.crop.setCoords();
+    state.canvas.requestRenderAll();
+    updateReadout();
+  };
   elements.zoomInput.addEventListener('input', applyZoomInput);
   elements.zoomInput.addEventListener('change', applyZoomInput);
   elements.offsetX.addEventListener('input', applyOffsetXInput);
   elements.offsetX.addEventListener('change', applyOffsetXInput);
   elements.offsetY.addEventListener('input', applyOffsetYInput);
   elements.offsetY.addEventListener('change', applyOffsetYInput);
+  [elements.cropX, elements.cropY, elements.cropWidth, elements.cropHeight].forEach((input) => {
+    input.addEventListener('change', applyCropNumeric);
+  });
+  // Recalculate only after the operator finishes typing. Updating on every
+  // keystroke reformatted values such as "20" into "2.00" mid-entry.
+  elements.outputWidthMm.addEventListener('change', applyOutputWidth);
+  elements.outputHeightMm.addEventListener('change', applyOutputHeight);
   elements.center.addEventListener('click', centerImage);
   elements.reset.addEventListener('click', resetEditor);
   elements.editCrop.addEventListener('click', () => editTarget('crop'));

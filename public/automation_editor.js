@@ -338,6 +338,7 @@
           ['aggregation.id', 'ID lavoro aggregato'],
           ['order.code', 'Codice ordine'],
           ['operation.id', 'Identificativo operazione'],
+          ['operation.action_batch_id', 'Batch file della stessa azione'],
           ['runtime.root_run_id', 'Esecuzione corrente']
         ],
         default: 'aggregation.token',
@@ -374,7 +375,7 @@
       {
         key: 'consistency_field',
         label: 'Verifica compatibilità usando',
-        default: 'variables.imposition_preset',
+        default: '',
         help: 'Tutte le righe devono avere lo stesso valore. Lascia vuoto per disattivare il controllo.'
       },
       {

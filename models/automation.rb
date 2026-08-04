@@ -102,8 +102,9 @@ class AutomationFlow < ActiveRecord::Base
         checksum: Digest::SHA256.hexdigest(JSON.generate(draft.graph))
       )
       update!(status: 'published', active_version: draft)
+      next_version_number = versions.maximum(:version_number).to_i + 1
       versions.create!(
-        version_number: draft.version_number + 1,
+        version_number: next_version_number,
         status: 'draft',
         graph: JSON.parse(JSON.generate(draft.graph))
       )

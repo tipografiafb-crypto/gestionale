@@ -173,6 +173,7 @@ class FTPPoller
           order_item = order.order_items.create!(
             sku: item_data['sku'],
             quantity: item_data['quantity'],
+            design_group_key: DesignGrouping.key_for(item_data, order_scope: order.id),
             position: idx + 1
           )
           
@@ -315,6 +316,8 @@ class FTPPoller
       {
         'sku' => item['sku'],
         'quantity' => item['quantity'],
+        # Preserve the customizer identity; the importer scopes it to the order.
+        'cart_id' => cart_id,
         'product_name' => lumise_data['product_name'] || 'Unknown Product',
         'product_image_url' => item['image']&.dig('src'),
         'print_files' => print_files_map[cart_id] || [],

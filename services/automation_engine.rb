@@ -287,6 +287,49 @@ class AutomationBootstrap
       flow
     end
 
+    # Example aggregation for mixed-format files: no SKU/preset compatibility
+    # gate, one common nesting sheet, and no mask requirement.
+    def seed_free_nesting_aggregation_flow!
+      nesting_code = 'NESTING_LIBERO_ESEMPIO'
+      upsert_preset(
+        'imposition',
+        nesting_code,
+        'Nesting libero · esempio',
+        {
+          'folder' => 'Nesting',
+          'layout_mode' => 'nesting',
+          'sheet_width_mm' => 600,
+          'sheet_height_mm' => 400,
+          'anchor' => 'top_left',
+          'offset_x_mm' => 5,
+          'offset_y_mm' => 5,
+          'gap_x_mm' => 3,
+          'gap_y_mm' => 3,
+          'rotate' => true,
+          'trim_sheet_height' => false,
+          'fill_last_sheet' => false,
+          'columns' => 0,
+          'rows' => 0,
+          'double_sided_mode' => 'none',
+          'shared_resources' => true
+        }
+      )
+
+      flow = AutomationFlow.find_or_initialize_by(name: 'NESTING LIBERO · Aggregazione esempio')
+      flow.description = 'Aggrega PDF di prodotti e formati diversi in un nesting comune, senza maschere obbligatorie.'
+      flow.status = 'draft'
+      flow.save!
+      draft = flow.versions.where(status: 'draft').order(version_number: :desc).first ||
+              flow.versions.create!(
+                version_number: (flow.versions.maximum(:version_number) || 0) + 1,
+                status: 'draft',
+                graph: free_nesting_aggregation_graph(nesting_code)
+              )
+      draft.update!(graph: free_nesting_aggregation_graph(nesting_code))
+      flow.publish_draft!
+      flow
+    end
+
     def seed_layered_assets_flow!
       flow = AutomationFlow.find_or_initialize_by(name: 'ADESIVI · Stampa e livello tecnico')
       flow.description =
@@ -633,6 +676,41 @@ class AutomationBootstrap
       {'schema_version' => 1, 'nodes' => nodes, 'edges' => edges}
     end
 
+    def free_nesting_aggregation_graph(nesting_code)
+      nodes = [
+        node('input', 'trigger', 'Ingresso aggregazione nesting', 80, 240, {
+          'operation_type' => 'aggregation',
+          'source_type' => 'aggregated_job'
+        }),
+        node('collect', 'collect_group', 'Raccogli PDF di formati diversi', 420, 240, {
+          'group_field' => 'aggregation.token',
+          'expected_count_field' => 'aggregation.expected_count',
+          'order_field' => 'aggregation.position',
+          'consistency_field' => '',
+          'timeout_minutes' => 15,
+          'timeout_policy' => 'fail',
+          'output_kind' => 'aggregated_pdf'
+        }),
+        node('nest', 'step_repeat', 'Nesting libero', 760, 240, {
+          'preset_source' => 'fixed',
+          'preset_code' => nesting_code,
+          'output_kind' => 'imposition_pdf'
+        }),
+        node('finish', 'finish', 'Plancia nesting pronta', 1100, 240, {
+          'result_artifact_kind' => 'imposition_pdf'
+        })
+      ]
+      {
+        'schema_version' => 1,
+        'nodes' => nodes,
+        'edges' => [
+          edge('e1', 'input', 'collect'),
+          edge('e2', 'collect', 'nest'),
+          edge('e3', 'nest', 'finish')
+        ]
+      }
+    end
+
     def layered_assets_graph
       nodes = [
         node('input', 'trigger', 'Ingresso prestampa', 60, 300, {
@@ -808,6 +886,10 @@ class AutomationEngine
       if asset && !asset.downloaded?
         raise ArgumentError, 'Il file sorgente non è disponibile localmente'
       end
+
+      # Preserve the dispatcher batch in the runtime context. This lets a
+      # collect_group node merge multiple files from one line into one result.
+      extra_context = extra_context.merge('action_batch_id' => action_batch_id) if action_batch_id
 
       run = nil
       AutomationRun.transaction do
@@ -1081,6 +1163,37 @@ class AutomationEngine
       failed
     end
 
+    # Stop a run that is waiting for an external Adobe result, review, or
+    # group member. Waiting group memberships are removed so the cancelled
+    # run cannot keep a collection alive indefinitely.
+    def cancel_run!(run)
+      cancellable = %w[queued running waiting_external waiting_review waiting_group]
+      raise ArgumentError, "L'esecuzione #{run.id} non è annullabile (#{run.status})" unless cancellable.include?(run.status)
+
+      ActiveRecord::Base.transaction do
+        related = AutomationRun.where(action_batch_id: run.action_batch_id)
+                               .where(order_item_id: run.order_item_id)
+                               .where(status: cancellable)
+        related = related.where(id: run.id) if run.action_batch_id.blank?
+        related.each do |candidate|
+          AutomationGroupCollectionItem.where(automation_run_id: candidate.id).delete_all
+          candidate.automation_step_runs.where(status: %w[queued running waiting_external waiting_review]).update_all(
+            status: 'cancelled', worker_id: nil, locked_at: nil,
+            finished_at: Time.current, updated_at: Time.current
+          )
+          candidate.update!(status: 'cancelled', error_message: 'Annullato manualmente dall’operatore', completed_at: Time.current)
+        end
+
+        item = run.order_item
+        if item && related.any? && related.all? { |candidate| candidate.operation_type == 'preprint' }
+          item.update!(preprint_status: 'pending', preprint_job_id: nil)
+        elsif item && related.any? && related.all? { |candidate| candidate.operation_type == 'print' }
+          item.update!(print_status: 'pending', print_job_id: nil)
+        end
+      end
+      true
+    end
+
     def node_for(step)
       Array(step.automation_run.automation_flow_version.graph['nodes'])
         .find { |node| node['id'] == step.node_key }
@@ -1279,7 +1392,8 @@ class AutomationEngine
           'print_flow_id' => print_flow&.id,
           'print_flow_name' => print_flow&.name,
           'selected_photoshop_action' => webhook_fields&.fetch('azione photoshop', nil).presence ||
-                                        webhook_fields&.fetch('azione_photoshop', nil).presence
+                                        webhook_fields&.fetch('azione_photoshop', nil).presence,
+          'action_batch_id' => extra_context['action_batch_id']
         },
         'file' => {
           'asset_id' => asset&.id,

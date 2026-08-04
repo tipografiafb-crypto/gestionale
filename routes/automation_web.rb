@@ -28,6 +28,7 @@ class PrintOrchestrator < Sinatra::Base
     {path: 'aggregation.position', label: 'Posizione nel gruppo', type: 'number'},
     {path: 'operation.type', label: 'Codice evento', type: 'text'},
     {path: 'operation.source', label: 'Sorgente evento', type: 'text'},
+    {path: 'operation.action_batch_id', label: 'Batch dei file della stessa azione', type: 'text', category: 'Operazione'},
     {path: 'operation.handoff_from_flow_name', label: 'Automazione precedente', type: 'text'},
     {path: 'operation.selected_photoshop_action', label: 'Azione Photoshop scelta', type: 'text', category: 'Operazione'},
     {path: 'machine.name', label: 'Macchina selezionata', type: 'text'},
@@ -437,6 +438,14 @@ class PrintOrchestrator < Sinatra::Base
     redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end
 
+  post '/automations/seed_free_nesting_aggregation' do
+    flow = AutomationBootstrap.seed_free_nesting_aggregation_flow!
+    text = 'Flusso di esempio per nesting libero creato e pubblicato'
+    redirect "/automations/#{flow.id}/edit?msg=success&text=#{URI.encode_www_form_component(text)}"
+  rescue StandardError => e
+    redirect "/automations?msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
   post '/automations/seed_layered_assets' do
     flow = AutomationBootstrap.seed_layered_assets_flow!
     text = 'Flusso generico stampa e livello tecnico creato; controlla le risorse e poi pubblicalo'
@@ -730,6 +739,14 @@ class PrintOrchestrator < Sinatra::Base
     run = AutomationRun.find(params[:id])
     AutomationEngine.retry_run!(run)
     redirect "/automation_runs/#{run.id}?msg=success&text=Passaggio+rimesso+in+coda"
+  rescue StandardError => e
+    redirect "/automation_runs/#{params[:id]}?msg=error&text=#{URI.encode_www_form_component(e.message)}"
+  end
+
+  post '/automation_runs/:id/cancel' do
+    run = AutomationRun.find(params[:id])
+    AutomationEngine.cancel_run!(run)
+    redirect "/automation_runs/#{run.id}?msg=success&text=Esecuzione+annullata"
   rescue StandardError => e
     redirect "/automation_runs/#{params[:id]}?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end

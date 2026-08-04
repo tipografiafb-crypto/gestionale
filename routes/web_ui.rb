@@ -77,10 +77,19 @@ class PrintOrchestrator < Sinatra::Base
   end
 
   def halftone_source_path(asset)
-    backup_path = halftone_source_backup_path(asset)
-    return backup_path if backup_path && File.exist?(backup_path)
-
+    # Halftone is another editor in the same chain: always consume the
+    # current operational file. The DTF backup is retained solely for restore.
     asset.local_path_full
+  end
+
+  def ensure_halftone_backup!(asset, source_path)
+    backup_path = halftone_source_backup_path(asset)
+    return backup_path if backup_path && File.file?(backup_path)
+
+    original_path = ImageEditService.backup_path(asset)
+    backup_source = original_path && File.file?(original_path) ? original_path : source_path
+    FileUtils.copy(backup_source, backup_path) if backup_source && backup_path
+    backup_path
   end
 
   def halftone_command(input_path, output_path, request_params, preview: false)
@@ -346,6 +355,7 @@ class PrintOrchestrator < Sinatra::Base
                   asset_type: 'cut'
                 )
                 asset.save!
+                ImageEditService.ensure_original_backup!(asset)
               else
                 # Create Asset record (manual orders only have print assets)
                 # Tag with print_file_1, print_file_2, etc. to match FTPPoller convention
@@ -358,6 +368,7 @@ class PrintOrchestrator < Sinatra::Base
                   asset_type: "print_file_#{asset_index}"
                 )
                 asset.save!
+                ImageEditService.ensure_original_backup!(asset)
               end
             rescue => e
               # Log error but continue
@@ -509,6 +520,7 @@ class PrintOrchestrator < Sinatra::Base
                   asset_type: 'cut'
                 )
                 asset.save!
+                ImageEditService.ensure_original_backup!(asset)
               else
                 existing_print_files = order_item.assets.select { |a| a.asset_type&.start_with?('print_file') }.count
                 asset_index = existing_print_files + 1
@@ -519,6 +531,7 @@ class PrintOrchestrator < Sinatra::Base
                   asset_type: "print_file_#{asset_index}"
                 )
                 asset.save!
+                ImageEditService.ensure_original_backup!(asset)
               end
             rescue => e
               warn "File upload error for #{item_params[:sku]}: #{e.message}"
@@ -1048,9 +1061,8 @@ class PrintOrchestrator < Sinatra::Base
         end
 
         operational_path = asset.local_path_full
-        source_path = ImageEditService.source_path(asset)
-        source_backup_path = halftone_source_backup_path(asset)
-        FileUtils.copy(source_path, source_backup_path) unless File.exist?(source_backup_path)
+        source_path = halftone_source_path(asset)
+        source_backup_path = ensure_halftone_backup!(asset, source_path)
 
         tmp_output_path = File.join(
           File.dirname(operational_path),
@@ -1058,6 +1070,7 @@ class PrintOrchestrator < Sinatra::Base
         )
         FileUtils.copy(tempfile.path, tmp_output_path)
         FileUtils.mv(tmp_output_path, operational_path)
+        DesignGrouping.propagate_file!(asset, operational_path)
 
         puts "[DTF_HALFTONE_BROWSER] Replaced asset #{asset.id} from canvas export; source backup #{source_backup_path}"
         return {
@@ -1067,9 +1080,8 @@ class PrintOrchestrator < Sinatra::Base
       end
 
       operational_path = asset.local_path_full
-      source_path = ImageEditService.source_path(asset)
-      source_backup_path = halftone_source_backup_path(asset)
-      FileUtils.copy(source_path, source_backup_path) unless File.exist?(source_backup_path)
+      source_path = halftone_source_path(asset)
+      source_backup_path = ensure_halftone_backup!(asset, source_path)
 
       tmp_output_path = File.join(File.dirname(operational_path), ".#{File.basename(operational_path, '.*')}_dtf_halftone_tmp_#{Time.now.strftime('%Y%m%d%H%M%S')}.png")
       command = halftone_command(source_path, tmp_output_path, params)
@@ -1082,6 +1094,7 @@ class PrintOrchestrator < Sinatra::Base
       end
 
       FileUtils.mv(tmp_output_path, operational_path)
+      DesignGrouping.propagate_file!(asset, operational_path)
 
       puts "[DTF_HALFTONE] Replaced asset #{asset.id} from source backup #{source_backup_path}: #{stdout}"
       redirect "/orders/#{order.id}/items/#{item.id}?success=halftone_updated"
@@ -1139,9 +1152,8 @@ class PrintOrchestrator < Sinatra::Base
       end
 
       operational_path = asset.local_path_full
-      source_path = ImageEditService.source_path(asset)
-      source_backup_path = halftone_source_backup_path(asset)
-      FileUtils.copy(source_path, source_backup_path) unless File.exist?(source_backup_path)
+      source_path = halftone_source_path(asset)
+      source_backup_path = ensure_halftone_backup!(asset, source_path)
 
       tmp_output_path = File.join(
         File.dirname(operational_path),
@@ -1149,6 +1161,7 @@ class PrintOrchestrator < Sinatra::Base
       )
       FileUtils.copy(tempfile.path, tmp_output_path)
       FileUtils.mv(tmp_output_path, operational_path)
+      DesignGrouping.propagate_file!(asset, operational_path)
 
       puts "[DTF_HALFTONE_BROWSER] Replaced asset #{asset.id} from canvas export; source backup #{source_backup_path}"
       {
@@ -1251,7 +1264,7 @@ class PrintOrchestrator < Sinatra::Base
 
     begin
       asset = Asset.find(params[:id])
-      source_path = ImageEditService.source_path(asset)
+      source_path = halftone_source_path(asset)
       unless source_path && File.file?(source_path) && File.extname(source_path).downcase == '.png'
         status 422
         return { success: false, error: 'L’editor è disponibile per i file PNG' }.to_json
@@ -1332,6 +1345,11 @@ class PrintOrchestrator < Sinatra::Base
       end
       asset.update!(image_edit_data: recipe)
 
+      propagated = []
+      if data['apply_to_group'] == true
+        propagated = DesignGrouping.propagate_asset!(asset, image_binary, recipe)
+      end
+
       puts "[ADJUST] Image saved in #{recipe['mode']} mode: #{output_dimensions.join('x')} px - #{original_path}"
       puts "[ADJUST] Backup available at: #{backup_path}"
 
@@ -1341,7 +1359,9 @@ class PrintOrchestrator < Sinatra::Base
         backup_available: true,
         width: output_dimensions[0],
         height: output_dimensions[1],
-        mode: recipe['mode']
+        mode: recipe['mode'],
+        design_group_key: asset.order_item.effective_design_group_key,
+        propagated_count: propagated.length
       }.to_json
     rescue ActiveRecord::RecordNotFound
       status 404

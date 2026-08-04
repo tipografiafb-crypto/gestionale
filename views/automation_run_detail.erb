@@ -18,7 +18,12 @@
   </div>
   <div class="text-end">
     <span class="badge bg-<%= badge %> fs-6"><%= run.status %></span>
-    <% if run.status == 'failed' %>
+    <% if %w[queued running waiting_external waiting_review waiting_group].include?(run.status) %>
+      <form method="post" action="/automation_runs/<%= run.id %>/cancel" class="mt-2"
+            onsubmit="return confirm('Annullare questa esecuzione e liberare eventuali attese?');">
+        <button class="btn btn-sm btn-outline-danger"><i class="fas fa-stop-circle me-1"></i>Annulla esecuzione</button>
+      </form>
+    <% elsif run.status == 'failed' %>
       <form method="post" action="/automation_runs/<%= run.id %>/retry" class="mt-2">
         <button class="btn btn-sm btn-outline-danger"><i class="fas fa-rotate-right me-1"></i>Riprova</button>
       </form>
@@ -189,6 +194,6 @@
   </div>
 </div>
 
-<% if %w[queued running waiting_external waiting_review].include?(run.status) %>
+<% if %w[queued running waiting_external waiting_review waiting_group].include?(run.status) %>
   <script>window.setTimeout(function () { window.location.reload(); }, 2500);</script>
 <% end %>

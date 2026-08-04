@@ -42,6 +42,15 @@ class OrderItem < ActiveRecord::Base
     {}
   end
 
+  # Shared artwork identity. Size/SKU remain properties of this row.
+  def effective_design_group_key
+    DesignGrouping.for_item(self)
+  end
+
+  def design_group_items
+    DesignGrouping.siblings_for(self)
+  end
+
   # Check if can send to preprint
   def can_send_to_preprint?
     preprint_status == 'pending' && (assets.empty? || assets.any?(&:downloaded?))

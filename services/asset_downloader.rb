@@ -47,6 +47,7 @@ class AssetDownloader
       if response.status.success?
         File.binwrite(local_path, response.body)
         asset.update(local_path: local_path)
+        ImageEditService.ensure_original_backup!(asset)
         @results[:downloaded] += 1
         @results[:messages] << "Downloaded #{asset.original_url} to #{local_path}"
       else

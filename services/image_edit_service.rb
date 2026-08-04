@@ -19,10 +19,19 @@ module ImageEditService
     File.join(dir, "#{basename}_original_backup#{extension}")
   end
 
-  def source_path(asset)
+  def ensure_original_backup!(asset)
+    source = asset&.local_path_full
     backup = backup_path(asset)
-    return backup if backup && File.file?(backup)
+    return backup unless source && backup && File.file?(source)
 
+    FileUtils.copy(source, backup) unless File.file?(backup)
+    backup
+  end
+
+  def source_path(asset)
+    # Editors operate on the current operational file. Backups are recovery
+    # points only; using them as the source made a later crop ignore a prior
+    # Halftone operation (and vice versa).
     asset&.local_path_full
   end
 
@@ -93,9 +102,8 @@ module ImageEditService
     }
 
     if mode == 'fixed'
-      unless [output_width, output_height] == [source_width, source_height]
-        raise ArgumentError, 'La modalità “Mantieni formato” deve conservare esattamente larghezza e altezza originali'
-      end
+      # Fixed mode keeps the composition/canvas behavior, but may optionally
+      # resize the resulting PNG to an explicit output size.
       normalized['crop'] = nil
     else
       crop = raw['crop'].is_a?(Hash) ? raw['crop'] : {}
@@ -103,9 +111,6 @@ module ImageEditService
       crop_y = integer(crop['y'])
       crop_width = integer(crop['width'])
       crop_height = integer(crop['height'])
-      unless [crop_width, crop_height] == [output_width, output_height]
-        raise ArgumentError, 'Le dimensioni del ritaglio non corrispondono al PNG prodotto'
-      end
       if crop_x.negative? || crop_y.negative? || crop_x + crop_width > source_width || crop_y + crop_height > source_height
         raise ArgumentError, 'Il rettangolo di ritaglio deve rimanere dentro il formato originale'
       end

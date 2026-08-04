@@ -92,11 +92,20 @@ class PrintOrchestrator < Sinatra::Base
           status: 'new'
         )
         
-        # Create order items and assets
-        data['items'].each do |item_data|
+          # Create order items and assets
+          data['items'].each do |item_data|
+          # Keep artwork identity separate from size/SKU. Prefer the customizer
+          # cart/artwork id; otherwise use the common source URL as a safe fallback.
+          cart_id = extract_cart_id(item_data)
+          group_key = DesignGrouping.key_for(
+            item_data.merge('cart_id' => cart_id,
+                            'print_files' => print_files_map[cart_id] || item_data['print_files']),
+            order_scope: order.id
+          )
           order_item = order.order_items.create!(
             sku: item_data['sku'],
-            quantity: item_data['quantity']
+            quantity: item_data['quantity'],
+            design_group_key: group_key
           )
           
           # Store raw JSON if present
@@ -113,8 +122,6 @@ class PrintOrchestrator < Sinatra::Base
           end
           
           # Get cart_id from meta_data for file mapping
-          cart_id = extract_cart_id(item_data)
-          
           # Create print file assets
           (print_files_map[cart_id] || []).each do |url|
             order_item.assets.create!(
