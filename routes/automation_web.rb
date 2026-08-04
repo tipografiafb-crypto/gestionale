@@ -121,7 +121,7 @@ class PrintOrchestrator < Sinatra::Base
         raise ArgumentError, 'Tipo di disposizione non valido'
       end
       anchor = params[:anchor].to_s
-      allowed_anchors = %w[top_left top_right bottom_left bottom_right]
+      allowed_anchors = %w[top_left top_center top_right bottom_left bottom_center bottom_right]
       raise ArgumentError, 'Punto di ancoraggio non valido' unless allowed_anchors.include?(anchor)
       double_sided_mode = params[:double_sided_mode].presence || 'none'
       unless %w[none horizontal vertical].include?(double_sided_mode)

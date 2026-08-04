@@ -6,6 +6,7 @@ RUN apt-get update -qq && apt-get install -y \
     libpq-dev \
     postgresql-client \
     cups-client \
+    imagemagick \
     python3 \
     python3-pip \
     curl \

@@ -596,7 +596,7 @@
                     </div>
                     <label class="form-label mt-3">Punto di ancoraggio</label>
                     <div class="d-flex flex-wrap gap-2 mb-3">
-                      <% [['top_left', '↖ Alto sinistra'], ['top_right', 'Alto destra ↗'], ['bottom_left', '↙ Basso sinistra'], ['bottom_right', 'Basso destra ↘']].each do |value, label| %>
+                      <% [['top_left', '↖ Alto sinistra'], ['top_center', '↑ Alto centro'], ['top_right', 'Alto destra ↗'], ['bottom_left', '↙ Basso sinistra'], ['bottom_center', '↓ Basso centro'], ['bottom_right', 'Basso destra ↘']].each do |value, label| %>
                         <input class="btn-check" type="radio" name="anchor" id="anchor-<%= preset.id %>-<%= value %>"
                                value="<%= value %>" <%= 'checked' if anchor == value %>>
                         <label class="btn btn-outline-secondary" for="anchor-<%= preset.id %>-<%= value %>"><%= label %></label>

@@ -37,6 +37,8 @@ A local Ruby application for managing print orders from e-commerce platforms wit
 ### Prerequisites
 
 This project runs on Replit with Ruby 3.2 and PostgreSQL configured.
+ImageMagick is required for high-quality Lanczos resizing in the image editor
+(`sudo apt-get install imagemagick` on Ubuntu/Debian).
 
 ### Installation
 

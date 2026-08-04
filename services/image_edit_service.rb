@@ -1,4 +1,6 @@
 require 'base64'
+require 'open3'
+require 'tempfile'
 require 'time'
 
 module ImageEditService
@@ -123,6 +125,47 @@ module ImageEditService
     end
 
     normalized
+  end
+
+  def imagemagick_command
+    configured = ENV['IMAGEMAGICK_COMMAND'].to_s.strip
+    return configured unless configured.empty?
+
+    %w[magick convert].find do |candidate|
+      ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |directory|
+        File.executable?(File.join(directory, candidate))
+      end
+    end
+  end
+
+  def resize_png_lanczos(image_binary, width:, height:, dpi:)
+    validate_dimensions!(width.to_i, height.to_i, 'di uscita')
+    command = imagemagick_command
+    raise RuntimeError, 'ImageMagick non è installato o non è disponibile nel PATH' unless command
+
+    Tempfile.create(['image-editor-source-', '.png']) do |input|
+      Tempfile.create(['image-editor-output-', '.png']) do |output|
+        input.binmode
+        input.write(image_binary)
+        input.flush
+        output.close
+
+        args = [
+          command, input.path,
+          '-filter', 'Lanczos',
+          '-resize', "#{width.to_i}x#{height.to_i}!",
+          '-units', 'PixelsPerInch',
+          '-density', dpi.to_f.round(3).to_s,
+          output.path
+        ]
+        _stdout, stderr, status = Open3.capture3(*args)
+        unless status.success? && File.file?(output.path) && File.size?(output.path)
+          raise RuntimeError, "Ridimensionamento ImageMagick fallito: #{stderr.to_s.strip.presence || 'output non creato'}"
+        end
+
+        File.binread(output.path)
+      end
+    end
   end
 
   def validate_dimensions!(width, height, label)

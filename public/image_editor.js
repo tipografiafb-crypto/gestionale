@@ -489,22 +489,6 @@ if (modalElement) {
     return `data:image/png;base64,${btoa(encoded)}`;
   }
 
-  function resizePngDataUrl(dataUrl, width, height) {
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => {
-        const output = document.createElement('canvas');
-        output.width = width;
-        output.height = height;
-        const context = output.getContext('2d');
-        context.drawImage(image, 0, 0, width, height);
-        resolve(output.toDataURL('image/png'));
-      };
-      image.onerror = () => reject(new Error('Impossibile ridimensionare il PNG'));
-      image.src = dataUrl;
-    });
-  }
-
   async function saveImage() {
     if (!state.canvas || !state.image || state.loading) return;
     showError('');
@@ -528,9 +512,6 @@ if (modalElement) {
         enableRetinaScaling: false
       });
       const outputDimensions = requestedOutputDimensions(bounds);
-      if (outputDimensions.width !== bounds.width || outputDimensions.height !== bounds.height) {
-        imageData = await resizePngDataUrl(imageData, outputDimensions.width, outputDimensions.height);
-      }
       imageData = pngWithDpi(imageData, state.dpi);
 
       if (state.crop) state.crop.visible = cropWasVisible;
@@ -547,6 +528,8 @@ if (modalElement) {
         offset_x: offset.x,
         offset_y: offset.y,
         dpi: state.dpi,
+        output_width: outputDimensions.width,
+        output_height: outputDimensions.height,
         crop: state.mode === 'crop' ? bounds : null
       };
 

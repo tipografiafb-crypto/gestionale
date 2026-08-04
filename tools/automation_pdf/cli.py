@@ -486,7 +486,7 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
     sheet_width = float(config["sheet_width_mm"]) * mm
     sheet_height = float(config["sheet_height_mm"]) * mm
     anchor = str(config.get("anchor", "top_left"))
-    if anchor not in {"top_left", "top_right", "bottom_left", "bottom_right"}:
+    if anchor not in {"top_left", "top_center", "top_right", "bottom_left", "bottom_center", "bottom_right"}:
         raise ValueError(f"Punto di ancoraggio non valido: {anchor}")
     margin_x = float(config.get("offset_x_mm", 0)) * mm
     margin_y = float(config.get("offset_y_mm", 0)) * mm
@@ -585,13 +585,19 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
         xobjects = DictionaryObject()
         content_parts = []
         used_area = 0.0
+        used_content_width = max(
+            placement["x"] + placement["width"]
+            for placement in sheet["placements"]
+        )
         for placement in sorted(sheet["placements"], key=lambda value: value["page_index"]):
             local_x = placement["x"]
             local_y = placement["y"]
-            x = (
-                output_page.mediabox.width - margin_x - local_x - placement["width"]
-                if anchor.endswith("right") else margin_x + local_x
-            )
+            if anchor.endswith("right"):
+                x = output_page.mediabox.width - margin_x - local_x - placement["width"]
+            elif anchor.endswith("center"):
+                x = margin_x + (content_width - used_content_width) / 2 + local_x
+            else:
+                x = margin_x + local_x
             y = (
                 margin_y + local_y
                 if anchor.startswith("bottom")
@@ -668,7 +674,7 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
     sheet_width = float(config["sheet_width_mm"]) * mm
     sheet_height = float(config["sheet_height_mm"]) * mm
     anchor = str(config.get("anchor", "top_left"))
-    if anchor not in {"top_left", "top_right", "bottom_left", "bottom_right"}:
+    if anchor not in {"top_left", "top_center", "top_right", "bottom_left", "bottom_center", "bottom_right"}:
         raise ValueError(f"Punto di ancoraggio non valido: {anchor}")
     offset_x = float(config.get("offset_x_mm", 0)) * mm
     offset_y = float(config.get("offset_y_mm", 0)) * mm
@@ -799,7 +805,10 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
                 row = rows - 1 - row
             grows_left = anchor.endswith("right")
             grows_up = anchor.startswith("bottom")
-            if grows_left:
+            if anchor.endswith("center"):
+                centered_x = offset_x + (available_width - required_width) / 2
+                x = centered_x + column * (placed_width + gap_x)
+            elif grows_left:
                 x = sheet_width - offset_x - placed_width - column * (
                     placed_width + gap_x
                 )

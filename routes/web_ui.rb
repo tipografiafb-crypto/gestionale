@@ -1315,8 +1315,8 @@ class PrintOrchestrator < Sinatra::Base
       request.body.rewind
       data = JSON.parse(request.body.read)
       image_binary = ImageEditService.decode_png_data_url(data['image_data'])
-      output_dimensions = ImageEditService.png_dimensions(image_binary)
-      raise ArgumentError, 'Il PNG prodotto non contiene dimensioni valide' unless output_dimensions
+      rendered_dimensions = ImageEditService.png_dimensions(image_binary)
+      raise ArgumentError, 'Il PNG prodotto non contiene dimensioni valide' unless rendered_dimensions
 
       original_path = asset.local_path_full
       raise ArgumentError, 'Il file operativo deve essere un PNG' unless File.extname(original_path).downcase == '.png'
@@ -1325,11 +1325,26 @@ class PrintOrchestrator < Sinatra::Base
       source_dimensions = ImageEditService.png_dimensions(source_path)
       raise ArgumentError, 'Impossibile leggere il PNG originale' unless source_dimensions
 
+      requested_width = ImageEditService.integer(data.dig('recipe', 'output_width'), rendered_dimensions[0])
+      requested_height = ImageEditService.integer(data.dig('recipe', 'output_height'), rendered_dimensions[1])
+      ImageEditService.validate_dimensions!(requested_width, requested_height, 'di uscita')
+      output_dimensions = [requested_width, requested_height]
+
+      if output_dimensions != rendered_dimensions
+        image_binary = ImageEditService.resize_png_lanczos(
+          image_binary,
+          width: requested_width,
+          height: requested_height,
+          dpi: data.dig('recipe', 'dpi') || 300
+        )
+      end
+
       recipe = ImageEditService.normalize_recipe(
         data['recipe'],
         output_dimensions: output_dimensions,
         source_dimensions: source_dimensions
       )
+      recipe['render_engine'] = output_dimensions == rendered_dimensions ? 'fabric_canvas' : 'imagemagick_lanczos'
       backup_path = ImageEditService.backup_path(asset)
       unless File.exist?(backup_path)
         FileUtils.copy(source_path, backup_path)
