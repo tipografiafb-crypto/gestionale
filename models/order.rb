@@ -62,12 +62,18 @@ class Order < ActiveRecord::Base
       new_item.order_id = new_order.id
       new_item.preprint_status = 'pending'
       new_item.preprint_job_id = nil
+      new_item.preprint_preview_url = nil
+      new_item.preprint_completed_at = nil
       new_item.print_status = 'pending'
       new_item.print_job_id = nil
+      new_item.print_completed_at = nil
       new_item.save!
       
-      # Duplicate assets
+      # Duplicate only source/input assets.  A reprint starts a new workflow and
+      # must not inherit the generated PDF from the completed original order.
       item.assets.each do |asset|
+        next if asset.asset_type == 'print_output'
+
         new_asset = asset.dup
         new_asset.order_item_id = new_item.id
         new_asset.save!

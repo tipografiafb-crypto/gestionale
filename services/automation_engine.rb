@@ -1373,7 +1373,8 @@ class AutomationEngine
         'item' => {
           'id' => item.id,
           'sku' => item.sku,
-          'quantity' => item.quantity,
+          'quantity' => item.workflow_quantity,
+          'ordered_quantity' => item.quantity,
           'position' => item.item_number
         },
         'product' => {

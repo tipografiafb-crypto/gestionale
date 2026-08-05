@@ -278,7 +278,8 @@
         label: 'Numero di pagine da',
         choices: [
           ['variables.production_copies', 'Copie calcolate'],
-          ['item.quantity', 'Quantità ordinata']
+          ['item.quantity', 'Quantità di lavorazione'],
+          ['item.ordered_quantity', 'Quantità ordinata originale']
         ],
         default: 'variables.production_copies'
       },
@@ -702,6 +703,12 @@
   }
 
   function choicesFor(value) {
+    if (value === 'quantity_fields') {
+      return [
+        ['item.quantity', 'Quantità di lavorazione'],
+        ['item.ordered_quantity', 'Quantità ordinata originale']
+      ];
+    }
     if (value === 'fields') {
       return availableDataFields().map((field) => [field.path, field.label]);
     }
@@ -1379,7 +1386,7 @@
         : [];
       const overrides = [...exactOverrides, ...rangeOverrides].join('\n');
       nodeConfigForm.append(
-        configField({label: 'Quantità di partenza', choices: 'fields'}, node.config?.quantity_field || 'item.quantity', 'quantity_field'),
+        configField({label: 'Quantità di partenza', choices: 'quantity_fields'}, node.config?.quantity_field || 'item.quantity', 'quantity_field'),
         configField({label: 'Nome del risultato'}, node.config?.output_key || 'production_copies', 'output_key'),
         configField({
           label: 'Eccezioni quantità',

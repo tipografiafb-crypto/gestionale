@@ -323,7 +323,7 @@ class PrintOrchestrator < Sinatra::Base
           url: "#{server_url}/api/assets/#{print_asset.id}/download",
           widegest_url: "#{server_url}/api/v1/reports_create",
           filename: item.switch_filename_for_asset(print_asset) || "#{order.external_order_code.downcase}-#{item.id}.png",
-          quantita: item.quantity,
+          quantita: item.workflow_quantity,
           materiale: product&.notes || 'N/A',
           campi_custom: {},
           opzioni_stampa: {},

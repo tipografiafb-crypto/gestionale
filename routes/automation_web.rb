@@ -8,7 +8,8 @@ require 'securerandom'
 class PrintOrchestrator < Sinatra::Base
   AUTOMATION_FIELD_CATALOG = [
     {path: 'item.sku', label: 'SKU prodotto', type: 'text', category: 'Riga ordine'},
-    {path: 'item.quantity', label: 'Quantità ordinata', type: 'number'},
+    {path: 'item.quantity', label: 'Quantità di lavorazione', type: 'number'},
+    {path: 'item.ordered_quantity', label: 'Quantità ordinata originale', type: 'number'},
     {path: 'item.id', label: 'ID riga ordine', type: 'number', category: 'Riga ordine'},
     {path: 'order.code', label: 'Codice ordine', type: 'text'},
     {path: 'order.store', label: 'Negozio', type: 'text'},
@@ -139,6 +140,10 @@ class PrintOrchestrator < Sinatra::Base
         'anchor' => anchor,
         'offset_x_mm' => Float(params[:offset_x_mm].to_s.tr(',', '.')),
         'offset_y_mm' => Float(params[:offset_y_mm].to_s.tr(',', '.')),
+        'margin_left_mm' => Float((params[:margin_left_mm].presence || params[:offset_x_mm]).to_s.tr(',', '.')),
+        'margin_right_mm' => Float((params[:margin_right_mm].presence || (layout_mode == 'nesting' ? params[:offset_x_mm] : 0)).to_s.tr(',', '.')),
+        'margin_top_mm' => Float((params[:margin_top_mm].presence || params[:offset_y_mm]).to_s.tr(',', '.')),
+        'margin_bottom_mm' => Float((params[:margin_bottom_mm].presence || (layout_mode == 'nesting' ? params[:offset_y_mm] : 0)).to_s.tr(',', '.')),
         'gap_x_mm' => Float(params[:gap_x_mm].to_s.tr(',', '.')),
         'gap_y_mm' => Float(params[:gap_y_mm].to_s.tr(',', '.')),
         'columns' => Integer(params[:columns].presence || 0),
@@ -151,7 +156,7 @@ class PrintOrchestrator < Sinatra::Base
       raise ArgumentError, 'Le dimensioni del foglio devono essere maggiori di zero' unless
         config['sheet_width_mm'].positive? && config['sheet_height_mm'].positive?
       raise ArgumentError, 'Partenza e spazi non possono essere negativi' if
-        %w[offset_x_mm offset_y_mm gap_x_mm gap_y_mm].any? { |key| config[key].negative? }
+        %w[offset_x_mm offset_y_mm margin_left_mm margin_right_mm margin_top_mm margin_bottom_mm gap_x_mm gap_y_mm].any? { |key| config[key].negative? }
       raise ArgumentError, 'Righe e colonne non possono essere negative' if
         config['rows'].negative? || config['columns'].negative?
 

@@ -149,6 +149,18 @@
           </div>
           <small class="text-muted">Se attivo, il sistema cercherà e scaricherà automaticamente i file di taglio (SVG) per questo prodotto</small>
         </div>
+
+        <div class="mb-3">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="allow_preprint_quantity_override"
+                   name="allow_preprint_quantity_override" value="true"
+                   <%= 'checked' if @product&.allow_preprint_quantity_override %>>
+            <label class="form-check-label" for="allow_preprint_quantity_override">
+              <strong><i class="fas fa-plus-square"></i> Consenti quantità prestampa personalizzata</strong>
+            </label>
+          </div>
+          <small class="text-muted">Mostra all'operatore un campo opzionale per produrre più o meno pezzi rispetto all'ordine.</small>
+        </div>
       </div>
 
       <div class="card-footer bg-light">

@@ -42,6 +42,16 @@ class OrderItem < ActiveRecord::Base
     {}
   end
 
+  # Quantity used by the production workflow. The original order quantity is
+  # kept unchanged; an optional override is captured when prepress starts.
+  def workflow_quantity
+    return quantity unless product&.allow_preprint_quantity_override
+
+    override = campi_webhook.is_a?(Hash) && campi_webhook['preprint_quantity_override']
+    value = override.to_i if override.present?
+    value && value > 0 ? value : quantity
+  end
+
   # Shared artwork identity. Size/SKU remain properties of this row.
   def effective_design_group_key
     DesignGrouping.for_item(self)

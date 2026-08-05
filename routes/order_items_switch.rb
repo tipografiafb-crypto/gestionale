@@ -26,9 +26,18 @@ class PrintOrchestrator < Sinatra::Base
     # Get percentuale and azione_photoshop from form and build campi_webhook
     percentuale = params[:percentuale].to_i rescue 0
     azione_photoshop = params[:azione_photoshop]&.strip
-    
+    requested_quantity = params[:preprint_quantity].to_s.strip
+    quantity_override = nil
+    if requested_quantity.present? && item.product&.allow_preprint_quantity_override
+      quantity_override = Integer(requested_quantity, 10) rescue nil
+      if quantity_override.nil? || quantity_override < 1
+        redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Quantità+prestampa+non+valida"
+      end
+    end
+
     campi_webhook = { percentuale: percentuale.to_s }
     campi_webhook["azione photoshop"] = azione_photoshop if azione_photoshop.present?
+    campi_webhook['preprint_quantity_override'] = quantity_override.to_s if quantity_override
     
     # Store selected print flow in item
     item.update(
@@ -85,7 +94,7 @@ class PrintOrchestrator < Sinatra::Base
           url: "#{server_url}/api/assets/#{print_asset.id}/download",
           widegest_url: "#{server_url}/api/v1/reports_create",
           filename: item.switch_filename_for_asset(print_asset) || "#{order.external_order_code.downcase}-#{item.id}.png",
-          quantita: item.quantity,
+          quantita: item.workflow_quantity,
           materiale: product&.notes || 'N/A',
           campi_custom: {},
           opzioni_stampa: {},
@@ -363,7 +372,7 @@ class PrintOrchestrator < Sinatra::Base
         widegest_url: "#{server_url}/api/v1/reports_create",
         filename: item.switch_filename_for_asset(first_asset) || "#{order.external_order_code.downcase}-#{item.id}.png",
         nome_macchina: print_machine.name,
-        quantita: item.quantity,
+        quantita: item.workflow_quantity,
         materiale: product&.notes || 'N/A',
         campi_custom: {},
         opzioni_stampa: {},

@@ -233,6 +233,7 @@ class PrintOrchestrator < Sinatra::Base
       master_product_id: params[:is_dependent] == 'true' ? params[:master_product_id].presence : nil
     }
     product_attrs[:has_cut_file] = params[:has_cut_file] == 'true' if Product.column_names.include?('has_cut_file')
+    product_attrs[:allow_preprint_quantity_override] = params[:allow_preprint_quantity_override] == 'true' if Product.column_names.include?('allow_preprint_quantity_override')
 
     product = Product.new(product_attrs)
 
@@ -283,6 +284,7 @@ class PrintOrchestrator < Sinatra::Base
       master_product_id: params[:is_dependent] == 'true' ? params[:master_product_id].presence : nil
     }
     product_attrs[:has_cut_file] = params[:has_cut_file] == 'true' if Product.column_names.include?('has_cut_file')
+    product_attrs[:allow_preprint_quantity_override] = params[:allow_preprint_quantity_override] == 'true' if Product.column_names.include?('allow_preprint_quantity_override')
 
     product.update(product_attrs)
 

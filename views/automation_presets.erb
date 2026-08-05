@@ -566,6 +566,14 @@
                         <label class="form-label">Partenza Y (mm)</label>
                         <input class="form-control" type="number" step="0.000001" min="0" name="offset_y_mm" value="<%= config.fetch('offset_y_mm', 0) %>" required>
                       </div>
+                      <div class="col-12"><hr class="my-1"><label class="form-label">Margini di sicurezza (mm)</label></div>
+                      <% [['margin_left_mm', 'Sinistro'], ['margin_right_mm', 'Destro'], ['margin_top_mm', 'Superiore'], ['margin_bottom_mm', 'Inferiore']].each do |field, label| %>
+                        <div class="col-md-3">
+                          <label class="form-label"><%= label %></label>
+                          <input class="form-control" type="number" step="0.000001" min="0" name="<%= field %>"
+                                 value="<%= config.fetch(field, field.include?('left') || field.include?('top') ? config.fetch(field.include?('left') ? 'offset_x_mm' : 'offset_y_mm', 0) : 0) %>" required>
+                        </div>
+                      <% end %>
                       <div class="col-md-3">
                         <label class="form-label">Spazio X (mm)</label>
                         <input class="form-control" type="number" step="0.000001" min="0" name="gap_x_mm" value="<%= config.fetch('gap_x_mm', 0) %>" required>
@@ -613,7 +621,7 @@
                         <input class="form-check-input" type="checkbox" name="fill_last_sheet" value="1" id="fill-<%= preset.id %>" <%= 'checked' if config['fill_last_sheet'] %>>
                         <label class="form-check-label" for="fill-<%= preset.id %>">Completa ultima plancia</label>
                       </div>
-                      <div class="form-check" data-nesting-only>
+                      <div class="form-check" data-trim-height-option>
                         <input type="hidden" name="trim_sheet_height" value="0">
                         <input class="form-check-input" type="checkbox" name="trim_sheet_height" value="1" id="trim-height-<%= preset.id %>" <%= 'checked' if config['trim_sheet_height'] %>>
                         <label class="form-check-label" for="trim-height-<%= preset.id %>">Riduci l'altezza al contenuto</label>
@@ -684,6 +692,15 @@
                       </div>
                     <% end %>
                   </div>
+                  <div class="row g-2 mt-1">
+                    <div class="col-12"><label class="form-label small">Margini di sicurezza (mm)</label></div>
+                    <% [['margin_left_mm', 'Sinistro'], ['margin_right_mm', 'Destro'], ['margin_top_mm', 'Superiore'], ['margin_bottom_mm', 'Inferiore']].each do |field, label| %>
+                      <div class="col-6">
+                        <label class="form-label small"><%= label %></label>
+                        <input class="form-control" type="number" name="<%= field %>" step="0.000001" min="0" value="0">
+                      </div>
+                    <% end %>
+                  </div>
                   <label class="form-label mt-3">Punto di ancoraggio</label>
                   <select class="form-select mb-3" name="anchor">
                     <option value="top_left">Alto sinistra</option>
@@ -710,7 +727,7 @@
                     <label class="form-check-label" for="new-imposition-fill">Completa ultima plancia</label>
                   </div>
                   <input type="hidden" name="trim_sheet_height" value="0">
-                  <div class="form-check mb-3" data-nesting-only>
+                  <div class="form-check mb-3" data-trim-height-option>
                     <input class="form-check-input" type="checkbox" name="trim_sheet_height" value="1" id="new-imposition-trim-height">
                     <label class="form-check-label" for="new-imposition-trim-height">Riduci l'altezza al contenuto</label>
                     <div class="form-text">Utile per supporti a bobina come il DTF.</div>

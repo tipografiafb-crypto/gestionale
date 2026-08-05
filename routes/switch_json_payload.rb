@@ -82,7 +82,7 @@ class PrintOrchestrator < Sinatra::Base
       widegest_url: nil, # Not used in our workflow
       filename: switch_filename,
       scala: item.scala || "1:1",
-      quantita: item.quantity,
+      quantita: item.workflow_quantity,
       materiale: item.materiale,
       macchina: item.print_machine&.name, # Print machine name
       campi_custom: item.campi_custom || {},
