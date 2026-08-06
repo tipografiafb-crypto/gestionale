@@ -506,7 +506,7 @@
 <body>
   <nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container-fluid">
-      <a class="navbar-brand" href="/"><img src="/logo.png" alt="Magenta" style="height: 40px;"></a>
+      <a class="navbar-brand" href="/"><img src="/logo.png?v=20260806-symbol" alt="Magenta" style="height: 40px; width: auto;"></a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -536,9 +536,6 @@
           </li>
           <li class="nav-item">
             <a class="nav-link <%= 'active' if request.path_info =~ %r{^/inventory} %>" href="/inventory"><i class="fas fa-boxes"></i> Magazzino</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link <%= 'active' if request.path_info =~ %r{^/analytics} %>" href="/analytics"><i class="fas fa-chart-line"></i> Analitiche</a>
           </li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="settingsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">

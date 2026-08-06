@@ -503,7 +503,7 @@
       <div class="row g-4">
         <div class="col-xl-8">
           <% @automation_presets.select { |preset| preset.kind == kind }.group_by { |preset| preset.config.is_a?(Hash) ? (preset.config['folder'].to_s.presence || 'Principale') : 'Principale' }.sort.each do |folder, folder_presets| %>
-            <details class="border rounded mb-3" open>
+            <details class="border rounded mb-3">
               <summary class="px-3 py-2 bg-light d-flex align-items-center justify-content-between">
                 <span><i class="fas fa-folder me-1"></i><strong><%= Rack::Utils.escape_html(folder) %></strong></span>
                 <span class="badge bg-secondary"><%= folder_presets.size %></span>
@@ -552,35 +552,35 @@
                     <div class="row g-3">
                       <div class="col-md-3">
                         <label class="form-label">Foglio L (mm)</label>
-                        <input class="form-control" type="number" step="0.000001" min="0.000001" name="sheet_width_mm" value="<%= config['sheet_width_mm'] %>" required>
+                        <input class="form-control" type="number" step="0.0000000001" min="0.0000000001" name="sheet_width_mm" value="<%= config['sheet_width_mm'] %>" required>
                       </div>
                       <div class="col-md-3">
                         <label class="form-label">Foglio H (mm)</label>
-                        <input class="form-control" type="number" step="0.000001" min="0.000001" name="sheet_height_mm" value="<%= config['sheet_height_mm'] %>" required>
+                        <input class="form-control" type="number" step="0.0000000001" min="0.0000000001" name="sheet_height_mm" value="<%= config['sheet_height_mm'] %>" required>
                       </div>
                       <div class="col-md-3">
                         <label class="form-label">Partenza X (mm)</label>
-                        <input class="form-control" type="number" step="0.000001" min="0" name="offset_x_mm" value="<%= config.fetch('offset_x_mm', 0) %>" required>
+                        <input class="form-control" type="number" step="0.0000000001" min="0" name="offset_x_mm" value="<%= config.fetch('offset_x_mm', 0) %>" required>
                       </div>
                       <div class="col-md-3">
                         <label class="form-label">Partenza Y (mm)</label>
-                        <input class="form-control" type="number" step="0.000001" min="0" name="offset_y_mm" value="<%= config.fetch('offset_y_mm', 0) %>" required>
+                        <input class="form-control" type="number" step="0.0000000001" min="0" name="offset_y_mm" value="<%= config.fetch('offset_y_mm', 0) %>" required>
                       </div>
                       <div class="col-12"><hr class="my-1"><label class="form-label">Margini di sicurezza (mm)</label></div>
                       <% [['margin_left_mm', 'Sinistro'], ['margin_right_mm', 'Destro'], ['margin_top_mm', 'Superiore'], ['margin_bottom_mm', 'Inferiore']].each do |field, label| %>
                         <div class="col-md-3">
                           <label class="form-label"><%= label %></label>
-                          <input class="form-control" type="number" step="0.000001" min="0" name="<%= field %>"
+                          <input class="form-control" type="number" step="0.0000000001" min="0" name="<%= field %>"
                                  value="<%= config.fetch(field, field.include?('left') || field.include?('top') ? config.fetch(field.include?('left') ? 'offset_x_mm' : 'offset_y_mm', 0) : 0) %>" required>
                         </div>
                       <% end %>
                       <div class="col-md-3">
                         <label class="form-label">Spazio X (mm)</label>
-                        <input class="form-control" type="number" step="0.000001" min="0" name="gap_x_mm" value="<%= config.fetch('gap_x_mm', 0) %>" required>
+                        <input class="form-control" type="number" step="0.0000000001" min="0" name="gap_x_mm" value="<%= config.fetch('gap_x_mm', 0) %>" required>
                       </div>
                       <div class="col-md-3">
                         <label class="form-label">Spazio Y (mm)</label>
-                        <input class="form-control" type="number" step="0.000001" min="0" name="gap_y_mm" value="<%= config.fetch('gap_y_mm', 0) %>" required>
+                        <input class="form-control" type="number" step="0.0000000001" min="0" name="gap_y_mm" value="<%= config.fetch('gap_y_mm', 0) %>" required>
                       </div>
                       <div class="col-md-3" data-grid-only>
                         <label class="form-label">Colonne</label>
@@ -676,12 +676,12 @@
                   <div class="form-text mb-3" data-layout-help></div>
                   <div class="row g-2">
                     <% [
-                      ['sheet_width_mm', 'Foglio L', 0.000001, 0.000001],
-                      ['sheet_height_mm', 'Foglio H', 0.000001, 0.000001],
-                      ['offset_x_mm', 'Partenza X', 0.000001, 0],
-                      ['offset_y_mm', 'Partenza Y', 0.000001, 0],
-                      ['gap_x_mm', 'Spazio X', 0.000001, 0],
-                      ['gap_y_mm', 'Spazio Y', 0.000001, 0],
+                      ['sheet_width_mm', 'Foglio L', 0.0000000001, 0.0000000001],
+                      ['sheet_height_mm', 'Foglio H', 0.0000000001, 0.0000000001],
+                      ['offset_x_mm', 'Partenza X', 0.0000000001, 0],
+                      ['offset_y_mm', 'Partenza Y', 0.0000000001, 0],
+                      ['gap_x_mm', 'Spazio X', 0.0000000001, 0],
+                      ['gap_y_mm', 'Spazio Y', 0.0000000001, 0],
                       ['columns', 'Colonne', 1, 0],
                       ['rows', 'Righe', 1, 0]
                     ].each do |field, label, step, minimum| %>
@@ -697,7 +697,7 @@
                     <% [['margin_left_mm', 'Sinistro'], ['margin_right_mm', 'Destro'], ['margin_top_mm', 'Superiore'], ['margin_bottom_mm', 'Inferiore']].each do |field, label| %>
                       <div class="col-6">
                         <label class="form-label small"><%= label %></label>
-                        <input class="form-control" type="number" name="<%= field %>" step="0.000001" min="0" value="0">
+                        <input class="form-control" type="number" name="<%= field %>" step="0.0000000001" min="0" value="0">
                       </div>
                     <% end %>
                   </div>

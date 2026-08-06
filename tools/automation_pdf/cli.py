@@ -598,7 +598,9 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
                     raise ValueError(
                         f"La pagina {item['page_index'] + 1} "
                         f"({item['width'] / mm:.2f}x{item['height'] / mm:.2f} mm) "
-                        "non entra nell'area utile del foglio"
+                        f"non entra nell'area utile del foglio "
+                        f"({bin_width / mm:.2f}x{bin_height / mm:.2f} mm, "
+                        "dopo i margini configurati)"
                     )
                 selected["sheet_index"] = len(sheets) - 1
 

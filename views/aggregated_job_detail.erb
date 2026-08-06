@@ -1,4 +1,4 @@
-<div class="mb-4">
+<div id="aggregated-job-page" class="mb-4" data-aggregated-job-id="<%= @aggregated_job.id %>" data-aggregated-job-status="<%= @aggregated_job.status %>">
   <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a href="/orders">Orders</a></li>
@@ -7,6 +7,38 @@
     </ol>
   </nav>
 </div>
+
+<% if @aggregated_job.status == 'aggregating' %>
+<script>
+  // Board creation is asynchronous: refresh once the server has moved out of
+  // "aggregating", so the PDF and the operator actions appear automatically.
+  (() => {
+    const page = document.getElementById('aggregated-job-page');
+    if (!page) return;
+    const jobId = page.dataset.aggregatedJobId;
+    let polling = true;
+    const check = async () => {
+      if (!polling) return;
+      try {
+        const response = await fetch(`/aggregated_jobs/${jobId}/status`, {
+          headers: { Accept: 'application/json' },
+          cache: 'no-store'
+        });
+        if (!response.ok) return;
+        const state = await response.json();
+        if (state.status !== 'aggregating') {
+          polling = false;
+          window.location.reload();
+        }
+      } catch (_) {
+        // A transient network error should not stop polling.
+      }
+    };
+    check();
+    window.setInterval(check, 3000);
+  })();
+</script>
+<% end %>
 
 <div class="row mb-4">
   <div class="col-md-8">

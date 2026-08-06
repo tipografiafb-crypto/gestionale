@@ -76,6 +76,20 @@ class PrintFlow < ActiveRecord::Base
     "Switch: #{webhook&.name || 'webhook mancante'}"
   end
 
+  # Print flows shown when creating an aggregated job must explicitly expose
+  # an aggregation trigger in their internal prepress automation.
+  def aggregation_capable?
+    flow = preprint_automation_flow
+    version = flow&.active_version
+    return false unless version
+
+    trigger = Array(version.graph['nodes']).find { |node| node['type'].to_s == 'trigger' }
+    operation_types = trigger&.dig('config', 'operation_type').to_s
+                            .split(';')
+                            .map(&:strip)
+    operation_types.include?('aggregation')
+  end
+
   private
 
   def configured_action_destinations

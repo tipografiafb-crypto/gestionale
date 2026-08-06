@@ -18,9 +18,35 @@ class PrintOrchestrator < Sinatra::Base
                                 .where.not(id: already_aggregated_ids)
                                 .includes(:order, :assets)
                                 .order(created_at: :desc)
-    @print_flows = PrintFlow.ordered
+    @print_flows = PrintFlow.ordered.select(&:aggregation_capable?)
     @switch_webhooks = SwitchWebhook.ordered
     erb :aggregated_jobs_new
+  end
+
+  # Lightweight polling endpoint used by the aggregation detail page.  The
+  # page can refresh itself when the asynchronous board creation completes.
+  get '/aggregated_jobs/:id/status' do
+    content_type :json
+    job = AggregatedJob.find(params[:id])
+    latest_run = AutomationRun
+                  .where("context -> 'aggregation' ->> 'id' = ?", job.id.to_s)
+                  .order(created_at: :desc)
+                  .first
+    JSON.generate(
+      id: job.id,
+      status: job.status,
+      status_label: job.status_label,
+      aggregated_file_url: job.aggregated_file_url,
+      aggregated_filename: job.aggregated_filename,
+      aggregated_at: job.aggregated_at&.iso8601,
+      identification_sheet_file_url: job.identification_sheet_file_url,
+      updated_at: job.updated_at&.iso8601,
+      latest_run_status: latest_run&.status,
+      latest_error: latest_run&.error_message
+    )
+  rescue ActiveRecord::RecordNotFound
+    status 404
+    JSON.generate(error: 'Aggregazione non trovata')
   end
 
   # POST /aggregated_jobs - Create aggregated job from selected items
