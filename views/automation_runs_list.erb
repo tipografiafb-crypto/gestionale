@@ -12,6 +12,12 @@
     <p class="text-muted mb-0">Storico dei flussi, stati di attesa ed errori utili alla diagnosi.</p>
   </div>
   <span class="badge bg-secondary fs-6"><%= @automation_runs_count %> esecuzioni</span>
+  <form method="post" action="/automation_runs/delete_all"
+        onsubmit="return confirm('Svuotare tutto lo storico dei debug? Verranno rimossi solo esecuzioni, raccolte e file generati; ordini, asset e configurazione resteranno intatti.');">
+    <button class="btn btn-outline-danger" type="submit" <%= 'disabled' if @automation_runs_count.to_i.zero? %>>
+      <i class="fas fa-trash-can me-1"></i>Svuota tutto
+    </button>
+  </form>
 </div>
 
 <div class="card shadow-sm mb-4">
@@ -62,6 +68,7 @@
           <th>Stato</th>
           <th>Ultimo blocco</th>
           <th>Avvio</th>
+          <th class="text-end">Azioni</th>
         </tr>
       </thead>
       <tbody>
@@ -100,10 +107,21 @@
               <% end %>
             </td>
             <td class="text-nowrap"><%= run.created_at.strftime('%d/%m/%Y %H:%M:%S') %></td>
+            <td class="text-end text-nowrap">
+              <a class="btn btn-sm btn-outline-primary" href="/automation_runs/<%= run.id %>" title="Apri debug">
+                <i class="fas fa-bug"></i>
+              </a>
+              <form method="post" action="/automation_runs/<%= run.id %>/delete" class="d-inline"
+                    onsubmit="return confirm('Eliminare questa esecuzione e i relativi sottomoduli? Gli asset dell\'ordine non verranno cancellati.');">
+                <button class="btn btn-sm btn-outline-danger" type="submit" title="Elimina debug">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </form>
+            </td>
           </tr>
         <% end %>
         <% if @automation_runs.empty? %>
-          <tr><td colspan="7" class="text-center text-muted py-5">Nessuna esecuzione corrisponde ai filtri.</td></tr>
+          <tr><td colspan="8" class="text-center text-muted py-5">Nessuna esecuzione corrisponde ai filtri.</td></tr>
         <% end %>
       </tbody>
     </table>

@@ -120,6 +120,7 @@
       width_mm: 0,
       height_mm: 0,
       dpi: 300,
+      resample_on_dpi_change: false,
       output_kind: 'photoshop_pdf'
     },
     illustrator: {
@@ -228,6 +229,15 @@
         type: 'number',
         default: 300,
         help: 'Con dimensioni a 0 cambia solo la risoluzione. Con dimensioni compilate determina i pixel finali.'
+      },
+      {
+        key: 'resample_on_dpi_change',
+        label: 'Ricampiona quando cambia il DPI',
+        choices: [
+          [false, 'No · cambia solo il DPI'],
+          [true, 'Sì · ricampiona mantenendo la misura fisica']
+        ],
+        help: 'Usa Sì per convertire, ad esempio, un file da 150 a 300 DPI creando i pixel mancanti. Con larghezza e altezza compilate il ricampionamento è già automatico.'
       },
       {key: 'output_kind', label: 'Tipo risultato', default: 'photoshop_pdf'}
     ],

@@ -578,6 +578,10 @@ class PrintOrchestrator < Sinatra::Base
   get '/orders/:order_id/items/:item_id' do
     @order = Order.includes(:store).find(params[:order_id])
     @item = @order.order_items.includes(:assets, :preprint_job, :print_job).find(params[:item_id])
+    @latest_automation_run = @item.automation_runs
+                                  .where(parent_run_id: nil)
+                                  .order(created_at: :desc)
+                                  .first
     erb :order_item_detail
   rescue ActiveRecord::RecordNotFound
     status 404

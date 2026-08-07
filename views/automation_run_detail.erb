@@ -135,6 +135,8 @@
                         <%= artifact.metadata['pixels_after'].join('×') %> px
                         <% if artifact.metadata['resize_applied'] %>
                           · <%= artifact.metadata['width_mm'] %>×<%= artifact.metadata['height_mm'] %> mm
+                        <% elsif artifact.metadata['resample_on_dpi_change'] %>
+                          · pixel ricampionati per il cambio DPI
                         <% else %>
                           · pixel invariati
                         <% end %>

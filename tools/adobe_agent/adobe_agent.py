@@ -533,6 +533,9 @@ output.close();
         target_dpi = float(config.get("dpi") or 300)
         width_mm = float(config.get("width_mm") or 0)
         height_mm = float(config.get("height_mm") or 0)
+        resample_on_dpi_change = str(
+            config.get("resample_on_dpi_change", False)
+        ).strip().lower() in {"1", "true", "yes", "si", "sì"}
         if (width_mm > 0) != (height_mm > 0):
             raise RuntimeError("Larghezza e altezza Photoshop devono essere entrambe maggiori di zero")
         resize_applied = width_mm > 0 and height_mm > 0
@@ -542,7 +545,8 @@ output.close();
             f'documentRef.resizeImage(UnitValue({target_width_px}, "px"), '
             f'UnitValue({target_height_px}, "px"), {target_dpi}, ResampleMethod.BICUBIC);'
             if resize_applied else
-            f"documentRef.resizeImage(undefined, undefined, {target_dpi}, ResampleMethod.NONE);"
+            f"documentRef.resizeImage(undefined, undefined, {target_dpi}, "
+            f"ResampleMethod.{'BICUBIC' if resample_on_dpi_change else 'NONE'});"
         )
         dpi_report_path = workdir / "photoshop-dpi.json"
         jsx = f"""#target photoshop
@@ -566,6 +570,7 @@ reportFile.write('{{"pixels_before":[' + pixelsBeforeWidth + ',' + pixelsBeforeH
   '],"dpi":' + documentRef.resolution +
   ',"resize_applied":{str(resize_applied).lower()}' +
   ',"width_mm":{width_mm},"height_mm":{height_mm}' +
+  ',"resample_on_dpi_change":{str(resample_on_dpi_change).lower()}' +
   '}}');
 reportFile.close();
 var saveOptions = new PDFSaveOptions();
@@ -585,7 +590,7 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
                     f"Dimensioni Photoshop non corrette: "
                     f"{dpi_report.get('pixels_after')} invece di {expected_pixels} px"
                 )
-        elif dpi_report.get("pixels_before") != dpi_report.get("pixels_after"):
+        elif not resample_on_dpi_change and dpi_report.get("pixels_before") != dpi_report.get("pixels_after"):
             raise RuntimeError(
                 f"La conversione DPI ha cambiato i pixel: "
                 f"{dpi_report.get('pixels_before')} -> {dpi_report.get('pixels_after')}"

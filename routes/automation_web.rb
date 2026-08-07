@@ -309,6 +309,63 @@ class PrintOrchestrator < Sinatra::Base
     erb :automation_runs_list
   end
 
+  # Cancella in un'unica operazione tutto lo storico dei debug. Non tocca
+  # ordini, asset, flussi o preset; elimina solo runtime, raccolte e artefatti
+  # generati sotto storage/automation/runs.
+  post '/automation_runs/delete_all' do
+    active_statuses = %w[queued running waiting_external waiting_review waiting_group]
+    AutomationRun.where(parent_run_id: nil).where(status: active_statuses).find_each do |run|
+      AutomationEngine.cancel_run!(run)
+    rescue StandardError
+      # Il purge successivo resta comunque protetto da transazione; un run già
+      # terminato nel frattempo non deve impedire la pulizia degli altri.
+    end
+
+    artifacts = AutomationArtifact.all.to_a
+    artifact_paths = artifacts.map(&:full_path).select do |path|
+      root = File.expand_path(File.join(Dir.pwd, 'storage', 'automation', 'runs'))
+      expanded = File.expand_path(path.to_s)
+      expanded == root || expanded.start_with?("#{root}#{File::SEPARATOR}")
+    end.reject do |path|
+      relative = path.sub(/^#{Regexp.escape(Dir.pwd)}\//, '')
+      Asset.where(local_path: [path, relative]).exists?
+    end.uniq
+
+    deleted_count = 0
+    AutomationRun.transaction do
+      AutomationGroupCollectionItem.delete_all
+      AutomationGroupCollection.delete_all
+      AutomationRun.order(id: :desc).to_a.each do |run|
+        run.destroy!
+        deleted_count += 1
+      end
+    end
+    artifact_paths.each { |path| FileUtils.rm_f(path) }
+    redirect "/automation_runs?msg=success&text=#{URI.encode_www_form_component("Storico debug svuotato: #{deleted_count} esecuzioni eliminate")}"
+  rescue StandardError => e
+    redirect "/automation_runs?msg=error&text=#{URI.encode_www_form_component("Pulizia fallita: #{e.message}")}"
+  end
+
+  get '/automations/backup' do
+    content_type :json
+    attachment "automation-backup-#{Time.current.strftime('%Y%m%d-%H%M%S')}.json"
+    JSON.pretty_generate(AutomationBundle.export)
+  rescue StandardError => e
+    status 422
+    {success: false, error: e.message}.to_json
+  end
+
+  post '/automations/backup/restore' do
+    upload = params['automation_backup']
+    raise ArgumentError, 'Seleziona un file di backup Automation (.json)' unless upload && upload[:tempfile]
+
+    result = AutomationBundle.import!(upload[:tempfile].read)
+    text = "Backup ripristinato: #{result[:flows]} flussi, #{result[:presets]} preset, #{result[:destinations]} destinazioni"
+    redirect "/automations?msg=success&text=#{URI.encode_www_form_component(text)}"
+  rescue StandardError => e
+    redirect "/automations?msg=error&text=#{URI.encode_www_form_component("Ripristino fallito: #{e.message}")}"
+  end
+
   get '/automation_agents' do
     @automation_agents = AutomationAgent.ordered
     @pending_pairings = AutomationAgentPairing.pending.recent
@@ -738,6 +795,63 @@ class PrintOrchestrator < Sinatra::Base
       automation_step_runs: :automation_artifacts
     ).find(params[:id])
     erb :automation_run_detail
+  end
+
+  # Elimina una registrazione di debug e l'intera catena dei sottomoduli.
+  # Gli asset dell'ordine non vengono mai toccati: vengono rimossi soltanto
+  # i file generati dall'automazione che non sono referenziati da un Asset.
+  post '/automation_runs/:id/delete' do
+    run = AutomationRun.find(params[:id])
+    root = run.chain_root
+    runs = root.chain_runs.to_a
+    run_ids = runs.map(&:id)
+
+    # Un'esecuzione ancora attiva viene prima fermata, così nessun worker può
+    # continuare a scrivere mentre cancelliamo i record di debug.
+    if runs.any? { |candidate| %w[queued running waiting_external waiting_review waiting_group].include?(candidate.status) }
+      AutomationEngine.cancel_run!(root)
+      runs = root.reload.chain_runs.to_a
+      run_ids = runs.map(&:id)
+    end
+
+    active_collection = AutomationGroupCollection.where(coordinator_run_id: run_ids)
+                                                 .where(status: 'collecting')
+                                                 .first
+    if active_collection
+      raise ArgumentError, "Impossibile cancellare il debug: il gruppo #{active_collection.id} è ancora in raccolta"
+    end
+
+    artifacts = AutomationArtifact.where(automation_run_id: run_ids).to_a
+    artifact_ids = artifacts.map(&:id)
+    storage_root = File.expand_path(File.join(Dir.pwd, 'storage', 'automation', 'runs'))
+    removable_paths = artifacts.map(&:full_path).select do |path|
+      expanded = File.expand_path(path.to_s)
+      expanded == storage_root || expanded.start_with?("#{storage_root}#{File::SEPARATOR}")
+    end.reject do |path|
+      Asset.where(local_path: [path, path.sub(/^#{Regexp.escape(Dir.pwd)}\//, '')]).exists?
+    end.uniq
+
+    AutomationRun.transaction do
+      # Scollega eventuali raccolte concluse prima di rimuovere gli artefatti.
+      AutomationGroupCollection.where(coordinator_run_id: run_ids).update_all(
+        coordinator_run_id: nil,
+        output_artifact_id: nil,
+        updated_at: Time.current
+      )
+      AutomationGroupCollectionItem.where(automation_run_id: run_ids).delete_all
+      AutomationGroupCollection.where(output_artifact_id: artifact_ids).update_all(
+        output_artifact_id: nil,
+        updated_at: Time.current
+      )
+      # I figli hanno dependent: :restrict_with_error sul genitore: distruggili
+      # dal più recente al più vecchio per rispettare i vincoli FK.
+      runs.sort_by(&:id).reverse_each(&:destroy!)
+    end
+    removable_paths.each { |path| FileUtils.rm_f(path) }
+
+    redirect "/automation_runs?msg=success&text=#{URI.encode_www_form_component("Debug ##{root.id} eliminato")}"
+  rescue StandardError => e
+    redirect "/automation_runs?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end
 
   post '/automation_runs/:id/retry' do
