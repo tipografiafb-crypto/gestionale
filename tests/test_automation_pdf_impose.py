@@ -98,6 +98,110 @@ class DuplexImpositionTest(unittest.TestCase):
                     self.config(side_page_counts=[50, 50]),
                 )
 
+    def test_center_anchor_centers_single_page_on_both_axes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "center.pdf"
+            output = Path(directory) / "centered.pdf"
+            self.make_pdf(source, 1)
+
+            metadata = impose(
+                str(source),
+                str(output),
+                self.config(rows=1, columns=1, anchor="center", double_sided_mode="none"),
+            )
+
+            self.assertEqual("center", metadata["anchor"])
+            self.assertEqual(1, len(PdfReader(output).pages))
+
+    def test_grid_uses_trimbox_instead_of_media_box(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "trimmed.pdf"
+            output = Path(directory) / "trimmed-imposed.pdf"
+            writer = PdfWriter()
+            page = writer.add_blank_page(width=120, height=90)
+            page.trimbox = RectangleObject([20, 15, 100, 65])
+            with source.open("wb") as stream:
+                writer.write(stream)
+
+            metadata = impose(
+                str(source),
+                str(output),
+                self.config(
+                    rows=1,
+                    columns=1,
+                    double_sided_mode="none",
+                    bleed_mode="scale",
+                    bleed_mm=3,
+                ),
+            )
+
+            self.assertAlmostEqual(80 * 25.4 / 72, metadata["object_width_mm"], places=3)
+            self.assertAlmostEqual(50 * 25.4 / 72, metadata["object_height_mm"], places=3)
+            contents = PdfReader(output).pages[0].get_contents().get_data()
+            self.assertIn(b"re W n", contents)
+            self.assertIn(b"0 0 97.007874015748 67.007874015748 re W n", contents)
+
+    def test_grid_keeps_existing_bleedbox_and_clips_outside_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "with-bleed.pdf"
+            output = Path(directory) / "with-bleed-imposed.pdf"
+            writer = PdfWriter()
+            page = writer.add_blank_page(width=120, height=90)
+            page.trimbox = RectangleObject([20, 15, 100, 65])
+            page.bleedbox = RectangleObject([11.496063, 6.496063, 108.503937, 73.503937])
+            with source.open("wb") as stream:
+                writer.write(stream)
+
+            metadata = impose(
+                str(source),
+                str(output),
+                self.config(rows=1, columns=1, double_sided_mode="none", bleed_mode="existing"),
+            )
+
+            self.assertAlmostEqual(80 * 25.4 / 72, metadata["object_width_mm"], places=3)
+            self.assertAlmostEqual(50 * 25.4 / 72, metadata["object_height_mm"], places=3)
+            contents = PdfReader(output).pages[0].get_contents().get_data()
+            self.assertIn(
+                b"-8.503937 -8.503937 97.007874 67.007874 re W n",
+                contents,
+            )
+
+    def test_existing_bleed_does_not_increase_grid_pitch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "business-card.pdf"
+            output = Path(directory) / "business-card-imposed.pdf"
+            mm = 72 / 25.4
+            writer = PdfWriter()
+            page = writer.add_blank_page(width=91 * mm, height=61 * mm)
+            page.trimbox = RectangleObject([3 * mm, 3 * mm, 88 * mm, 58 * mm])
+            page.bleedbox = RectangleObject([0, 0, 91 * mm, 61 * mm])
+            with source.open("wb") as stream:
+                writer.write(stream)
+
+            metadata = impose(
+                str(source),
+                str(output),
+                self.config(
+                    sheet_width_mm=485,
+                    sheet_height_mm=330,
+                    margin_left_mm=10,
+                    margin_right_mm=10,
+                    margin_top_mm=10,
+                    margin_bottom_mm=10,
+                    rows=5,
+                    columns=5,
+                    gap_x_mm=4,
+                    gap_y_mm=4,
+                    fill_last_sheet=True,
+                    double_sided_mode="none",
+                    bleed_mode="existing",
+                ),
+            )
+
+            self.assertEqual(25, metadata["placed_pages"])
+            self.assertAlmostEqual(85, metadata["object_width_mm"], places=3)
+            self.assertAlmostEqual(55, metadata["object_height_mm"], places=3)
+
 
 class NestingImpositionTest(unittest.TestCase):
     POINTS_PER_MM = 72 / 25.4
@@ -216,6 +320,75 @@ class NestingImpositionTest(unittest.TestCase):
                     str(source), str(output),
                     self.config(double_sided_mode="horizontal"),
                 )
+
+
+class BookletImpositionTest(unittest.TestCase):
+    POINTS_PER_MM = 72 / 25.4
+
+    def make_pdf(self, path: Path, pages: int) -> None:
+        writer = PdfWriter()
+        for _ in range(pages):
+            writer.add_blank_page(
+                width=100 * self.POINTS_PER_MM,
+                height=140 * self.POINTS_PER_MM,
+            )
+        with path.open("wb") as output:
+            writer.write(output)
+
+    def config(self, **overrides) -> dict:
+        config = {
+            "layout_mode": "booklet",
+            "sheet_width_mm": 320,
+            "sheet_height_mm": 450,
+            "margin_left_mm": 10,
+            "margin_right_mm": 10,
+            "margin_top_mm": 10,
+            "margin_bottom_mm": 10,
+            "signature_pages": 8,
+            "binding": "left",
+            "gutter_mm": 0,
+            "creep_mm": 0.5,
+            "marks": {
+                "crop": True,
+                "registration": True,
+                "fold": True,
+                "color_bars": True,
+                "job_info": True,
+                "offset_mm": 2,
+                "length_mm": 5,
+                "line_width_pt": 0.35,
+            },
+        }
+        config.update(overrides)
+        return config
+
+    def test_eight_page_signature_has_correct_reader_spreads(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "booklet.pdf"
+            output = Path(directory) / "imposed.pdf"
+            self.make_pdf(source, 8)
+
+            metadata = impose(str(source), str(output), self.config())
+
+            self.assertEqual(4, len(PdfReader(output).pages))
+            self.assertEqual(2, metadata["physical_sheets"])
+            spreads = [
+                item["page"]
+                for item in metadata["placements"]
+            ]
+            self.assertEqual([8, 1, 2, 7, 6, 3, 4, 5], spreads)
+
+    def test_incomplete_signature_is_padded_with_blank_pages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "booklet.pdf"
+            output = Path(directory) / "imposed.pdf"
+            self.make_pdf(source, 5)
+
+            metadata = impose(str(source), str(output), self.config())
+
+            self.assertEqual(3, metadata["inserted_blank_pages"])
+            self.assertEqual(8, metadata["output_document_pages"])
+            self.assertEqual(4, len(PdfReader(output).pages))
 
 
 class InsertBlankPagesTest(unittest.TestCase):

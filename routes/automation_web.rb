@@ -60,7 +60,7 @@ class PrintOrchestrator < Sinatra::Base
     },
     {type: 'photoshop', label: 'Photoshop', icon: 'fa-image', outputs: ['default']},
     {type: 'illustrator', label: 'Illustrator', icon: 'fa-pen-nib', outputs: ['default']},
-    {type: 'step_repeat', label: 'Step and repeat / nesting', icon: 'fa-grip', outputs: ['default']},
+    {type: 'step_repeat', label: 'Applica plancia', icon: 'fa-layer-group', outputs: ['default']},
     {type: 'barcode', label: 'Barcode', icon: 'fa-barcode', outputs: ['default']},
     {type: 'hot_folder', label: 'Hot folder', icon: 'fa-folder-open', outputs: ['default']},
     {type: 'label_printer', label: 'Stampa etichetta', icon: 'fa-print', outputs: ['default']},

@@ -1,0 +1,214 @@
+<link rel="stylesheet" href="/imposition_studio.css?v=20260808-2">
+
+<% if params[:text].present? %>
+  <div class="alert alert-<%= params[:msg] == 'error' ? 'danger' : 'success' %> alert-dismissible fade show mb-3">
+    <%= Rack::Utils.escape_html(params[:text]) %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+
+<header class="imposition-studio-heading">
+  <div class="d-flex align-items-center gap-3 min-width-0">
+    <a class="btn btn-outline-secondary btn-icon" href="/impositions" title="Torna alla libreria"><i class="fas fa-arrow-left"></i></a>
+    <div class="min-width-0">
+      <div class="imposition-eyebrow">Studio di imposizione · <span class="font-monospace"><%= Rack::Utils.escape_html(@imposition_template.code) %></span></div>
+      <h1 class="mb-0 text-truncate"><%= Rack::Utils.escape_html(@imposition_template.name) %></h1>
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+    <span class="imposition-save-state" id="impositionSaveState">Bozza v<%= @imposition_version.version_number %></span>
+    <form method="post" action="/impositions/<%= @imposition_template.id %>/duplicate">
+      <button class="btn btn-outline-secondary" title="Duplica plancia"><i class="fas fa-copy"></i></button>
+    </form>
+    <button class="btn btn-primary" type="button" id="saveImposition"><i class="fas fa-floppy-disk me-1"></i>Salva bozza</button>
+    <form method="post" action="/impositions/<%= @imposition_template.id %>/publish" id="publishImpositionForm">
+      <button class="btn btn-success"><i class="fas fa-cloud-arrow-up me-1"></i>Pubblica</button>
+    </form>
+  </div>
+</header>
+
+<div class="imposition-message" id="impositionMessage" role="status"></div>
+
+<div class="imposition-studio" id="impositionStudio"
+     data-template-id="<%= @imposition_template.id %>"
+     data-config="<%= Rack::Utils.escape_html(JSON.generate(@imposition_config)) %>">
+  <aside class="imposition-controls">
+    <div class="imposition-panel-scroll">
+      <section class="imposition-control-section">
+        <div class="imposition-section-title">Plancia</div>
+        <label class="form-label small" for="impositionName">Nome</label>
+        <input class="form-control form-control-sm mb-2" id="impositionName" value="<%= Rack::Utils.escape_html(@imposition_template.name) %>">
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small" for="impositionFolder">Cartella</label>
+            <input class="form-control form-control-sm" id="impositionFolder" value="<%= Rack::Utils.escape_html(@imposition_template.folder) %>">
+          </div>
+          <div class="col-6">
+            <label class="form-label small">Codice</label>
+            <input class="form-control form-control-sm font-monospace" value="<%= Rack::Utils.escape_html(@imposition_template.code) %>" disabled>
+          </div>
+        </div>
+        <label class="form-label small mt-2" for="impositionDescription">Descrizione</label>
+        <textarea class="form-control form-control-sm" id="impositionDescription" rows="2"><%= Rack::Utils.escape_html(@imposition_template.description.to_s) %></textarea>
+      </section>
+
+      <section class="imposition-control-section">
+        <div class="imposition-section-title">Tipo di lavoro</div>
+        <div class="imposition-segmented" role="group">
+          <button type="button" data-mode="grid"><i class="fas fa-table-cells"></i><span>Ripetizione</span></button>
+          <button type="button" data-mode="nesting"><i class="fas fa-shapes"></i><span>Nesting</span></button>
+          <button type="button" data-mode="booklet"><i class="fas fa-book-open"></i><span>Libretto</span></button>
+        </div>
+      </section>
+
+      <section class="imposition-control-section">
+        <div class="imposition-section-title">Foglio</div>
+        <div class="row g-2 align-items-end">
+          <div class="col-5"><label class="form-label small">Larghezza mm</label><input data-field="sheet_width_mm" class="form-control form-control-sm" type="number" min="1" step="0.1"></div>
+          <div class="col-5"><label class="form-label small">Altezza mm</label><input data-field="sheet_height_mm" class="form-control form-control-sm" type="number" min="1" step="0.1"></div>
+          <div class="col-2"><button class="btn btn-sm btn-outline-secondary w-100" type="button" id="swapSheet" title="Scambia orientamento"><i class="fas fa-rotate"></i></button></div>
+        </div>
+        <div class="row g-2 mt-1">
+          <% [['margin_top_mm', 'Alto'], ['margin_right_mm', 'Destra'], ['margin_bottom_mm', 'Basso'], ['margin_left_mm', 'Sinistra']].each do |field, label| %>
+            <div class="col-6"><label class="form-label small"><%= label %></label><div class="input-group input-group-sm"><input data-field="<%= field %>" class="form-control" type="number" min="0" step="0.1"><span class="input-group-text">mm</span></div></div>
+          <% end %>
+        </div>
+      </section>
+
+      <section class="imposition-control-section">
+        <div class="imposition-section-title">Prodotto di anteprima</div>
+        <div class="row g-2">
+          <div class="col-4"><label class="form-label small">L mm</label><input data-field="sample_width_mm" class="form-control form-control-sm" type="number" min="1" step="0.1"></div>
+          <div class="col-4"><label class="form-label small">H mm</label><input data-field="sample_height_mm" class="form-control form-control-sm" type="number" min="1" step="0.1"></div>
+          <div class="col-4"><label class="form-label small">Pagine</label><input data-field="sample_pages" class="form-control form-control-sm" type="number" min="1" step="1"></div>
+        </div>
+        <div data-repeat-controls>
+          <div class="row g-2 mt-1">
+            <div class="col-6"><label class="form-label small">Spazio X</label><div class="input-group input-group-sm"><input data-field="gap_x_mm" class="form-control" type="number" min="0" step="0.1"><span class="input-group-text">mm</span></div></div>
+            <div class="col-6"><label class="form-label small">Spazio Y</label><div class="input-group input-group-sm"><input data-field="gap_y_mm" class="form-control" type="number" min="0" step="0.1"><span class="input-group-text">mm</span></div></div>
+          </div>
+          <div class="row g-2 mt-1" data-grid-controls>
+            <div class="col-6"><label class="form-label small">Colonne <span class="text-muted">0=auto</span></label><input data-field="columns" class="form-control form-control-sm" type="number" min="0" step="1"></div>
+            <div class="col-6"><label class="form-label small">Righe <span class="text-muted">0=auto</span></label><input data-field="rows" class="form-control form-control-sm" type="number" min="0" step="1"></div>
+          </div>
+          <div class="mt-2" data-grid-controls>
+            <label class="form-label small">Fronte/retro</label>
+            <select data-field="double_sided_mode" class="form-select form-select-sm">
+              <option value="none">Solo fronte</option>
+              <option value="horizontal">Ribalta lato corto</option>
+              <option value="vertical">Ribalta lato lungo</option>
+            </select>
+          </div>
+          <label class="form-label small mt-2">Allineamento</label>
+          <select data-field="anchor" class="form-select form-select-sm">
+            <option value="top_left">Alto sinistra</option><option value="top_center">Alto centro</option><option value="top_right">Alto destra</option>
+            <option value="center">Centro</option>
+            <option value="bottom_left">Basso sinistra</option><option value="bottom_center">Basso centro</option><option value="bottom_right">Basso destra</option>
+          </select>
+          <div class="form-check form-switch mt-2"><input data-field="rotate" class="form-check-input" type="checkbox" id="impositionRotate"><label class="form-check-label small" for="impositionRotate">Consenti rotazione 90°</label></div>
+          <div class="form-check form-switch" data-grid-controls><input data-field="fill_last_sheet" class="form-check-input" type="checkbox" id="impositionFill"><label class="form-check-label small" for="impositionFill">Completa ultima plancia</label></div>
+          <div class="form-check form-switch"><input data-field="trim_sheet_height" class="form-check-input" type="checkbox" id="impositionTrimHeight"><label class="form-check-label small" for="impositionTrimHeight">Riduci l’altezza al contenuto</label></div>
+        </div>
+      </section>
+
+      <section class="imposition-control-section" data-mode-section="booklet">
+        <div class="imposition-section-title">Libretto e segnatura</div>
+        <label class="form-label small">Pagine per segnatura</label>
+        <select data-field="signature_pages" class="form-select form-select-sm mb-2">
+          <option value="4">4 pagine</option><option value="8">8 pagine</option><option value="16">16 pagine</option><option value="24">24 pagine</option><option value="32">32 pagine</option>
+        </select>
+        <label class="form-label small">Rilegatura</label>
+        <select data-field="binding" class="form-select form-select-sm mb-2"><option value="left">A sinistra</option><option value="right">A destra</option></select>
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label small">Canale</label><div class="input-group input-group-sm"><input data-field="gutter_mm" class="form-control" type="number" min="0" step="0.1"><span class="input-group-text">mm</span></div></div>
+          <div class="col-6"><label class="form-label small">Creep max</label><div class="input-group input-group-sm"><input data-field="creep_mm" class="form-control" type="number" min="0" step="0.01"><span class="input-group-text">mm</span></div></div>
+        </div>
+      </section>
+
+      <section class="imposition-control-section">
+        <div class="imposition-section-title">Abbondanza</div>
+        <select data-field="bleed_mode" class="form-select form-select-sm mb-2">
+          <option value="existing">Usa i box del PDF</option>
+          <option value="scale">Estendi proporzionalmente</option>
+          <option value="none">Nessuna abbondanza</option>
+        </select>
+        <label class="form-label small">Valore</label>
+        <div class="input-group input-group-sm"><input data-field="bleed_mm" class="form-control" type="number" min="0" step="0.1"><span class="input-group-text">mm</span></div>
+      </section>
+
+      <section class="imposition-control-section">
+        <div class="imposition-section-title">Segni tipografici</div>
+        <% [['crop', 'Crocini di taglio'], ['registration', 'Segni di registro'], ['fold', 'Segni di piega'], ['color_bars', 'Barre colore'], ['job_info', 'Informazioni lavoro']].each do |field, label| %>
+          <div class="form-check form-switch"><input data-mark="<%= field %>" class="form-check-input" type="checkbox" id="mark-<%= field %>"><label class="form-check-label small" for="mark-<%= field %>"><%= label %></label></div>
+        <% end %>
+        <div class="row g-2 mt-1">
+          <div class="col-6"><label class="form-label small">Distanza</label><div class="input-group input-group-sm"><input data-mark-number="offset_mm" class="form-control" type="number" min="0" step="0.1"><span class="input-group-text">mm</span></div></div>
+          <div class="col-6"><label class="form-label small">Lunghezza</label><div class="input-group input-group-sm"><input data-mark-number="length_mm" class="form-control" type="number" min="0.1" step="0.1"><span class="input-group-text">mm</span></div></div>
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <main class="imposition-workbench">
+    <div class="imposition-toolbar">
+      <div class="btn-group btn-group-sm" role="group">
+        <button class="btn btn-outline-secondary active" data-sheet-side="front">Fronte</button>
+        <button class="btn btn-outline-secondary" data-sheet-side="back">Retro</button>
+      </div>
+      <div class="imposition-toolbar-title" id="impositionPreviewTitle">Foglio 1 · Fronte</div>
+      <div class="btn-group btn-group-sm ms-auto" role="group">
+        <button class="btn btn-outline-secondary" id="impositionZoomOut" title="Riduci"><i class="fas fa-minus"></i></button>
+        <button class="btn btn-outline-secondary imposition-zoom-label" id="impositionZoomReset">100%</button>
+        <button class="btn btn-outline-secondary" id="impositionZoomIn" title="Ingrandisci"><i class="fas fa-plus"></i></button>
+        <button class="btn btn-outline-secondary" id="impositionFit" title="Adatta"><i class="fas fa-expand"></i></button>
+      </div>
+    </div>
+    <div class="imposition-canvas" id="impositionCanvas">
+      <div class="imposition-ruler imposition-ruler-x" id="impositionRulerX"></div>
+      <div class="imposition-ruler imposition-ruler-y" id="impositionRulerY"></div>
+      <div class="imposition-sheet-wrap" id="impositionSheetWrap">
+        <div class="imposition-sheet" id="impositionSheet">
+          <div class="imposition-printable-area" id="impositionPrintableArea"></div>
+          <div id="impositionPlacements"></div>
+          <svg id="impositionMarks" aria-hidden="true"></svg>
+        </div>
+      </div>
+    </div>
+    <div class="imposition-statusbar">
+      <span id="impositionSheetSize"></span>
+      <span id="impositionUtilization"></span>
+      <span id="impositionPlacementCount"></span>
+    </div>
+  </main>
+
+  <aside class="imposition-inspector">
+    <div class="imposition-panel-scroll">
+      <section class="imposition-control-section">
+        <div class="imposition-section-title">Riepilogo</div>
+        <dl class="imposition-summary" id="impositionSummary"></dl>
+      </section>
+      <section class="imposition-control-section">
+        <div class="imposition-section-title">Controlli</div>
+        <div id="impositionWarnings"></div>
+      </section>
+      <section class="imposition-control-section">
+        <div class="imposition-section-title">Prova con un PDF</div>
+        <p class="small text-muted">Genera un PDF usando la bozza visualizzata, senza pubblicarla.</p>
+        <form method="post" action="/impositions/test" enctype="multipart/form-data" id="impositionTestForm">
+          <input type="hidden" name="config" id="impositionTestConfig">
+          <input class="form-control form-control-sm mb-2" type="file" name="pdf" accept="application/pdf" required>
+          <button class="btn btn-outline-primary w-100"><i class="fas fa-file-pdf me-1"></i>Genera PDF di prova</button>
+        </form>
+      </section>
+      <section class="imposition-control-section">
+        <div class="imposition-section-title">Uso nei flussi</div>
+        <div class="small text-muted mb-2">Preset fisso</div>
+        <code class="imposition-code"><%= Rack::Utils.escape_html(@imposition_template.code) %></code>
+        <div class="small text-muted mt-3 mb-2">Oppure tramite variabile</div>
+        <code class="imposition-code">{{variables.imposition_preset}}</code>
+      </section>
+    </div>
+  </aside>
+</div>
+
+<script type="module" src="/imposition_studio.js?v=20260808-3"></script>

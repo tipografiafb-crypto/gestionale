@@ -1,0 +1,144 @@
+<link rel="stylesheet" href="/imposition_studio.css?v=20260808-2">
+
+<% if params[:text].present? %>
+  <div class="alert alert-<%= params[:msg] == 'error' ? 'danger' : 'success' %> alert-dismissible fade show">
+    <%= Rack::Utils.escape_html(params[:text]) %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% end %>
+
+<div class="imposition-page-heading">
+  <div>
+    <div class="imposition-eyebrow">Produzione PDF</div>
+    <h1 class="mb-1">Studio di imposizione</h1>
+    <p class="text-muted mb-0">Progetta, prova e pubblica le plance utilizzate dalle automazioni.</p>
+  </div>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newImpositionModal">
+    <i class="fas fa-plus me-1"></i>Nuova plancia
+  </button>
+</div>
+
+<div class="imposition-library-toolbar">
+  <div class="input-group imposition-search">
+    <span class="input-group-text"><i class="fas fa-magnifying-glass"></i></span>
+    <input class="form-control" id="impositionLibrarySearch" placeholder="Cerca nome, codice o cartella">
+  </div>
+  <div class="btn-group" role="group" aria-label="Stato plance">
+    <button class="btn btn-outline-secondary active" data-imposition-filter="all">Tutte</button>
+    <button class="btn btn-outline-secondary" data-imposition-filter="published">Pubblicate</button>
+    <button class="btn btn-outline-secondary" data-imposition-filter="draft">Bozze</button>
+  </div>
+  <div class="ms-auto small text-muted"><%= @imposition_templates.size %> plance</div>
+</div>
+
+<div class="imposition-library" id="impositionLibrary">
+  <% @imposition_templates.each do |template| %>
+    <% config = template.draft_version.config || {} %>
+    <% mode_labels = {'grid' => 'Ripetizione', 'nesting' => 'Nesting', 'booklet' => 'Libretto'} %>
+    <article class="imposition-library-row"
+             data-search="<%= Rack::Utils.escape_html([template.name, template.code, template.folder].join(' ').downcase) %>"
+             data-status="<%= template.status %>">
+      <div class="imposition-library-thumb" aria-hidden="true">
+        <div class="mini-sheet mini-sheet-<%= config['layout_mode'] || 'grid' %>">
+          <% if config['layout_mode'] == 'booklet' %>
+            <span></span><span></span>
+          <% else %>
+            <% 6.times do %><span></span><% end %>
+          <% end %>
+        </div>
+      </div>
+      <div class="imposition-library-main">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <h2><%= Rack::Utils.escape_html(template.name) %></h2>
+          <span class="badge <%= template.status == 'published' ? 'bg-success' : (template.status == 'archived' ? 'bg-secondary' : 'bg-warning text-dark') %>">
+            <%= template.status == 'published' ? 'Pubblicata' : (template.status == 'archived' ? 'Archiviata' : 'Bozza') %>
+          </span>
+        </div>
+        <div class="imposition-library-code"><%= Rack::Utils.escape_html(template.code) %></div>
+        <div class="imposition-library-meta">
+          <span><i class="fas fa-folder me-1"></i><%= Rack::Utils.escape_html(template.folder) %></span>
+          <span><i class="fas fa-table-cells me-1"></i><%= mode_labels[config['layout_mode']] || 'Ripetizione' %></span>
+          <span><i class="fas fa-file me-1"></i><%= config['sheet_width_mm'] %> × <%= config['sheet_height_mm'] %> mm</span>
+          <% if template.active_version %><span>v<%= template.active_version.version_number %></span><% end %>
+        </div>
+      </div>
+      <div class="imposition-library-actions">
+        <a class="btn btn-outline-primary" href="/impositions/<%= template.id %>/edit" title="Apri nello studio">
+          <i class="fas fa-pen-ruler me-1"></i>Apri
+        </a>
+        <form method="post" action="/impositions/<%= template.id %>/duplicate">
+          <button class="btn btn-outline-secondary" title="Duplica"><i class="fas fa-copy"></i></button>
+        </form>
+        <% unless template.status == 'archived' %>
+          <form method="post" action="/impositions/<%= template.id %>/archive" onsubmit="return confirm('Archiviare questa plancia?');">
+            <button class="btn btn-outline-secondary" title="Archivia"><i class="fas fa-box-archive"></i></button>
+          </form>
+        <% end %>
+      </div>
+    </article>
+  <% end %>
+  <% if @imposition_templates.empty? %>
+    <div class="imposition-empty">
+      <i class="fas fa-pen-ruler"></i>
+      <h2>Nessuna plancia</h2>
+      <p>Crea la prima configurazione di imposizione.</p>
+    </div>
+  <% end %>
+</div>
+
+<div class="modal fade" id="newImpositionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" method="post" action="/impositions">
+      <div class="modal-header">
+        <h2 class="modal-title fs-5">Nuova plancia</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Nome</label>
+        <input class="form-control mb-3" name="name" required placeholder="Libretto A5 · 16 pagine">
+        <label class="form-label">Codice</label>
+        <input class="form-control mb-1 font-monospace" name="code" required pattern="[A-Za-z0-9_-]+" placeholder="LIBRETTO_A5_16P">
+        <div class="form-text mb-3">È il valore usato dai flussi e dalle variabili.</div>
+        <label class="form-label">Cartella</label>
+        <input class="form-control mb-3" name="folder" list="impositionFolderOptions" value="Principale">
+        <label class="form-label">Tipo iniziale</label>
+        <select class="form-select" name="layout_mode">
+          <option value="grid">Ripetizione regolare</option>
+          <option value="nesting">Nesting formati diversi</option>
+          <option value="booklet">Libretto e segnature</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button class="btn btn-primary">Crea e apri</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<datalist id="impositionFolderOptions">
+  <% @imposition_folders.each do |folder| %><option value="<%= Rack::Utils.escape_html(folder) %>"><% end %>
+</datalist>
+
+<script>
+  (() => {
+    const search = document.getElementById('impositionLibrarySearch');
+    const rows = [...document.querySelectorAll('.imposition-library-row')];
+    let status = 'all';
+    function applyFilters() {
+      const query = search.value.trim().toLowerCase();
+      rows.forEach((row) => {
+        row.hidden = !(row.dataset.search.includes(query) && (status === 'all' || row.dataset.status === status));
+      });
+    }
+    search.addEventListener('input', applyFilters);
+    document.querySelectorAll('[data-imposition-filter]').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('[data-imposition-filter]').forEach((item) => item.classList.remove('active'));
+        button.classList.add('active');
+        status = button.dataset.impositionFilter;
+        applyFilters();
+      });
+    });
+  })();
+</script>

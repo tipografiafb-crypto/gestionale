@@ -113,6 +113,41 @@ def _page_form_key(page: PageObject) -> tuple:
     )
 
 
+def _imposition_box(page: PageObject) -> tuple[float, float, float, float, str]:
+    """Return the box used as the product trim, with a safe PDF fallback."""
+    for name in ("TrimBox", "CropBox", "MediaBox"):
+        raw_box = page.get(f"/{name}")
+        if raw_box is None:
+            continue
+        left, bottom, right, top = (float(value) for value in raw_box)
+        if right > left and top > bottom:
+            return left, bottom, right, top, name
+    box = page.mediabox
+    return float(box.left), float(box.bottom), float(box.right), float(box.top), "MediaBox"
+
+
+def _existing_bleed_box(
+    page: PageObject,
+    trim_box: tuple[float, float, float, float],
+) -> tuple[float, float, float, float]:
+    """Return the PDF BleedBox only when it safely contains the trim."""
+    raw_box = page.get("/BleedBox")
+    if raw_box is None:
+        return trim_box
+    left, bottom, right, top = (float(value) for value in raw_box)
+    trim_left, trim_bottom, trim_right, trim_top = trim_box
+    if (
+        right > left
+        and top > bottom
+        and left <= trim_left
+        and bottom <= trim_bottom
+        and right >= trim_right
+        and top >= trim_top
+    ):
+        return left, bottom, right, top
+    return trim_box
+
+
 def _shared_page_form(
     writer: PdfWriter,
     page: PageObject,
@@ -162,6 +197,7 @@ def _place_shared_form(
     content_parts: list[str],
     form_cache: dict,
     transform: Transformation,
+    clip_rect: tuple[float, float, float, float] | None = None,
 ) -> None:
     name, form_ref = _shared_page_form(writer, page, form_cache)
     xobjects[NameObject(name)] = form_ref
@@ -171,10 +207,22 @@ def _place_shared_form(
         matrix[1][0], matrix[1][1],
         matrix[2][0], matrix[2][1],
     )
+    if clip_rect is not None:
+        clip_x, clip_y, clip_width, clip_height = clip_rect
+        content_parts.append(
+            "q "
+            + " ".join(
+                _pdf_number(value)
+                for value in (clip_x, clip_y, clip_width, clip_height)
+            )
+            + " re W n "
+        )
     content_parts.append(
         "q "
         + " ".join(_pdf_number(value) for value in values)
-        + f" cm {name} Do Q\n"
+        + f" cm {name} Do Q"
+        + (" Q" if clip_rect is not None else "")
+        + "\n"
     )
 
 
@@ -190,6 +238,137 @@ def _finish_shared_page(
     content = DecodedStreamObject()
     content.set_data("".join(content_parts).encode("ascii"))
     output_page[NameObject("/Contents")] = writer._add_object(content)
+
+
+def _apply_sheet_marks(
+    output_page: PageObject,
+    placements: list[dict],
+    config: dict,
+    fold_x: float | None = None,
+    label: str = "",
+) -> None:
+    marks = config.get("marks", {})
+    if not isinstance(marks, dict) or not any(
+        bool(marks.get(key))
+        for key in ("crop", "registration", "fold", "color_bars", "job_info")
+    ):
+        return
+
+    width = float(output_page.mediabox.width)
+    height = float(output_page.mediabox.height)
+    overlay_buffer = io.BytesIO()
+    overlay = canvas.Canvas(overlay_buffer, pagesize=(width, height))
+    overlay.setLineWidth(float(marks.get("line_width_pt", 0.35)))
+    overlay.setStrokeColor(colors.black)
+    offset = max(0.0, float(marks.get("offset_mm", 2))) * mm
+    length = max(0.1, float(marks.get("length_mm", 5))) * mm
+
+    def outer_bounds(placement):
+        bleed_x = max(0.0, float(placement.get("bleed_x", placement.get("bleed", 0))))
+        bleed_y = max(0.0, float(placement.get("bleed_y", placement.get("bleed", 0))))
+        x = float(placement["x"])
+        y = float(placement["y"])
+        return (
+            x - bleed_x,
+            y - bleed_y,
+            x + float(placement["width"]) + bleed_x,
+            y + float(placement["height"]) + bleed_y,
+        )
+
+    def nearest_gap(index, direction):
+        left, bottom, right, top = outer_bounds(placements[index])
+        gaps = []
+        for other_index, other in enumerate(placements):
+            if other_index == index:
+                continue
+            other_left, other_bottom, other_right, other_top = outer_bounds(other)
+            if direction in {"left", "right"}:
+                if min(top, other_top) - max(bottom, other_bottom) <= 0.01:
+                    continue
+                if direction == "left" and other_right <= left + 0.01:
+                    gaps.append(left - other_right)
+                elif direction == "right" and other_left >= right - 0.01:
+                    gaps.append(other_left - right)
+            else:
+                if min(right, other_right) - max(left, other_left) <= 0.01:
+                    continue
+                if direction == "bottom" and other_top <= bottom + 0.01:
+                    gaps.append(bottom - other_top)
+                elif direction == "top" and other_bottom >= top - 0.01:
+                    gaps.append(other_bottom - top)
+        return min(gaps) if gaps else None
+
+    def mark_dimensions(gap):
+        if gap is None:
+            return offset, length
+        if gap + 0.01 < 2 * (offset + length):
+            return None
+        return offset, length
+
+    if bool(marks.get("crop", False)):
+        for index, placement in enumerate(placements):
+            left, bottom, right, top = outer_bounds(placement)
+            trim_x = float(placement["x"])
+            trim_y = float(placement["y"])
+            trim_right = trim_x + float(placement["width"])
+            trim_top = trim_y + float(placement["height"])
+            left_mark = mark_dimensions(nearest_gap(index, "left"))
+            right_mark = mark_dimensions(nearest_gap(index, "right"))
+            bottom_mark = mark_dimensions(nearest_gap(index, "bottom"))
+            top_mark = mark_dimensions(nearest_gap(index, "top"))
+            if left_mark:
+                local_offset, local_length = left_mark
+                overlay.line(trim_x - local_offset - local_length, trim_y, trim_x - local_offset, trim_y)
+                overlay.line(trim_x - local_offset - local_length, trim_top, trim_x - local_offset, trim_top)
+            if right_mark:
+                local_offset, local_length = right_mark
+                overlay.line(trim_right + local_offset, trim_y, trim_right + local_offset + local_length, trim_y)
+                overlay.line(trim_right + local_offset, trim_top, trim_right + local_offset + local_length, trim_top)
+            if bottom_mark:
+                local_offset, local_length = bottom_mark
+                overlay.line(trim_x, trim_y - local_offset - local_length, trim_x, trim_y - local_offset)
+                overlay.line(trim_right, trim_y - local_offset - local_length, trim_right, trim_y - local_offset)
+            if top_mark:
+                local_offset, local_length = top_mark
+                overlay.line(trim_x, trim_top + local_offset, trim_x, trim_top + local_offset + local_length)
+                overlay.line(trim_right, trim_top + local_offset, trim_right, trim_top + local_length + local_offset)
+
+    if bool(marks.get("registration", False)):
+        radius = 2.5 * mm
+        for x, y in (
+            (12 * mm, 12 * mm),
+            (width - 12 * mm, 12 * mm),
+            (12 * mm, height - 12 * mm),
+            (width - 12 * mm, height - 12 * mm),
+        ):
+            overlay.circle(x, y, radius, stroke=1, fill=0)
+            overlay.line(x - radius * 1.5, y, x + radius * 1.5, y)
+            overlay.line(x, y - radius * 1.5, x, y + radius * 1.5)
+
+    if bool(marks.get("fold", False)) and fold_x is not None:
+        overlay.setStrokeColor(colors.HexColor("#087E8B"))
+        overlay.line(fold_x, 0, fold_x, length)
+        overlay.line(fold_x, height - length, fold_x, height)
+        overlay.setStrokeColor(colors.black)
+
+    if bool(marks.get("color_bars", False)):
+        bar_width = 6 * mm
+        bar_height = 4 * mm
+        start_x = width / 2 - 2 * bar_width
+        for index, color in enumerate((colors.cyan, colors.magenta, colors.yellow, colors.black)):
+            overlay.setFillColor(color)
+            overlay.rect(start_x + index * bar_width, height - 7 * mm, bar_width, bar_height, stroke=0, fill=1)
+
+    if bool(marks.get("job_info", False)):
+        text = str(config.get("job_label") or label or "IMPOSIZIONE")
+        overlay.setFillColor(colors.black)
+        overlay.setFont("Helvetica", 7)
+        overlay.drawString(8 * mm, 4 * mm, text[:180])
+
+    overlay.showPage()
+    overlay.save()
+    overlay_buffer.seek(0)
+    output_page.merge_page(PdfReader(overlay_buffer).pages[0], over=True)
 
 
 def merge_pages(input_paths: list[str], output_path: str) -> dict:
@@ -486,7 +665,7 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
     sheet_width = float(config["sheet_width_mm"]) * mm
     sheet_height = float(config["sheet_height_mm"]) * mm
     anchor = str(config.get("anchor", "top_left"))
-    if anchor not in {"top_left", "top_center", "top_right", "bottom_left", "bottom_center", "bottom_right"}:
+    if anchor not in {"top_left", "top_center", "top_right", "center", "bottom_left", "bottom_center", "bottom_right"}:
         raise ValueError(f"Punto di ancoraggio non valido: {anchor}")
     margin_left = float(config.get("margin_left_mm", config.get("offset_x_mm", 0))) * mm
     margin_right = float(config.get("margin_right_mm", config.get("offset_x_mm", 0))) * mm
@@ -510,9 +689,16 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
 
     items = []
     for page_index, page in enumerate(reader.pages):
-        width = float(page.mediabox.width)
-        height = float(page.mediabox.height)
-        items.append({"page_index": page_index, "width": width, "height": height})
+        left, bottom, right, top, box_name = _imposition_box(page)
+        items.append({
+            "page_index": page_index,
+            "width": right - left,
+            "height": top - bottom,
+            "box_left": left,
+            "box_bottom": bottom,
+            "box_top": top,
+            "box_name": box_name,
+        })
     items.sort(
         key=lambda item: (
             -max(item["width"], item["height"]),
@@ -570,6 +756,9 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
                 "page_index": item["page_index"],
                 "source_width": item["width"],
                 "source_height": item["height"],
+                "box_left": item["box_left"],
+                "box_bottom": item["box_bottom"],
+                "box_top": item["box_top"],
             })
         layout_algorithm = "ordered_equal_size_grid"
     else:
@@ -610,6 +799,9 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
                 "page_index": item["page_index"],
                 "source_width": item["width"],
                 "source_height": item["height"],
+                "box_left": item["box_left"],
+                "box_bottom": item["box_bottom"],
+                "box_top": item["box_top"],
             }
             placement.pop("free_index", None)
             placement.pop("score", None)
@@ -639,30 +831,40 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
         output_page = PageObject.create_blank_page(width=sheet_width, height=output_height)
         xobjects = DictionaryObject()
         content_parts = []
+        rendered_placements = []
         used_area = 0.0
         used_content_width = max(
             placement["x"] + placement["width"]
             for placement in sheet["placements"]
         )
+        min_content_x = min(placement["x"] for placement in sheet["placements"])
+        min_content_y = min(placement["y"] for placement in sheet["placements"])
+        used_content_width -= min_content_x
+        used_content_height -= min_content_y
         for placement in sorted(sheet["placements"], key=lambda value: value["page_index"]):
             local_x = placement["x"]
             local_y = placement["y"]
             if anchor.endswith("right"):
                 x = output_page.mediabox.width - margin_right - local_x - placement["width"]
-            elif anchor.endswith("center"):
-                x = margin_left + (content_width - used_content_width) / 2 + local_x
+            elif anchor == "center" or anchor.endswith("center"):
+                x = margin_left + (content_width - used_content_width) / 2 + local_x - min_content_x
             else:
                 x = margin_left + local_x
-            y = (
-                margin_bottom + local_y
-                if anchor.startswith("bottom")
-                else output_height - margin_top - local_y - placement["height"]
-            )
+            if anchor == "center":
+                y = margin_bottom + (output_height - margin_top - margin_bottom - used_content_height) / 2 + local_y - min_content_y
+            elif anchor.startswith("bottom"):
+                y = margin_bottom + local_y
+            else:
+                y = output_height - margin_top - local_y - placement["height"]
             source = reader.pages[placement["page_index"]]
             transform = (
-                Transformation().rotate(90).translate(x + placement["width"], y)
+                Transformation().rotate(90).translate(x + placement["box_top"], y - placement["box_left"])
                 if placement["rotated"] else Transformation().translate(x, y)
             )
+            if not placement["rotated"]:
+                transform = Transformation().translate(
+                    x - placement["box_left"], y - placement["box_bottom"]
+                )
             if use_shared_resources:
                 _place_shared_form(
                     output_page, writer, source, xobjects, content_parts,
@@ -680,8 +882,20 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
                 "height_mm": round(placement["height"] / mm, 4),
                 "rotated": placement["rotated"],
             })
+            rendered_placements.append({
+                "x": x,
+                "y": y,
+                "width": placement["width"],
+                "height": placement["height"],
+            })
         if use_shared_resources:
             _finish_shared_page(output_page, writer, xobjects, content_parts)
+        _apply_sheet_marks(
+            output_page,
+            rendered_placements,
+            config,
+            label=f"NESTING · FOGLIO {sheet_index + 1}",
+        )
         writer.add_page(output_page)
         sheet_heights.append(round(output_height / mm, 4))
         usable_area = content_width * max(output_height - margin_top - margin_bottom, 0.01)
@@ -717,6 +931,151 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
     }
 
 
+def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
+    signature_pages = int(config.get("signature_pages", 16))
+    if signature_pages not in {4, 8, 16, 24, 32} or signature_pages % 4:
+        raise ValueError("La segnatura deve contenere 4, 8, 16, 24 o 32 pagine")
+    binding = str(config.get("binding", "left"))
+    if binding not in {"left", "right"}:
+        raise ValueError("Lato di rilegatura non valido")
+
+    sheet_width = float(config["sheet_width_mm"]) * mm
+    sheet_height = float(config["sheet_height_mm"]) * mm
+    margin_left = float(config.get("margin_left_mm", 0)) * mm
+    margin_right = float(config.get("margin_right_mm", 0)) * mm
+    margin_top = float(config.get("margin_top_mm", 0)) * mm
+    margin_bottom = float(config.get("margin_bottom_mm", 0)) * mm
+    gutter = float(config.get("gutter_mm", 0)) * mm
+    max_creep = float(config.get("creep_mm", 0)) * mm
+    if min(margin_left, margin_right, margin_top, margin_bottom, gutter, max_creep) < 0:
+        raise ValueError("Margini, canale e creep non possono essere negativi")
+
+    source_left, source_bottom, source_right, source_top, _ = _imposition_box(reader.pages[0])
+    source_width = source_right - source_left
+    source_height = source_top - source_bottom
+    for index, page in enumerate(reader.pages[1:], start=2):
+        page_left, page_bottom, page_right, page_top, _ = _imposition_box(page)
+        if (
+            abs((page_right - page_left) - source_width) > 0.01
+            or abs((page_top - page_bottom) - source_height) > 0.01
+        ):
+            raise ValueError(f"La pagina {index} ha dimensioni diverse dalla prima pagina")
+
+    half_width = (sheet_width - margin_left - margin_right - gutter) / 2
+    available_height = sheet_height - margin_top - margin_bottom
+    if half_width <= 0 or available_height <= 0:
+        raise ValueError("I margini non lasciano spazio per il libretto")
+    scale = min(1.0, half_width / source_width, available_height / source_height)
+    placed_width = source_width * scale
+    placed_height = source_height * scale
+    if placed_width <= 0 or placed_height <= 0:
+        raise ValueError("Il formato pagina non entra nel foglio")
+
+    input_pages = len(reader.pages)
+    signature_count = math.ceil(input_pages / signature_pages)
+    padded_pages = signature_count * signature_pages
+    pages = list(reader.pages)
+    while len(pages) < padded_pages:
+        pages.append(PageObject.create_blank_page(width=source_width, height=source_height))
+
+    writer = PdfWriter()
+    form_cache = {}
+    metadata_placements = []
+    sheets_per_signature = signature_pages // 4
+    physical_sheet = 0
+    for signature_index in range(signature_count):
+        signature_start = signature_index * signature_pages
+        for sheet_in_signature in range(sheets_per_signature):
+            creep = (
+                max_creep * (sheets_per_signature - 1 - sheet_in_signature) / (sheets_per_signature - 1)
+                if sheets_per_signature > 1 else 0
+            )
+            sequences = (
+                (
+                    signature_start + signature_pages - 1 - sheet_in_signature * 2,
+                    signature_start + sheet_in_signature * 2,
+                ),
+                (
+                    signature_start + sheet_in_signature * 2 + 1,
+                    signature_start + signature_pages - 2 - sheet_in_signature * 2,
+                ),
+            )
+            if binding == "right":
+                sequences = tuple((right, left) for left, right in sequences)
+
+            physical_sheet += 1
+            for side_index, sequence in enumerate(sequences):
+                output_page = PageObject.create_blank_page(width=sheet_width, height=sheet_height)
+                xobjects = DictionaryObject()
+                content_parts = []
+                render_placements = []
+                total_width = placed_width * 2 + gutter
+                start_x = (sheet_width - total_width) / 2
+                y = margin_bottom + (available_height - placed_height) / 2
+                side_name = "FRONTE" if side_index == 0 else "RETRO"
+                for position, source_index in enumerate(sequence):
+                    outward = -creep / 2 if position == 0 else creep / 2
+                    x = start_x + position * (placed_width + gutter) + outward
+                    source = pages[source_index]
+                    page_left, page_bottom, page_right, page_top, _ = _imposition_box(source)
+                    transform = Transformation().scale(scale).translate(
+                        x - page_left * scale,
+                        y - page_bottom * scale,
+                    )
+                    _place_shared_form(
+                        output_page, writer, source, xobjects, content_parts,
+                        form_cache, transform,
+                    )
+                    render_placements.append({
+                        "x": x, "y": y,
+                        "width": placed_width, "height": placed_height,
+                    })
+                    metadata_placements.append({
+                        "page": source_index + 1 if source_index < input_pages else None,
+                        "sheet": physical_sheet,
+                        "side": side_name.lower(),
+                        "position": "left" if position == 0 else "right",
+                        "x_mm": round(x / mm, 4),
+                        "y_mm": round(y / mm, 4),
+                        "width_mm": round(placed_width / mm, 4),
+                        "height_mm": round(placed_height / mm, 4),
+                        "creep_mm": round(creep / mm, 4),
+                    })
+                _finish_shared_page(output_page, writer, xobjects, content_parts)
+                _apply_sheet_marks(
+                    output_page,
+                    render_placements,
+                    config,
+                    fold_x=sheet_width / 2,
+                    label=(
+                        f"LIBRETTO · SEGNATURA {signature_index + 1} · "
+                        f"FOGLIO {sheet_in_signature + 1} · {side_name}"
+                    ),
+                )
+                writer.add_page(output_page)
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "wb") as output_file:
+        writer.write(output_file)
+
+    return {
+        "layout_mode": "booklet",
+        "sheet_width_mm": float(config["sheet_width_mm"]),
+        "sheet_height_mm": float(config["sheet_height_mm"]),
+        "signature_pages": signature_pages,
+        "signatures": signature_count,
+        "physical_sheets": physical_sheet,
+        "sheets": physical_sheet * 2,
+        "input_pages": input_pages,
+        "output_document_pages": padded_pages,
+        "inserted_blank_pages": padded_pages - input_pages,
+        "scale": round(scale, 6),
+        "binding": binding,
+        "creep_mm": float(config.get("creep_mm", 0)),
+        "placements": metadata_placements,
+    }
+
+
 def impose(input_path: str, output_path: str, config: dict) -> dict:
     reader = PdfReader(input_path)
     if not reader.pages:
@@ -725,13 +1084,15 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
     layout_mode = str(config.get("layout_mode", "grid"))
     if layout_mode == "nesting":
         return _impose_nesting(reader, output_path, config)
+    if layout_mode == "booklet":
+        return _impose_booklet(reader, output_path, config)
     if layout_mode != "grid":
         raise ValueError(f"Tipo di disposizione non valido: {layout_mode}")
 
     sheet_width = float(config["sheet_width_mm"]) * mm
     sheet_height = float(config["sheet_height_mm"]) * mm
     anchor = str(config.get("anchor", "top_left"))
-    if anchor not in {"top_left", "top_center", "top_right", "bottom_left", "bottom_center", "bottom_right"}:
+    if anchor not in {"top_left", "top_center", "top_right", "center", "bottom_left", "bottom_center", "bottom_right"}:
         raise ValueError(f"Punto di ancoraggio non valido: {anchor}")
     offset_x = float(config.get("offset_x_mm", 0)) * mm
     offset_y = float(config.get("offset_y_mm", 0)) * mm
@@ -755,14 +1116,62 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         raise ValueError("Righe e colonne non possono essere negative")
 
     first_page = reader.pages[0]
-    source_width = float(first_page.mediabox.width)
-    source_height = float(first_page.mediabox.height)
-    placed_width, placed_height = (
+    source_left, source_bottom, source_right, source_top, source_box_name = _imposition_box(first_page)
+    source_width = source_right - source_left
+    source_height = source_top - source_bottom
+    bleed_mode = str(config.get("bleed_mode", "existing"))
+    visible_left, visible_bottom, visible_right, visible_top = (
+        _existing_bleed_box(
+            first_page,
+            (source_left, source_bottom, source_right, source_top),
+        )
+        if bleed_mode == "existing"
+        else (source_left, source_bottom, source_right, source_top)
+    )
+    trim_width, trim_height = (
         (source_height, source_width) if rotate else (source_width, source_height)
     )
+    bleed = (
+        max(0.0, float(config.get("bleed_mm", 0))) * mm
+        if bleed_mode == "scale" else 0.0
+    )
+    if bleed_mode == "existing":
+        content_scale = 1.0
+        placed_width = trim_width
+        placed_height = trim_height
+        trim_inset_x = 0.0
+        trim_inset_y = 0.0
+        clip_left, clip_bottom, clip_right, clip_top = (
+            (
+                visible_top - source_top,
+                source_left - visible_left,
+                source_bottom - visible_bottom,
+                visible_right - source_right,
+            )
+            if rotate
+            else (
+                source_left - visible_left,
+                source_bottom - visible_bottom,
+                visible_right - source_right,
+                visible_top - source_top,
+            )
+        )
+    else:
+        target_width = trim_width + 2 * bleed
+        target_height = trim_height + 2 * bleed
+        content_scale = min(
+            target_width / trim_width,
+            target_height / trim_height,
+        )
+        placed_width = target_width
+        placed_height = target_height
+        trim_inset_x = (placed_width - trim_width * content_scale) / 2
+        trim_inset_y = (placed_height - trim_height * content_scale) / 2
+        clip_left = clip_bottom = clip_right = clip_top = 0.0
     for index, page in enumerate(reader.pages[1:], start=2):
-        page_width = float(page.mediabox.width)
-        page_height = float(page.mediabox.height)
+        page_left, page_bottom, page_right, page_top, _ = _imposition_box(page)
+        page_width = page_right - page_left
+        page_height = page_top - page_bottom
         if abs(page_width - source_width) > 0.01 or abs(page_height - source_height) > 0.01:
             raise ValueError(
                 f"La pagina {index} ha dimensioni diverse dalla prima pagina"
@@ -856,6 +1265,7 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         )
         xobjects = DictionaryObject()
         content_parts = []
+        rendered_placements = []
         if duplex_groups:
             pair_index = sheet_index // 2
             side_index = sheet_index % 2
@@ -888,7 +1298,7 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
                 row = rows - 1 - row
             grows_left = anchor.endswith("right")
             grows_up = anchor.startswith("bottom")
-            if anchor.endswith("center"):
+            if anchor == "center" or anchor.endswith("center"):
                 centered_x = margin_left + (available_width - required_width) / 2
                 x = centered_x + column * (placed_width + gap_x)
             elif grows_left:
@@ -897,7 +1307,9 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
                 )
             else:
                 x = margin_left + column * (placed_width + gap_x)
-            if grows_up:
+            if anchor == "center":
+                y = margin_bottom + (available_height - required_height) / 2 + row * (placed_height + gap_y)
+            elif grows_up:
                 y = margin_bottom + row * (placed_height + gap_y)
             else:
                 y = output_height - margin_top - placed_height - row * (
@@ -908,25 +1320,51 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
                 (group_offset + slot_index) % group_pages
             )
             source = reader.pages[source_index]
+            source_left, source_bottom, source_right, source_top, _ = _imposition_box(source)
+            trim_x = x + trim_inset_x
+            trim_y = y + trim_inset_y
 
             if rotate:
                 transform = (
                     Transformation()
+                    .scale(content_scale)
                     .rotate(90)
-                    .translate(x + placed_width, y)
+                    .translate(
+                        trim_x + source_top * content_scale,
+                        trim_y - source_left * content_scale,
+                    )
                 )
             else:
-                transform = Transformation().translate(x, y)
-            if use_shared_resources:
-                _place_shared_form(
-                    output_page, writer, source, xobjects, content_parts,
-                    form_cache, transform,
+                transform = Transformation().scale(content_scale).translate(
+                    trim_x - source_left * content_scale,
+                    trim_y - source_bottom * content_scale,
                 )
-            else:
-                output_page.merge_transformed_page(source, transform, over=True)
+            _place_shared_form(
+                output_page, writer, source, xobjects, content_parts,
+                form_cache, transform,
+                clip_rect=(
+                    x - clip_left,
+                    y - clip_bottom,
+                    placed_width + clip_left + clip_right,
+                    placed_height + clip_bottom + clip_top,
+                ),
+            )
+            rendered_placements.append({
+                "x": x + trim_inset_x,
+                "y": y + trim_inset_y,
+                "width": trim_width,
+                "height": trim_height,
+                "bleed_x": trim_inset_x,
+                "bleed_y": trim_inset_y,
+            })
 
-        if use_shared_resources:
-            _finish_shared_page(output_page, writer, xobjects, content_parts)
+        _finish_shared_page(output_page, writer, xobjects, content_parts)
+        _apply_sheet_marks(
+            output_page,
+            rendered_placements,
+            config,
+            label=f"RIPETIZIONE · FOGLIO {sheet_index + 1}",
+        )
         writer.add_page(output_page)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
@@ -939,8 +1377,10 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         "anchor": anchor,
         "offset_x_mm": float(config.get("offset_x_mm", 0)),
         "offset_y_mm": float(config.get("offset_y_mm", 0)),
-        "object_width_mm": round(placed_width / mm, 4),
-        "object_height_mm": round(placed_height / mm, 4),
+        "object_width_mm": round(trim_width / mm, 4),
+        "object_height_mm": round(trim_height / mm, 4),
+        "bleed_mode": str(config.get("bleed_mode", "existing")),
+        "bleed_mm": float(config.get("bleed_mm", 0)),
         "rows": rows,
         "columns": columns,
         "rows_mode": "fixed" if fixed_rows else "automatic",
@@ -971,7 +1411,7 @@ def add_text_label(
 
     anchor = str(config.get("anchor", "top_left"))
     allowed_anchors = {
-        "top_left", "top_center", "top_right",
+        "top_left", "top_center", "top_right", "center",
         "bottom_left", "bottom_center", "bottom_right",
     }
     if anchor not in allowed_anchors:
@@ -1011,7 +1451,9 @@ def add_text_label(
             box_x = width - offset_x - box_width
         else:
             box_x = (width - box_width) / 2 + offset_x
-        if anchor.startswith("top"):
+        if anchor == "center":
+            box_y = (height - box_height) / 2 + offset_y
+        elif anchor.startswith("top"):
             box_y = height - offset_y - box_height
         else:
             box_y = offset_y

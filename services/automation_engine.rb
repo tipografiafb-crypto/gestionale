@@ -495,7 +495,7 @@ class AutomationBootstrap
           'copies_field' => 'variables.production_copies',
           'output_kind' => 'multipage_pdf'
         }),
-        node('impose', 'step_repeat', 'Step and repeat', 2160, 360, {
+        node('impose', 'step_repeat', 'Applica plancia', 2160, 360, {
           'preset_code' => '{{variables.imposition_preset}}',
           'output_kind' => 'imposition_pdf'
         }),

@@ -95,6 +95,26 @@ module AutomationFlowTransfer
         config: data['config'].is_a?(Hash) ? data['config'] : {},
         active: data.key?('active') ? data['active'] : true
       )
+      next unless data['kind'].to_s == 'imposition'
+
+      template = ImpositionTemplate.find_or_initialize_by(code: data['code'])
+      template.assign_attributes(
+        name: data['name'].to_s.presence || data['code'],
+        folder: data.dig('config', 'folder').to_s.presence || 'Importate',
+        description: template.description.presence || 'Importata insieme a un flusso di automazione',
+        status: 'published'
+      )
+      template.save!
+      next if template.versions.exists?
+
+      published = template.versions.create!(
+        version_number: 1,
+        status: 'published',
+        config: data['config'].is_a?(Hash) ? data['config'] : ImpositionConfig.default,
+        published_at: Time.current
+      )
+      template.update!(active_version: published)
+      template.versions.create!(version_number: 2, status: 'draft', config: published.config)
     end
   end
   private_class_method :import_presets!

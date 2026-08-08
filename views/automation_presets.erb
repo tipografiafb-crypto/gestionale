@@ -11,7 +11,10 @@
     <h1 class="mb-1 mt-2"><i class="fas fa-sliders me-2"></i>Preset e risorse</h1>
     <p class="text-muted mb-0">Configurazioni condivise e risorse rilevate sui Mac Adobe.</p>
   </div>
-  <span class="badge bg-secondary fs-6"><%= @automation_presets.size + Array(@automation_destinations).size %> risorse</span>
+  <div class="d-flex gap-2 align-items-center">
+    <a class="btn btn-outline-primary" href="/impositions"><i class="fas fa-layer-group me-1"></i>Studio di imposizione</a>
+    <span class="badge bg-secondary fs-6"><%= @automation_presets.size + Array(@automation_destinations).size %> risorse</span>
+  </div>
 </div>
 
 <%
@@ -37,12 +40,11 @@
     Array(agent.metadata.is_a?(Hash) ? agent.metadata['illustrator_templates'] : nil).size
   end
   preset_tabs = [
-    ['imposition', 'Plance', 'fa-grip', @automation_presets.count { |preset| preset.kind == 'imposition' }],
     ['output', 'Destinazioni', 'fa-folder-open', Array(@automation_destinations).size],
     ['adobe', 'Adobe', 'fa-wand-magic-sparkles', photoshop_actions_count],
     ['mask', 'Illustrator', 'fa-pen-nib', illustrator_masks_count + illustrator_scripts_count]
   ]
-  active_tab = preset_tabs.any? { |tab| tab.first == params[:tab] } ? params[:tab] : 'imposition'
+  active_tab = preset_tabs.any? { |tab| tab.first == params[:tab] } ? params[:tab] : 'output'
 %>
 
 <ul class="nav nav-tabs mb-4" role="tablist">

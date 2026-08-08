@@ -452,16 +452,16 @@
         key: 'preset_source',
         label: 'Selezione preset',
         choices: [
-          ['fixed', 'Preset fisso'],
+          ['fixed', 'Plancia fissa'],
           ['variable', 'Preset indicato da una variabile']
         ],
         default: 'fixed'
       },
       {
         key: 'preset_code',
-        label: 'Preset fisso',
+        label: 'Plancia pubblicata',
         choices: 'imposition',
-        help: 'Il preset scelto stabilisce se usare una griglia regolare oppure il nesting automatico.'
+        help: 'La plancia viene progettata e pubblicata nello Studio di imposizione.'
       },
       {
         key: 'preset_variable',

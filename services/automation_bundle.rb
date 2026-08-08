@@ -7,7 +7,7 @@ require 'json'
 # can be very large, and must not be restored on another machine.
 module AutomationBundle
   FORMAT = 'magenta_automation_bundle'
-VERSION = 3
+VERSION = 4
 
   module_function
 
@@ -56,6 +56,24 @@ VERSION = 3
           'active' => preset.active
         }
       end,
+      'impositions' => ImpositionTemplate.order(:code).map do |template|
+        {
+          'code' => template.code,
+          'name' => template.name,
+          'folder' => template.folder,
+          'description' => template.description,
+          'status' => template.status,
+          'active_version_number' => template.active_version&.version_number,
+          'versions' => template.versions.order(:version_number).map do |version|
+            {
+              'number' => version.version_number,
+              'status' => version.status,
+              'config' => deep_copy(version.config),
+              'published_at' => version.published_at&.iso8601
+            }
+          end
+        }
+      end,
       'destinations' => AutomationDestination.order(:code).map do |destination|
         {
           'code' => destination.code,
@@ -92,10 +110,12 @@ VERSION = 3
     import_folders!(Array(payload['folders']), flow_ids)
     import_preset_folders!(Array(payload['preset_folders']))
     import_presets!(Array(payload['presets']))
+    import_impositions!(Array(payload['impositions']))
     import_destinations!(Array(payload['destinations']))
     import_agents!(Array(payload['agents']))
 
     {flows: flow_ids.size, presets: Array(payload['presets']).size,
+     impositions: Array(payload['impositions']).size,
      destinations: Array(payload['destinations']).size}
   rescue JSON::ParserError
     raise ArgumentError, 'Il file importato non è un JSON valido'
@@ -194,6 +214,35 @@ VERSION = 3
     end
   end
   private_class_method :import_presets!
+
+  def import_impositions!(entries)
+    entries.each do |data|
+      next unless data.is_a?(Hash) && data['code'].present?
+
+      template = ImpositionTemplate.find_or_initialize_by(code: data['code'].to_s)
+      template.assign_attributes(
+        name: data['name'].to_s.presence || data['code'],
+        folder: data['folder'].to_s.presence || 'Principale',
+        description: data['description'].to_s,
+        status: ImpositionTemplate::STATUSES.include?(data['status'].to_s) ? data['status'] : 'draft'
+      )
+      template.save!
+      Array(data['versions']).each do |version_data|
+        number = version_data['number'].to_i
+        next unless number.positive?
+
+        version = template.versions.find_or_initialize_by(version_number: number)
+        version.update!(
+          status: ImpositionTemplateVersion::STATUSES.include?(version_data['status'].to_s) ? version_data['status'] : 'draft',
+          config: version_data['config'].is_a?(Hash) ? version_data['config'] : ImpositionConfig.default,
+          published_at: version_data['published_at'].present? ? Time.iso8601(version_data['published_at'].to_s) : nil
+        )
+      end
+      active_number = data['active_version_number'].to_i
+      template.update!(active_version: template.versions.find_by(version_number: active_number)) if active_number.positive?
+    end
+  end
+  private_class_method :import_impositions!
 
   def import_destinations!(entries)
     entries.each do |data|
