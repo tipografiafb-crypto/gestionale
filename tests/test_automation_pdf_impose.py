@@ -113,6 +113,244 @@ class DuplexImpositionTest(unittest.TestCase):
             self.assertEqual("center", metadata["anchor"])
             self.assertEqual(1, len(PdfReader(output).pages))
 
+    def test_plate_modes_distinguish_separate_and_same_set_duplex(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "duplex.pdf"
+            self.make_pdf(source, 2)
+            for plate_mode, orientation, expected_legacy in (
+                ("duplex_separate", "head_to_head", "none"),
+                ("duplex_same_set", "head_to_head", "horizontal"),
+                ("duplex_same_set", "foot_to_foot", "vertical"),
+            ):
+                output = Path(directory) / f"{plate_mode}-{orientation}.pdf"
+                metadata = impose(
+                    str(source),
+                    str(output),
+                    self.config(
+                        rows=1,
+                        columns=1,
+                        double_sided_mode="none",
+                        plate_mode=plate_mode,
+                        duplex_orientation=orientation,
+                    ),
+                )
+                self.assertEqual(2, metadata["sheets"])
+                self.assertEqual(plate_mode, metadata["plate_mode"])
+                self.assertEqual(orientation, metadata["duplex_orientation"])
+                self.assertEqual(expected_legacy, metadata["double_sided_mode"])
+
+    def test_grid_rotates_source_by_selected_direction(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "direction.pdf"
+            writer = PdfWriter()
+            writer.add_blank_page(width=80, height=50)
+            with source.open("wb") as stream:
+                writer.write(stream)
+            for direction, expected_size in (
+                ("top", (80, 50)),
+                ("right", (50, 80)),
+                ("bottom", (80, 50)),
+                ("left", (50, 80)),
+            ):
+                output = Path(directory) / f"{direction}.pdf"
+                metadata = impose(
+                    str(source),
+                    str(output),
+                    self.config(
+                        rows=1,
+                        columns=1,
+                        double_sided_mode="none",
+                        source_direction=direction,
+                    ),
+                )
+                self.assertEqual(direction, metadata["source_direction"])
+                self.assertAlmostEqual(expected_size[0] * 25.4 / 72, metadata["object_width_mm"], places=3)
+                self.assertAlmostEqual(expected_size[1] * 25.4 / 72, metadata["object_height_mm"], places=3)
+
+    def test_a5_sheetwise_repeats_front_and_back_with_opposite_heads(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "a5-duplex.pdf"
+            output = Path(directory) / "a5-sheetwise.pdf"
+            writer = PdfWriter()
+            for _ in range(2):
+                writer.add_blank_page(
+                    width=148 * 72 / 25.4,
+                    height=210 * 72 / 25.4,
+                )
+            with source.open("wb") as stream:
+                writer.write(stream)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(
+                    sheet_width_mm=450,
+                    sheet_height_mm=320,
+                    margin_left_mm=5,
+                    margin_right_mm=5,
+                    margin_top_mm=5,
+                    margin_bottom_mm=5,
+                    rows=0,
+                    columns=0,
+                    auto_rotate=True,
+                    repeat_product=True,
+                    work_style="sheetwise",
+                    double_sided_mode="none",
+                ),
+            )
+
+            self.assertEqual((2, 2), (metadata["columns"], metadata["rows"]))
+            self.assertEqual(2, len(PdfReader(output).pages))
+            self.assertEqual([1] * 4, [item["page"] for item in metadata["placements"][:4]])
+            self.assertEqual([2] * 4, [item["page"] for item in metadata["placements"][4:]])
+            self.assertEqual({270}, {item["rotation"] for item in metadata["placements"][:4]})
+            self.assertEqual({90}, {item["rotation"] for item in metadata["placements"][4:]})
+
+    def test_work_and_turn_places_both_sides_on_one_form(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "a5-duplex.pdf"
+            output = Path(directory) / "a5-work-and-turn.pdf"
+            writer = PdfWriter()
+            for _ in range(2):
+                writer.add_blank_page(width=148 * 72 / 25.4, height=210 * 72 / 25.4)
+            with source.open("wb") as stream:
+                writer.write(stream)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(
+                    sheet_width_mm=450,
+                    sheet_height_mm=320,
+                    margin_left_mm=5,
+                    margin_right_mm=5,
+                    margin_top_mm=5,
+                    margin_bottom_mm=5,
+                    rows=0,
+                    columns=0,
+                    auto_rotate=True,
+                    repeat_product=True,
+                    work_style="work_and_turn",
+                    double_sided_mode="none",
+                ),
+            )
+
+            self.assertEqual(1, len(PdfReader(output).pages))
+            self.assertEqual([1, 2, 1, 2], [item["page"] for item in metadata["placements"]])
+            self.assertEqual([270, 90, 270, 90], [item["rotation"] for item in metadata["placements"]])
+
+    def test_work_and_turn_reverses_heads_for_landscape_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "a5-landscape-duplex.pdf"
+            output = Path(directory) / "a5-landscape-work-and-turn.pdf"
+            writer = PdfWriter()
+            for _ in range(2):
+                writer.add_blank_page(width=210 * 72 / 25.4, height=148 * 72 / 25.4)
+            with source.open("wb") as stream:
+                writer.write(stream)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(
+                    sheet_width_mm=450,
+                    sheet_height_mm=320,
+                    margin_left_mm=5,
+                    margin_right_mm=5,
+                    margin_top_mm=5,
+                    margin_bottom_mm=5,
+                    rows=0,
+                    columns=0,
+                    auto_rotate=True,
+                    repeat_product=True,
+                    work_style="work_and_turn",
+                    double_sided_mode="none",
+                ),
+            )
+
+            self.assertEqual([0, 180, 0, 180], [item["rotation"] for item in metadata["placements"]])
+
+    def test_work_and_tumble_rotates_second_side_by_180_degrees(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "tumble-duplex.pdf"
+            output = Path(directory) / "tumble.pdf"
+            self.make_pdf(source, 2)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(
+                    rows=2,
+                    columns=1,
+                    repeat_product=True,
+                    work_style="work_and_tumble",
+                    double_sided_mode="none",
+                ),
+            )
+
+            self.assertEqual([0, 180], [item["rotation"] for item in metadata["placements"]])
+
+    def test_work_and_turn_keeps_duplicated_duplex_pairs_on_one_form(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "duplicated-duplex.pdf"
+            output = Path(directory) / "duplicated-duplex-imposed.pdf"
+            self.make_pdf(source, 20)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(
+                    rows=2,
+                    columns=15,
+                    repeat_product=True,
+                    work_style="work_and_turn",
+                    side_page_counts=[10, 10],
+                    double_sided_mode="none",
+                ),
+            )
+
+            self.assertEqual(1, len(PdfReader(output).pages))
+            self.assertEqual(20, metadata["placed_pages"])
+            self.assertEqual(1, metadata["sheets"])
+            self.assertEqual(14, metadata["columns"])
+            self.assertEqual({0, 180}, {item["rotation"] for item in metadata["placements"]})
+
+    def test_single_sided_does_not_fill_empty_positions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "single-sided.pdf"
+            output = Path(directory) / "single-sided-imposed.pdf"
+            self.make_pdf(source, 1)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(
+                    rows=2,
+                    columns=2,
+                    repeat_product=True,
+                    work_style="single_sided",
+                    double_sided_mode="none",
+                ),
+            )
+
+            self.assertEqual(1, len(PdfReader(output).pages))
+            self.assertEqual(1, metadata["placed_pages"])
+            self.assertEqual(1, len(metadata["placements"]))
+
+    def test_single_sided_keeps_multiple_pages_on_the_same_side(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "single-sided-pages.pdf"
+            output = Path(directory) / "single-sided-pages-imposed.pdf"
+            self.make_pdf(source, 4)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(
+                    rows=2,
+                    columns=2,
+                    repeat_product=True,
+                    work_style="single_sided",
+                    double_sided_mode="none",
+                ),
+            )
+
+            self.assertEqual(1, len(PdfReader(output).pages))
+            self.assertEqual([1, 2, 3, 4], [item["page"] for item in metadata["placements"]])
+
     def test_grid_uses_trimbox_instead_of_media_box(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "trimmed.pdf"
@@ -370,13 +608,20 @@ class BookletImpositionTest(unittest.TestCase):
 
             metadata = impose(str(source), str(output), self.config())
 
-            self.assertEqual(4, len(PdfReader(output).pages))
-            self.assertEqual(2, metadata["physical_sheets"])
+            self.assertEqual(2, len(PdfReader(output).pages))
+            self.assertEqual(1, metadata["physical_sheets"])
+            self.assertEqual(4, metadata["pages_per_side"])
+            self.assertEqual("F08-07_li_2x2", metadata["scheme"])
             spreads = [
                 item["page"]
                 for item in metadata["placements"]
             ]
             self.assertEqual([8, 1, 2, 7, 6, 3, 4, 5], spreads)
+            creep_by_sheet = {
+                sheet: {item["creep_mm"] for item in metadata["placements"] if item["sheet"] == sheet}
+                for sheet in (1,)
+            }
+            self.assertEqual({0.0}, creep_by_sheet[1])
 
     def test_incomplete_signature_is_padded_with_blank_pages(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -388,7 +633,23 @@ class BookletImpositionTest(unittest.TestCase):
 
             self.assertEqual(3, metadata["inserted_blank_pages"])
             self.assertEqual(8, metadata["output_document_pages"])
-            self.assertEqual(4, len(PdfReader(output).pages))
+            self.assertEqual(2, len(PdfReader(output).pages))
+
+    def test_perfect_bound_uses_separate_configured_signatures(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "book.pdf"
+            output = Path(directory) / "perfect-bound.pdf"
+            self.make_pdf(source, 20)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(binding_method="perfect_bound", signature_pages=8),
+            )
+
+            self.assertEqual("perfect_bound", metadata["binding_method"])
+            self.assertEqual(3, metadata["signatures"])
+            self.assertEqual(4, metadata["inserted_blank_pages"])
+            self.assertEqual(6, len(PdfReader(output).pages))
 
 
 class InsertBlankPagesTest(unittest.TestCase):

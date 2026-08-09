@@ -1,8 +1,12 @@
 module ImpositionConfig
   LAYOUT_MODES = %w[grid nesting booklet].freeze
   ANCHORS = %w[top_left top_center top_right center bottom_left bottom_center bottom_right].freeze
+  WORK_STYLES = %w[single_sided sheetwise work_and_turn work_and_tumble perfecting].freeze
+  PLATE_MODES = %w[single_sided duplex_separate duplex_same_set].freeze
+  DUPLEX_ORIENTATIONS = %w[head_to_head foot_to_foot].freeze
   DUPLEX_MODES = %w[none horizontal vertical].freeze
   BLEED_MODES = %w[none existing scale].freeze
+  BINDING_METHODS = %w[saddle_stitch perfect_bound].freeze
   SIGNATURE_SIZES = [4, 8, 16, 24, 32].freeze
 
   module_function
@@ -27,12 +31,18 @@ module ImpositionConfig
       'columns' => 0,
       'rows' => 0,
       'rotate' => false,
+      'auto_rotate' => true,
+      'repeat_product' => true,
       'fill_last_sheet' => false,
       'trim_sheet_height' => false,
+      'plate_mode' => 'single_sided',
+      'work_style' => 'single_sided',
+      'duplex_orientation' => 'head_to_head',
       'double_sided_mode' => 'none',
       'bleed_mode' => 'existing',
       'bleed_mm' => 3.0,
       'signature_pages' => 16,
+      'binding_method' => 'saddle_stitch',
       'binding' => 'left',
       'gutter_mm' => 0.0,
       'creep_mm' => 0.0,
@@ -69,11 +79,51 @@ module ImpositionConfig
 
     config['anchor'] = config['anchor'].to_s
     raise ArgumentError, 'Punto di ancoraggio non valido' unless ANCHORS.include?(config['anchor'])
-    config['double_sided_mode'] = config['double_sided_mode'].to_s
-    raise ArgumentError, 'Modalità fronte/retro non valida' unless DUPLEX_MODES.include?(config['double_sided_mode'])
+    legacy_duplex = config['double_sided_mode'].to_s
+    unless input.key?('work_style')
+      config['work_style'] = case input['plate_mode'].to_s
+                             when 'duplex_separate' then 'sheetwise'
+                             when 'duplex_same_set'
+                               input['duplex_orientation'].to_s == 'foot_to_foot' ? 'work_and_tumble' : 'work_and_turn'
+                             else
+                               case legacy_duplex
+                               when 'horizontal' then 'work_and_turn'
+                               when 'vertical' then 'work_and_tumble'
+                               else 'single_sided'
+                               end
+                             end
+    end
+    config['work_style'] = config['work_style'].to_s
+    raise ArgumentError, 'Metodo di stampa non valido' unless WORK_STYLES.include?(config['work_style'])
+    unless input.key?('plate_mode')
+      config['plate_mode'] = case config['work_style']
+                             when 'sheetwise', 'perfecting' then 'duplex_separate'
+                             when 'work_and_turn', 'work_and_tumble' then 'duplex_same_set'
+                             else 'single_sided'
+                             end
+    end
+    config['plate_mode'] = config['plate_mode'].to_s
+    raise ArgumentError, 'Tipo di set lastre non valido' unless PLATE_MODES.include?(config['plate_mode'])
+    config['duplex_orientation'] = config['duplex_orientation'].to_s
+    if input.key?('double_sided_mode') && !input.key?('duplex_orientation')
+      config['duplex_orientation'] = legacy_duplex == 'vertical' ? 'foot_to_foot' : 'head_to_head'
+    end
+    raise ArgumentError, 'Orientamento fronte/retro non valido' unless DUPLEX_ORIENTATIONS.include?(config['duplex_orientation'])
+    config['duplex_orientation'] = 'foot_to_foot' if config['work_style'] == 'work_and_tumble'
+    config['duplex_orientation'] = 'head_to_head' if config['work_style'] == 'work_and_turn'
+    config['plate_mode'] = case config['work_style']
+                           when 'sheetwise', 'perfecting' then 'duplex_separate'
+                           when 'work_and_turn', 'work_and_tumble' then 'duplex_same_set'
+                           else 'single_sided'
+                           end
+    config['double_sided_mode'] = case config['work_style']
+                                  when 'work_and_turn' then 'horizontal'
+                                  when 'work_and_tumble' then 'vertical'
+                                  else 'none'
+                                  end
     config['bleed_mode'] = config['bleed_mode'].to_s
     raise ArgumentError, 'Modalità abbondanza non valida' unless BLEED_MODES.include?(config['bleed_mode'])
-    if mode == 'nesting' && config['double_sided_mode'] != 'none'
+    if mode == 'nesting' && config['work_style'] != 'single_sided'
       raise ArgumentError, 'Il nesting non supporta il fronte/retro'
     end
 
@@ -84,8 +134,10 @@ module ImpositionConfig
     unless SIGNATURE_SIZES.include?(config['signature_pages'])
       raise ArgumentError, 'La segnatura deve contenere 4, 8, 16, 24 o 32 pagine'
     end
+    config['binding_method'] = config['binding_method'].to_s
+    raise ArgumentError, 'Tipo di legatura non valido' unless BINDING_METHODS.include?(config['binding_method'])
     config['binding'] = %w[left right].include?(config['binding'].to_s) ? config['binding'].to_s : 'left'
-    %w[rotate fill_last_sheet trim_sheet_height].each { |field| config[field] = truthy?(config[field]) }
+    %w[rotate auto_rotate repeat_product fill_last_sheet trim_sheet_height].each { |field| config[field] = truthy?(config[field]) }
 
     marks = config['marks'].is_a?(Hash) ? config['marks'].deep_stringify_keys : {}
     %w[crop registration fold color_bars job_info].each { |field| marks[field] = truthy?(marks[field]) }

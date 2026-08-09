@@ -1197,8 +1197,8 @@
     updateVisibility();
   }
 
-  function renderBlankPagesConfig(node) {
-    configHint('Le regole vengono applicate dall’alto verso il basso. Nei PDF bifacciali fronte e retro restano gruppi separati, così le posizioni vuote rimangono allineate.');
+  function renderBlankPagesConfig(node, includeOutput = true) {
+    configHint('Questo blocco passa le regole a Step and Repeat, che inserisce le pagine vuote dopo avere creato le copie e prima di comporre la plancia.');
     nodeConfigForm.appendChild(configField(
       {label: 'Quantità usata per le condizioni', choices: 'fields'},
       node.config?.quantity_field || 'item.quantity',
@@ -1226,14 +1226,12 @@
       min_quantity: 0,
       max_quantity: 0
     }));
-    nodeConfigForm.append(
-      add,
-      configField(
-        {label: 'Tipo risultato', default: 'blank_padded_pdf'},
-        node.config?.output_kind || 'blank_padded_pdf',
-        'blank_output_kind'
-      )
-    );
+    nodeConfigForm.appendChild(add);
+    if (includeOutput) nodeConfigForm.appendChild(configField(
+      {label: 'Tipo risultato', default: 'blank_padded_pdf'},
+      node.config?.output_kind || 'blank_padded_pdf',
+      'blank_output_kind'
+    ));
   }
 
   function configList(value) {
@@ -1408,11 +1406,11 @@
       return;
     }
     if (node.type === 'insert_blanks') {
-      renderBlankPagesConfig(node);
+      renderBlankPagesConfig(node, false);
       return;
     }
     if (node.type === 'step_repeat') {
-      configHint('Puoi scegliere un preset fisso oppure leggere il codice del preset da una variabile impostata nei blocchi precedenti.');
+      configHint('Legge automaticamente copie e pagine vuote dai blocchi Calcola quantità e Inserisci pagine vuote collegati prima di questo passaggio.');
       const sourceField = configField(
         simpleConfigSchemas.step_repeat[0],
         node.config?.preset_source || 'fixed'
@@ -1574,8 +1572,7 @@
       });
       return {
         quantity_field: configValue('blank_quantity_field') || 'item.quantity',
-        rules,
-        output_kind: configValue('blank_output_kind') || 'blank_padded_pdf'
+        rules
       };
     }
 

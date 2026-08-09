@@ -27,6 +27,7 @@
     <button class="btn btn-outline-secondary active" data-imposition-filter="all">Tutte</button>
     <button class="btn btn-outline-secondary" data-imposition-filter="published">Pubblicate</button>
     <button class="btn btn-outline-secondary" data-imposition-filter="draft">Bozze</button>
+    <button class="btn btn-outline-secondary" data-imposition-filter="archived">Archiviate</button>
   </div>
   <div class="ms-auto small text-muted"><%= @imposition_templates.size %> plance</div>
 </div>
@@ -72,6 +73,10 @@
         <% unless template.status == 'archived' %>
           <form method="post" action="/impositions/<%= template.id %>/archive" onsubmit="return confirm('Archiviare questa plancia?');">
             <button class="btn btn-outline-secondary" title="Archivia"><i class="fas fa-box-archive"></i></button>
+          </form>
+        <% else %>
+          <form method="post" action="/impositions/<%= template.id %>/delete" onsubmit="return confirm('Eliminare definitivamente questa plancia e il relativo preset? L’operazione non è reversibile.');">
+            <button class="btn btn-outline-danger" title="Elimina definitivamente"><i class="fas fa-trash"></i></button>
           </form>
         <% end %>
       </div>

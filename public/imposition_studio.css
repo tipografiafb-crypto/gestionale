@@ -59,7 +59,13 @@
 #impositionPlacements { position: absolute; inset: 0; }
 .imposition-placement { position: absolute; display: grid; place-items: center; overflow: hidden; border: 1px solid #d11678; background: repeating-linear-gradient(135deg, #fde7f3 0, #fde7f3 8px, #fff 8px, #fff 16px); color: #9d174d; font-size: 10px; font-weight: 700; }
 .imposition-placement.back { border-color: #087e8b; color: #0e6972; background: repeating-linear-gradient(135deg, #e7f8fa 0, #e7f8fa 8px, #fff 8px, #fff 16px); }
-.imposition-placement .page-label { padding: 2px 4px; background: rgba(255,255,255,.86); }
+.imposition-placement .page-head-corner { position: absolute; top: -1px; z-index: 1; width: 28px; height: 28px; pointer-events: none; background: #dbeafe; color: #2563a8; }
+.imposition-placement .page-head-corner::after { content: ''; position: absolute; top: 0; width: 40px; border-top: 2px solid currentColor; }
+.imposition-placement .page-head-corner.left { left: -1px; clip-path: polygon(0 0, 100% 0, 0 100%); }
+.imposition-placement .page-head-corner.left::after { left: 100%; transform: rotate(135deg); transform-origin: left top; }
+.imposition-placement .page-head-corner.right { right: -1px; clip-path: polygon(0 0, 100% 0, 100% 100%); }
+.imposition-placement .page-head-corner.right::after { left: 0; transform: rotate(45deg); transform-origin: left top; }
+.imposition-placement .page-label { min-width: 1.7em; padding: 5px 9px; border: 1px solid currentColor; background: rgba(255,255,255,.94); color: currentColor; font-size: 28px; line-height: 1; text-align: center; }
 .imposition-placement .bleed-outline { position: absolute; border: 1px dashed #f59e0b; pointer-events: none; }
 #impositionMarks { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .imposition-ruler { position: sticky; z-index: 4; background: rgba(255,255,255,.92); color: #6b7280; font-size: 9px; pointer-events: none; }

@@ -30,7 +30,7 @@ class PrintOrchestrator < Sinatra::Base
     @imposition_template = ImpositionTemplate.find(params[:id])
     @imposition_version = @imposition_template.draft_version
     raw_config = @imposition_version.config.is_a?(Hash) ? @imposition_version.config.deep_stringify_keys : {}
-    @imposition_config = ImpositionConfig.default.deep_merge(raw_config)
+    @imposition_config = ImpositionConfig.normalize(raw_config)
     columns = @imposition_config['columns'].to_i
     rows = @imposition_config['rows'].to_i
     unless raw_config.key?('sample_width_mm')
@@ -114,6 +114,27 @@ class PrintOrchestrator < Sinatra::Base
     template.update!(status: 'archived')
     AutomationPreset.where(kind: 'imposition', code: template.code).update_all(active: false)
     redirect '/impositions?msg=success&text=Plancia+archiviata'
+  rescue StandardError => error
+    redirect "/impositions?msg=error&text=#{URI.encode_www_form_component(error.message)}"
+  end
+
+  post '/impositions/:id/delete' do
+    template = ImpositionTemplate.find(params[:id])
+    unless template.status == 'archived'
+      redirect "/impositions?msg=error&text=#{URI.encode_www_form_component('Archivia prima la plancia prima di eliminarla') }"
+    end
+
+    references = template.automation_reference_names
+    unless references.empty?
+      message = "Impossibile eliminare: la plancia è ancora referenziata da #{references.join(', ')}"
+      redirect "/impositions?msg=error&text=#{URI.encode_www_form_component(message)}"
+    end
+
+    ImpositionTemplate.transaction do
+      AutomationPreset.where(kind: 'imposition', code: template.code).delete_all
+      template.destroy!
+    end
+    redirect '/impositions?msg=success&text=Plancia+eliminata+definitivamente'
   rescue StandardError => error
     redirect "/impositions?msg=error&text=#{URI.encode_www_form_component(error.message)}"
   end

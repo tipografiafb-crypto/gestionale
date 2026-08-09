@@ -53,7 +53,24 @@ class ImpositionTemplate < ActiveRecord::Base
     draft
   end
 
+  def automation_reference_names
+    AutomationFlowVersion.includes(:automation_flow).find_each.filter_map do |version|
+      version.automation_flow.name if graph_contains_value?(version.graph, code)
+    end.uniq
+  end
+
   private
+
+  def graph_contains_value?(value, target)
+    case value
+    when Hash
+      value.any? { |key, nested| key.to_s == target || graph_contains_value?(nested, target) }
+    when Array
+      value.any? { |nested| graph_contains_value?(nested, target) }
+    else
+      value.to_s == target
+    end
+  end
 
   def clear_active_version_reference
     update_column(:active_version_id, nil) if active_version_id.present?

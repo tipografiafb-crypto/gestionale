@@ -491,15 +491,11 @@ class AutomationBootstrap
           'range_overrides' => [],
           'exact_overrides' => {'25' => 26, '50' => 52, '100' => 105}
         }),
-        node('duplicate', 'duplicate_pages', 'Moltiplica pagine', 1930, 360, {
-          'copies_field' => 'variables.production_copies',
-          'output_kind' => 'multipage_pdf'
-        }),
-        node('impose', 'step_repeat', 'Applica plancia', 2160, 360, {
+        node('impose', 'step_repeat', 'Applica plancia', 1930, 360, {
           'preset_code' => '{{variables.imposition_preset}}',
           'output_kind' => 'imposition_pdf'
         }),
-        node('print_hotfolder', 'hot_folder', 'Hot folder stampa', 2390, 360, {
+        node('print_hotfolder', 'hot_folder', 'Hot folder stampa', 2160, 360, {
           'destination_code' => 'LOCAL_PRINT',
           'artifact_kind' => 'imposition_pdf',
           'filename' => '{{order.code}}-{{item.position}}.pdf',
@@ -546,8 +542,7 @@ class AutomationBootstrap
         edge('e21', 'template_standard', 'photoshop'),
         edge('e22', 'photoshop', 'illustrator'),
         edge('e23', 'illustrator', 'copies'),
-        edge('e24', 'copies', 'duplicate'),
-        edge('e25', 'duplicate', 'impose'),
+        edge('e24', 'copies', 'impose'),
         edge('e26', 'impose', 'print_hotfolder'),
         edge('e27', 'print_hotfolder', 'barcode'),
         edge('e28', 'barcode', 'label_hotfolder'),
@@ -1599,7 +1594,10 @@ class AutomationNodeExecutor
                         elsif range
                           'range'
                         end,
-      'context_updates' => {"variables.#{output_key}" => copies}
+      'context_updates' => {
+        "variables.#{output_key}" => copies,
+        'runtime.step_repeat_copies' => copies
+      }
     }
   end
 
@@ -1935,43 +1933,16 @@ class AutomationNodeExecutor
   end
 
   def execute_insert_blanks
-    source = require_artifact!
     quantity_field = @config['quantity_field'].presence || 'item.quantity'
     quantity = AutomationEngine.context_value(@context, quantity_field).to_i
-    pdf_config = {
-      'quantity' => quantity,
-      'rules' => resolve_nested_config(Array(@config['rules']))
-    }
-    side_page_counts = Array(source.metadata.to_h['side_page_counts']).map(&:to_i)
-    if side_page_counts.length == 2 && side_page_counts.all?(&:positive?)
-      pdf_config['side_page_counts'] = side_page_counts
-    end
-
-    output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
-    metadata = run_pdf_tool(
-      'insert-blanks',
-      '--input', source.full_path,
-      '--output', output,
-      '--config', JSON.generate(pdf_config)
-    )
-    artifact = AutomationEngine.create_artifact!(
-      run: @run,
-      step: @step,
-      kind: @config['output_kind'].presence || 'blank_padded_pdf',
-      path: output,
-      filename: File.basename(output),
-      media_type: 'application/pdf',
-      metadata: metadata.merge(
-        'side_page_counts' => (
-          metadata['input_page_counts'] if side_page_counts.length == 2
-        ),
-        'source_artifact_id' => source.id,
-        'quantity_field' => quantity_field
-      )
-    )
+    rules = resolve_nested_config(Array(@config['rules']))
     {
-      'artifact_id' => artifact.id,
-      'context_updates' => {'runtime.current_artifact_id' => artifact.id}
+      'quantity' => quantity,
+      'rules' => rules,
+      'context_updates' => {
+        'runtime.step_repeat_blank_quantity' => quantity,
+        'runtime.step_repeat_blank_rules' => rules
+      }
     }
   end
 
@@ -2184,24 +2155,68 @@ class AutomationNodeExecutor
 
     input_path = source.full_path
     compatibility_metadata = {}
-    if @config['copies_field'].present?
-      copies = AutomationEngine.context_value(@context, @config['copies_field']).to_i
+    duplication_copies = 1
+    copies_value = if @config['copies_field'].present?
+                     AutomationEngine.context_value(@context, @config['copies_field'])
+                   else
+                     @context.dig('runtime', 'step_repeat_copies')
+                   end
+    if copies_value.present?
+      copies = copies_value.to_i
       copies = 1 if copies < 1
+      duplication_copies = copies
       input_path = File.join(run_output_dir, "#{@step.node_key}-legacy-pages-#{SecureRandom.hex(4)}.pdf")
-      compatibility_metadata = run_pdf_tool(
+      duplicate_arguments = [
         'duplicate-pages',
         '--input', source.full_path,
         '--output', input_path,
         '--copies', copies.to_s
-      ).merge('legacy_inline_duplication' => true)
+      ]
+      source_side_counts = Array(source.metadata.to_h['side_page_counts']).map(&:to_i)
+      if %w[sheetwise perfecting].include?(preset.config['work_style'].to_s) &&
+         source_side_counts.length == 2 && source_side_counts.all?(&:positive?)
+        duplicate_arguments += [
+          '--duplex-order', 'grouped',
+          '--side-page-counts', JSON.generate(source_side_counts)
+        ]
+      end
+      compatibility_metadata = run_pdf_tool(*duplicate_arguments).merge('legacy_inline_duplication' => true)
+    end
+
+    blank_rules = Array(@context.dig('runtime', 'step_repeat_blank_rules'))
+    blank_rules = resolve_nested_config(Array(@config['blank_rules'])) if blank_rules.empty?
+    if blank_rules.any?
+      blank_output = File.join(run_output_dir, "#{@step.node_key}-blank-padded-#{SecureRandom.hex(4)}.pdf")
+      blank_config = {
+        'quantity' => @context.dig('runtime', 'step_repeat_blank_quantity').to_i,
+        'rules' => blank_rules
+      }
+      source_side_counts = Array(source.metadata.to_h['side_page_counts']).map(&:to_i)
+      if source_side_counts.length == 2 && source_side_counts.all?(&:positive?)
+        blank_config['side_page_counts'] = source_side_counts.map { |count| count * duplication_copies }
+      end
+      blank_metadata = run_pdf_tool(
+        'insert-blanks',
+        '--input', input_path,
+        '--output', blank_output,
+        '--config', JSON.generate(blank_config)
+      )
+      input_path = blank_output
+      compatibility_metadata.merge!(blank_metadata.merge('integrated_blank_rules' => true))
     end
 
     output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
     impose_config = preset.config.deep_dup
-    side_page_counts = Array(source.metadata.to_h['side_page_counts']).map(&:to_i)
+    side_page_counts = if compatibility_metadata['input_page_counts'].is_a?(Array)
+                         compatibility_metadata['input_page_counts'].map(&:to_i)
+                       else
+                         Array(source.metadata.to_h['side_page_counts']).map { |count| count.to_i * duplication_copies }
+                       end
+    duplex_work_style = %w[sheetwise perfecting work_and_turn work_and_tumble].include?(impose_config['work_style'].to_s)
+    legacy_duplex = %w[horizontal vertical].include?(impose_config['double_sided_mode'].to_s)
     if side_page_counts.length == 2 &&
        side_page_counts.all?(&:positive?) &&
-       %w[horizontal vertical].include?(impose_config['double_sided_mode'].to_s)
+       (duplex_work_style || legacy_duplex)
       impose_config['side_page_counts'] = side_page_counts
     end
 

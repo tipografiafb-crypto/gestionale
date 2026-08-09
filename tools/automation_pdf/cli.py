@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """PDF helpers for the automation engine.
 
 The module intentionally exposes a small CLI contract so the Ruby worker can
@@ -70,16 +72,40 @@ def image_to_pdf(
     }
 
 
-def duplicate_pages(input_path: str, output_path: str, copies: int) -> dict:
+def duplicate_pages(
+    input_path: str,
+    output_path: str,
+    copies: int,
+    duplex_order: str = "repeat",
+    side_page_counts: list[int] | None = None,
+) -> dict:
     reader = PdfReader(input_path)
     if not reader.pages:
         raise ValueError("Il PDF sorgente non contiene pagine")
 
     copies = max(1, int(copies))
     writer = PdfWriter()
-    for _copy_index in range(copies):
-        for page in reader.pages:
-            writer.add_page(page)
+    if duplex_order == "grouped":
+        if (
+            not isinstance(side_page_counts, list)
+            or len(side_page_counts) != 2
+            or any(int(value) < 1 for value in side_page_counts)
+            or sum(int(value) for value in side_page_counts) != len(reader.pages)
+        ):
+            raise ValueError("I conteggi fronte/retro non corrispondono alle pagine da duplicare")
+        front_pages, back_pages = (int(value) for value in side_page_counts)
+        page_groups = (
+            list(reader.pages[:front_pages]),
+            list(reader.pages[front_pages:front_pages + back_pages]),
+        )
+        for group in page_groups:
+            for _copy_index in range(copies):
+                for page in group:
+                    writer.add_page(page)
+    else:
+        for _copy_index in range(copies):
+            for page in reader.pages:
+                writer.add_page(page)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "wb") as output_file:
@@ -89,6 +115,7 @@ def duplicate_pages(input_path: str, output_path: str, copies: int) -> dict:
         "source_pages": len(reader.pages),
         "copies": copies,
         "output_pages": len(reader.pages) * copies,
+        "duplex_order": duplex_order,
     }
 
 
@@ -146,6 +173,26 @@ def _existing_bleed_box(
     ):
         return left, bottom, right, top
     return trim_box
+
+
+def _rotated_bounds(
+    left: float, bottom: float, right: float, top: float,
+    degrees: int, scale: float = 1.0,
+) -> tuple[float, float, float, float]:
+    """Return the axis-aligned bounds after applying a PDF rotation."""
+    if degrees == 0:
+        points = ((left, bottom), (right, bottom), (left, top), (right, top))
+    elif degrees == 90:
+        points = ((-bottom, left), (-bottom, right), (-top, left), (-top, right))
+    elif degrees == 180:
+        points = ((-left, -bottom), (-right, -bottom), (-left, -top), (-right, -top))
+    elif degrees == 270:
+        points = ((bottom, -left), (bottom, -right), (top, -left), (top, -right))
+    else:
+        raise ValueError(f"Rotazione PDF non valida: {degrees}")
+    xs = [point[0] * scale for point in points]
+    ys = [point[1] * scale for point in points]
+    return min(xs), min(ys), max(xs), max(ys)
 
 
 def _shared_page_form(
@@ -245,10 +292,14 @@ def _apply_sheet_marks(
     placements: list[dict],
     config: dict,
     fold_x: float | None = None,
+    fold_y: float | None = None,
     label: str = "",
+    head_direction: str | None = None,
 ) -> None:
     marks = config.get("marks", {})
-    if not isinstance(marks, dict) or not any(
+    if not isinstance(marks, dict):
+        marks = {}
+    if not head_direction and not any(
         bool(marks.get(key))
         for key in ("crop", "registration", "fold", "color_bars", "job_info")
     ):
@@ -349,6 +400,10 @@ def _apply_sheet_marks(
         overlay.setStrokeColor(colors.HexColor("#087E8B"))
         overlay.line(fold_x, 0, fold_x, length)
         overlay.line(fold_x, height - length, fold_x, height)
+    if bool(marks.get("fold", False)) and fold_y is not None:
+        overlay.setStrokeColor(colors.HexColor("#087e8b"))
+        overlay.line(0, fold_y, length, fold_y)
+        overlay.line(width - length, fold_y, width, fold_y)
         overlay.setStrokeColor(colors.black)
 
     if bool(marks.get("color_bars", False)):
@@ -932,9 +987,15 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
 
 
 def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
-    signature_pages = int(config.get("signature_pages", 16))
-    if signature_pages not in {4, 8, 16, 24, 32} or signature_pages % 4:
-        raise ValueError("La segnatura deve contenere 4, 8, 16, 24 o 32 pagine")
+    binding_method = str(config.get("binding_method", "saddle_stitch"))
+    if binding_method not in {"saddle_stitch", "perfect_bound"}:
+        raise ValueError("Tipo di legatura non valido")
+    if binding_method == "saddle_stitch":
+        signature_pages = max(4, math.ceil(len(reader.pages) / 8) * 8) if len(reader.pages) > 4 else 4
+    else:
+        signature_pages = int(config.get("signature_pages", 16))
+        if signature_pages not in {4, 8, 16, 24, 32} or signature_pages % 4:
+            raise ValueError("La segnatura deve contenere 4, 8, 16, 24 o 32 pagine")
     binding = str(config.get("binding", "left"))
     if binding not in {"left", "right"}:
         raise ValueError("Lato di rilegatura non valido")
@@ -961,13 +1022,41 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
         ):
             raise ValueError(f"La pagina {index} ha dimensioni diverse dalla prima pagina")
 
-    half_width = (sheet_width - margin_left - margin_right - gutter) / 2
+    available_width = sheet_width - margin_left - margin_right
     available_height = sheet_height - margin_top - margin_bottom
-    if half_width <= 0 or available_height <= 0:
+    if available_width <= 0 or available_height <= 0:
         raise ValueError("I margini non lasciano spazio per il libretto")
-    scale = min(1.0, half_width / source_width, available_height / source_height)
-    placed_width = source_width * scale
-    placed_height = source_height * scale
+    requested_4up = (
+        signature_pages >= 8
+        or
+        config.get("booklet_layout") == "4up"
+        or config.get("signature_format") == "4up"
+        or int(config.get("pages_per_side", 0) or 0) == 4
+    )
+    orientation_candidates = [(0, source_width, source_height), (270, source_height, source_width)]
+    layouts = []
+    for rotation, item_width, item_height in orientation_candidates:
+        for columns, rows in ((2, 2), (2, 1)):
+            required_width = columns * item_width + (columns - 1) * gutter
+            required_height = rows * item_height + (rows - 1) * gutter
+            if required_width <= available_width + 0.01 and required_height <= available_height + 0.01:
+                layouts.append((columns * rows, rotation, item_width, item_height, columns, rows))
+    if not layouts:
+        raise ValueError("Il formato pagina non entra nel foglio")
+    if requested_4up:
+        layouts.sort(key=lambda item: (item[0] == 4, item[1] == 270), reverse=True)
+    else:
+        layouts.sort(key=lambda item: (item[0] == 2, item[1] == 0), reverse=True)
+    capacity, source_rotation, rotated_width, rotated_height, columns, rows = layouts[0]
+    if requested_4up and capacity < 4:
+        raise ValueError("La segnatura richiesta non entra in 4 pagine per lato sul foglio")
+    pages_per_side = capacity
+    pages_per_sheet = pages_per_side * 2
+    if binding_method == "saddle_stitch" and signature_pages < pages_per_sheet:
+        signature_pages = max(4, pages_per_sheet)
+    scale = min(1.0, available_width / (columns * rotated_width + (columns - 1) * gutter), available_height / (rows * rotated_height + (rows - 1) * gutter))
+    placed_width = rotated_width * scale
+    placed_height = rotated_height * scale
     if placed_width <= 0 or placed_height <= 0:
         raise ValueError("Il formato pagina non entra nel foglio")
 
@@ -981,27 +1070,37 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
     writer = PdfWriter()
     form_cache = {}
     metadata_placements = []
-    sheets_per_signature = signature_pages // 4
+    sheets_per_signature = signature_pages // pages_per_sheet
     physical_sheet = 0
     for signature_index in range(signature_count):
         signature_start = signature_index * signature_pages
         for sheet_in_signature in range(sheets_per_signature):
             creep = (
-                max_creep * (sheets_per_signature - 1 - sheet_in_signature) / (sheets_per_signature - 1)
+                max_creep * sheet_in_signature / (sheets_per_signature - 1)
                 if sheets_per_signature > 1 else 0
             )
-            sequences = (
-                (
-                    signature_start + signature_pages - 1 - sheet_in_signature * 2,
-                    signature_start + sheet_in_signature * 2,
-                ),
-                (
-                    signature_start + sheet_in_signature * 2 + 1,
-                    signature_start + signature_pages - 2 - sheet_in_signature * 2,
-                ),
-            )
+            if pages_per_side == 4:
+                sequences = (
+                    (
+                        signature_start + signature_pages - 1 - sheet_in_signature * 4,
+                        signature_start + sheet_in_signature * 4,
+                        signature_start + sheet_in_signature * 4 + 1,
+                        signature_start + signature_pages - 2 - sheet_in_signature * 4,
+                    ),
+                    (
+                        signature_start + signature_pages - 3 - sheet_in_signature * 4,
+                        signature_start + sheet_in_signature * 4 + 2,
+                        signature_start + sheet_in_signature * 4 + 3,
+                        signature_start + signature_pages - 4 - sheet_in_signature * 4,
+                    ),
+                )
+            else:
+                sequences = (
+                    (signature_start + signature_pages - 1, signature_start),
+                    (signature_start + 1, signature_start + signature_pages - 2),
+                )
             if binding == "right":
-                sequences = tuple((right, left) for left, right in sequences)
+                sequences = tuple(tuple(reversed(sequence)) for sequence in sequences)
 
             physical_sheet += 1
             for side_index, sequence in enumerate(sequences):
@@ -1009,18 +1108,29 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
                 xobjects = DictionaryObject()
                 content_parts = []
                 render_placements = []
-                total_width = placed_width * 2 + gutter
-                start_x = (sheet_width - total_width) / 2
-                y = margin_bottom + (available_height - placed_height) / 2
+                total_width = placed_width * columns + gutter * (columns - 1)
+                total_height = placed_height * rows + gutter * (rows - 1)
+                start_x = margin_left + (available_width - total_width) / 2
+                start_y = margin_bottom + (available_height - total_height) / 2
                 side_name = "FRONTE" if side_index == 0 else "RETRO"
                 for position, source_index in enumerate(sequence):
-                    outward = -creep / 2 if position == 0 else creep / 2
-                    x = start_x + position * (placed_width + gutter) + outward
+                    row = position // columns
+                    column = position % columns
+                    toward_spine = creep / 2 if column < columns / 2 else -creep / 2
+                    x = start_x + column * (placed_width + gutter) + toward_spine
+                    y = start_y + (rows - 1 - row) * (placed_height + gutter)
                     source = pages[source_index]
                     page_left, page_bottom, page_right, page_top, _ = _imposition_box(source)
-                    transform = Transformation().scale(scale).translate(
-                        x - page_left * scale,
-                        y - page_bottom * scale,
+                    relative_rotation = (
+                        (0, 0, 180, 180) if side_index == 0 else (180, 180, 0, 0)
+                    )[position] if pages_per_side == 4 else 0
+                    placement_rotation = (source_rotation + relative_rotation) % 360
+                    rotated_bounds = _rotated_bounds(
+                        page_left, page_bottom, page_right, page_top,
+                        placement_rotation, scale,
+                    )
+                    transform = Transformation().scale(scale).rotate(placement_rotation).translate(
+                        x - rotated_bounds[0], y - rotated_bounds[1],
                     )
                     _place_shared_form(
                         output_page, writer, source, xobjects, content_parts,
@@ -1034,7 +1144,10 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
                         "page": source_index + 1 if source_index < input_pages else None,
                         "sheet": physical_sheet,
                         "side": side_name.lower(),
-                        "position": "left" if position == 0 else "right",
+                        "position": f"r{row + 1}c{column + 1}",
+                        "row": row + 1,
+                        "column": column + 1,
+                        "rotation": placement_rotation,
                         "x_mm": round(x / mm, 4),
                         "y_mm": round(y / mm, 4),
                         "width_mm": round(placed_width / mm, 4),
@@ -1047,10 +1160,12 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
                     render_placements,
                     config,
                     fold_x=sheet_width / 2,
+                    fold_y=sheet_height / 2 if pages_per_side == 4 else None,
                     label=(
                         f"LIBRETTO · SEGNATURA {signature_index + 1} · "
                         f"FOGLIO {sheet_in_signature + 1} · {side_name}"
                     ),
+                    head_direction="top",
                 )
                 writer.add_page(output_page)
 
@@ -1071,6 +1186,13 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
         "inserted_blank_pages": padded_pages - input_pages,
         "scale": round(scale, 6),
         "binding": binding,
+        "binding_method": binding_method,
+        "pages_per_side": pages_per_side,
+        "pages_per_sheet": pages_per_sheet,
+        "columns": columns,
+        "rows": rows,
+        "source_rotation": source_rotation,
+        "scheme": "F08-07_li_2x2" if pages_per_side == 4 else "F04-02_2up",
         "creep_mm": float(config.get("creep_mm", 0)),
         "placements": metadata_placements,
     }
@@ -1104,22 +1226,76 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
     gap_y = float(config.get("gap_y_mm", 0)) * mm
     fill_last_sheet = bool(config.get("fill_last_sheet", False))
     trim_sheet_height = bool(config.get("trim_sheet_height", False))
-    rotate = bool(config.get("rotate", False))
-    double_sided_mode = str(config.get("double_sided_mode", "none"))
-    if double_sided_mode not in {"none", "horizontal", "vertical"}:
-        raise ValueError(
-            f"Modalità fronte/retro non valida: {double_sided_mode}"
-        )
+    repeat_product = bool(config.get("repeat_product", False))
     fixed_columns = int(config.get("columns", 0) or 0)
     fixed_rows = int(config.get("rows", 0) or 0)
     if fixed_columns < 0 or fixed_rows < 0:
         raise ValueError("Righe e colonne non possono essere negative")
+
+    work_style = str(config.get("work_style", ""))
+    if work_style not in {"single_sided", "sheetwise", "work_and_turn", "work_and_tumble", "perfecting"}:
+        plate_mode = str(config.get("plate_mode", ""))
+        legacy_mode = str(config.get("double_sided_mode", "none"))
+        if plate_mode == "duplex_separate":
+            work_style = "sheetwise"
+        elif plate_mode == "duplex_same_set" or legacy_mode in {"horizontal", "vertical"}:
+            orientation = str(config.get("duplex_orientation", ""))
+            work_style = "work_and_tumble" if orientation == "foot_to_foot" or legacy_mode == "vertical" else "work_and_turn"
+        else:
+            work_style = "single_sided"
+    duplex_enabled = work_style != "single_sided"
+    plate_mode = (
+        "duplex_separate" if work_style in {"sheetwise", "perfecting"}
+        else "duplex_same_set" if work_style in {"work_and_turn", "work_and_tumble"}
+        else "single_sided"
+    )
+    duplex_orientation = "foot_to_foot" if work_style == "work_and_tumble" else "head_to_head"
+    double_sided_mode = (
+        "horizontal" if work_style == "work_and_turn" else
+        "vertical" if work_style == "work_and_tumble" else
+        "none"
+    )
 
     first_page = reader.pages[0]
     source_left, source_bottom, source_right, source_top, source_box_name = _imposition_box(first_page)
     source_width = source_right - source_left
     source_height = source_top - source_bottom
     bleed_mode = str(config.get("bleed_mode", "existing"))
+    bleed = (
+        max(0.0, float(config.get("bleed_mm", 0))) * mm
+        if bleed_mode == "scale" else 0.0
+    )
+    available_width = sheet_width - margin_left - margin_right
+    available_height = sheet_height - margin_top - margin_bottom
+
+    def orientation_capacity(rotation):
+        width, height = (
+            (source_height, source_width)
+            if rotation in {90, 270} else (source_width, source_height)
+        )
+        if bleed_mode == "scale":
+            width += 2 * bleed
+            height += 2 * bleed
+        columns_for_rotation = fixed_columns or max(
+            0, 1 + math.floor((available_width - width) / (width + gap_x))
+        )
+        rows_for_rotation = fixed_rows or max(
+            0, 1 + math.floor((available_height - height) / (height + gap_y))
+        )
+        required_width_for_rotation = columns_for_rotation * width + max(0, columns_for_rotation - 1) * gap_x
+        required_height_for_rotation = rows_for_rotation * height + max(0, rows_for_rotation - 1) * gap_y
+        if required_width_for_rotation > available_width + 0.01 or required_height_for_rotation > available_height + 0.01:
+            return -1
+        return columns_for_rotation * rows_for_rotation
+
+    legacy_source_direction = str(config.get("source_direction", ""))
+    if "auto_rotate" not in config and legacy_source_direction in {"top", "right", "bottom", "left"}:
+        source_rotation = {"top": 0, "right": 270, "bottom": 180, "left": 90}[legacy_source_direction]
+    elif bool(config.get("auto_rotate", False)) and orientation_capacity(270) > orientation_capacity(0):
+        source_rotation = 270
+    else:
+        source_rotation = 0
+    source_direction = {0: "top", 90: "left", 180: "bottom", 270: "right"}[source_rotation]
     visible_left, visible_bottom, visible_right, visible_top = (
         _existing_bleed_box(
             first_page,
@@ -1129,11 +1305,9 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         else (source_left, source_bottom, source_right, source_top)
     )
     trim_width, trim_height = (
-        (source_height, source_width) if rotate else (source_width, source_height)
-    )
-    bleed = (
-        max(0.0, float(config.get("bleed_mm", 0))) * mm
-        if bleed_mode == "scale" else 0.0
+        (source_height, source_width)
+        if source_rotation in {90, 270}
+        else (source_width, source_height)
     )
     if bleed_mode == "existing":
         content_scale = 1.0
@@ -1141,21 +1315,16 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         placed_height = trim_height
         trim_inset_x = 0.0
         trim_inset_y = 0.0
-        clip_left, clip_bottom, clip_right, clip_top = (
-            (
-                visible_top - source_top,
-                source_left - visible_left,
-                source_bottom - visible_bottom,
-                visible_right - source_right,
-            )
-            if rotate
-            else (
-                source_left - visible_left,
-                source_bottom - visible_bottom,
-                visible_right - source_right,
-                visible_top - source_top,
-            )
+        trim_bounds = _rotated_bounds(
+            source_left, source_bottom, source_right, source_top, source_rotation
         )
+        visible_bounds = _rotated_bounds(
+            visible_left, visible_bottom, visible_right, visible_top, source_rotation
+        )
+        clip_left = trim_bounds[0] - visible_bounds[0]
+        clip_bottom = trim_bounds[1] - visible_bounds[1]
+        clip_right = visible_bounds[2] - trim_bounds[2]
+        clip_top = visible_bounds[3] - trim_bounds[3]
     else:
         target_width = trim_width + 2 * bleed
         target_height = trim_height + 2 * bleed
@@ -1177,8 +1346,6 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
                 f"La pagina {index} ha dimensioni diverse dalla prima pagina"
             )
 
-    available_width = sheet_width - margin_left - margin_right
-    available_height = sheet_height - margin_top - margin_bottom
     if placed_width > available_width or placed_height > available_height:
         raise ValueError(
             "L'oggetto non entra nel foglio con il punto di partenza configurato"
@@ -1187,6 +1354,25 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
     auto_rows = 1 + math.floor((available_height - placed_height) / (placed_height + gap_y))
     columns = fixed_columns or auto_columns
     rows = fixed_rows or auto_rows
+    explicit_same_form_style = work_style in {"work_and_turn", "work_and_tumble"} and config.get("work_style") in {
+        "work_and_turn", "work_and_tumble"
+    }
+    paired_input_hint = (
+        explicit_same_form_style
+        and
+        isinstance(config.get("side_page_counts"), list)
+        and len(config.get("side_page_counts")) == 2
+    )
+    if repeat_product and work_style == "work_and_turn" and (
+        len(reader.pages) == 2 or paired_input_hint
+    ) and columns % 2:
+        columns -= 1
+    if repeat_product and work_style == "work_and_tumble" and (
+        len(reader.pages) == 2 or paired_input_hint
+    ) and rows % 2:
+        rows -= 1
+    if columns < 1 or rows < 1:
+        raise ValueError("Il metodo di stampa selezionato non entra nel foglio")
     required_width = columns * placed_width + max(0, columns - 1) * gap_x
     required_height = rows * placed_height + max(0, rows - 1) * gap_y
     if required_width > available_width + 0.01 or required_height > available_height + 0.01:
@@ -1199,8 +1385,20 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
     input_pages = len(reader.pages)
     side_page_counts = config.get("side_page_counts")
     duplex_groups = None
-    if side_page_counts is not None:
-        if double_sided_mode == "none":
+    same_form_product = False
+    same_form_product_capacity = 0
+    same_form_product_count = 0
+    same_form_paired_input = (
+        explicit_same_form_style
+        and
+        side_page_counts is not None
+        and work_style in {"work_and_turn", "work_and_tumble"}
+        and input_pages > 2
+        and input_pages % 2 == 0
+    )
+    repeated_duplex_product = repeat_product and input_pages == 2 and duplex_enabled
+    if side_page_counts is not None and not same_form_paired_input:
+        if not duplex_enabled:
             raise ValueError(
                 "Le pagine fronte/retro richiedono una modalità fronte/retro"
             )
@@ -1231,12 +1429,40 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
             if fill_last_sheet
             else front_pages + back_pages
         )
+    elif repeated_duplex_product and work_style in {"sheetwise", "perfecting"}:
+        duplex_groups = ((0, 1), (1, 1))
+        sheets = 2
+        placements_total = slots_per_sheet * 2
+    elif repeated_duplex_product:
+        same_form_product = True
+        sheets = 1
+        placements_total = slots_per_sheet
+    elif same_form_paired_input:
+        same_form_product = True
+        same_form_product_capacity = (
+            (columns // 2) * rows
+            if work_style == "work_and_turn"
+            else columns * (rows // 2)
+        )
+        same_form_product_count = input_pages // 2
+        sheets = math.ceil(same_form_product_count / same_form_product_capacity)
+        placements_total = (
+            sheets * same_form_product_capacity * 2
+            if fill_last_sheet
+            else input_pages
+        )
     else:
         sheets = math.ceil(input_pages / slots_per_sheet)
         placements_total = sheets * slots_per_sheet if fill_last_sheet else input_pages
     writer = PdfWriter()
     form_cache = {}
     use_shared_resources = config.get("shared_resources", True) is not False
+    metadata_placements = []
+
+    def flipped_rotation(rotation, axis):
+        if axis == "horizontal":
+            return {0: 0, 90: 270, 180: 180, 270: 90}[rotation]
+        return {0: 180, 90: 90, 180: 0, 270: 270}[rotation]
 
     for sheet_index in range(sheets):
         if trim_sheet_height:
@@ -1246,7 +1472,7 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
                 side_total = duplex_groups[side_index][1]
                 group_offset = pair_index * slots_per_sheet
                 placements_on_sheet = (
-                    slots_per_sheet if fill_last_sheet else
+                    slots_per_sheet if fill_last_sheet or repeated_duplex_product else
                     min(slots_per_sheet, max(0, side_total - group_offset))
                 )
             else:
@@ -1266,7 +1492,20 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         xobjects = DictionaryObject()
         content_parts = []
         rendered_placements = []
-        if duplex_groups:
+        sheet_head_rotation = source_rotation
+        if same_form_paired_input:
+            remaining_products = same_form_product_count - sheet_index * same_form_product_capacity
+            products_on_sheet = (
+                same_form_product_capacity
+                if fill_last_sheet
+                else min(same_form_product_capacity, max(0, remaining_products))
+            )
+            placements_on_sheet = products_on_sheet * 2
+            group_start = sheet_index * same_form_product_capacity
+            group_pages = products_on_sheet
+            group_offset = 0
+            remaining = placements_on_sheet
+        elif duplex_groups:
             pair_index = sheet_index // 2
             side_index = sheet_index % 2
             group_start, group_pages = duplex_groups[side_index]
@@ -1274,7 +1513,7 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
             remaining = group_pages - group_offset
             placements_on_sheet = (
                 slots_per_sheet
-                if fill_last_sheet
+                if fill_last_sheet or repeated_duplex_product
                 else min(slots_per_sheet, max(0, remaining))
             )
         else:
@@ -1287,15 +1526,51 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         for slot_index in range(placements_on_sheet):
             row = slot_index // columns
             column = slot_index % columns
-            is_back_sheet = (
+            source_index = None
+            placement_rotation = source_rotation
+            if same_form_paired_input and work_style == "work_and_turn":
+                half_columns = columns // 2
+                product_on_sheet = slot_index // 2
+                side_index = slot_index % 2
+                product_index = sheet_index * same_form_product_capacity + product_on_sheet
+                row = product_on_sheet // half_columns
+                base_column = product_on_sheet % half_columns
+                column = base_column + (half_columns if side_index else 0)
+                source_index = product_index * 2 + side_index
+                if side_index:
+                    placement_rotation = (source_rotation + 180) % 360
+            elif same_form_paired_input and work_style == "work_and_tumble":
+                half_rows = rows // 2
+                product_on_sheet = slot_index // 2
+                side_index = slot_index % 2
+                product_index = sheet_index * same_form_product_capacity + product_on_sheet
+                base_row = product_on_sheet // columns
+                column = product_on_sheet % columns
+                row = base_row + (half_rows if side_index else 0)
+                source_index = product_index * 2 + side_index
+                if side_index:
+                    placement_rotation = (source_rotation + 180) % 360
+            elif same_form_product and work_style == "work_and_turn":
+                source_index = 0 if column < columns / 2 else 1
+                if source_index == 1:
+                    placement_rotation = (source_rotation + 180) % 360
+            elif same_form_product and work_style == "work_and_tumble":
+                source_index = 0 if row < rows / 2 else 1
+                if source_index == 1:
+                    placement_rotation = (source_rotation + 180) % 360
+            if same_form_paired_input and source_index is not None and source_index >= input_pages:
+                source_index %= input_pages
+            is_back_sheet = False if same_form_paired_input else (
                 sheet_index % 2 == 1
                 if duplex_groups
-                else sheet_index % 2 == 1 and double_sided_mode != "none"
+                else sheet_index % 2 == 1 and duplex_enabled
             )
-            if is_back_sheet and double_sided_mode == "horizontal":
+            if is_back_sheet and work_style == "sheetwise":
                 column = columns - 1 - column
-            elif is_back_sheet and double_sided_mode == "vertical":
+                placement_rotation = flipped_rotation(source_rotation, "horizontal")
+            elif is_back_sheet and work_style == "perfecting":
                 row = rows - 1 - row
+                placement_rotation = flipped_rotation(source_rotation, "vertical")
             grows_left = anchor.endswith("right")
             grows_up = anchor.startswith("bottom")
             if anchor == "center" or anchor.endswith("center"):
@@ -1316,29 +1591,28 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
                     placed_height + gap_y
                 )
 
-            source_index = group_start + (
-                (group_offset + slot_index) % group_pages
-            )
+            if source_index is None:
+                if repeat_product and (input_pages == 1 or repeated_duplex_product):
+                    source_index = group_start
+                else:
+                    source_index = group_start + ((group_offset + slot_index) % group_pages)
             source = reader.pages[source_index]
             source_left, source_bottom, source_right, source_top, _ = _imposition_box(source)
             trim_x = x + trim_inset_x
             trim_y = y + trim_inset_y
 
-            if rotate:
-                transform = (
-                    Transformation()
-                    .scale(content_scale)
-                    .rotate(90)
-                    .translate(
-                        trim_x + source_top * content_scale,
-                        trim_y - source_left * content_scale,
-                    )
-                )
-            else:
-                transform = Transformation().scale(content_scale).translate(
-                    trim_x - source_left * content_scale,
-                    trim_y - source_bottom * content_scale,
-                )
+            trim_bounds = _rotated_bounds(
+                source_left,
+                source_bottom,
+                source_right,
+                source_top,
+                placement_rotation,
+                content_scale,
+            )
+            transform = Transformation().scale(content_scale).rotate(placement_rotation).translate(
+                trim_x - trim_bounds[0],
+                trim_y - trim_bounds[1],
+            )
             _place_shared_form(
                 output_page, writer, source, xobjects, content_parts,
                 form_cache, transform,
@@ -1357,6 +1631,16 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
                 "bleed_x": trim_inset_x,
                 "bleed_y": trim_inset_y,
             })
+            metadata_placements.append({
+                "sheet": sheet_index + 1,
+                "side": "back" if is_back_sheet else "front",
+                "page": source_index + 1,
+                "row": row + 1,
+                "column": column + 1,
+                "rotation": placement_rotation,
+            })
+            if slot_index == 0:
+                sheet_head_rotation = placement_rotation
 
         _finish_shared_page(output_page, writer, xobjects, content_parts)
         _apply_sheet_marks(
@@ -1364,6 +1648,7 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
             rendered_placements,
             config,
             label=f"RIPETIZIONE · FOGLIO {sheet_index + 1}",
+            head_direction={0: "top", 90: "left", 180: "bottom", 270: "right"}[sheet_head_rotation],
         )
         writer.add_page(output_page)
 
@@ -1390,6 +1675,11 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         "placed_pages": placements_total,
         "sheets": sheets,
         "double_sided_mode": double_sided_mode,
+        "plate_mode": plate_mode,
+        "duplex_orientation": duplex_orientation,
+        "work_style": work_style,
+        "source_direction": source_direction,
+        "source_rotation": source_rotation,
         "trim_sheet_height": trim_sheet_height,
         "side_page_counts": (
             [duplex_groups[0][1], duplex_groups[1][1]]
@@ -1399,6 +1689,7 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         "sheet_pairs": sheets // 2 if duplex_groups else None,
         "scale": 1.0,
         "shared_resources": use_shared_resources,
+        "placements": metadata_placements,
     }
 
 
@@ -1616,6 +1907,8 @@ def parse_args():
     duplicate_parser.add_argument("--input", required=True)
     duplicate_parser.add_argument("--output", required=True)
     duplicate_parser.add_argument("--copies", required=True, type=int)
+    duplicate_parser.add_argument("--duplex-order", choices=("repeat", "grouped"), default="repeat")
+    duplicate_parser.add_argument("--side-page-counts", default="")
 
     merge_parser = subparsers.add_parser("merge-pages")
     merge_parser.add_argument("--input", required=True, action="append")
@@ -1658,7 +1951,13 @@ def main():
             args.height_mm,
         )
     elif args.command == "duplicate-pages":
-        result = duplicate_pages(args.input, args.output, args.copies)
+        result = duplicate_pages(
+            args.input,
+            args.output,
+            args.copies,
+            args.duplex_order,
+            json.loads(args.side_page_counts) if args.side_page_counts else None,
+        )
     elif args.command == "merge-pages":
         result = merge_pages(args.input, args.output)
     elif args.command == "insert-blanks":
