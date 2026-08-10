@@ -10,8 +10,15 @@ if (root) {
     } else config.work_style = 'single_sided';
   }
   config.binding_method ||= 'saddle_stitch';
+  config.booklet_repeat_mode ||= 'single';
+  config.booklet_repeat_gap_mm ??= 4;
+  config.booklet_up ||= 'auto';
+  config.last_signature_padding ||= 'multiple_of_4';
+  delete config.pages_per_side;
+  delete config.booklet_scheme;
   const elements = {
     name: document.getElementById('impositionName'),
+    code: document.getElementById('impositionCode'),
     folder: document.getElementById('impositionFolder'),
     description: document.getElementById('impositionDescription'),
     sheet: document.getElementById('impositionSheet'),
@@ -70,7 +77,7 @@ if (root) {
         render();
       });
     });
-    [elements.name, elements.folder, elements.description].forEach((input) => input.addEventListener('input', markDirty));
+    [elements.name, elements.code, elements.folder, elements.description].forEach((input) => input.addEventListener('input', markDirty));
     document.querySelectorAll('[data-mode]').forEach((button) => button.addEventListener('click', () => {
       config.layout_mode = button.dataset.mode;
       if (config.layout_mode === 'nesting') {
@@ -126,6 +133,14 @@ if (root) {
     render();
   }
 
+  function previewSignaturePages() {
+    const samplePages = Math.max(1, number(config.sample_pages, 16));
+    const configured = Math.max(4, number(config.signature_pages, 16));
+    if (config.binding_method === 'saddle_stitch') return Math.max(4, Math.ceil(samplePages / 4) * 4);
+    return samplePages < configured && config.last_signature_padding === 'multiple_of_4'
+      ? Math.max(4, Math.ceil(samplePages / 4) * 4) : configured;
+  }
+
   function dimensions() {
     const sourceWidth = Math.max(1, number(config.sample_width_mm, 90));
     const sourceHeight = Math.max(1, number(config.sample_height_mm, 50));
@@ -149,8 +164,30 @@ if (root) {
         rows * footprintHeight + Math.max(0, rows - 1) * gapY <= availableHeight + .001;
       return fits ? columns * rows : -1;
     };
-    const rotate = ['grid', 'booklet'].includes(config.layout_mode) && config.auto_rotate &&
-      capacity(sourceHeight, sourceWidth) > capacity(sourceWidth, sourceHeight);
+    const autoFourUp = [8, 16].includes(previewSignaturePages()) && (
+      config.binding_method === 'saddle_stitch' ||
+      Math.round(number(config.sample_pages, 16)) % Math.max(4, number(config.signature_pages, 16)) === 0
+    );
+    const bookletUp = config.booklet_up === '4' || (config.booklet_up === 'auto' && autoFourUp) ? 4 : 2;
+    const bookletScore = (width, height, up = 2) => {
+      const spineGap = config.binding_method === 'perfect_bound' ? Math.max(0, number(config.gutter_mm)) : 0;
+      const repeatGap = Math.max(0, number(config.booklet_repeat_gap_mm, 4));
+      const formRows = up === 4 ? 2 : 1;
+      const scale = Math.min(1, Math.max(0, (availableWidth - spineGap) / (2 * width)), Math.max(0, availableHeight / (formRows * height)));
+      if (config.booklet_repeat_mode !== 'auto' || scale < .999) return [1, scale];
+      const spreadWidth = 2 * width + spineGap;
+      const columns = Math.max(1, Math.floor((availableWidth + repeatGap) / (spreadWidth + repeatGap)));
+      const rows = Math.max(1, Math.floor((availableHeight + repeatGap) / (formRows * height + repeatGap)));
+      return [columns * rows, scale];
+    };
+    let rotate = false;
+    if (['grid', 'booklet'].includes(config.layout_mode) && config.auto_rotate) {
+      if (config.layout_mode === 'booklet') {
+        const normal = bookletScore(sourceWidth, sourceHeight, bookletUp);
+        const rotated = bookletScore(sourceHeight, sourceWidth, bookletUp);
+        rotate = rotated[0] > normal[0] || (rotated[0] === normal[0] && rotated[1] > normal[1] + .0001);
+      } else rotate = capacity(sourceHeight, sourceWidth) > capacity(sourceWidth, sourceHeight);
+    }
     return {
       sheetWidth, sheetHeight,
       itemWidth: rotate ? sourceHeight : sourceWidth,
@@ -159,7 +196,8 @@ if (root) {
       marginLeft, marginRight, marginTop, marginBottom,
       gapX: Math.max(0, number(config.gap_x_mm, 0)),
       gapY: Math.max(0, number(config.gap_y_mm, 0)),
-      bleed
+      bleed,
+      bookletUp
     };
   }
 
@@ -210,14 +248,17 @@ if (root) {
     for (let index = 0; index < count; index += 1) {
       let row = Math.floor(index / Math.max(columns, 1));
       let column = index % Math.max(columns, 1);
-      if (state.side === 'back' && config.work_style === 'sheetwise') column = columns - 1 - column;
       if (state.side === 'back' && config.work_style === 'perfecting') row = rows - 1 - row;
+      if (String(config.anchor).endsWith('right')) column = columns - 1 - column;
+      if (String(config.anchor).startsWith('bottom')) row = rows - 1 - row;
       let page = (index % pageCount) + 1;
       let rotation = dims.sourceRotation;
       if (config.work_style === 'sheetwise' || config.work_style === 'perfecting') {
         page = state.side === 'front' ? 1 : Math.min(2, pageCount);
         rotation = state.side === 'back'
-          ? flippedRotation(dims.sourceRotation, config.work_style === 'sheetwise' ? 'horizontal' : 'vertical')
+          ? (config.work_style === 'sheetwise'
+            ? oppositeRotation(dims.sourceRotation)
+            : flippedRotation(dims.sourceRotation, 'vertical'))
           : dims.sourceRotation;
       } else if (config.work_style === 'work_and_turn') {
         page = column < columns / 2 ? 1 : Math.min(2, pageCount);
@@ -226,9 +267,14 @@ if (root) {
         page = row < rows / 2 ? 1 : Math.min(2, pageCount);
         if (page === 2) rotation = oppositeRotation(rotation);
       }
+      let placementX = startX + column * (footprintWidth + dims.gapX) + dims.bleed;
+      let placementY = startY + row * (footprintHeight + dims.gapY) + dims.bleed;
+      if (state.side === 'back' && config.work_style === 'sheetwise') {
+        placementX = dims.sheetWidth - placementX - dims.itemWidth;
+      }
       placements.push({
-        x: startX + column * (footprintWidth + dims.gapX) + dims.bleed,
-        y: startY + row * (footprintHeight + dims.gapY) + dims.bleed,
+        x: placementX,
+        y: placementY,
         width: dims.itemWidth,
         height: dims.itemHeight,
         page,
@@ -267,55 +313,106 @@ if (root) {
     return {placements, capacity: placements.length, sheets: Math.ceil(pageCount / Math.max(placements.length, 1)), utilization: 100 * area / usable};
   }
 
-  function bookletSequence(signaturePages, sheetIndex, side, pagesPerSide) {
-    if (pagesPerSide === 4) {
-      const offset = sheetIndex * 4;
-      const pages = side === 'front'
-        ? [signaturePages - offset, 1 + offset, 2 + offset, signaturePages - 1 - offset]
-        : [signaturePages - 2 - offset, 3 + offset, 4 + offset, signaturePages - 3 - offset];
-      return config.binding === 'right' ? pages.reverse() : pages;
+  function bookletPattern(signaturePages, sheetIndex, side, upOverride = null) {
+    let entries;
+    if (upOverride === 4 || (upOverride === null && (config.booklet_up === '4' || (config.booklet_up === 'auto' && [8, 16].includes(signaturePages))))) {
+      if (signaturePages === 8) {
+        entries = side === 'front'
+          ? [[8, 0], [1, 0], [5, 180], [4, 180]]
+          : [[2, 0], [7, 0], [3, 180], [6, 180]];
+      } else if (signaturePages === 16) {
+        const patterns = side === 'front'
+          ? [[[16, 0], [1, 0], [6, 180], [8, 180]], [[14, 0], [3, 0], [11, 180], [6, 180]]]
+          : [[[2, 0], [15, 0], [7, 180], [10, 180]], [[4, 0], [13, 0], [5, 180], [12, 180]]];
+        entries = patterns[sheetIndex % 2];
+      }
     }
-    const left = side === 'front' ? signaturePages - sheetIndex * 2 : sheetIndex * 2 + 2;
-    const right = side === 'front' ? sheetIndex * 2 + 1 : signaturePages - sheetIndex * 2 - 1;
-    return config.binding === 'right' ? [right, left] : [left, right];
+    if (!entries) {
+      const left = side === 'front' ? signaturePages - sheetIndex * 2 : sheetIndex * 2 + 2;
+      const right = side === 'front' ? sheetIndex * 2 + 1 : signaturePages - sheetIndex * 2 - 1;
+      entries = [[left, 0], [right, 0]];
+    }
+    if (config.binding === 'right') entries = [...entries].reverse();
+    return entries.map(([page, rotation]) => ({page, rotation}));
   }
 
   function bookletLayout(dims) {
     const samplePages = Math.max(1, number(config.sample_pages, 16));
+    const configuredSignaturePages = Math.max(4, number(config.signature_pages, 16));
     const signaturePages = config.binding_method === 'saddle_stitch'
-      ? (samplePages > 4 ? Math.ceil(samplePages / 8) * 8 : 4)
-      : number(config.signature_pages, 16);
+      ? Math.max(4, Math.ceil(samplePages / 4) * 4)
+      : (samplePages < configuredSignaturePages && config.last_signature_padding === 'multiple_of_4'
+          ? Math.max(4, Math.ceil(samplePages / 4) * 4)
+          : configuredSignaturePages);
     const availableWidth = dims.sheetWidth - dims.marginLeft - dims.marginRight;
     const availableHeight = dims.sheetHeight - dims.marginTop - dims.marginBottom;
-    const centerGap = number(config.gutter_mm);
-    const fits = (columns, rows) => columns * dims.itemWidth + (columns - 1) * centerGap <= availableWidth + .001 &&
-      rows * dims.itemHeight + (rows - 1) * centerGap <= availableHeight + .001;
-    const pagesPerSide = signaturePages >= 8 && fits(2, 2) ? 4 : 2;
-    const columns = 2;
-    const rows = pagesPerSide === 4 ? 2 : 1;
-    const width = dims.itemWidth;
-    const height = dims.itemHeight;
-    const totalWidth = width * columns + centerGap;
-    const totalHeight = height * rows + centerGap * (rows - 1);
-    const startX = (dims.sheetWidth - totalWidth) / 2;
+    const spineGap = config.binding_method === 'perfect_bound' ? Math.max(0, number(config.gutter_mm)) : 0;
+    const repeatGap = Math.max(0, number(config.booklet_repeat_gap_mm, 4));
+    const scale = Math.min(1, Math.max(0, (availableWidth - spineGap) / (2 * dims.itemWidth)), Math.max(0, availableHeight / dims.itemHeight));
+    const width = dims.itemWidth * scale;
+    const height = dims.itemHeight * scale;
+    const up = dims.bookletUp || 2;
+    const formRows = up === 4 ? 2 : 1;
+    const formHeight = height * formRows;
+    const spreadWidth = width * 2 + spineGap;
+    const repeatColumns = config.booklet_repeat_mode === 'auto' && scale >= .999
+      ? Math.max(1, Math.floor((availableWidth + repeatGap) / (spreadWidth + repeatGap))) : 1;
+    const repeatRows = config.booklet_repeat_mode === 'auto' && scale >= .999
+      ? Math.max(1, Math.floor((availableHeight + repeatGap) / (formHeight + repeatGap))) : 1;
+    const repeatCount = repeatColumns * repeatRows;
+    const totalWidth = spreadWidth * repeatColumns + Math.max(0, repeatColumns - 1) * repeatGap;
+    const totalHeight = formHeight * repeatRows + Math.max(0, repeatRows - 1) * repeatGap;
+    const startX = dims.marginLeft + (availableWidth - totalWidth) / 2;
     const startY = dims.marginTop + (availableHeight - totalHeight) / 2;
     const sheetIndex = 0;
-    const pages = bookletSequence(signaturePages, sheetIndex, state.side, pagesPerSide);
+    const pages = bookletPattern(signaturePages, sheetIndex, state.side, up);
     const creep = 0;
+    const placements = [];
+    const foldLines = [];
+    for (let repeatIndex = 0; repeatIndex < repeatCount; repeatIndex += 1) {
+      const repeatRow = Math.floor(repeatIndex / repeatColumns);
+      const repeatColumn = repeatIndex % repeatColumns;
+      const unitX = startX + repeatColumn * (spreadWidth + repeatGap);
+      const unitY = startY + (repeatRows - 1 - repeatRow) * (formHeight + repeatGap);
+      foldLines.push({direction: 'vertical', position: unitX + width + spineGap / 2, start: unitY, end: unitY + formHeight});
+      if (up === 4) foldLines.push({direction: 'horizontal', position: unitY + height, start: unitX, end: unitX + spreadWidth});
+      pages.forEach((entry, slot) => {
+        const row = up === 4 ? Math.floor(slot / 2) : 0;
+        const column = slot % 2;
+        placements.push({
+          x: unitX + column * (width + spineGap) + (column === 0 ? creep / 2 : -creep / 2),
+          y: unitY + (up === 4 ? (1 - row) * height : 0),
+          width, height,
+          page: entry.page <= samplePages ? entry.page : null,
+          bleed: dims.bleed,
+          rotation: (dims.sourceRotation + entry.rotation) % 360,
+          repeatBooklet: repeatIndex + 1
+        });
+      });
+    }
+    let paddedPages;
+    if (config.binding_method === 'saddle_stitch') paddedPages = signaturePages;
+    else {
+      const completeSignatures = Math.floor(samplePages / configuredSignaturePages);
+      const remaining = samplePages % configuredSignaturePages;
+      paddedPages = completeSignatures * configuredSignaturePages;
+      if (remaining) paddedPages += config.last_signature_padding === 'full'
+        ? configuredSignaturePages : Math.max(4, Math.ceil(remaining / 4) * 4);
+    }
     return {
-      placements: pages.map((page, index) => ({
-        x: startX + (index % columns) * (width + centerGap) + (index % columns === 0 ? creep / 2 : -creep / 2),
-        y: startY + (rows - 1 - Math.floor(index / columns)) * (height + centerGap),
-        width, height, page, bleed: dims.bleed,
-        rotation: (state.side === 'front' ? [0, 0, 180, 180] : [180, 180, 0, 0])[index] + dims.sourceRotation
-      })),
-      capacity: pagesPerSide,
-      sheets: Math.ceil(samplePages / signaturePages) * signaturePages / (pagesPerSide * 2),
+      placements,
+      capacity: up,
+      sheets: paddedPages / 4,
       signaturePages,
-      foldX: dims.sheetWidth / 2,
-      foldY: pagesPerSide === 4 ? dims.sheetHeight / 2 : null,
-      pagesPerSide,
-      pagesPerSheet: pagesPerSide * 2
+      foldLines,
+      pagesPerSide: up,
+      pagesPerSheet: up * 2,
+      repeatCount,
+      repeatColumns,
+      repeatRows,
+      up,
+      formHeight,
+      scale
     };
   }
 
@@ -373,19 +470,40 @@ if (root) {
         return gaps.length ? Math.min(...gaps) : null;
       };
       const fits = (gap) => gap === null || gap + .001 >= 2 * (offsetMm + lengthMm);
+      const segmentIsClear = (index, direction, fixed, start, end) => {
+        const segmentStart = Math.min(start, end); const segmentEnd = Math.max(start, end);
+        return !result.placements.some((item, otherIndex) => {
+          if (otherIndex === index) return false;
+          const other = outerBounds(item);
+          if (direction === 'left' || direction === 'right') {
+            return other.bottom - .001 <= fixed && fixed <= other.top + .001 &&
+              segmentEnd > other.left + .001 && segmentStart < other.right - .001;
+          }
+          return other.left - .001 <= fixed && fixed <= other.right + .001 &&
+            segmentEnd > other.top + .001 && segmentStart < other.bottom - .001;
+        });
+      };
       result.placements.forEach((item, index) => {
         const x = item.x * pxPerMm; const y = item.y * pxPerMm;
         const right = (item.x + item.width) * pxPerMm; const bottom = (item.y + item.height) * pxPerMm;
-        if (fits(nearestGap(index, 'left'))) {
+        if (fits(nearestGap(index, 'left')) &&
+            segmentIsClear(index, 'left', item.y, item.x - offsetMm - lengthMm, item.x - offsetMm) &&
+            segmentIsClear(index, 'left', item.y + item.height, item.x - offsetMm - lengthMm, item.x - offsetMm)) {
           drawLine(x - offset - length, y, x - offset, y); drawLine(x - offset - length, bottom, x - offset, bottom);
         }
-        if (fits(nearestGap(index, 'right'))) {
+        if (fits(nearestGap(index, 'right')) &&
+            segmentIsClear(index, 'right', item.y, item.x + item.width + offsetMm, item.x + item.width + offsetMm + lengthMm) &&
+            segmentIsClear(index, 'right', item.y + item.height, item.x + item.width + offsetMm, item.x + item.width + offsetMm + lengthMm)) {
           drawLine(right + offset, y, right + offset + length, y); drawLine(right + offset, bottom, right + offset + length, bottom);
         }
-        if (fits(nearestGap(index, 'top'))) {
+        if (fits(nearestGap(index, 'top')) &&
+            segmentIsClear(index, 'top', item.x, item.y - offsetMm - lengthMm, item.y - offsetMm) &&
+            segmentIsClear(index, 'top', item.x + item.width, item.y - offsetMm - lengthMm, item.y - offsetMm)) {
           drawLine(x, y - offset - length, x, y - offset); drawLine(right, y - offset - length, right, y - offset);
         }
-        if (fits(nearestGap(index, 'bottom'))) {
+        if (fits(nearestGap(index, 'bottom')) &&
+            segmentIsClear(index, 'bottom', item.x, item.y + item.height + offsetMm, item.y + item.height + offsetMm + lengthMm) &&
+            segmentIsClear(index, 'bottom', item.x + item.width, item.y + item.height + offsetMm, item.y + item.height + offsetMm + lengthMm)) {
           drawLine(x, bottom + offset, x, bottom + offset + length); drawLine(right, bottom + offset, right, bottom + offset + length);
         }
       });
@@ -399,6 +517,23 @@ if (root) {
       const y = result.foldY * pxPerMm;
       drawLine(0, y, length, y, '#087e8b');
       drawLine(result.dims.sheetWidth * pxPerMm - length, y, result.dims.sheetWidth * pxPerMm, y, '#087e8b');
+    }
+    if (marks.fold && result.foldLines) {
+      result.foldLines.forEach((foldLine) => {
+        if (foldLine.direction === 'vertical') {
+          const x = foldLine.position * pxPerMm;
+          const start = foldLine.start * pxPerMm;
+          const end = foldLine.end * pxPerMm;
+          drawLine(x, Math.max(0, start - length), x, start, '#087e8b');
+          drawLine(x, end, x, Math.min(result.dims.sheetHeight * pxPerMm, end + length), '#087e8b');
+        } else {
+          const y = foldLine.position * pxPerMm;
+          const start = foldLine.start * pxPerMm;
+          const end = foldLine.end * pxPerMm;
+          drawLine(Math.max(0, start - length), y, start, y, '#087e8b');
+          drawLine(end, y, Math.min(result.dims.sheetWidth * pxPerMm, end + length), y, '#087e8b');
+        }
+      });
     }
     if (marks.registration) {
       [[14, 14], [result.dims.sheetWidth - 14, 14], [14, result.dims.sheetHeight - 14], [result.dims.sheetWidth - 14, result.dims.sheetHeight - 14]].forEach(([xMm, yMm]) => {
@@ -432,6 +567,7 @@ if (root) {
     document.querySelectorAll('[data-nesting-rotation]').forEach((element) => element.hidden = config.layout_mode !== 'nesting');
     document.querySelectorAll('[data-signature-size]').forEach((element) => element.hidden = config.layout_mode === 'booklet' && config.binding_method === 'saddle_stitch');
     document.querySelectorAll('[data-perfect-bound]').forEach((element) => element.hidden = config.layout_mode === 'booklet' && config.binding_method !== 'perfect_bound');
+    document.querySelectorAll('[data-booklet-repeat-gap]').forEach((element) => element.hidden = config.layout_mode === 'booklet' && config.booklet_repeat_mode !== 'auto');
     document.querySelectorAll('[data-sheet-side]').forEach((button) => {
       button.hidden = button.dataset.sheetSide === 'back' && !showBackPreview;
       button.classList.toggle('active', button.dataset.sheetSide === state.side);
@@ -445,10 +581,22 @@ if (root) {
     const pxPerMm = Math.max(.45, fitScale * state.zoom);
     elements.sheet.style.width = `${result.dims.sheetWidth * pxPerMm}px`;
     elements.sheet.style.height = `${result.dims.sheetHeight * pxPerMm}px`;
-    elements.printable.style.left = `${result.dims.marginLeft * pxPerMm}px`;
-    elements.printable.style.top = `${result.dims.marginTop * pxPerMm}px`;
-    elements.printable.style.width = `${Math.max(0, result.dims.sheetWidth - result.dims.marginLeft - result.dims.marginRight) * pxPerMm}px`;
-    elements.printable.style.height = `${Math.max(0, result.dims.sheetHeight - result.dims.marginTop - result.dims.marginBottom) * pxPerMm}px`;
+    const mirrorSheet = state.side === 'back' && config.work_style === 'sheetwise';
+    const previewMargins = mirrorSheet ? {
+      left: result.dims.marginRight,
+      right: result.dims.marginLeft,
+      top: result.dims.marginTop,
+      bottom: result.dims.marginBottom
+    } : {
+      left: result.dims.marginLeft,
+      right: result.dims.marginRight,
+      top: result.dims.marginTop,
+      bottom: result.dims.marginBottom
+    };
+    elements.printable.style.left = `${previewMargins.left * pxPerMm}px`;
+    elements.printable.style.top = `${previewMargins.top * pxPerMm}px`;
+    elements.printable.style.width = `${Math.max(0, result.dims.sheetWidth - previewMargins.left - previewMargins.right) * pxPerMm}px`;
+    elements.printable.style.height = `${Math.max(0, result.dims.sheetHeight - previewMargins.top - previewMargins.bottom) * pxPerMm}px`;
     elements.placements.replaceChildren();
     result.placements.forEach((item) => {
       const element = document.createElement('div');
@@ -456,7 +604,8 @@ if (root) {
       element.style.left = `${item.x * pxPerMm}px`; element.style.top = `${item.y * pxPerMm}px`;
       element.style.width = `${item.width * pxPerMm}px`; element.style.height = `${item.height * pxPerMm}px`;
       const headSide = pageHeadSide(item.rotation, item.page);
-      element.innerHTML = `<span class="page-head-corner ${headSide}" title="Testa della pagina"></span><span class="page-label">${config.layout_mode === 'booklet' ? `Pag. ${item.page}` : item.page}</span>`;
+      const label = config.layout_mode === 'booklet' ? (item.page ? `Pag. ${item.page}` : 'Bianca') : item.page;
+      element.innerHTML = `<span class="page-head-corner ${headSide}" title="Testa della pagina"></span><span class="page-label">${label}</span>`;
       if (item.bleed > 0) {
         const outline = document.createElement('span'); outline.className = 'bleed-outline';
         outline.style.inset = `${-item.bleed * pxPerMm}px`;
@@ -467,7 +616,8 @@ if (root) {
     renderMarks(result, pxPerMm);
     renderSummary(result);
     renderWarnings(result);
-    elements.previewTitle.textContent = `Foglio 1 · ${state.side === 'front' ? 'Fronte' : 'Retro'}`;
+    const mirroredBack = state.side === 'back' && config.work_style === 'sheetwise';
+    elements.previewTitle.textContent = `Foglio 1 · ${state.side === 'front' ? 'Fronte' : (mirroredBack ? 'Retro · specchio orizzontale + rotazione 180°' : 'Retro')}`;
     elements.sheetSize.textContent = `${result.dims.sheetWidth} × ${result.dims.sheetHeight} mm`;
     const area = result.placements.reduce((sum, item) => sum + item.width * item.height, 0);
     const sheetArea = result.dims.sheetWidth * result.dims.sheetHeight;
@@ -483,16 +633,20 @@ if (root) {
       work_and_turn: 'Volta · forma unica',
       work_and_tumble: 'Voltura testa-piede'
     };
+    const bookletBindingLabels = {saddle_stitch: 'Punto metallico', nested_saddle: 'Gruppi a sella', perfect_bound: 'Brossura'};
     const rows = [
       ['Metodo', modeLabels[config.layout_mode]],
       ['Foglio', `${result.dims.sheetWidth} × ${result.dims.sheetHeight} mm`],
-      ['Stampa', config.layout_mode === 'booklet' ? (config.binding_method === 'perfect_bound' ? 'Brossura' : 'Punto metallico') : workStyleLabels[config.work_style]],
+      ['Stampa', config.layout_mode === 'booklet' ? bookletBindingLabels[config.binding_method] : workStyleLabels[config.work_style]],
       ['Posizioni', String(result.placements.length)],
       ['Fogli stimati', String(result.sheets || 1)],
       ['Abbondanza', config.bleed_mode === 'none' ? 'Nessuna' : `${number(config.bleed_mm)} mm`]
     ];
     if (config.layout_mode === 'grid') rows.splice(2, 0, ['Griglia', `${result.columns} × ${result.rows}`]);
-    if (config.layout_mode === 'booklet') rows.splice(2, 0, ['Segnatura', `${result.pagesPerSide} pagine/lato · ${result.pagesPerSheet} pagine/foglio`]);
+    if (config.layout_mode === 'booklet') {
+      rows.splice(2, 0, ['Forma', `${result.up || 2}-up · ${result.up === 4 ? 'due pieghe' : 'piega centrale'} · ${(result.up || 2) * 2} pagine/foglio`]);
+      rows.splice(3, 0, ['Repeat Booklet', `${result.repeatCount || 1} ${result.repeatCount === 1 ? 'forma' : 'forme'} sul foglio`]);
+    }
     elements.summary.innerHTML = rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('');
   }
 
@@ -502,7 +656,8 @@ if (root) {
     const availableHeight = result.dims.sheetHeight - result.dims.marginTop - result.dims.marginBottom;
     if (availableWidth <= 0 || availableHeight <= 0) warnings.push('I margini non lasciano area utile sul foglio.');
     if (!result.placements.length) warnings.push('Nessun prodotto entra nell’area disponibile.');
-    if (config.layout_mode === 'booklet' && number(config.sample_pages) % (result.pagesPerSheet || 4) !== 0) warnings.push(`Il motore aggiungerà pagine bianche per completare il multiplo di ${result.pagesPerSheet || 4}.`);
+    if (config.layout_mode === 'booklet' && number(config.sample_pages) % 4 !== 0) warnings.push('Il motore aggiungerà pagine bianche per completare il multiplo di 4 richiesto dalla segnatura.');
+    if (config.layout_mode === 'booklet' && result.scale < .999) warnings.push(`La forma booklet viene ridotta al ${Math.round(result.scale * 100)}% per entrare nel foglio.`);
     if (config.layout_mode === 'grid' && config.work_style === 'work_and_turn' && result.columns % 2) warnings.push('La volta richiede un numero pari di colonne.');
     if (config.layout_mode === 'grid' && config.work_style === 'work_and_tumble' && result.rows % 2) warnings.push('La voltura testa-piede richiede un numero pari di righe.');
     if (config.bleed_mode === 'none') warnings.push('La plancia non aggiungerà né controllerà abbondanze.');
@@ -527,7 +682,7 @@ if (root) {
     try {
       const response = await fetch(`/impositions/${root.dataset.templateId}`, {
         method: 'POST', headers: {'Content-Type': 'application/json', Accept: 'application/json'},
-        body: JSON.stringify({name: elements.name.value, folder: elements.folder.value, description: elements.description.value, config})
+        body: JSON.stringify({name: elements.name.value, code: elements.code.value, folder: elements.folder.value, description: elements.description.value, config})
       });
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.error || 'Salvataggio non riuscito');

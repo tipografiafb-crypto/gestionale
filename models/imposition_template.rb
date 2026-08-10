@@ -13,8 +13,8 @@ class ImpositionTemplate < ActiveRecord::Base
 
   validates :code, :name, :folder, presence: true
   validates :code, uniqueness: true, format: {
-    with: /\A[A-Za-z0-9_-]+\z/,
-    message: 'può contenere solo lettere, numeri, trattino e underscore'
+    with: /\A[^\x00-\x1F\x7F]+\z/,
+    message: 'non può contenere caratteri di controllo'
   }
   validates :status, inclusion: {in: STATUSES}
 
@@ -54,12 +54,31 @@ class ImpositionTemplate < ActiveRecord::Base
   end
 
   def automation_reference_names
-    AutomationFlowVersion.includes(:automation_flow).find_each.filter_map do |version|
-      version.automation_flow.name if graph_contains_value?(version.graph, code)
+    AutomationFlowVersion.where(status: %w[published draft])
+                         .includes(:automation_flow).find_each.filter_map do |version|
+      version.automation_flow.name if graph_references_imposition?(version.graph, code)
     end.uniq
   end
 
   private
+
+  def graph_references_imposition?(graph, target)
+    Array(graph['nodes']).any? do |node|
+      next false unless node.is_a?(Hash)
+
+      config = node['config'].is_a?(Hash) ? node['config'] : {}
+      case node['type'].to_s
+      when 'step_repeat'
+        config.fetch('preset_source', 'fixed').to_s != 'variable' &&
+          config['preset_code'].to_s == target
+      when 'set_variables'
+        config.fetch('values', {}).is_a?(Hash) &&
+          config['values'].values.any? { |value| value.to_s == target }
+      else
+        false
+      end
+    end
+  end
 
   def graph_contains_value?(value, target)
     case value

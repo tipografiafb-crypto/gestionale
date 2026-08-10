@@ -8,7 +8,7 @@ require 'securerandom'
 class PrintOrchestrator < Sinatra::Base
   AUTOMATION_FIELD_CATALOG = [
     {path: 'item.sku', label: 'SKU prodotto', type: 'text', category: 'Riga ordine'},
-    {path: 'item.quantity', label: 'Quantità di lavorazione', type: 'number'},
+    {path: 'item.quantity', label: 'Quantità effettiva di produzione', type: 'number'},
     {path: 'item.ordered_quantity', label: 'Quantità ordinata originale', type: 'number'},
     {path: 'item.id', label: 'ID riga ordine', type: 'number', category: 'Riga ordine'},
     {path: 'order.code', label: 'Codice ordine', type: 'text'},

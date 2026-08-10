@@ -581,12 +581,12 @@ class AutomationBootstrap
         node('unsupported_sku', 'approval', 'SKU scatolina non configurato', 840, 560),
         node('copies', 'calculate_copies', 'Quantità della riga', 840, 260, {
           'quantity_field' => 'item.quantity',
-          'output_key' => 'aggregation_copies',
+          'output_key' => 'production_copies',
           'range_overrides' => [],
           'exact_overrides' => {}
         }),
         node('duplicate', 'duplicate_pages', 'Moltiplica pagine', 1090, 260, {
-          'copies_field' => 'variables.aggregation_copies',
+          'copies_field' => 'variables.production_copies',
           'output_kind' => 'aggregation_item_pdf'
         }),
         node('fork_outputs', 'fork', 'Crea entrambe le plance', 1320, 260),
@@ -1585,7 +1585,6 @@ class AutomationNodeExecutor
     override ||= range&.dig('copies')
     copies = (override || quantity).to_i
     copies = 1 if copies < 1
-    output_key = @config['output_key'].presence || 'production_copies'
     {
       'copies' => copies,
       'ordered_quantity' => quantity,
@@ -1595,7 +1594,7 @@ class AutomationNodeExecutor
                           'range'
                         end,
       'context_updates' => {
-        "variables.#{output_key}" => copies,
+        'variables.production_copies' => copies,
         'runtime.step_repeat_copies' => copies
       }
     }
@@ -1646,7 +1645,7 @@ class AutomationNodeExecutor
 
   def execute_duplicate_pages
     source = require_artifact!
-    copies = AutomationEngine.context_value(@context, @config['copies_field']).to_i
+    copies = AutomationEngine.context_value(@context, 'variables.production_copies').to_i
     copies = 1 if copies < 1
     output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
     metadata = run_pdf_tool(
@@ -1654,7 +1653,7 @@ class AutomationNodeExecutor
       '--input', source.full_path,
       '--output', output,
       '--copies', copies.to_s
-    )
+    ).merge('copies_applied' => copies, 'production_copies' => copies)
     artifact = AutomationEngine.create_artifact!(
       run: @run,
       step: @step,
@@ -1872,6 +1871,8 @@ class AutomationNodeExecutor
                      '--output', output
                    )
                  end
+      materialized_copies = members.map { |member| member.automation_artifact.metadata.to_h['copies_applied'].to_i }
+      copies_already_materialized = materialized_copies.all?(&:positive?) && materialized_copies.uniq.one?
       artifact = AutomationEngine.create_artifact!(
         run: @run,
         step: @step,
@@ -1884,7 +1885,9 @@ class AutomationNodeExecutor
           'group_key' => group_key,
           'expected_count' => expected_count,
           'received_count' => members.length,
-          'member_run_ids' => members.map(&:automation_run_id)
+          'member_run_ids' => members.map(&:automation_run_id),
+          'copies_already_materialized' => copies_already_materialized,
+          'copies_applied' => copies_already_materialized ? materialized_copies.first : nil
         )
       )
 
@@ -2156,13 +2159,10 @@ class AutomationNodeExecutor
     input_path = source.full_path
     compatibility_metadata = {}
     duplication_copies = 1
-    copies_value = if @config['copies_field'].present?
-                     AutomationEngine.context_value(@context, @config['copies_field'])
-                   else
-                     @context.dig('runtime', 'step_repeat_copies')
-                   end
-    if copies_value.present?
-      copies = copies_value.to_i
+    copies = AutomationEngine.context_value(@context, 'variables.production_copies').to_i
+    already_materialized = source.metadata.to_h['copies_already_materialized'] == true ||
+                           source.metadata.to_h['copies_applied'].to_i == copies && copies.positive?
+    if copies.positive? && !already_materialized
       copies = 1 if copies < 1
       duplication_copies = copies
       input_path = File.join(run_output_dir, "#{@step.node_key}-legacy-pages-#{SecureRandom.hex(4)}.pdf")

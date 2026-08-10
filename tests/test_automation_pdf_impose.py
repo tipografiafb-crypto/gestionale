@@ -583,6 +583,7 @@ class BookletImpositionTest(unittest.TestCase):
             "margin_top_mm": 10,
             "margin_bottom_mm": 10,
             "signature_pages": 8,
+            "booklet_up": "2",
             "binding": "left",
             "gutter_mm": 0,
             "creep_mm": 0.5,
@@ -600,7 +601,7 @@ class BookletImpositionTest(unittest.TestCase):
         config.update(overrides)
         return config
 
-    def test_eight_page_signature_has_correct_reader_spreads(self):
+    def test_eight_page_saddle_uses_two_up_half_fold_spreads(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "booklet.pdf"
             output = Path(directory) / "imposed.pdf"
@@ -608,10 +609,10 @@ class BookletImpositionTest(unittest.TestCase):
 
             metadata = impose(str(source), str(output), self.config())
 
-            self.assertEqual(2, len(PdfReader(output).pages))
-            self.assertEqual(1, metadata["physical_sheets"])
-            self.assertEqual(4, metadata["pages_per_side"])
-            self.assertEqual("F08-07_li_2x2", metadata["scheme"])
+            self.assertEqual(4, len(PdfReader(output).pages))
+            self.assertEqual(2, metadata["physical_sheets"])
+            self.assertEqual(2, metadata["pages_per_side"])
+            self.assertEqual("JDF_F4-1_half_fold_2up", metadata["scheme"])
             spreads = [
                 item["page"]
                 for item in metadata["placements"]
@@ -619,9 +620,10 @@ class BookletImpositionTest(unittest.TestCase):
             self.assertEqual([8, 1, 2, 7, 6, 3, 4, 5], spreads)
             creep_by_sheet = {
                 sheet: {item["creep_mm"] for item in metadata["placements"] if item["sheet"] == sheet}
-                for sheet in (1,)
+                for sheet in (1, 2)
             }
             self.assertEqual({0.0}, creep_by_sheet[1])
+            self.assertEqual({0.5}, creep_by_sheet[2])
 
     def test_incomplete_signature_is_padded_with_blank_pages(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -633,7 +635,7 @@ class BookletImpositionTest(unittest.TestCase):
 
             self.assertEqual(3, metadata["inserted_blank_pages"])
             self.assertEqual(8, metadata["output_document_pages"])
-            self.assertEqual(2, len(PdfReader(output).pages))
+            self.assertEqual(4, len(PdfReader(output).pages))
 
     def test_perfect_bound_uses_separate_configured_signatures(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -648,8 +650,61 @@ class BookletImpositionTest(unittest.TestCase):
 
             self.assertEqual("perfect_bound", metadata["binding_method"])
             self.assertEqual(3, metadata["signatures"])
-            self.assertEqual(4, metadata["inserted_blank_pages"])
-            self.assertEqual(6, len(PdfReader(output).pages))
+            self.assertEqual(0, metadata["inserted_blank_pages"])
+            self.assertEqual([8, 8, 4], metadata["signature_sizes"])
+            self.assertEqual(10, len(PdfReader(output).pages))
+
+    def test_repeat_booklet_duplicates_the_same_two_up_form(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "booklet.pdf"
+            output = Path(directory) / "repeat.pdf"
+            self.make_pdf(source, 8)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(booklet_repeat_mode="auto", booklet_repeat_gap_mm=4, auto_rotate=False, booklet_up="2"),
+            )
+
+            self.assertEqual(3, metadata["booklet_repeats_per_sheet"])
+            self.assertEqual(6, metadata["positions_per_side"])
+            first_side = [
+                item["page"] for item in metadata["placements"]
+                if item["sheet"] == 1 and item["side"] == "fronte"
+            ]
+            self.assertEqual([8, 1, 8, 1, 8, 1], first_side)
+
+    def test_four_up_uses_fold_pattern_rotations_and_pairing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "booklet.pdf"
+            output = Path(directory) / "four-up.pdf"
+            self.make_pdf(source, 8)
+
+            metadata = impose(str(source), str(output), self.config(booklet_up="4"))
+
+            self.assertEqual(2, len(PdfReader(output).pages))
+            self.assertEqual(4, metadata["pages_per_side"])
+            self.assertEqual("JDF_F8-7_saddle_4up", metadata["scheme"])
+            front = [item for item in metadata["placements"] if item["side"] == "fronte"]
+            back = [item for item in metadata["placements"] if item["side"] == "retro"]
+            self.assertEqual([8, 1, 5, 4], [item["page"] for item in front])
+            self.assertEqual([0, 0, 180, 180], [item["rotation"] for item in front])
+            self.assertEqual([2, 7, 3, 6], [item["page"] for item in back])
+            self.assertEqual([0, 0, 180, 180], [item["rotation"] for item in back])
+
+    def test_nested_saddle_can_complete_last_group_only_to_multiple_of_four(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "book.pdf"
+            output = Path(directory) / "nested.pdf"
+            self.make_pdf(source, 18)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(binding_method="nested_saddle", signature_pages=16),
+            )
+
+            self.assertEqual([16, 4], metadata["signature_sizes"])
+            self.assertEqual(2, metadata["inserted_blank_pages"])
+            self.assertEqual(10, len(PdfReader(output).pages))
 
 
 class InsertBlankPagesTest(unittest.TestCase):

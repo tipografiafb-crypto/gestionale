@@ -6,6 +6,7 @@
 .imposition-studio-heading h1 { font-size: 1.45rem; }
 .imposition-library-toolbar { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; margin-bottom: 14px; }
 .imposition-search { max-width: 440px; }
+.imposition-folder-filter { max-width: 230px; }
 .imposition-library { border-top: 1px solid #dfe3e8; }
 .imposition-library-row { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto; align-items: center; gap: 18px; min-height: 126px; padding: 16px; border-bottom: 1px solid #dfe3e8; background: #fff; }
 .imposition-library-row:hover { background: #fafbfc; }
@@ -58,7 +59,7 @@
 .imposition-printable-area { position: absolute; border: 1px dashed #a9b1ba; pointer-events: none; }
 #impositionPlacements { position: absolute; inset: 0; }
 .imposition-placement { position: absolute; display: grid; place-items: center; overflow: hidden; border: 1px solid #d11678; background: repeating-linear-gradient(135deg, #fde7f3 0, #fde7f3 8px, #fff 8px, #fff 16px); color: #9d174d; font-size: 10px; font-weight: 700; }
-.imposition-placement.back { border-color: #087e8b; color: #0e6972; background: repeating-linear-gradient(135deg, #e7f8fa 0, #e7f8fa 8px, #fff 8px, #fff 16px); }
+.imposition-placement.back { border-color: #087e8b; color: #0e6972; background: repeating-linear-gradient(45deg, #e7f8fa 0, #e7f8fa 8px, #fff 8px, #fff 16px); }
 .imposition-placement .page-head-corner { position: absolute; top: -1px; z-index: 1; width: 28px; height: 28px; pointer-events: none; background: #dbeafe; color: #2563a8; }
 .imposition-placement .page-head-corner::after { content: ''; position: absolute; top: 0; width: 40px; border-top: 2px solid currentColor; }
 .imposition-placement .page-head-corner.left { left: -1px; clip-path: polygon(0 0, 100% 0, 0 100%); }

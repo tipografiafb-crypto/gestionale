@@ -21,6 +21,7 @@ from pypdf.generic import (
     NameObject,
     NumberObject,
     RectangleObject,
+    StreamObject,
 )
 from pypdf._page import PageObject
 from reportlab.graphics.barcode import code128
@@ -128,16 +129,37 @@ def _pdf_number(value: float) -> str:
 
 
 def _page_form_key(page: PageObject) -> tuple:
-    contents = page.get_contents()
-    content_hash = contents.hash_value() if contents is not None else b""
-    resources = page.get("/Resources")
-    resource_hash = resources.hash_value() if resources is not None else b""
+    # Do not call get_contents() here: it decodes the page stream just to build
+    # a cache key and can exceed pypdf's decompression limit on image-heavy PDFs.
+    # A page object is stable during one impose operation, so its identity is a
+    # sufficient cache key and still reuses the form for repeated placements.
     return (
-        content_hash,
-        resource_hash,
+        id(page),
         round(float(page.mediabox.width), 6),
         round(float(page.mediabox.height), 6),
     )
+
+
+def _raw_page_contents(page: PageObject) -> StreamObject:
+    """Copy a single page stream without inflating its compressed payload."""
+    raw_contents = page.get("/Contents")
+    if raw_contents is not None:
+        contents = raw_contents.get_object() if hasattr(raw_contents, "get_object") else raw_contents
+        if isinstance(contents, StreamObject):
+            stream = StreamObject()
+            stream._data = contents._data
+            for key, value in contents.items():
+                if key != "/Length":
+                    stream[NameObject(key)] = value
+            return stream
+
+    # Multi-stream pages are uncommon. Keep the existing decoded fallback for
+    # them; the raw single-stream path handles the large image PDFs that caused
+    # the decompression failure.
+    decoded = page.get_contents()
+    stream = StreamObject()
+    stream._data = decoded.get_data() if decoded is not None else b""
+    return stream
 
 
 def _imposition_box(page: PageObject) -> tuple[float, float, float, float, str]:
@@ -211,9 +233,7 @@ def _shared_page_form(
     if cached is not None:
         return cached
 
-    form = DecodedStreamObject()
-    contents = page.get_contents()
-    form.set_data(contents.get_data() if contents is not None else b"")
+    form = _raw_page_contents(page)
     form[NameObject("/Type")] = NameObject("/XObject")
     form[NameObject("/Subtype")] = NameObject("/Form")
     form[NameObject("/FormType")] = NumberObject(1)
@@ -293,6 +313,7 @@ def _apply_sheet_marks(
     config: dict,
     fold_x: float | None = None,
     fold_y: float | None = None,
+    fold_lines: list[dict] | None = None,
     label: str = "",
     head_direction: str | None = None,
 ) -> None:
@@ -356,6 +377,29 @@ def _apply_sheet_marks(
             return None
         return offset, length
 
+    def segment_is_clear(index, direction, fixed, start, end):
+        """Do not draw a crop mark if its segment enters another product."""
+        segment_start, segment_end = sorted((start, end))
+        for other_index, other in enumerate(placements):
+            if other_index == index:
+                continue
+            other_left, other_bottom, other_right, other_top = outer_bounds(other)
+            if direction in {"left", "right"}:
+                crosses_other = (
+                    other_bottom - 0.01 <= fixed <= other_top + 0.01
+                    and segment_end > other_left + 0.01
+                    and segment_start < other_right - 0.01
+                )
+            else:
+                crosses_other = (
+                    other_left - 0.01 <= fixed <= other_right + 0.01
+                    and segment_end > other_bottom + 0.01
+                    and segment_start < other_top - 0.01
+                )
+            if crosses_other:
+                return False
+        return True
+
     if bool(marks.get("crop", False)):
         for index, placement in enumerate(placements):
             left, bottom, right, top = outer_bounds(placement)
@@ -367,19 +411,35 @@ def _apply_sheet_marks(
             right_mark = mark_dimensions(nearest_gap(index, "right"))
             bottom_mark = mark_dimensions(nearest_gap(index, "bottom"))
             top_mark = mark_dimensions(nearest_gap(index, "top"))
-            if left_mark:
+            if left_mark and segment_is_clear(
+                index, "left", trim_y, trim_x - left_mark[0] - left_mark[1], trim_x - left_mark[0]
+            ) and segment_is_clear(
+                index, "left", trim_top, trim_x - left_mark[0] - left_mark[1], trim_x - left_mark[0]
+            ):
                 local_offset, local_length = left_mark
                 overlay.line(trim_x - local_offset - local_length, trim_y, trim_x - local_offset, trim_y)
                 overlay.line(trim_x - local_offset - local_length, trim_top, trim_x - local_offset, trim_top)
-            if right_mark:
+            if right_mark and segment_is_clear(
+                index, "right", trim_y, trim_right + right_mark[0], trim_right + right_mark[0] + right_mark[1]
+            ) and segment_is_clear(
+                index, "right", trim_top, trim_right + right_mark[0], trim_right + right_mark[0] + right_mark[1]
+            ):
                 local_offset, local_length = right_mark
                 overlay.line(trim_right + local_offset, trim_y, trim_right + local_offset + local_length, trim_y)
                 overlay.line(trim_right + local_offset, trim_top, trim_right + local_offset + local_length, trim_top)
-            if bottom_mark:
+            if bottom_mark and segment_is_clear(
+                index, "bottom", trim_x, trim_y - bottom_mark[0] - bottom_mark[1], trim_y - bottom_mark[0]
+            ) and segment_is_clear(
+                index, "bottom", trim_right, trim_y - bottom_mark[0] - bottom_mark[1], trim_y - bottom_mark[0]
+            ):
                 local_offset, local_length = bottom_mark
                 overlay.line(trim_x, trim_y - local_offset - local_length, trim_x, trim_y - local_offset)
                 overlay.line(trim_right, trim_y - local_offset - local_length, trim_right, trim_y - local_offset)
-            if top_mark:
+            if top_mark and segment_is_clear(
+                index, "top", trim_x, trim_top + top_mark[0], trim_top + top_mark[0] + top_mark[1]
+            ) and segment_is_clear(
+                index, "top", trim_right, trim_top + top_mark[0], trim_top + top_mark[0] + top_mark[1]
+            ):
                 local_offset, local_length = top_mark
                 overlay.line(trim_x, trim_top + local_offset, trim_x, trim_top + local_offset + local_length)
                 overlay.line(trim_right, trim_top + local_offset, trim_right, trim_top + local_length + local_offset)
@@ -404,6 +464,23 @@ def _apply_sheet_marks(
         overlay.setStrokeColor(colors.HexColor("#087e8b"))
         overlay.line(0, fold_y, length, fold_y)
         overlay.line(width - length, fold_y, width, fold_y)
+        overlay.setStrokeColor(colors.black)
+    if bool(marks.get("fold", False)) and fold_lines:
+        overlay.setStrokeColor(colors.HexColor("#087E8B"))
+        for fold_line in fold_lines:
+            direction = str(fold_line.get("direction", "vertical"))
+            if direction == "vertical":
+                x = float(fold_line["position"])
+                start = float(fold_line["start"])
+                end = float(fold_line["end"])
+                overlay.line(x, max(0, start - length), x, start)
+                overlay.line(x, end, x, min(height, end + length))
+            else:
+                y = float(fold_line["position"])
+                start = float(fold_line["start"])
+                end = float(fold_line["end"])
+                overlay.line(max(0, start - length), y, start, y)
+                overlay.line(end, y, min(width, end + length), y)
         overlay.setStrokeColor(colors.black)
 
     if bool(marks.get("color_bars", False)):
@@ -988,14 +1065,14 @@ def _impose_nesting(reader: PdfReader, output_path: str, config: dict) -> dict:
 
 def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
     binding_method = str(config.get("binding_method", "saddle_stitch"))
-    if binding_method not in {"saddle_stitch", "perfect_bound"}:
+    if binding_method not in {"saddle_stitch", "nested_saddle", "perfect_bound"}:
         raise ValueError("Tipo di legatura non valido")
-    if binding_method == "saddle_stitch":
-        signature_pages = max(4, math.ceil(len(reader.pages) / 8) * 8) if len(reader.pages) > 4 else 4
-    else:
-        signature_pages = int(config.get("signature_pages", 16))
-        if signature_pages not in {4, 8, 16, 24, 32} or signature_pages % 4:
-            raise ValueError("La segnatura deve contenere 4, 8, 16, 24 o 32 pagine")
+    configured_signature_pages = int(config.get("signature_pages", 16))
+    if configured_signature_pages < 4 or configured_signature_pages > 64 or configured_signature_pages % 4:
+        raise ValueError("La segnatura deve essere un multiplo di 4 compreso tra 4 e 64 pagine")
+    last_signature_padding = str(config.get("last_signature_padding", "multiple_of_4"))
+    if last_signature_padding not in {"multiple_of_4", "full"}:
+        raise ValueError("Completamento ultima segnatura non valido")
     binding = str(config.get("binding", "left"))
     if binding not in {"left", "right"}:
         raise ValueError("Lato di rilegatura non valido")
@@ -1007,9 +1084,16 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
     margin_top = float(config.get("margin_top_mm", 0)) * mm
     margin_bottom = float(config.get("margin_bottom_mm", 0)) * mm
     gutter = float(config.get("gutter_mm", 0)) * mm
+    repeat_gap = float(config.get("booklet_repeat_gap_mm", 4)) * mm
     max_creep = float(config.get("creep_mm", 0)) * mm
-    if min(margin_left, margin_right, margin_top, margin_bottom, gutter, max_creep) < 0:
+    if min(margin_left, margin_right, margin_top, margin_bottom, gutter, repeat_gap, max_creep) < 0:
         raise ValueError("Margini, canale e creep non possono essere negativi")
+    repeat_mode = str(config.get("booklet_repeat_mode", "single"))
+    if repeat_mode not in {"single", "auto"}:
+        raise ValueError("Modalità Repeat Booklet non valida")
+    requested_up = str(config.get("booklet_up", "auto"))
+    if requested_up not in {"auto", "2", "4"}:
+        raise ValueError("Schema di piega booklet non valido")
 
     source_left, source_bottom, source_right, source_top, _ = _imposition_box(reader.pages[0])
     source_width = source_right - source_left
@@ -1026,141 +1110,231 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
     available_height = sheet_height - margin_top - margin_bottom
     if available_width <= 0 or available_height <= 0:
         raise ValueError("I margini non lasciano spazio per il libretto")
-    requested_4up = (
-        signature_pages >= 8
-        or
-        config.get("booklet_layout") == "4up"
-        or config.get("signature_format") == "4up"
-        or int(config.get("pages_per_side", 0) or 0) == 4
+    # A booklet form is either the classic 2-up half-fold or the documented
+    # 4-up two-fold pattern. Repeat Booklet repeats that complete form; it
+    # never changes the page order inside it.
+    spine_gap = gutter if binding_method == "perfect_bound" else 0.0
+    auto_four_up = (
+        binding_method == "saddle_stitch" and max(4, math.ceil(len(reader.pages) / 4) * 4) in {8, 16}
+    ) or (
+        binding_method != "saddle_stitch" and configured_signature_pages in {8, 16}
+        and len(reader.pages) % configured_signature_pages == 0
     )
-    orientation_candidates = [(0, source_width, source_height), (270, source_height, source_width)]
+    booklet_up = 4 if requested_up == "4" or (requested_up == "auto" and auto_four_up) else 2
+    explicit_four_up_supported = (
+        binding_method == "saddle_stitch"
+        and max(4, math.ceil(len(reader.pages) / 4) * 4) in {8, 16}
+    ) or (
+        binding_method != "saddle_stitch"
+        and configured_signature_pages in {8, 16}
+        and len(reader.pages) % configured_signature_pages == 0
+    )
+    if requested_up == "4" and not explicit_four_up_supported:
+        raise ValueError("Lo schema 4-up è disponibile per segnature da 8 o 16 pagine")
+    form_rows = 2 if booklet_up == 4 else 1
+    orientation_candidates = [(0, source_width, source_height)]
+    if bool(config.get("auto_rotate", True)):
+        orientation_candidates.append((270, source_height, source_width))
     layouts = []
     for rotation, item_width, item_height in orientation_candidates:
-        for columns, rows in ((2, 2), (2, 1)):
-            required_width = columns * item_width + (columns - 1) * gutter
-            required_height = rows * item_height + (rows - 1) * gutter
-            if required_width <= available_width + 0.01 and required_height <= available_height + 0.01:
-                layouts.append((columns * rows, rotation, item_width, item_height, columns, rows))
+        single_scale = min(
+            1.0,
+            max(0.0, (available_width - spine_gap) / (2 * item_width)),
+            max(0.0, available_height / (form_rows * item_height)),
+        )
+        if single_scale <= 0:
+            continue
+        if repeat_mode == "auto" and single_scale >= 1.0 - 1e-6:
+            spread_width = 2 * item_width + spine_gap
+            spread_height = form_rows * item_height
+            repeat_columns = max(1, math.floor((available_width + repeat_gap) / (spread_width + repeat_gap)))
+            repeat_rows = max(1, math.floor((available_height + repeat_gap) / (spread_height + repeat_gap)))
+        else:
+            repeat_columns = 1
+            repeat_rows = 1
+        layouts.append((
+            repeat_columns * repeat_rows,
+            single_scale,
+            rotation,
+            item_width,
+            item_height,
+            repeat_columns,
+            repeat_rows,
+        ))
     if not layouts:
         raise ValueError("Il formato pagina non entra nel foglio")
-    if requested_4up:
-        layouts.sort(key=lambda item: (item[0] == 4, item[1] == 270), reverse=True)
-    else:
-        layouts.sort(key=lambda item: (item[0] == 2, item[1] == 0), reverse=True)
-    capacity, source_rotation, rotated_width, rotated_height, columns, rows = layouts[0]
-    if requested_4up and capacity < 4:
-        raise ValueError("La segnatura richiesta non entra in 4 pagine per lato sul foglio")
-    pages_per_side = capacity
-    pages_per_sheet = pages_per_side * 2
-    if binding_method == "saddle_stitch" and signature_pages < pages_per_sheet:
-        signature_pages = max(4, pages_per_sheet)
-    scale = min(1.0, available_width / (columns * rotated_width + (columns - 1) * gutter), available_height / (rows * rotated_height + (rows - 1) * gutter))
+    layouts.sort(key=lambda item: (item[0], item[1], item[2] == 0), reverse=True)
+    repeat_count, scale, source_rotation, rotated_width, rotated_height, repeat_columns, repeat_rows = layouts[0]
     placed_width = rotated_width * scale
     placed_height = rotated_height * scale
+    scaled_spine_gap = spine_gap
+    spread_width = 2 * placed_width + scaled_spine_gap
+    spread_height = form_rows * placed_height
     if placed_width <= 0 or placed_height <= 0:
         raise ValueError("Il formato pagina non entra nel foglio")
 
     input_pages = len(reader.pages)
-    signature_count = math.ceil(input_pages / signature_pages)
-    padded_pages = signature_count * signature_pages
-    pages = list(reader.pages)
-    while len(pages) < padded_pages:
-        pages.append(PageObject.create_blank_page(width=source_width, height=source_height))
+    signature_specs = []
+    cursor = 0
+    while cursor < input_pages:
+        if binding_method == "saddle_stitch":
+            source_count = input_pages
+            padded_size = max(4, math.ceil(source_count / 4) * 4)
+        else:
+            source_count = min(configured_signature_pages, input_pages - cursor)
+            if source_count < configured_signature_pages and last_signature_padding == "multiple_of_4":
+                padded_size = max(4, math.ceil(source_count / 4) * 4)
+            else:
+                padded_size = configured_signature_pages
+        signature_entries = [
+            {"page": reader.pages[cursor + index], "number": cursor + index + 1}
+            for index in range(source_count)
+        ]
+        while len(signature_entries) < padded_size:
+            signature_entries.append({
+                "page": PageObject.create_blank_page(width=source_width, height=source_height),
+                "number": None,
+            })
+        signature_specs.append({"entries": signature_entries, "size": padded_size})
+        cursor += source_count
+        if binding_method == "saddle_stitch":
+            break
+    signature_count = len(signature_specs)
+    padded_pages = sum(signature["size"] for signature in signature_specs)
+    signature_pages = signature_specs[0]["size"] if binding_method == "saddle_stitch" else configured_signature_pages
 
     writer = PdfWriter()
     form_cache = {}
     metadata_placements = []
-    sheets_per_signature = signature_pages // pages_per_sheet
     physical_sheet = 0
-    for signature_index in range(signature_count):
-        signature_start = signature_index * signature_pages
+
+    def booklet_pattern(signature_size, sheet_index, side_index):
+        """Return (page slot, relative rotation) from the QI+3 fold pattern."""
+        if booklet_up == 4 and signature_size == 8:
+            values = (
+                ((7, 0), (0, 0), (4, 180), (3, 180)),
+                ((1, 0), (6, 0), (2, 180), (5, 180)),
+            )
+            sequence = values[side_index]
+        elif booklet_up == 4 and signature_size == 16:
+            values = (
+                (
+                    ((15, 0), (0, 0), (5, 180), (7, 180)),
+                    ((13, 0), (2, 0), (10, 180), (5, 180)),
+                ),
+                (
+                    ((1, 0), (14, 0), (6, 180), (9, 180)),
+                    ((3, 0), (12, 0), (4, 180), (11, 180)),
+                ),
+            )
+            sequence = values[side_index][sheet_index % 2]
+        else:
+            sequence = (
+                (
+                    (signature_size - 1 - sheet_index * 2, 0),
+                    (sheet_index * 2, 0),
+                ),
+                (
+                    (sheet_index * 2 + 1, 0),
+                    (signature_size - 2 - sheet_index * 2, 0),
+                ),
+            )[side_index]
+        if binding == "right":
+            sequence = tuple(reversed(sequence))
+        return sequence
+
+    for signature_index, signature_spec in enumerate(signature_specs):
+        entries = signature_spec["entries"]
+        current_signature_pages = int(signature_spec["size"])
+        sheets_per_signature = current_signature_pages // (booklet_up * 2)
         for sheet_in_signature in range(sheets_per_signature):
             creep = (
                 max_creep * sheet_in_signature / (sheets_per_signature - 1)
                 if sheets_per_signature > 1 else 0
             )
-            if pages_per_side == 4:
-                sequences = (
-                    (
-                        signature_start + signature_pages - 1 - sheet_in_signature * 4,
-                        signature_start + sheet_in_signature * 4,
-                        signature_start + sheet_in_signature * 4 + 1,
-                        signature_start + signature_pages - 2 - sheet_in_signature * 4,
-                    ),
-                    (
-                        signature_start + signature_pages - 3 - sheet_in_signature * 4,
-                        signature_start + sheet_in_signature * 4 + 2,
-                        signature_start + sheet_in_signature * 4 + 3,
-                        signature_start + signature_pages - 4 - sheet_in_signature * 4,
-                    ),
-                )
-            else:
-                sequences = (
-                    (signature_start + signature_pages - 1, signature_start),
-                    (signature_start + 1, signature_start + signature_pages - 2),
-                )
-            if binding == "right":
-                sequences = tuple(tuple(reversed(sequence)) for sequence in sequences)
-
+            sequences = (
+                booklet_pattern(current_signature_pages, sheet_in_signature, 0),
+                booklet_pattern(current_signature_pages, sheet_in_signature, 1),
+            )
             physical_sheet += 1
             for side_index, sequence in enumerate(sequences):
                 output_page = PageObject.create_blank_page(width=sheet_width, height=sheet_height)
                 xobjects = DictionaryObject()
                 content_parts = []
                 render_placements = []
-                total_width = placed_width * columns + gutter * (columns - 1)
-                total_height = placed_height * rows + gutter * (rows - 1)
+                fold_lines = []
+                total_width = repeat_columns * spread_width + max(0, repeat_columns - 1) * repeat_gap
+                total_height = repeat_rows * spread_height + max(0, repeat_rows - 1) * repeat_gap
                 start_x = margin_left + (available_width - total_width) / 2
                 start_y = margin_bottom + (available_height - total_height) / 2
                 side_name = "FRONTE" if side_index == 0 else "RETRO"
-                for position, source_index in enumerate(sequence):
-                    row = position // columns
-                    column = position % columns
-                    toward_spine = creep / 2 if column < columns / 2 else -creep / 2
-                    x = start_x + column * (placed_width + gutter) + toward_spine
-                    y = start_y + (rows - 1 - row) * (placed_height + gutter)
-                    source = pages[source_index]
-                    page_left, page_bottom, page_right, page_top, _ = _imposition_box(source)
-                    relative_rotation = (
-                        (0, 0, 180, 180) if side_index == 0 else (180, 180, 0, 0)
-                    )[position] if pages_per_side == 4 else 0
-                    placement_rotation = (source_rotation + relative_rotation) % 360
-                    rotated_bounds = _rotated_bounds(
-                        page_left, page_bottom, page_right, page_top,
-                        placement_rotation, scale,
-                    )
-                    transform = Transformation().scale(scale).rotate(placement_rotation).translate(
-                        x - rotated_bounds[0], y - rotated_bounds[1],
-                    )
-                    _place_shared_form(
-                        output_page, writer, source, xobjects, content_parts,
-                        form_cache, transform,
-                    )
-                    render_placements.append({
-                        "x": x, "y": y,
-                        "width": placed_width, "height": placed_height,
+                for repeat_index in range(repeat_count):
+                    repeat_row = repeat_index // repeat_columns
+                    repeat_column = repeat_index % repeat_columns
+                    unit_x = start_x + repeat_column * (spread_width + repeat_gap)
+                    unit_y = start_y + (repeat_rows - 1 - repeat_row) * (spread_height + repeat_gap)
+                    fold_lines.append({
+                        "direction": "vertical",
+                        "position": unit_x + placed_width + scaled_spine_gap / 2,
+                        "start": unit_y,
+                        "end": unit_y + spread_height,
                     })
-                    metadata_placements.append({
-                        "page": source_index + 1 if source_index < input_pages else None,
-                        "sheet": physical_sheet,
-                        "side": side_name.lower(),
-                        "position": f"r{row + 1}c{column + 1}",
-                        "row": row + 1,
-                        "column": column + 1,
-                        "rotation": placement_rotation,
-                        "x_mm": round(x / mm, 4),
-                        "y_mm": round(y / mm, 4),
-                        "width_mm": round(placed_width / mm, 4),
-                        "height_mm": round(placed_height / mm, 4),
-                        "creep_mm": round(creep / mm, 4),
-                    })
+                    if booklet_up == 4:
+                        fold_lines.append({
+                            "direction": "horizontal",
+                            "position": unit_y + placed_height,
+                            "start": unit_x,
+                            "end": unit_x + spread_width,
+                        })
+                    for slot, (local_source_index, relative_rotation) in enumerate(sequence):
+                        row = slot // 2 if booklet_up == 4 else 0
+                        column = slot % 2
+                        toward_spine = creep / 2 if column == 0 else -creep / 2
+                        x = unit_x + column * (placed_width + scaled_spine_gap) + toward_spine
+                        y = unit_y + (form_rows - 1 - row) * placed_height
+                        entry = entries[local_source_index]
+                        source = entry["page"]
+                        page_left, page_bottom, page_right, page_top, _ = _imposition_box(source)
+                        placement_rotation = (source_rotation + relative_rotation) % 360
+                        rotated_bounds = _rotated_bounds(
+                            page_left, page_bottom, page_right, page_top,
+                            placement_rotation, scale,
+                        )
+                        transform = Transformation().scale(scale).rotate(placement_rotation).translate(
+                            x - rotated_bounds[0], y - rotated_bounds[1],
+                        )
+                        _place_shared_form(
+                            output_page, writer, source, xobjects, content_parts,
+                            form_cache, transform,
+                            # Source PDFs can already contain crop marks outside
+                            # their TrimBox. They must not invade adjacent pages.
+                            clip_rect=(x, y, placed_width, placed_height),
+                        )
+                        render_placements.append({
+                            "x": x, "y": y,
+                            "width": placed_width, "height": placed_height,
+                        })
+                        metadata_placements.append({
+                            "page": entry["number"],
+                            "sheet": physical_sheet,
+                            "side": side_name.lower(),
+                            "repeat_booklet": repeat_index + 1,
+                            "position": f"r{repeat_row * form_rows + row + 1}c{repeat_column * 2 + column + 1}",
+                            "row": repeat_row * form_rows + row + 1,
+                            "column": repeat_column * 2 + column + 1,
+                            "rotation": placement_rotation,
+                            "x_mm": round(x / mm, 4),
+                            "y_mm": round(y / mm, 4),
+                            "width_mm": round(placed_width / mm, 4),
+                            "height_mm": round(placed_height / mm, 4),
+                            "creep_mm": round(creep / mm, 4),
+                        })
                 _finish_shared_page(output_page, writer, xobjects, content_parts)
                 _apply_sheet_marks(
                     output_page,
                     render_placements,
                     config,
-                    fold_x=sheet_width / 2,
-                    fold_y=sheet_height / 2 if pages_per_side == 4 else None,
+                    fold_lines=fold_lines,
                     label=(
                         f"LIBRETTO · SEGNATURA {signature_index + 1} · "
                         f"FOGLIO {sheet_in_signature + 1} · {side_name}"
@@ -1187,12 +1361,20 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
         "scale": round(scale, 6),
         "binding": binding,
         "binding_method": binding_method,
-        "pages_per_side": pages_per_side,
-        "pages_per_sheet": pages_per_sheet,
-        "columns": columns,
-        "rows": rows,
+        "pages_per_side": booklet_up,
+        "pages_per_sheet": booklet_up * 2,
+        "positions_per_side": repeat_count * 2,
+        "columns": repeat_columns * 2,
+        "rows": repeat_rows,
         "source_rotation": source_rotation,
-        "scheme": "F08-07_li_2x2" if pages_per_side == 4 else "F04-02_2up",
+        "scheme": "JDF_F8-7_saddle_4up" if booklet_up == 4 else "JDF_F4-1_half_fold_2up",
+        "booklet_up": booklet_up,
+        "booklet_repeat_mode": repeat_mode,
+        "booklet_repeats_per_sheet": repeat_count,
+        "repeat_columns": repeat_columns,
+        "repeat_rows": repeat_rows,
+        "signature_sizes": [int(signature["size"]) for signature in signature_specs],
+        "last_signature_padding": last_signature_padding,
         "creep_mm": float(config.get("creep_mm", 0)),
         "placements": metadata_placements,
     }

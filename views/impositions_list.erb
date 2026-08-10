@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="/imposition_studio.css?v=20260808-2">
+<link rel="stylesheet" href="/imposition_studio.css?v=20260810-4">
 
 <% if params[:text].present? %>
   <div class="alert alert-<%= params[:msg] == 'error' ? 'danger' : 'success' %> alert-dismissible fade show">
@@ -29,6 +29,15 @@
     <button class="btn btn-outline-secondary" data-imposition-filter="draft">Bozze</button>
     <button class="btn btn-outline-secondary" data-imposition-filter="archived">Archiviate</button>
   </div>
+  <div class="input-group imposition-folder-filter">
+    <span class="input-group-text"><i class="fas fa-folder"></i></span>
+    <select class="form-select" id="impositionFolderFilter" aria-label="Filtra per cartella">
+      <option value="all">Tutte le cartelle</option>
+      <% @imposition_folders.each do |folder| %>
+        <option value="<%= Rack::Utils.escape_html(folder) %>"><%= Rack::Utils.escape_html(folder) %></option>
+      <% end %>
+    </select>
+  </div>
   <div class="ms-auto small text-muted"><%= @imposition_templates.size %> plance</div>
 </div>
 
@@ -38,6 +47,7 @@
     <% mode_labels = {'grid' => 'Ripetizione', 'nesting' => 'Nesting', 'booklet' => 'Libretto'} %>
     <article class="imposition-library-row"
              data-search="<%= Rack::Utils.escape_html([template.name, template.code, template.folder].join(' ').downcase) %>"
+             data-folder="<%= Rack::Utils.escape_html(template.folder) %>"
              data-status="<%= template.status %>">
       <div class="imposition-library-thumb" aria-hidden="true">
         <div class="mini-sheet mini-sheet-<%= config['layout_mode'] || 'grid' %>">
@@ -128,12 +138,16 @@
 <script>
   (() => {
     const search = document.getElementById('impositionLibrarySearch');
+    const folderFilter = document.getElementById('impositionFolderFilter');
     const rows = [...document.querySelectorAll('.imposition-library-row')];
     let status = 'all';
     function applyFilters() {
       const query = search.value.trim().toLowerCase();
+      const folder = folderFilter.value;
       rows.forEach((row) => {
-        row.hidden = !(row.dataset.search.includes(query) && (status === 'all' || row.dataset.status === status));
+        row.hidden = !(row.dataset.search.includes(query) &&
+          (status === 'all' || row.dataset.status === status) &&
+          (folder === 'all' || row.dataset.folder === folder));
       });
     }
     search.addEventListener('input', applyFilters);
@@ -145,5 +159,6 @@
         applyFilters();
       });
     });
+    folderFilter.addEventListener('change', applyFilters);
   })();
 </script>

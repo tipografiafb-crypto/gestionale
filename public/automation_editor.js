@@ -63,7 +63,6 @@
       exact_overrides: {'25': 26, '50': 52, '100': 105}
     },
     duplicate_pages: {
-      copies_field: 'variables.production_copies',
       output_kind: 'multipage_pdf'
     },
     pdf_label: {
@@ -283,16 +282,6 @@
       {key: 'output_kind', label: 'Tipo risultato', default: 'unit_pdf'}
     ],
     duplicate_pages: [
-      {
-        key: 'copies_field',
-        label: 'Numero di pagine da',
-        choices: [
-          ['variables.production_copies', 'Copie calcolate'],
-          ['item.quantity', 'Quantità di lavorazione'],
-          ['item.ordered_quantity', 'Quantità ordinata originale']
-        ],
-        default: 'variables.production_copies'
-      },
       {key: 'output_kind', label: 'Tipo risultato', default: 'multipage_pdf'}
     ],
     pdf_label: [
@@ -715,7 +704,7 @@
   function choicesFor(value) {
     if (value === 'quantity_fields') {
       return [
-        ['item.quantity', 'Quantità di lavorazione'],
+        ['item.quantity', 'Quantità effettiva di produzione'],
         ['item.ordered_quantity', 'Quantità ordinata originale']
       ];
     }
@@ -807,10 +796,10 @@
           produced_by: node.label || node.id
         }));
       }
-      if (node.type === 'calculate_copies' && node.config?.output_key) {
+      if (node.type === 'calculate_copies') {
         fields.push({
-          path: `variables.${node.config.output_key}`,
-          label: node.config.output_key,
+          path: 'variables.production_copies',
+          label: 'production_copies',
           type: 'number',
           category: 'Variabili del flusso',
           produced_by: node.label || node.id
@@ -1395,7 +1384,6 @@
       const overrides = [...exactOverrides, ...rangeOverrides].join('\n');
       nodeConfigForm.append(
         configField({label: 'Quantità di partenza', choices: 'quantity_fields'}, node.config?.quantity_field || 'item.quantity', 'quantity_field'),
-        configField({label: 'Nome del risultato'}, node.config?.output_key || 'production_copies', 'output_key'),
         configField({
           label: 'Eccezioni quantità',
           multiline: true,
@@ -1528,7 +1516,7 @@
       });
       return {
         quantity_field: configValue('quantity_field') || 'item.quantity',
-        output_key: configValue('output_key') || 'production_copies',
+        output_key: 'production_copies',
         range_overrides: rangeOverrides,
         exact_overrides: exactOverrides
       };
@@ -1573,6 +1561,16 @@
       return {
         quantity_field: configValue('blank_quantity_field') || 'item.quantity',
         rules
+      };
+    }
+
+    if (node.type === 'step_repeat') {
+      const presetSource = configValue('preset_source') || 'fixed';
+      return {
+        preset_source: presetSource,
+        preset_code: presetSource === 'variable' ? '' : configValue('preset_code'),
+        preset_variable: configValue('preset_variable') || 'variables.imposition_preset',
+        output_kind: configValue('output_kind') || 'imposition_pdf'
       };
     }
 

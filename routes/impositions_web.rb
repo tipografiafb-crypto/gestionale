@@ -2,6 +2,30 @@ require 'open3'
 require 'tempfile'
 
 class PrintOrchestrator < Sinatra::Base
+  def replace_imposition_code(value, old_code, new_code)
+    case value
+    when Hash
+      value.each_with_object({}) do |(key, nested), result|
+        result[key] = replace_imposition_code(nested, old_code, new_code)
+      end
+    when Array
+      value.map { |nested| replace_imposition_code(nested, old_code, new_code) }
+    else
+      value.to_s == old_code ? new_code : value
+    end
+  end
+
+  def rename_imposition_references(old_code, new_code)
+    AutomationFlowVersion.find_each do |version|
+      graph = replace_imposition_code(version.graph, old_code, new_code)
+      version.update_columns(graph: graph, updated_at: Time.current) if graph != version.graph
+    end
+    old_preset = AutomationPreset.find_by(kind: 'imposition', code: old_code)
+    if old_preset
+      old_preset.update!(code: new_code)
+    end
+  end
+
   get '/impositions' do
     @imposition_templates = ImpositionTemplate.includes(:active_version, :versions).ordered
     @imposition_folders = @imposition_templates.map(&:folder).uniq.sort
@@ -59,7 +83,14 @@ class PrintOrchestrator < Sinatra::Base
     template = ImpositionTemplate.find(params[:id])
     payload = JSON.parse(request.body.read)
     config = ImpositionConfig.normalize(payload['config'])
+    new_code = payload['code'].to_s.strip.upcase
+    raise ArgumentError, 'Codice non valido' if new_code.empty? || new_code.match?(/[\x00-\x1F\x7F]/)
+    if new_code != template.code && ImpositionTemplate.exists?(code: new_code)
+      raise ArgumentError, "Il codice #{new_code} è già utilizzato"
+    end
+    rename_imposition_references(template.code, new_code) if new_code != template.code
     template.update!(
+      code: new_code,
       name: payload['name'].to_s.strip,
       folder: payload['folder'].to_s.strip.presence || 'Principale',
       description: payload['description'].to_s.strip
