@@ -164,28 +164,29 @@ if (root) {
         rows * footprintHeight + Math.max(0, rows - 1) * gapY <= availableHeight + .001;
       return fits ? columns * rows : -1;
     };
-    const autoFourUp = [8, 16].includes(previewSignaturePages()) && (
-      config.binding_method === 'saddle_stitch' ||
-      Math.round(number(config.sample_pages, 16)) % Math.max(4, number(config.signature_pages, 16)) === 0
-    );
-    const bookletUp = config.booklet_up === '4' || (config.booklet_up === 'auto' && autoFourUp) ? 4 : 2;
-    const bookletScore = (width, height, up = 2) => {
+    const bookletUp = bookletFourUp(previewSignaturePages()) ? 4 : 2;
+    // Booklet never turns the page on its own: it turns the whole form, so the
+    // candidates swap the sheet room, not the page. Mirrors _impose_booklet.
+    const bookletScore = (formRotation, up = 2) => {
       const spineGap = config.binding_method === 'perfect_bound' ? Math.max(0, number(config.gutter_mm)) : 0;
       const repeatGap = Math.max(0, number(config.booklet_repeat_gap_mm, 4));
       const formRows = up === 4 ? 2 : 1;
-      const scale = Math.min(1, Math.max(0, (availableWidth - spineGap) / (2 * width)), Math.max(0, availableHeight / (formRows * height)));
+      const headGap = up === 4 ? Math.max(0, number(config.head_trim_mm, 6)) : 0;
+      const spanX = formRotation ? availableHeight : availableWidth;
+      const spanY = formRotation ? availableWidth : availableHeight;
+      const scale = Math.min(1, Math.max(0, (spanX - spineGap) / (2 * sourceWidth)), Math.max(0, (spanY - headGap) / (formRows * sourceHeight)));
       if (config.booklet_repeat_mode !== 'auto' || scale < .999) return [1, scale];
-      const spreadWidth = 2 * width + spineGap;
-      const columns = Math.max(1, Math.floor((availableWidth + repeatGap) / (spreadWidth + repeatGap)));
-      const rows = Math.max(1, Math.floor((availableHeight + repeatGap) / (formRows * height + repeatGap)));
+      const spreadWidth = 2 * sourceWidth + spineGap;
+      const columns = Math.max(1, Math.floor((spanX + repeatGap) / (spreadWidth + repeatGap)));
+      const rows = Math.max(1, Math.floor((spanY + repeatGap) / (formRows * sourceHeight + headGap + repeatGap)));
       return [columns * rows, scale];
     };
     let rotate = false;
     if (['grid', 'booklet'].includes(config.layout_mode) && config.auto_rotate) {
       if (config.layout_mode === 'booklet') {
-        const normal = bookletScore(sourceWidth, sourceHeight, bookletUp);
-        const rotated = bookletScore(sourceHeight, sourceWidth, bookletUp);
-        rotate = rotated[0] > normal[0] || (rotated[0] === normal[0] && rotated[1] > normal[1] + .0001);
+        const upright = bookletScore(0, bookletUp);
+        const turned = bookletScore(90, bookletUp);
+        rotate = turned[0] > upright[0] || (turned[0] === upright[0] && turned[1] > upright[1] + .0001);
       } else rotate = capacity(sourceHeight, sourceWidth) > capacity(sourceWidth, sourceHeight);
     }
     return {
@@ -313,26 +314,36 @@ if (root) {
     return {placements, capacity: placements.length, sheets: Math.ceil(pageCount / Math.max(placements.length, 1)), utilization: 100 * area / usable};
   }
 
+  function bookletFourUp(signaturePages, upOverride = null) {
+    if (signaturePages % 8 !== 0) return false;
+    if (upOverride !== null) return upOverride === 4;
+    return config.booklet_up === '4' || (config.booklet_up === 'auto' && [8, 16].includes(signaturePages));
+  }
+
+  // Mirrors _impose_booklet in tools/automation_pdf/cli.py: a 4-up form is the
+  // two-fold section of 8 pages, and a signature of N pages is N/8 of those
+  // nested one inside the other.
   function bookletPattern(signaturePages, sheetIndex, side, upOverride = null) {
     let entries;
-    if (upOverride === 4 || (upOverride === null && (config.booklet_up === '4' || (config.booklet_up === 'auto' && [8, 16].includes(signaturePages))))) {
-      if (signaturePages === 8) {
-        entries = side === 'front'
-          ? [[8, 0], [1, 0], [5, 180], [4, 180]]
-          : [[2, 0], [7, 0], [3, 180], [6, 180]];
-      } else if (signaturePages === 16) {
-        const patterns = side === 'front'
-          ? [[[16, 0], [1, 0], [6, 180], [8, 180]], [[14, 0], [3, 0], [11, 180], [6, 180]]]
-          : [[[2, 0], [15, 0], [7, 180], [10, 180]], [[4, 0], [13, 0], [5, 180], [12, 180]]];
-        entries = patterns[sheetIndex % 2];
-      }
-    }
-    if (!entries) {
+    if (bookletFourUp(signaturePages, upOverride)) {
+      const base = 4 * sheetIndex;
+      const s = [
+        base + 1, base + 2, base + 3, base + 4,
+        signaturePages - base - 3, signaturePages - base - 2,
+        signaturePages - base - 1, signaturePages - base
+      ];
+      entries = side === 'front'
+        ? [[s[7], 0], [s[0], 0], [s[4], 180], [s[3], 180]]
+        : [[s[1], 0], [s[6], 0], [s[2], 180], [s[5], 180]];
+    } else {
       const left = side === 'front' ? signaturePages - sheetIndex * 2 : sheetIndex * 2 + 2;
       const right = side === 'front' ? sheetIndex * 2 + 1 : signaturePages - sheetIndex * 2 - 1;
       entries = [[left, 0], [right, 0]];
     }
-    if (config.binding === 'right') entries = [...entries].reverse();
+    // Right-bound work mirrors the columns, never the rows: those are the fold.
+    if (config.binding === 'right') {
+      entries = entries.flatMap((item, index) => (index % 2 ? [] : [entries[index + 1], item]));
+    }
     return entries.map(([page, rotation]) => ({page, rotation}));
   }
 
@@ -348,22 +359,49 @@ if (root) {
     const availableHeight = dims.sheetHeight - dims.marginTop - dims.marginBottom;
     const spineGap = config.binding_method === 'perfect_bound' ? Math.max(0, number(config.gutter_mm)) : 0;
     const repeatGap = Math.max(0, number(config.booklet_repeat_gap_mm, 4));
-    const scale = Math.min(1, Math.max(0, (availableWidth - spineGap) / (2 * dims.itemWidth)), Math.max(0, availableHeight / dims.itemHeight));
-    const width = dims.itemWidth * scale;
-    const height = dims.itemHeight * scale;
-    const up = dims.bookletUp || 2;
+    const up = bookletFourUp(signaturePages) ? 4 : 2;
     const formRows = up === 4 ? 2 : 1;
-    const formHeight = height * formRows;
+    // Head-to-head pages are separated by the head trim, cut open after binding.
+    const headGap = up === 4 ? Math.max(0, number(config.head_trim_mm, 6)) : 0;
+    // The page never turns on its own: which of its edges carries the spine is
+    // the product. To use the sheet the other way round the whole form turns.
+    const formRotation = dims.sourceRotation ? 90 : 0;
+    const spanX = formRotation ? availableHeight : availableWidth;
+    const spanY = formRotation ? availableWidth : availableHeight;
+    const itemWidth = formRotation ? dims.itemHeight : dims.itemWidth;
+    const itemHeight = formRotation ? dims.itemWidth : dims.itemHeight;
+    const scale = Math.min(
+      1,
+      Math.max(0, (spanX - spineGap) / (2 * itemWidth)),
+      Math.max(0, (spanY - headGap) / (formRows * itemHeight))
+    );
+    const width = itemWidth * scale;
+    const height = itemHeight * scale;
+    const formHeight = height * formRows + headGap;
     const spreadWidth = width * 2 + spineGap;
     const repeatColumns = config.booklet_repeat_mode === 'auto' && scale >= .999
-      ? Math.max(1, Math.floor((availableWidth + repeatGap) / (spreadWidth + repeatGap))) : 1;
+      ? Math.max(1, Math.floor((spanX + repeatGap) / (spreadWidth + repeatGap))) : 1;
     const repeatRows = config.booklet_repeat_mode === 'auto' && scale >= .999
-      ? Math.max(1, Math.floor((availableHeight + repeatGap) / (formHeight + repeatGap))) : 1;
+      ? Math.max(1, Math.floor((spanY + repeatGap) / (formHeight + repeatGap))) : 1;
     const repeatCount = repeatColumns * repeatRows;
     const totalWidth = spreadWidth * repeatColumns + Math.max(0, repeatColumns - 1) * repeatGap;
     const totalHeight = formHeight * repeatRows + Math.max(0, repeatRows - 1) * repeatGap;
-    const startX = dims.marginLeft + (availableWidth - totalWidth) / 2;
-    const startY = dims.marginTop + (availableHeight - totalHeight) / 2;
+    const footprintWidth = formRotation ? totalHeight : totalWidth;
+    const footprintHeight = formRotation ? totalWidth : totalHeight;
+    const formX = dims.marginLeft + (availableWidth - footprintWidth) / 2;
+    const formY = dims.marginTop + (availableHeight - footprintHeight) / 2;
+    // Map a rectangle from the form frame onto the sheet. Preview coordinates
+    // run top-down, so a turned form reads clockwise here.
+    const toSheet = (u, v, w, h) => (formRotation
+      ? {x: formX + v, y: formY + (totalWidth - u - w), width: h, height: w}
+      : {x: formX + u, y: formY + v, width: w, height: h});
+    const foldToSheet = (direction, position, start, end) => (formRotation
+      ? (direction === 'vertical'
+          ? {direction: 'horizontal', position: formY + totalWidth - position, start: formX + start, end: formX + end}
+          : {direction: 'vertical', position: formX + position, start: formY + totalWidth - end, end: formY + totalWidth - start})
+      : (direction === 'vertical'
+          ? {direction: 'vertical', position: formX + position, start: formY + start, end: formY + end}
+          : {direction: 'horizontal', position: formY + position, start: formX + start, end: formX + end}));
     const sheetIndex = 0;
     const pages = bookletPattern(signaturePages, sheetIndex, state.side, up);
     const creep = 0;
@@ -372,20 +410,22 @@ if (root) {
     for (let repeatIndex = 0; repeatIndex < repeatCount; repeatIndex += 1) {
       const repeatRow = Math.floor(repeatIndex / repeatColumns);
       const repeatColumn = repeatIndex % repeatColumns;
-      const unitX = startX + repeatColumn * (spreadWidth + repeatGap);
-      const unitY = startY + (repeatRows - 1 - repeatRow) * (formHeight + repeatGap);
-      foldLines.push({direction: 'vertical', position: unitX + width + spineGap / 2, start: unitY, end: unitY + formHeight});
-      if (up === 4) foldLines.push({direction: 'horizontal', position: unitY + height, start: unitX, end: unitX + spreadWidth});
+      const unitX = repeatColumn * (spreadWidth + repeatGap);
+      const unitY = repeatRow * (formHeight + repeatGap);
+      foldLines.push(foldToSheet('vertical', unitX + width + spineGap / 2, unitY, unitY + formHeight));
+      if (up === 4) foldLines.push(foldToSheet('horizontal', unitY + height + headGap / 2, unitX, unitX + spreadWidth));
       pages.forEach((entry, slot) => {
         const row = up === 4 ? Math.floor(slot / 2) : 0;
         const column = slot % 2;
         placements.push({
-          x: unitX + column * (width + spineGap) + (column === 0 ? creep / 2 : -creep / 2),
-          y: unitY + (up === 4 ? (1 - row) * height : 0),
-          width, height,
+          ...toSheet(
+            unitX + column * (width + spineGap) + (column === 0 ? creep / 2 : -creep / 2),
+            unitY + row * (height + headGap),
+            width, height
+          ),
           page: entry.page <= samplePages ? entry.page : null,
           bleed: dims.bleed,
-          rotation: (dims.sourceRotation + entry.rotation) % 360,
+          rotation: (formRotation + entry.rotation) % 360,
           repeatBooklet: repeatIndex + 1
         });
       });

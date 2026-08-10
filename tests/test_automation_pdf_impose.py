@@ -1,3 +1,4 @@
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -690,6 +691,172 @@ class BookletImpositionTest(unittest.TestCase):
             self.assertEqual([0, 0, 180, 180], [item["rotation"] for item in front])
             self.assertEqual([2, 7, 3, 6], [item["page"] for item in back])
             self.assertEqual([0, 0, 180, 180], [item["rotation"] for item in back])
+
+    def test_four_up_sixteen_page_signature_nests_two_eight_page_sections(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "booklet.pdf"
+            output = Path(directory) / "four-up-16.pdf"
+            self.make_pdf(source, 16)
+
+            metadata = impose(str(source), str(output), self.config(booklet_up="4"))
+
+            self.assertEqual(4, len(PdfReader(output).pages))
+            self.assertEqual(2, metadata["physical_sheets"])
+            by_sheet_side = {}
+            for item in metadata["placements"]:
+                by_sheet_side.setdefault((item["sheet"], item["side"]), []).append(item["page"])
+            # Outer section carries pages 1-4 and 13-16, inner section 5-12.
+            self.assertEqual([16, 1, 13, 4], by_sheet_side[(1, "fronte")])
+            self.assertEqual([2, 15, 3, 14], by_sheet_side[(1, "retro")])
+            self.assertEqual([12, 5, 9, 8], by_sheet_side[(2, "fronte")])
+            self.assertEqual([6, 11, 7, 10], by_sheet_side[(2, "retro")])
+
+    def test_every_page_is_imposed_exactly_once(self):
+        for pages, overrides in (
+            (16, {"booklet_up": "4"}),
+            (32, {"booklet_up": "4", "signature_pages": 32, "binding_method": "nested_saddle"}),
+            (24, {"booklet_up": "2"}),
+            (16, {"booklet_up": "4", "binding": "right"}),
+        ):
+            with self.subTest(pages=pages, **overrides):
+                with tempfile.TemporaryDirectory() as directory:
+                    source = Path(directory) / "booklet.pdf"
+                    output = Path(directory) / "imposed.pdf"
+                    self.make_pdf(source, pages)
+
+                    metadata = impose(str(source), str(output), self.config(**overrides))
+
+                    imposed = sorted(
+                        item["page"] for item in metadata["placements"]
+                        if item["page"] is not None
+                    )
+                    self.assertEqual(list(range(1, pages + 1)), imposed)
+
+    def test_spread_pages_always_add_up_to_signature_size_plus_one(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "booklet.pdf"
+            output = Path(directory) / "imposed.pdf"
+            self.make_pdf(source, 32)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(booklet_up="4", signature_pages=32, binding_method="nested_saddle"),
+            )
+
+            rows = {}
+            for item in metadata["placements"]:
+                rows.setdefault((item["sheet"], item["side"], item["row"]), []).append(item)
+            for pair in rows.values():
+                left, right = sorted(pair, key=lambda item: item["column"])
+                self.assertEqual(33, left["page"] + right["page"])
+
+    def test_head_trim_separates_the_two_rows_of_a_four_up_form(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "booklet.pdf"
+            output = Path(directory) / "four-up.pdf"
+            self.make_pdf(source, 8)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(booklet_up="4", head_trim_mm=6),
+            )
+
+            self.assertEqual(6, metadata["head_trim_mm"])
+            top = next(item for item in metadata["placements"] if item["row"] == 1)
+            bottom = next(item for item in metadata["placements"] if item["row"] == 2)
+            self.assertAlmostEqual(
+                6.0,
+                top["y_mm"] - (bottom["y_mm"] + bottom["height_mm"]),
+                places=3,
+            )
+
+    def test_two_up_form_has_no_head_trim(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "booklet.pdf"
+            output = Path(directory) / "imposed.pdf"
+            self.make_pdf(source, 8)
+
+            metadata = impose(str(source), str(output), self.config(booklet_up="2"))
+
+            self.assertEqual(0, metadata["head_trim_mm"])
+
+    def test_bleed_is_kept_outside_and_cut_at_the_spine(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "bleed.pdf"
+            output = Path(directory) / "imposed.pdf"
+            writer = PdfWriter()
+            for _ in range(4):
+                page = writer.add_blank_page(
+                    width=106 * self.POINTS_PER_MM,
+                    height=146 * self.POINTS_PER_MM,
+                )
+                page.trimbox = RectangleObject([
+                    3 * self.POINTS_PER_MM, 3 * self.POINTS_PER_MM,
+                    103 * self.POINTS_PER_MM, 143 * self.POINTS_PER_MM,
+                ])
+                page.bleedbox = RectangleObject([0, 0, 106 * self.POINTS_PER_MM, 146 * self.POINTS_PER_MM])
+            with source.open("wb") as handle:
+                writer.write(handle)
+
+            impose(str(source), str(output), self.config(booklet_bleed_mm=3, creep_mm=0))
+
+            first_side = PdfReader(output).pages[0]
+            clips = [
+                [float(value) for value in match]
+                for match in re.findall(
+                    r"q ([\d.-]+) ([\d.-]+) ([\d.-]+) ([\d.-]+) re W n",
+                    first_side.get_contents().get_data().decode("ascii"),
+                )
+            ]
+            self.assertEqual(2, len(clips))
+            left, right = sorted(clips, key=lambda clip: clip[0])
+            # 100x140 trim plus 3 mm of bleed on the three outer sides only.
+            self.assertAlmostEqual(103.0, left[2] / self.POINTS_PER_MM, places=3)
+            self.assertAlmostEqual(146.0, left[3] / self.POINTS_PER_MM, places=3)
+            self.assertAlmostEqual(103.0, right[2] / self.POINTS_PER_MM, places=3)
+            # The two clips meet at the fold: continuous artwork, no overlap.
+            self.assertAlmostEqual(0.0, right[0] - (left[0] + left[2]), places=6)
+
+    def test_the_spine_stays_on_the_long_edge_whichever_way_the_sheet_runs(self):
+        # 100x140 source: the spine belongs on the 140 mm edge. A sheet that
+        # only fits the form sideways must turn the whole form, not the pages.
+        # The 4-up form measures 200x286 mm: 320x450 takes it upright, 320x230
+        # only sideways.
+        for sheet, expected_rotation in (((320, 450), 0), ((320, 230), 90)):
+            with self.subTest(sheet=sheet):
+                with tempfile.TemporaryDirectory() as directory:
+                    source = Path(directory) / "booklet.pdf"
+                    output = Path(directory) / "imposed.pdf"
+                    self.make_pdf(source, 8)
+
+                    metadata = impose(
+                        str(source), str(output),
+                        self.config(
+                            sheet_width_mm=sheet[0], sheet_height_mm=sheet[1],
+                            booklet_up="4", creep_mm=0,
+                        ),
+                    )
+
+                    self.assertEqual(expected_rotation, metadata["form_rotation"])
+                    self.assertEqual(1.0, metadata["scale"])
+                    first, second = metadata["placements"][:2]
+                    if expected_rotation:
+                        # Turned form: the pair meets along a horizontal edge.
+                        self.assertAlmostEqual(first["x_mm"], second["x_mm"], places=3)
+                        shared_edge = first["width_mm"]
+                    else:
+                        self.assertAlmostEqual(first["y_mm"], second["y_mm"], places=3)
+                        shared_edge = first["height_mm"]
+                    self.assertAlmostEqual(140.0, shared_edge, places=3)
+
+    def test_four_up_rejects_signatures_that_are_not_multiples_of_eight(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "booklet.pdf"
+            output = Path(directory) / "imposed.pdf"
+            self.make_pdf(source, 12)
+
+            with self.assertRaises(ValueError):
+                impose(str(source), str(output), self.config(booklet_up="4"))
 
     def test_nested_saddle_can_complete_last_group_only_to_multiple_of_four(self):
         with tempfile.TemporaryDirectory() as directory:
