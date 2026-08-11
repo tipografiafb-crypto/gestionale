@@ -8,8 +8,9 @@ module ImpositionConfig
   BLEED_MODES = %w[none existing scale].freeze
   BINDING_METHODS = %w[saddle_stitch nested_saddle perfect_bound].freeze
   SIGNATURE_SIZES = (4..64).step(4).to_a.freeze
-  BOOKLET_REPEAT_MODES = %w[single auto].freeze
-  BOOKLET_UPS = %w[auto 2 4].freeze
+  BOOKLET_REPEAT_MODES = %w[sequential repeat].freeze
+  BOOKLET_UPS = %w[2 4].freeze
+  BOOKLET_WORK_STYLES = %w[sheetwise work_and_turn].freeze
   LAST_SIGNATURE_PADDING = %w[multiple_of_4 full].freeze
 
   module_function
@@ -47,9 +48,10 @@ module ImpositionConfig
       'signature_pages' => 16,
       'binding_method' => 'saddle_stitch',
       'binding' => 'left',
-      'booklet_repeat_mode' => 'single',
+      'booklet_repeat_mode' => 'sequential',
       'booklet_repeat_gap_mm' => 4.0,
-      'booklet_up' => 'auto',
+      'booklet_up' => '2',
+      'booklet_work_style' => 'sheetwise',
       'last_signature_padding' => 'multiple_of_4',
       'gutter_mm' => 0.0,
       'creep_mm' => 0.0,
@@ -150,12 +152,25 @@ module ImpositionConfig
     end
     config['binding_method'] = config['binding_method'].to_s
     raise ArgumentError, 'Tipo di legatura non valido' unless BINDING_METHODS.include?(config['binding_method'])
-    config['booklet_repeat_mode'] = config['booklet_repeat_mode'].to_s
+    config['booklet_repeat_mode'] = case config['booklet_repeat_mode'].to_s
+                                    when 'single' then 'sequential'
+                                    when 'auto' then 'repeat'
+                                    else config['booklet_repeat_mode'].to_s
+                                    end
     unless BOOKLET_REPEAT_MODES.include?(config['booklet_repeat_mode'])
       raise ArgumentError, 'Modalità Repeat Booklet non valida'
     end
     config['booklet_up'] = config['booklet_up'].to_s
+    config['booklet_up'] = '2' if config['booklet_up'].empty? || config['booklet_up'] == 'auto'
     raise ArgumentError, 'Schema di piega booklet non valido' unless BOOKLET_UPS.include?(config['booklet_up'])
+    config['booklet_work_style'] = config['booklet_work_style'].to_s
+    config['booklet_work_style'] = 'sheetwise' if config['booklet_work_style'].empty?
+    unless BOOKLET_WORK_STYLES.include?(config['booklet_work_style'])
+      raise ArgumentError, 'Metodo di stampa booklet non valido'
+    end
+    if config['booklet_up'] == '2' && config['booklet_work_style'] == 'work_and_turn'
+      raise ArgumentError, 'La volta di lato booklet richiede quattro pagine per lato'
+    end
     config['last_signature_padding'] = config['last_signature_padding'].to_s
     unless LAST_SIGNATURE_PADDING.include?(config['last_signature_padding'])
       raise ArgumentError, 'Completamento ultima segnatura non valido'

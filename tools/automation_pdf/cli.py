@@ -1126,22 +1126,25 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
     gutter = float(config.get("gutter_mm", 0)) * mm
     repeat_gap = float(config.get("booklet_repeat_gap_mm", 4)) * mm
     max_creep = float(config.get("creep_mm", 0)) * mm
-    # Head-to-head pages in a two-fold section are separated by the head trim:
-    # the three-knife trimmer cuts that fold open and takes material off both
-    # pages. 6 mm (3 mm each) is the usual commercial allowance.
-    head_trim = float(config.get("head_trim_mm", 6)) * mm
     booklet_bleed = float(config.get("booklet_bleed_mm", 3)) * mm
     if min(
         margin_left, margin_right, margin_top, margin_bottom,
-        gutter, repeat_gap, max_creep, head_trim, booklet_bleed,
+        gutter, repeat_gap, max_creep, booklet_bleed,
     ) < 0:
-        raise ValueError("Margini, canale, creep, testa e abbondanza non possono essere negativi")
-    repeat_mode = str(config.get("booklet_repeat_mode", "single"))
-    if repeat_mode not in {"single", "auto"}:
-        raise ValueError("Modalità Repeat Booklet non valida")
-    requested_up = str(config.get("booklet_up", "auto"))
-    if requested_up not in {"auto", "2", "4"}:
+        raise ValueError("Margini, canale, creep, distanza forme e abbondanza non possono essere negativi")
+    repeat_mode = str(config.get("booklet_repeat_mode", "sequential"))
+    repeat_mode = {"single": "sequential", "auto": "repeat"}.get(repeat_mode, repeat_mode)
+    if repeat_mode not in {"sequential", "repeat"}:
+        raise ValueError("Montaggio booklet non valido")
+    requested_up = str(config.get("booklet_up", "2"))
+    requested_up = "2" if requested_up == "auto" else requested_up
+    if requested_up not in {"2", "4"}:
         raise ValueError("Schema di piega booklet non valido")
+    booklet_work_style = str(config.get("booklet_work_style", "sheetwise"))
+    if booklet_work_style not in {"sheetwise", "work_and_turn"}:
+        raise ValueError("Metodo di stampa booklet non valido")
+    if requested_up == "2" and booklet_work_style == "work_and_turn":
+        raise ValueError("La volta di lato booklet richiede quattro pagine per lato")
 
     source_left, source_bottom, source_right, source_top, _ = _imposition_box(reader.pages[0])
     source_width = source_right - source_left
@@ -1158,9 +1161,9 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
     available_height = sheet_height - margin_top - margin_bottom
     if available_width <= 0 or available_height <= 0:
         raise ValueError("I margini non lasciano spazio per il libretto")
-    # Signatures are built before the fold scheme is chosen: a 4-up form is a
-    # two-fold section of exactly 8 pages, so it only exists when every
-    # signature splits into whole 8-page sections.
+    # Signatures are built before the press form. Every logical booklet sheet
+    # is a normal 2-up half-fold; a 4-up press form simply mounts two of those
+    # 2-up forms on the same sheet.
     input_pages = len(reader.pages)
     signature_specs = []
     cursor = 0
@@ -1174,6 +1177,11 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
                 padded_size = max(4, math.ceil(source_count / 4) * 4)
             else:
                 padded_size = configured_signature_pages
+        # A sequential 4-up mounts two complete 2-up booklet forms on each
+        # press sheet. Complete the signature to the next multiple of eight so
+        # the last sheet remains a valid pair of forms instead of failing.
+        if requested_up == "4" and repeat_mode == "sequential":
+            padded_size = max(8, math.ceil(padded_size / 8) * 8)
         signature_entries = [
             {"page": reader.pages[cursor + index], "number": cursor + index + 1}
             for index in range(source_count)
@@ -1192,67 +1200,51 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
     padded_pages = sum(signature_sizes)
     signature_pages = signature_sizes[0] if binding_method == "saddle_stitch" else configured_signature_pages
 
-    # A booklet form is either the classic 2-up half-fold or the 4-up two-fold
-    # section. Repeat Booklet repeats that complete form; it never changes the
-    # page order inside it.
     spine_gap = gutter if binding_method == "perfect_bound" else 0.0
-    four_up_supported = all(size % 8 == 0 for size in signature_sizes)
-    if requested_up == "4" and not four_up_supported:
-        raise ValueError("Lo schema 4-up richiede segnature multiple di 8 pagine")
-    auto_four_up = four_up_supported and all(size in {8, 16} for size in signature_sizes)
-    booklet_up = 4 if requested_up == "4" or (requested_up == "auto" and auto_four_up) else 2
+    booklet_up = int(requested_up)
+    if booklet_up == 4 and repeat_mode == "sequential" and any(size % 8 for size in signature_sizes):
+        raise ValueError("Il 4-up sequenziale richiede segnature multiple di 8 pagine")
     form_rows = 2 if booklet_up == 4 else 1
-    head_gap = head_trim if booklet_up == 4 else 0.0
+    form_gap = repeat_gap if booklet_up == 4 else 0.0
     # The page keeps its own orientation: which of its edges carries the spine
     # is the product, not a layout choice. To use a sheet the other way round
     # the whole form turns — spine fold, head fold and pages together — so the
     # only candidates are the form upright and the form turned 90°.
     form_rotations = [0]
     if bool(config.get("auto_rotate", True)):
-        form_rotations.append(90)
+        form_rotations.append(270)
     layouts = []
     for form_rotation in form_rotations:
         # Sizes below are in the form's own frame, which the rotation maps onto
         # the sheet; span_x/span_y are the sheet room measured in that frame.
         span_x = available_height if form_rotation else available_width
         span_y = available_width if form_rotation else available_height
-        single_scale = min(
+        scale = min(
             1.0,
             max(0.0, (span_x - spine_gap) / (2 * source_width)),
-            max(0.0, (span_y - head_gap) / (form_rows * source_height)),
+            max(0.0, (span_y - form_gap) / (form_rows * source_height)),
         )
-        if single_scale <= 0:
+        if scale <= 0:
             continue
-        if repeat_mode == "auto" and single_scale >= 1.0 - 1e-6:
-            spread_width = 2 * source_width + spine_gap
-            spread_height = form_rows * source_height + head_gap
-            repeat_columns = max(1, math.floor((span_x + repeat_gap) / (spread_width + repeat_gap)))
-            repeat_rows = max(1, math.floor((span_y + repeat_gap) / (spread_height + repeat_gap)))
-        else:
-            repeat_columns = 1
-            repeat_rows = 1
         layouts.append((
-            repeat_columns * repeat_rows,
-            single_scale,
+            scale,
             form_rotation == 0,
             form_rotation,
-            repeat_columns,
-            repeat_rows,
         ))
     if not layouts:
         raise ValueError("Il formato pagina non entra nel foglio")
-    layouts.sort(key=lambda item: item[:3], reverse=True)
-    repeat_count, scale, _, form_rotation, repeat_columns, repeat_rows = layouts[0]
+    layouts.sort(key=lambda item: item[:2], reverse=True)
+    scale, _, form_rotation = layouts[0]
     placed_width = source_width * scale
     placed_height = source_height * scale
     scaled_spine_gap = spine_gap
     spread_width = 2 * placed_width + scaled_spine_gap
-    spread_height = form_rows * placed_height + head_gap
+    spread_height = form_rows * placed_height + form_gap
     if placed_width <= 0 or placed_height <= 0:
         raise ValueError("Il formato pagina non entra nel foglio")
 
-    form_width = repeat_columns * spread_width + max(0, repeat_columns - 1) * repeat_gap
-    form_height = repeat_rows * spread_height + max(0, repeat_rows - 1) * repeat_gap
+    form_width = spread_width
+    form_height = spread_height
     footprint_width = form_height if form_rotation else form_width
     footprint_height = form_width if form_rotation else form_height
     form_x = margin_left + (available_width - footprint_width) / 2
@@ -1262,7 +1254,9 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
         """Map a rectangle from the form frame onto the sheet."""
         if not form_rotation:
             return form_x + u, form_y + v, width, height
-        return form_x + (form_height - v - height), form_y + u, height, width
+        if form_rotation == 90:
+            return form_x + (form_height - v - height), form_y + u, height, width
+        return form_x + v, form_y + (form_width - u - width), height, width
 
     def fold_to_sheet(direction: str, position: float, start: float, end: float) -> dict:
         """Map a fold line from the form frame onto the sheet."""
@@ -1276,14 +1270,24 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
                 "direction": "horizontal", "position": form_y + position,
                 "start": form_x + start, "end": form_x + end,
             }
-        if direction == "vertical":
+        if form_rotation == 90 and direction == "vertical":
             return {
                 "direction": "horizontal", "position": form_y + position,
                 "start": form_x + form_height - end, "end": form_x + form_height - start,
             }
+        if form_rotation == 90:
+            return {
+                "direction": "vertical", "position": form_x + form_height - position,
+                "start": form_y + start, "end": form_y + end,
+            }
+        if direction == "vertical":
+            return {
+                "direction": "horizontal", "position": form_y + form_width - position,
+                "start": form_x + start, "end": form_x + end,
+            }
         return {
-            "direction": "vertical", "position": form_x + form_height - position,
-            "start": form_y + start, "end": form_y + end,
+            "direction": "vertical", "position": form_x + position,
+            "start": form_y + form_width - end, "end": form_y + form_width - start,
         }
 
     writer = PdfWriter()
@@ -1291,175 +1295,164 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
     metadata_placements = []
     physical_sheet = 0
 
-    def booklet_pattern(signature_size, sheet_index, side_index):
-        """Return the (page slot, relative rotation) pairs of one printed side.
+    def row_v(row: int) -> float:
+        if form_rotation == 270:
+            return row * (placed_height + form_gap)
+        return (form_rows - 1 - row) * (placed_height + form_gap)
 
-        2-up is the half fold: the two pages of a spread always add up to
-        signature_size + 1. 4-up is the two-fold section of 8 pages; a signature
-        of N pages is N/8 such sections nested one inside the other, so section
-        k carries pages 4k+1..4k+4 counted from the front of the signature and
-        the four matching pages counted from its back. Inside the section the
-        pages follow the classic 8-page scheme, with the bottom row turned 180°
-        because the head fold presents it upside down.
-        """
-        if booklet_up == 4:
-            base = 4 * sheet_index
-            section = (
-                base, base + 1, base + 2, base + 3,
-                signature_size - base - 4, signature_size - base - 3,
-                signature_size - base - 2, signature_size - base - 1,
-            )
-            sequence = (
-                ((section[7], 0), (section[0], 0), (section[4], 180), (section[3], 180)),
-                ((section[1], 0), (section[6], 0), (section[2], 180), (section[5], 180)),
-            )[side_index]
-        else:
-            sequence = (
-                (
-                    (signature_size - 1 - sheet_index * 2, 0),
-                    (sheet_index * 2, 0),
-                ),
-                (
-                    (sheet_index * 2 + 1, 0),
-                    (signature_size - 2 - sheet_index * 2, 0),
-                ),
-            )[side_index]
-        if binding == "right":
-            # Right-bound work mirrors the form left to right, which swaps the
-            # two columns. It must not swap the rows: those are set by the fold.
-            sequence = tuple(
-                value
-                for row_start in range(0, len(sequence), 2)
-                for value in reversed(sequence[row_start:row_start + 2])
-            )
-        return sequence
+    def booklet_spread(signature_size, sheet_index, side_index):
+        """Return one logical 2-up half-fold spread."""
+        sequence = (
+            (signature_size - 1 - sheet_index * 2, sheet_index * 2),
+            (sheet_index * 2 + 1, signature_size - 2 - sheet_index * 2),
+        )[side_index]
+        return tuple(reversed(sequence)) if binding == "right" else sequence
+
+    def mounted_spread(signature_size, sheet_index, side_index, rotation, reverse=False):
+        spread = tuple(
+            (page_index, rotation, sheet_index)
+            for page_index in booklet_spread(signature_size, sheet_index, side_index)
+        )
+        return tuple(reversed(spread)) if reverse else spread
 
     for signature_index, signature_spec in enumerate(signature_specs):
         entries = signature_spec["entries"]
         current_signature_pages = int(signature_spec["size"])
-        sheets_per_signature = current_signature_pages // (booklet_up * 2)
-        for sheet_in_signature in range(sheets_per_signature):
-            creep = (
-                max_creep * sheet_in_signature / (sheets_per_signature - 1)
-                if sheets_per_signature > 1 else 0
-            )
-            sequences = (
-                booklet_pattern(current_signature_pages, sheet_in_signature, 0),
-                booklet_pattern(current_signature_pages, sheet_in_signature, 1),
-            )
+        logical_sheets = current_signature_pages // 4
+        if booklet_up == 2 or booklet_work_style == "work_and_turn":
+            press_groups = [(sheet_index,) for sheet_index in range(logical_sheets)]
+        elif repeat_mode == "repeat":
+            press_groups = [(sheet_index, sheet_index) for sheet_index in range(logical_sheets)]
+        else:
+            press_groups = [
+                (sheet_index, sheet_index + 1)
+                for sheet_index in range(0, logical_sheets, 2)
+            ]
+
+        for group in press_groups:
+            if booklet_work_style == "work_and_turn":
+                sheet_index = group[0]
+                sides = ((
+                    "BIANCA E VOLTA",
+                    mounted_spread(current_signature_pages, sheet_index, 0, 0)
+                    + mounted_spread(
+                        current_signature_pages, sheet_index, 1, 180, reverse=True,
+                    ),
+                ),)
+            else:
+                front = tuple(
+                    item
+                    for sheet_index in group
+                    for item in mounted_spread(current_signature_pages, sheet_index, 0, 0)
+                )
+                back_order = tuple(reversed(group)) if booklet_up == 4 else group
+                back_rotation = 180 if booklet_up == 4 else 0
+                back = tuple(
+                    item
+                    for sheet_index in back_order
+                    for item in mounted_spread(
+                        current_signature_pages, sheet_index, 1, back_rotation,
+                        reverse=booklet_up == 4,
+                    )
+                )
+                sides = (("FRONTE", front), ("RETRO", back))
+
             physical_sheet += 1
-            for side_index, sequence in enumerate(sequences):
+            for side_name, sequence in sides:
                 output_page = PageObject.create_blank_page(width=sheet_width, height=sheet_height)
                 xobjects = DictionaryObject()
                 content_parts = []
                 render_placements = []
                 fold_lines = []
-                side_name = "FRONTE" if side_index == 0 else "RETRO"
-                for repeat_index in range(repeat_count):
-                    repeat_row = repeat_index // repeat_columns
-                    repeat_column = repeat_index % repeat_columns
-                    unit_x = repeat_column * (spread_width + repeat_gap)
-                    unit_y = (repeat_rows - 1 - repeat_row) * (spread_height + repeat_gap)
+                for form_row in range(form_rows):
+                    row_y = row_v(form_row)
                     fold_lines.append(fold_to_sheet(
                         "vertical",
-                        unit_x + placed_width + scaled_spine_gap / 2,
-                        unit_y,
-                        unit_y + spread_height,
+                        placed_width + scaled_spine_gap / 2,
+                        row_y,
+                        row_y + placed_height,
                     ))
-                    if booklet_up == 4:
-                        fold_lines.append(fold_to_sheet(
-                            "horizontal",
-                            unit_y + placed_height + head_gap / 2,
-                            unit_x,
-                            unit_x + spread_width,
-                        ))
-                    for slot, (local_source_index, relative_rotation) in enumerate(sequence):
-                        row = slot // 2 if booklet_up == 4 else 0
-                        column = slot % 2
-                        toward_spine = creep / 2 if column == 0 else -creep / 2
-                        x, y, width, height = to_sheet(
-                            unit_x + column * (placed_width + scaled_spine_gap) + toward_spine,
-                            unit_y + (form_rows - 1 - row) * (placed_height + head_gap),
-                            placed_width,
-                            placed_height,
+
+                for slot, (local_source_index, relative_rotation, logical_sheet) in enumerate(sequence):
+                    row = slot // 2 if booklet_up == 4 else 0
+                    column = slot % 2
+                    creep = (
+                        max_creep * logical_sheet / (logical_sheets - 1)
+                        if logical_sheets > 1 else 0
+                    )
+                    toward_spine = creep / 2 if column == 0 else -creep / 2
+                    x, y, width, height = to_sheet(
+                        column * (placed_width + scaled_spine_gap) + toward_spine,
+                        row_v(row),
+                        placed_width,
+                        placed_height,
+                    )
+                    entry = entries[local_source_index]
+                    source = entry["page"]
+                    page_left, page_bottom, page_right, page_top, _ = _imposition_box(source)
+                    placement_rotation = (form_rotation + relative_rotation) % 360
+                    rotated_bounds = _rotated_bounds(
+                        page_left, page_bottom, page_right, page_top,
+                        placement_rotation, scale,
+                    )
+                    offset_x = x - rotated_bounds[0]
+                    offset_y = y - rotated_bounds[1]
+                    transform = Transformation().scale(scale).rotate(placement_rotation).translate(
+                        offset_x, offset_y,
+                    )
+                    outer_bleed = min(booklet_bleed, form_gap / 2) if booklet_up == 4 else booklet_bleed
+                    toward_left = scaled_spine_gap / 2 if column == 1 else outer_bleed
+                    toward_right = scaled_spine_gap / 2 if column == 0 else outer_bleed
+                    toward_top = form_gap / 2 if row == 1 else outer_bleed
+                    toward_bottom = form_gap / 2 if row == 0 and booklet_up == 4 else outer_bleed
+                    if form_rotation:
+                        bleed_left, bleed_bottom, bleed_right, bleed_top = (
+                            toward_top, toward_left, toward_bottom, toward_right,
                         )
-                        entry = entries[local_source_index]
-                        source = entry["page"]
-                        page_left, page_bottom, page_right, page_top, _ = _imposition_box(source)
-                        placement_rotation = (form_rotation + relative_rotation) % 360
-                        rotated_bounds = _rotated_bounds(
-                            page_left, page_bottom, page_right, page_top,
-                            placement_rotation, scale,
+                    else:
+                        bleed_left, bleed_bottom, bleed_right, bleed_top = (
+                            toward_left, toward_bottom, toward_right, toward_top,
                         )
-                        offset_x = x - rotated_bounds[0]
-                        offset_y = y - rotated_bounds[1]
-                        transform = Transformation().scale(scale).rotate(placement_rotation).translate(
-                            offset_x, offset_y,
-                        )
-                        # Bleed is kept where the trim needs it and cut where the
-                        # next page starts. At a fold with no gap the two pages
-                        # are continuous, so bleeding there would only let one
-                        # page paint over its neighbour. These sides are named
-                        # in the form's frame and turn with it.
-                        outer_bleed = booklet_bleed
-                        if repeat_columns > 1 or repeat_rows > 1:
-                            outer_bleed = min(outer_bleed, repeat_gap / 2)
-                        toward_left = scaled_spine_gap / 2 if column == 1 else outer_bleed
-                        toward_right = scaled_spine_gap / 2 if column == 0 else outer_bleed
-                        toward_top = head_gap / 2 if row == 1 else outer_bleed
-                        toward_bottom = head_gap / 2 if row == 0 and booklet_up == 4 else outer_bleed
-                        if form_rotation:
-                            bleed_left, bleed_bottom, bleed_right, bleed_top = (
-                                toward_top, toward_left, toward_bottom, toward_right,
-                            )
-                        else:
-                            bleed_left, bleed_bottom, bleed_right, bleed_top = (
-                                toward_left, toward_bottom, toward_right, toward_top,
-                            )
-                        # Source PDFs can already contain crop marks outside
-                        # their TrimBox. They must not invade adjacent pages.
-                        available = _rotated_bounds(
-                            *_bleed_source_box(
-                                source, (page_left, page_bottom, page_right, page_top),
-                            ),
-                            placement_rotation, scale,
-                        )
-                        clip_left = max(x - bleed_left, available[0] + offset_x)
-                        clip_bottom = max(y - bleed_bottom, available[1] + offset_y)
-                        clip_right = min(x + width + bleed_right, available[2] + offset_x)
-                        clip_top = min(y + height + bleed_top, available[3] + offset_y)
-                        _place_shared_form(
-                            output_page, writer, source, xobjects, content_parts,
-                            form_cache, transform,
-                            clip_rect=(
-                                clip_left, clip_bottom,
-                                clip_right - clip_left, clip_top - clip_bottom,
-                            ),
-                        )
-                        render_placements.append({
-                            "x": x, "y": y,
-                            "width": width, "height": height,
-                            # Crop marks must clear the widest bleed on the axis;
-                            # where a neighbour page starts instead, the mark is
-                            # dropped by the segment test.
-                            "bleed_x": max(bleed_left, bleed_right),
-                            "bleed_y": max(bleed_top, bleed_bottom),
-                        })
-                        metadata_placements.append({
-                            "page": entry["number"],
-                            "sheet": physical_sheet,
-                            "side": side_name.lower(),
-                            "repeat_booklet": repeat_index + 1,
-                            "position": f"r{repeat_row * form_rows + row + 1}c{repeat_column * 2 + column + 1}",
-                            "row": repeat_row * form_rows + row + 1,
-                            "column": repeat_column * 2 + column + 1,
-                            "rotation": placement_rotation,
-                            "x_mm": round(x / mm, 4),
-                            "y_mm": round(y / mm, 4),
-                            "width_mm": round(width / mm, 4),
-                            "height_mm": round(height / mm, 4),
-                            "creep_mm": round(creep / mm, 4),
-                        })
+                    available = _rotated_bounds(
+                        *_bleed_source_box(
+                            source, (page_left, page_bottom, page_right, page_top),
+                        ),
+                        placement_rotation, scale,
+                    )
+                    clip_left = max(x - bleed_left, available[0] + offset_x)
+                    clip_bottom = max(y - bleed_bottom, available[1] + offset_y)
+                    clip_right = min(x + width + bleed_right, available[2] + offset_x)
+                    clip_top = min(y + height + bleed_top, available[3] + offset_y)
+                    _place_shared_form(
+                        output_page, writer, source, xobjects, content_parts,
+                        form_cache, transform,
+                        clip_rect=(
+                            clip_left, clip_bottom,
+                            clip_right - clip_left, clip_top - clip_bottom,
+                        ),
+                    )
+                    render_placements.append({
+                        "x": x, "y": y,
+                        "width": width, "height": height,
+                        "bleed_x": max(bleed_left, bleed_right),
+                        "bleed_y": max(bleed_top, bleed_bottom),
+                    })
+                    metadata_placements.append({
+                        "page": entry["number"],
+                        "sheet": physical_sheet,
+                        "booklet_sheet": logical_sheet + 1,
+                        "side": side_name.lower().replace(" ", "_"),
+                        "repeat_booklet": row + 1,
+                        "position": f"r{row + 1}c{column + 1}",
+                        "row": row + 1,
+                        "column": column + 1,
+                        "rotation": placement_rotation,
+                        "x_mm": round(x / mm, 4),
+                        "y_mm": round(y / mm, 4),
+                        "width_mm": round(width / mm, 4),
+                        "height_mm": round(height / mm, 4),
+                        "creep_mm": round(creep / mm, 4),
+                    })
                 _finish_shared_page(output_page, writer, xobjects, content_parts)
                 _apply_sheet_marks(
                     output_page,
@@ -1468,7 +1461,7 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
                     fold_lines=fold_lines,
                     label=(
                         f"LIBRETTO · SEGNATURA {signature_index + 1} · "
-                        f"FOGLIO {sheet_in_signature + 1} · {side_name}"
+                        f"FORMA {physical_sheet} · {side_name}"
                     ),
                     head_direction="left" if form_rotation else "top",
                 )
@@ -1485,7 +1478,7 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
         "signature_pages": signature_pages,
         "signatures": signature_count,
         "physical_sheets": physical_sheet,
-        "sheets": physical_sheet * 2,
+        "sheets": len(writer.pages),
         "input_pages": input_pages,
         "output_document_pages": padded_pages,
         "inserted_blank_pages": padded_pages - input_pages,
@@ -1494,24 +1487,25 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
         "binding_method": binding_method,
         "pages_per_side": booklet_up,
         "pages_per_sheet": booklet_up * 2,
-        "positions_per_side": repeat_count * 2,
-        "columns": repeat_columns * 2,
-        "rows": repeat_rows,
+        "positions_per_side": booklet_up,
+        "columns": 2,
+        "rows": form_rows,
         # The form turns as one piece; the page never turns on its own, so the
         # spine always stays on the same edge of the product.
         "form_rotation": form_rotation,
         "source_rotation": form_rotation,
         "spine_axis": "horizontal" if form_rotation else "vertical",
-        "scheme": "JDF_F8-7_saddle_4up" if booklet_up == 4 else "JDF_F4-1_half_fold_2up",
+        "scheme": "two_2up_forms_4up" if booklet_up == 4 else "JDF_F4-1_half_fold_2up",
         "booklet_up": booklet_up,
+        "booklet_work_style": booklet_work_style,
         "booklet_repeat_mode": repeat_mode,
-        "booklet_repeats_per_sheet": repeat_count,
-        "repeat_columns": repeat_columns,
-        "repeat_rows": repeat_rows,
+        "booklet_repeats_per_sheet": 2 if booklet_up == 4 else 1,
+        "repeat_columns": 1,
+        "repeat_rows": form_rows,
         "signature_sizes": signature_sizes,
         "last_signature_padding": last_signature_padding,
         "creep_mm": float(config.get("creep_mm", 0)),
-        "head_trim_mm": round(head_gap / mm, 4),
+        "head_trim_mm": 0.0,
         "booklet_bleed_mm": round(booklet_bleed / mm, 4),
         "placements": metadata_placements,
     }

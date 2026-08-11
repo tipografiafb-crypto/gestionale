@@ -2155,6 +2155,7 @@ class AutomationNodeExecutor
     raise ArgumentError, 'Il preset di imposizione risolto è vuoto' if preset_code.empty?
     preset = AutomationPreset.active.find_by(kind: 'imposition', code: preset_code)
     raise ArgumentError, "Preset di imposizione non trovato: #{preset_code}" unless preset
+    booklet_layout = preset.config['layout_mode'].to_s == 'booklet'
 
     input_path = source.full_path
     compatibility_metadata = {}
@@ -2162,7 +2163,7 @@ class AutomationNodeExecutor
     copies = AutomationEngine.context_value(@context, 'variables.production_copies').to_i
     already_materialized = source.metadata.to_h['copies_already_materialized'] == true ||
                            source.metadata.to_h['copies_applied'].to_i == copies && copies.positive?
-    if copies.positive? && !already_materialized
+    if copies.positive? && !already_materialized && !booklet_layout
       copies = 1 if copies < 1
       duplication_copies = copies
       input_path = File.join(run_output_dir, "#{@step.node_key}-legacy-pages-#{SecureRandom.hex(4)}.pdf")
@@ -2185,7 +2186,7 @@ class AutomationNodeExecutor
 
     blank_rules = Array(@context.dig('runtime', 'step_repeat_blank_rules'))
     blank_rules = resolve_nested_config(Array(@config['blank_rules'])) if blank_rules.empty?
-    if blank_rules.any?
+    if blank_rules.any? && !booklet_layout
       blank_output = File.join(run_output_dir, "#{@step.node_key}-blank-padded-#{SecureRandom.hex(4)}.pdf")
       blank_config = {
         'quantity' => @context.dig('runtime', 'step_repeat_blank_quantity').to_i,
