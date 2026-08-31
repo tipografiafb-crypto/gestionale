@@ -40,8 +40,8 @@ class HalftoneConfig:
             raise ValueError("dot_shape must be circle, round, euclid, ellipse, or line")
         if self.highlight_mode not in {"drop", "force"}:
             raise ValueError("highlight_mode must be drop or force")
-        if self.tone_mode not in {"alpha", "luminance", "combined", "photoshop_action", "retino_am"}:
-            raise ValueError("tone_mode must be alpha, luminance, combined, photoshop_action, or retino_am")
+        if self.tone_mode not in {"alpha", "luminance", "combined", "photoshop_action", "retino_am", "dtf_difference"}:
+            raise ValueError("tone_mode must be alpha, luminance, combined, photoshop_action, retino_am, or dtf_difference")
         if not 0 <= self.min_dot_percent <= 1:
             raise ValueError("min_dot_percent must be between 0 and 1")
         if not 0 <= self.min_hole_percent <= 1:

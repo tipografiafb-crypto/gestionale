@@ -33,7 +33,11 @@ def process_image(input_path: str, output_path: str, config: HalftoneConfig) -> 
     rgb, alpha = _load_rgba_arrays(input_path)
 
     adjusted_rgb = _adjust_rgb(rgb, config)
-    if config.tone_mode == "retino_am":
+    if config.tone_mode == "dtf_difference":
+        # ActionSeps builds the separation from the untouched artwork. Colour
+        # correction affects the printed RGB, not the mask calculation.
+        output_alpha = _dtf_difference_alpha(rgb, alpha, config)
+    elif config.tone_mode == "retino_am":
         output_alpha = _retino_am_alpha(adjusted_rgb, alpha, config)
     elif config.tone_mode == "photoshop_action":
         output_alpha = _photoshop_action_alpha(adjusted_rgb, alpha, config)
@@ -78,7 +82,9 @@ def save_mask_preview(input_path: str, output_path: str, config: HalftoneConfig)
     rgb, alpha = _load_rgba_arrays(input_path)
     adjusted_rgb = _adjust_rgb(rgb, config)
 
-    if config.tone_mode == "retino_am":
+    if config.tone_mode == "dtf_difference":
+        mask = _dtf_difference_tone(rgb, alpha, config)
+    elif config.tone_mode == "retino_am":
         knockout_scale = _knockout_scale(adjusted_rgb, config)
         mask = _retino_am_coverage(adjusted_rgb, alpha * knockout_scale, config)
     elif config.tone_mode == "photoshop_action":
@@ -184,6 +190,102 @@ def _photoshop_action_reveal_tone(rgb: np.ndarray, alpha: np.ndarray, config: Ha
     )
     reveal_tone = _apply_mask_levels(diff_luminance, config)
     return np.where(alpha > config.alpha_threshold, reveal_tone * alpha, 0.0).astype(np.float32)
+
+
+def _dtf_difference_tone(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneConfig) -> np.ndarray:
+    """Build the photographic DTF tone from the distance to the shirt colour.
+
+    This mirrors the useful part of the Actionseps workflow: the garment colour
+    is removed first, then the remaining colour difference becomes the printable
+    tone.  It deliberately keeps RGB untouched; only the mask is transformed.
+    """
+    shirt_rgb = np.array(config.shirt_color or (21, 21, 21), dtype=np.float32)
+    # #151515 is the UI's visible preview for a black garment. Treat very dark
+    # garment swatches as technical black for the separation itself; otherwise
+    # pure-black jackets look different from the swatch and get printed while
+    # nearby chromatic blues are incorrectly removed.
+    if np.max(shirt_rgb) <= 32.0:
+        shirt_rgb[:] = 0.0
+    shirt = shirt_rgb / 255.0
+    difference = np.abs(rgb - shirt.reshape(1, 1, 3))
+    tone = (
+        (0.230 * difference[:, :, 0])
+        + (0.520 * difference[:, :, 1])
+        + (0.250 * difference[:, :, 2])
+    )
+    # Photoshop Levels semantics used by ActionSeps: input range first,
+    # followed by the inverse-gamma curve (gamma 2 makes midtones lighter).
+    tone = _apply_actionseps_levels(tone, config)
+    # Preserve chromatic artwork while automatically dropping neutral shadows
+    # that are only a few RGB values away from the garment colour.
+    colour_distance = np.max(difference, axis=2)
+    shadow_guard = _smoothstep(5.0 / 255.0, 48.0 / 255.0, colour_distance)
+    tone *= shadow_guard
+    return np.where(alpha > config.alpha_threshold, tone * alpha, 0.0).astype(np.float32)
+
+
+def _apply_actionseps_levels(value: np.ndarray, config: HalftoneConfig) -> np.ndarray:
+    black = config.mask_black / 255.0
+    white = config.mask_white / 255.0
+    normalized = np.clip((value - black) / max(white - black, 1e-6), 0.0, 1.0)
+    return np.power(normalized, 1.0 / max(config.mask_gamma, 0.01)).astype(np.float32)
+
+
+def _dtf_difference_alpha(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneConfig) -> np.ndarray:
+    tone = _dtf_difference_tone(rgb, alpha, config)
+    # Actionseps-style screening: dot radius follows each pixel's tone instead
+    # of averaging a whole cell. This preserves photographic transitions.
+    mask = _dtf_radius_screen(tone, config)
+    # Photoshop's DTX cleanup is a local Dust & Scratches / median operation.
+    # It removes micro-dots without the very expensive full-image component scan.
+    return _dtf_cleanup(mask, alpha > config.alpha_threshold, config)
+
+
+def _dtf_cleanup(mask: np.ndarray, printable_mask: np.ndarray, config: HalftoneConfig) -> np.ndarray:
+    if config.min_dot_px <= 0:
+        return ((mask >= 0.5) & printable_mask).astype(np.float32)
+
+    minimum = config.min_dot_px
+    kernel = max(3, int(round(minimum)))
+    if kernel % 2 == 0:
+        kernel += 1
+    kernel = min(kernel, 7)
+    binary = ((mask >= 0.5).astype(np.uint8) * 255)
+    cleaned = cv2.medianBlur(binary, kernel) >= 128
+    return (cleaned & printable_mask).astype(np.float32)
+
+
+def _dtf_radius_screen(tone: np.ndarray, config: HalftoneConfig) -> np.ndarray:
+    height, width = tone.shape
+    cell_px = config.target_dpi / config.lpi
+    if cell_px < 2:
+        raise ValueError("lpi is too high for the selected target DPI")
+    yy, xx = np.indices((height, width), dtype=np.float32)
+    angle = math.radians(config.angle)
+    cos_a, sin_a = math.cos(angle), math.sin(angle)
+    xr = (xx * cos_a) - (yy * sin_a)
+    yr = (xx * sin_a) + (yy * cos_a)
+    local_x = (np.mod(xr, cell_px) / cell_px) * 2.0 - 1.0
+    local_y = (np.mod(yr, cell_px) / cell_px) * 2.0 - 1.0
+    printable_tone = np.clip(tone, 0.0, 1.0)
+
+    # Photoshop's Round screen grows circular dots and, above the midpoint,
+    # leaves shrinking round holes. It reaches full coverage at white.
+    if config.dot_shape in {"circle", "round"}:
+        threshold = _retino_am_spot_threshold(local_x, local_y, "round")
+        return (printable_tone > threshold).astype(np.float32)
+
+    radius = np.sqrt(printable_tone / math.pi) * cell_px
+    local_x_px = local_x * (cell_px / 2.0)
+    local_y_px = local_y * (cell_px / 2.0)
+    if config.dot_shape == "line":
+        inside = np.abs(local_y_px) <= (radius / np.sqrt(2.0))
+    elif config.dot_shape == "ellipse":
+        inside = ((local_x_px / np.maximum(radius * 1.45, 1e-6)) ** 2 +
+                  (local_y_px / np.maximum(radius / 1.45, 1e-6)) ** 2) <= 1.0
+    else:
+        inside = (local_x_px * local_x_px + local_y_px * local_y_px) <= (radius * radius)
+    return np.where(tone <= 0, 0.0, inside.astype(np.float32))
 
 
 def _apply_mask_levels(value: np.ndarray, config: HalftoneConfig) -> np.ndarray:

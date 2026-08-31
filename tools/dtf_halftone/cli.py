@@ -29,7 +29,7 @@ def main() -> int:
     parser.add_argument("--min-hole-percent", type=float, default=4.0, help="Minimum open hole coverage; accepts 4 or 0.04")
     parser.add_argument("--max-coverage", type=float, default=85.0, help="Maximum halftone coverage; accepts 85 or 0.85")
     parser.add_argument("--highlight-mode", choices=["drop", "force"], default="drop")
-    parser.add_argument("--tone-mode", choices=["alpha", "luminance", "combined", "photoshop_action", "retino_am"], default="alpha")
+    parser.add_argument("--tone-mode", choices=["alpha", "luminance", "combined", "photoshop_action", "retino_am", "dtf_difference"], default="alpha")
     parser.add_argument("--invert", action="store_true", help="Invert tonal coverage before screening")
     parser.add_argument("--saturation", type=float, default=1.0)
     parser.add_argument("--contrast", type=float, default=1.0)

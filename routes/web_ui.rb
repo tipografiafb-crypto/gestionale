@@ -95,26 +95,26 @@ class PrintOrchestrator < Sinatra::Base
   def halftone_command(input_path, output_path, request_params, preview: false)
     target_dpi = numeric_param(request_params, 'target_dpi', 300, min: 1).to_i
     lpi = numeric_param(request_params, 'lpi', 35, min: 1, max: 120)
-    angle = numeric_param(request_params, 'angle', 22, min: 0, max: 90)
-    min_dot_px = numeric_param(request_params, 'min_dot_px', 0, min: 0, max: 50)
+    angle = numeric_param(request_params, 'angle', 22.5, min: 0, max: 90)
+    min_dot_default = truthy_param?(request_params, 'dotChk') ? request_params['dotPx'].presence || 3 : 0
+    min_dot_px = numeric_param(request_params, 'min_dot_px', min_dot_default, min: 0, max: 50)
     dot_shape = request_params['dot_shape'].presence || 'circle'
     highlight_mode = request_params['highlight_mode'].presence || 'drop'
-    tone_mode = request_params['tone_mode'].presence || 'retino_am'
+    tone_mode = request_params['tone_mode'].presence || 'dtf_difference'
     invert = truthy_param?(request_params, 'invert')
-    saturation = numeric_param(request_params, 'saturation', 1.0, min: 0, max: 3)
+    saturation_raw = request_params['saturation'].presence || request_params['sat']
+    saturation_raw = saturation_raw.to_f / 100.0 if request_params['saturation'].blank? && request_params['sat'].present?
+    saturation = numeric_param({ 'saturation' => saturation_raw }, 'saturation', 1.0, min: 0, max: 3)
     contrast = numeric_param(request_params, 'contrast', 1.0, min: 0, max: 3)
     brightness = numeric_param(request_params, 'brightness', 0, min: -100, max: 100)
     knockout_strength = numeric_param(request_params, 'knockout_strength', 0, min: 0, max: 1)
     antialias_px = numeric_param(request_params, 'antialias_px', 0, min: 0, max: 5)
-    mask_black = numeric_param(request_params, 'mask_black', 0, min: 0, max: 254)
-    mask_white = numeric_param(request_params, 'mask_white', 255, min: mask_black + 1, max: 255)
-    mask_gamma = numeric_param(request_params, 'mask_gamma', 1.0, min: 0.1, max: 5)
-    max_coverage = numeric_param(request_params, 'max_coverage', 85, min: 0, max: 100)
-    min_dot_percent = numeric_param(request_params, 'min_dot_percent', 6, min: 0, max: 100)
-    min_hole_percent = numeric_param(request_params, 'min_hole_percent', 4, min: 0, max: 100)
-    resize_width_cm = numeric_param(request_params, 'resize_width_cm', 0, min: 0, max: 300)
+    mask_black = numeric_param(request_params, 'mask_black', request_params['lvB'].presence || 0, min: 0, max: 254)
+    mask_white = numeric_param(request_params, 'mask_white', request_params['lvW'].presence || 255, min: mask_black + 1, max: 255)
+    mask_gamma = numeric_param(request_params, 'mask_gamma', request_params['lvG'].presence || 1.0, min: 0.1, max: 10)
+    resize_width_cm = numeric_param(request_params, 'resize_width_cm', request_params['printw'].presence || 0, min: 0, max: 300)
     resize_height_cm = numeric_param(request_params, 'resize_height_cm', 0, min: 0, max: 300)
-    shirt_color = request_params['shirt_color'].presence
+    shirt_color = request_params['shirt_color'].presence || request_params['fabricCol'].presence
 
     command = [
       'python3', '-m', 'tools.dtf_halftone.cli',
@@ -125,9 +125,6 @@ class PrintOrchestrator < Sinatra::Base
       '--angle', angle.to_s,
       '--dot-shape', dot_shape,
       '--min-dot-px', min_dot_px.to_s,
-      '--min-dot-percent', min_dot_percent.to_s,
-      '--min-hole-percent', min_hole_percent.to_s,
-      '--max-coverage', max_coverage.to_s,
       '--highlight-mode', highlight_mode,
       '--tone-mode', tone_mode,
       '--saturation', saturation.to_s,
@@ -149,7 +146,7 @@ class PrintOrchestrator < Sinatra::Base
 
   def numeric_param(request_params, key, default, min: nil, max: nil)
     raw_value = request_params[key].presence
-    value = raw_value ? Float(raw_value) : default
+    value = raw_value ? Float(raw_value) : (default.nil? ? default : Float(default))
     value = min if min && value < min
     value = max if max && value > max
     value
@@ -1037,6 +1034,36 @@ class PrintOrchestrator < Sinatra::Base
       end
 
       upload = params[:png] || params['png']
+      settings_raw = params[:settings] || params['settings']
+      settings = begin
+        settings_raw.present? ? JSON.parse(settings_raw.to_s) : {}
+      rescue JSON::ParserError
+        {}
+      end
+
+      # Production export uses the authoritative server engine. The browser PNG
+      # remains accepted below for legacy clients and older saved jobs.
+      if settings['server_render'].to_s == '1' && settings['tone_mode'].to_s == 'dtf_difference'
+        operational_path = asset.local_path_full
+        source_path = halftone_source_path(asset)
+        source_backup_path = ensure_halftone_backup!(asset, source_path)
+        tmp_output_path = File.join(File.dirname(operational_path), ".#{File.basename(operational_path, '.*')}_dtf_server_tmp_#{Time.now.strftime('%Y%m%d%H%M%S')}.png")
+        # Every Levels adjustment must start from the untouched DTF source;
+        # processing an already screened PNG compounds its alpha mask.
+        render_source_path = source_backup_path && File.file?(source_backup_path) ? source_backup_path : source_path
+        command = halftone_command(render_source_path, tmp_output_path, settings)
+        stdout, stderr, cmd_status = Open3.capture3(*command, chdir: Dir.pwd)
+        unless cmd_status.success? && File.exist?(tmp_output_path)
+          File.delete(tmp_output_path) if File.exist?(tmp_output_path)
+          status 500
+          return { success: false, error: stderr.presence || 'server_render_failed' }.to_json
+        end
+        FileUtils.mv(tmp_output_path, operational_path)
+        DesignGrouping.propagate_file!(asset, operational_path)
+        puts "[DTF_HALFTONE_SERVER] Replaced asset #{asset.id} from source backup #{source_backup_path}: #{stdout}"
+        return { success: true, redirect_url: "/orders/#{order.id}/items/#{item.id}?success=halftone_updated" }.to_json
+      end
+
       if upload
         content_type :json
         tempfile = nil
