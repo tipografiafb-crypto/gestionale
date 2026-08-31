@@ -2156,6 +2156,7 @@ class AutomationNodeExecutor
     preset = AutomationPreset.active.find_by(kind: 'imposition', code: preset_code)
     raise ArgumentError, "Preset di imposizione non trovato: #{preset_code}" unless preset
     booklet_layout = preset.config['layout_mode'].to_s == 'booklet'
+    repeat_each_element = preset.config['page_distribution'].to_s == 'repeat_each'
 
     input_path = source.full_path
     compatibility_metadata = {}
@@ -2163,7 +2164,7 @@ class AutomationNodeExecutor
     copies = AutomationEngine.context_value(@context, 'variables.production_copies').to_i
     already_materialized = source.metadata.to_h['copies_already_materialized'] == true ||
                            source.metadata.to_h['copies_applied'].to_i == copies && copies.positive?
-    if copies.positive? && !already_materialized && !booklet_layout
+    if copies.positive? && !already_materialized && !booklet_layout && !repeat_each_element
       copies = 1 if copies < 1
       duplication_copies = copies
       input_path = File.join(run_output_dir, "#{@step.node_key}-legacy-pages-#{SecureRandom.hex(4)}.pdf")
@@ -2217,6 +2218,7 @@ class AutomationNodeExecutor
     legacy_duplex = %w[horizontal vertical].include?(impose_config['double_sided_mode'].to_s)
     if side_page_counts.length == 2 &&
        side_page_counts.all?(&:positive?) &&
+       !repeat_each_element &&
        (duplex_work_style || legacy_duplex)
       impose_config['side_page_counts'] = side_page_counts
     end

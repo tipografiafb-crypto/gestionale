@@ -12,6 +12,7 @@ module ImpositionConfig
   BOOKLET_UPS = %w[2 4].freeze
   BOOKLET_WORK_STYLES = %w[sheetwise work_and_turn].freeze
   LAST_SIGNATURE_PADDING = %w[multiple_of_4 full].freeze
+  PAGE_DISTRIBUTIONS = %w[sequential repeat_each].freeze
 
   module_function
 
@@ -37,6 +38,7 @@ module ImpositionConfig
       'rotate' => false,
       'auto_rotate' => true,
       'repeat_product' => true,
+      'page_distribution' => 'sequential',
       'fill_last_sheet' => false,
       'trim_sheet_height' => false,
       'plate_mode' => 'single_sided',
@@ -139,9 +141,14 @@ module ImpositionConfig
                                   end
     config['bleed_mode'] = config['bleed_mode'].to_s
     raise ArgumentError, 'Modalità abbondanza non valida' unless BLEED_MODES.include?(config['bleed_mode'])
+    config['page_distribution'] = config['page_distribution'].to_s
+    unless PAGE_DISTRIBUTIONS.include?(config['page_distribution'])
+      raise ArgumentError, 'Distribuzione pagine non valida'
+    end
     if mode == 'nesting' && config['work_style'] != 'single_sided'
       raise ArgumentError, 'Il nesting non supporta il fronte/retro'
     end
+    config['page_distribution'] = 'sequential' unless mode == 'grid'
 
     config['columns'] = non_negative_integer(config['columns'], 'colonne')
     config['rows'] = non_negative_integer(config['rows'], 'righe')

@@ -352,6 +352,151 @@ class DuplexImpositionTest(unittest.TestCase):
             self.assertEqual(1, len(PdfReader(output).pages))
             self.assertEqual([1, 2, 3, 4], [item["page"] for item in metadata["placements"]])
 
+    def test_repeat_each_element_fills_one_single_sided_sheet_per_page(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "three-elements.pdf"
+            output = Path(directory) / "three-elements-imposed.pdf"
+            self.make_pdf(source, 3)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(
+                    rows=2,
+                    columns=2,
+                    repeat_product=False,
+                    page_distribution="repeat_each",
+                    work_style="single_sided",
+                    double_sided_mode="none",
+                ),
+            )
+
+            self.assertEqual(3, len(PdfReader(output).pages))
+            self.assertEqual(3, metadata["sheets"])
+            self.assertEqual(12, metadata["placed_pages"])
+            self.assertEqual("repeat_each", metadata["page_distribution"])
+            self.assertEqual(
+                [[page] * 4 for page in (1, 2, 3)],
+                [
+                    [item["page"] for item in metadata["placements"] if item["sheet"] == sheet]
+                    for sheet in (1, 2, 3)
+                ],
+            )
+
+    def test_repeat_each_element_keeps_consecutive_duplex_pairs_together(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "three-duplex-elements.pdf"
+            output = Path(directory) / "three-duplex-elements-imposed.pdf"
+            self.make_pdf(source, 6)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(
+                    rows=2,
+                    columns=2,
+                    repeat_product=False,
+                    page_distribution="repeat_each",
+                    work_style="sheetwise",
+                    double_sided_mode="none",
+                ),
+            )
+
+            self.assertEqual(6, len(PdfReader(output).pages))
+            self.assertEqual(6, metadata["sheets"])
+            self.assertEqual(3, metadata["sheet_pairs"])
+            self.assertEqual(
+                [[page] * 4 for page in range(1, 7)],
+                [
+                    [item["page"] for item in metadata["placements"] if item["sheet"] == sheet]
+                    for sheet in range(1, 7)
+                ],
+            )
+            self.assertEqual(
+                ["front", "back", "front", "back", "front", "back"],
+                [
+                    next(item["side"] for item in metadata["placements"] if item["sheet"] == sheet)
+                    for sheet in range(1, 7)
+                ],
+            )
+
+    def test_sheetwise_back_mirrors_the_anchor_position(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "duplex-element.pdf"
+            output = Path(directory) / "duplex-element-imposed.pdf"
+            writer = PdfWriter()
+            for _ in range(2):
+                writer.add_blank_page(width=50 * 72 / 25.4, height=50 * 72 / 25.4)
+            with source.open("wb") as stream:
+                writer.write(stream)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(
+                    sheet_width_mm=260,
+                    sheet_height_mm=130,
+                    margin_left_mm=20,
+                    margin_right_mm=60,
+                    margin_top_mm=10,
+                    margin_bottom_mm=20,
+                    rows=2,
+                    columns=2,
+                    anchor="top_left",
+                    page_distribution="repeat_each",
+                    work_style="sheetwise",
+                    double_sided_mode="none",
+                ),
+            )
+
+            front = [item for item in metadata["placements"] if item["sheet"] == 1]
+            back = [item for item in metadata["placements"] if item["sheet"] == 2]
+            self.assertEqual([20, 70, 20, 70], [round(item["x_mm"]) for item in front])
+            self.assertEqual([190, 140, 190, 140], [round(item["x_mm"]) for item in back])
+            self.assertEqual([2, 1, 2, 1], [item["column"] for item in back])
+
+    def test_repeat_each_element_supports_multiple_work_and_turn_pairs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "three-work-and-turn-elements.pdf"
+            output = Path(directory) / "three-work-and-turn-elements-imposed.pdf"
+            self.make_pdf(source, 6)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(
+                    rows=2,
+                    columns=2,
+                    repeat_product=False,
+                    page_distribution="repeat_each",
+                    work_style="work_and_turn",
+                    double_sided_mode="none",
+                ),
+            )
+
+            self.assertEqual(3, len(PdfReader(output).pages))
+            self.assertEqual(
+                [[1, 2, 1, 2], [3, 4, 3, 4], [5, 6, 5, 6]],
+                [
+                    [item["page"] for item in metadata["placements"] if item["sheet"] == sheet]
+                    for sheet in range(1, 4)
+                ],
+            )
+
+    def test_repeat_each_element_rejects_an_incomplete_duplex_pair(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "incomplete-duplex-element.pdf"
+            output = Path(directory) / "incomplete-duplex-element-imposed.pdf"
+            self.make_pdf(source, 3)
+
+            with self.assertRaisesRegex(ValueError, "coppie complete fronte/retro"):
+                impose(
+                    str(source), str(output),
+                    self.config(
+                        rows=2,
+                        columns=2,
+                        page_distribution="repeat_each",
+                        work_style="sheetwise",
+                        double_sided_mode="none",
+                    ),
+                )
+
     def test_grid_uses_trimbox_instead_of_media_box(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "trimmed.pdf"
@@ -871,6 +1016,153 @@ class BookletImpositionTest(unittest.TestCase):
             self.assertAlmostEqual(103.0, right[2] / self.POINTS_PER_MM, places=3)
             # The two clips meet at the fold: continuous artwork, no overlap.
             self.assertAlmostEqual(0.0, right[0] - (left[0] + left[2]), places=6)
+
+    def test_four_up_rotated_form_never_bleeds_into_adjacent_pages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "bleed.pdf"
+            output = Path(directory) / "imposed.pdf"
+            writer = PdfWriter()
+            for _ in range(8):
+                page = writer.add_blank_page(
+                    width=106 * self.POINTS_PER_MM,
+                    height=146 * self.POINTS_PER_MM,
+                )
+                page.trimbox = RectangleObject([
+                    3 * self.POINTS_PER_MM, 3 * self.POINTS_PER_MM,
+                    103 * self.POINTS_PER_MM, 143 * self.POINTS_PER_MM,
+                ])
+                page.bleedbox = RectangleObject([
+                    0, 0, 106 * self.POINTS_PER_MM, 146 * self.POINTS_PER_MM,
+                ])
+            with source.open("wb") as handle:
+                writer.write(handle)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(
+                    sheet_width_mm=320,
+                    sheet_height_mm=230,
+                    booklet_up="4",
+                    booklet_repeat_gap_mm=6,
+                    booklet_bleed_mm=3,
+                    creep_mm=0,
+                    auto_rotate=True,
+                    marks={
+                        "crop": True,
+                        "registration": False,
+                        "fold": False,
+                        "color_bars": False,
+                        "job_info": False,
+                        "offset_mm": 2,
+                        "length_mm": 5,
+                        "line_width_pt": 0.35,
+                    },
+                ),
+            )
+
+            self.assertEqual(270, metadata["form_rotation"])
+            first_side = PdfReader(output).pages[0]
+            clips = [
+                [float(value) / self.POINTS_PER_MM for value in match]
+                for match in re.findall(
+                    r"q ([\d.-]+) ([\d.-]+) ([\d.-]+) ([\d.-]+) re W n",
+                    first_side.get_contents().get_data().decode("ascii"),
+                )
+            ]
+            self.assertEqual(4, len(clips))
+
+            left_top, left_bottom, right_top, right_bottom = clips
+            # The two pages of each form touch at the spine without overlap.
+            self.assertAlmostEqual(
+                left_top[1], left_bottom[1] + left_bottom[3], places=3,
+            )
+            self.assertAlmostEqual(
+                right_top[1], right_bottom[1] + right_bottom[3], places=3,
+            )
+            # The repeated forms share the 6 mm gap: 3 mm of bleed each.
+            self.assertAlmostEqual(
+                right_bottom[0], left_bottom[0] + left_bottom[2], places=3,
+            )
+            self.assertAlmostEqual(
+                right_top[0], left_top[0] + left_top[2], places=3,
+            )
+            # The outer perimeter still retains the requested 3 mm bleed.
+            first_placement = metadata["placements"][0]
+            self.assertAlmostEqual(first_placement["x_mm"] - 3, clips[0][0], places=3)
+            self.assertAlmostEqual(146, clips[0][2], places=3)
+
+    def test_rotated_a5_four_up_keeps_the_outer_head_crop_marks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "a5-bleed.pdf"
+            output = Path(directory) / "imposed.pdf"
+            writer = PdfWriter()
+            for _ in range(8):
+                page = writer.add_blank_page(
+                    width=154 * self.POINTS_PER_MM,
+                    height=216 * self.POINTS_PER_MM,
+                )
+                page.trimbox = RectangleObject([
+                    3 * self.POINTS_PER_MM, 3 * self.POINTS_PER_MM,
+                    151 * self.POINTS_PER_MM, 213 * self.POINTS_PER_MM,
+                ])
+                page.bleedbox = RectangleObject([
+                    0, 0, 154 * self.POINTS_PER_MM, 216 * self.POINTS_PER_MM,
+                ])
+            with source.open("wb") as handle:
+                writer.write(handle)
+
+            metadata = impose(
+                str(source), str(output),
+                self.config(
+                    sheet_width_mm=450,
+                    sheet_height_mm=350,
+                    margin_left_mm=0,
+                    margin_right_mm=0,
+                    margin_top_mm=0,
+                    margin_bottom_mm=0,
+                    booklet_up="4",
+                    booklet_repeat_mode="repeat",
+                    booklet_repeat_gap_mm=4,
+                    booklet_bleed_mm=3,
+                    creep_mm=0,
+                    auto_rotate=True,
+                    marks={
+                        "crop": True,
+                        "registration": False,
+                        "fold": False,
+                        "color_bars": False,
+                        "job_info": False,
+                        "offset_mm": 2,
+                        "length_mm": 5,
+                        "line_width_pt": 0.35,
+                    },
+                ),
+            )
+
+            self.assertEqual(1.0, metadata["scale"])
+            self.assertEqual(270, metadata["form_rotation"])
+            content = PdfReader(output).pages[0].get_contents().get_data().decode("latin1")
+            clips = [
+                [float(value) / self.POINTS_PER_MM for value in match]
+                for match in re.findall(
+                    r"q ([\d.-]+) ([\d.-]+) ([\d.-]+) ([\d.-]+) re W n",
+                    content,
+                )
+            ]
+            # The two 2-up forms divide the 4 mm channel into 2 mm each.
+            self.assertAlmostEqual(clips[0][0] + clips[0][2], clips[2][0], places=3)
+
+            mark_lines = [
+                tuple(float(value) / self.POINTS_PER_MM for value in match)
+                for match in re.findall(
+                    r"n\s+([\d.]+) ([\d.]+) m\s+([\d.]+) ([\d.]+) l\s+S",
+                    content,
+                )
+            ]
+            horizontal_marks = [line for line in mark_lines if abs(line[1] - line[3]) < 0.001]
+            # The four outer head/foot marks remain even though the marks at
+            # the touching spine corners are correctly suppressed.
+            self.assertEqual(4, len(horizontal_marks))
 
     def test_the_spine_stays_on_the_long_edge_whichever_way_the_sheet_runs(self):
         # 100x140 source: the spine belongs on the 140 mm edge. A sheet that

@@ -370,13 +370,17 @@ def _apply_sheet_marks(
     def outer_bounds(placement):
         bleed_x = max(0.0, float(placement.get("bleed_x", placement.get("bleed", 0))))
         bleed_y = max(0.0, float(placement.get("bleed_y", placement.get("bleed", 0))))
+        bleed_left = max(0.0, float(placement.get("bleed_left", bleed_x)))
+        bleed_right = max(0.0, float(placement.get("bleed_right", bleed_x)))
+        bleed_bottom = max(0.0, float(placement.get("bleed_bottom", bleed_y)))
+        bleed_top = max(0.0, float(placement.get("bleed_top", bleed_y)))
         x = float(placement["x"])
         y = float(placement["y"])
         return (
-            x - bleed_x,
-            y - bleed_y,
-            x + float(placement["width"]) + bleed_x,
-            y + float(placement["height"]) + bleed_y,
+            x - bleed_left,
+            y - bleed_bottom,
+            x + float(placement["width"]) + bleed_right,
+            y + float(placement["height"]) + bleed_top,
         )
 
     def nearest_gap(index, direction):
@@ -451,38 +455,38 @@ def _apply_sheet_marks(
             right_mark = mark_dimensions(nearest_gap(index, "right"))
             bottom_mark = mark_dimensions(nearest_gap(index, "bottom"))
             top_mark = mark_dimensions(nearest_gap(index, "top"))
-            if left_mark and segment_is_clear(
-                index, "left", trim_y, trim_x - left_mark[0] - left_mark[1], trim_x - left_mark[0]
-            ) and segment_is_clear(
-                index, "left", trim_top, trim_x - left_mark[0] - left_mark[1], trim_x - left_mark[0]
-            ):
+            if left_mark:
                 local_offset, local_length = left_mark
-                overlay.line(trim_x - local_offset - local_length, trim_y, trim_x - local_offset, trim_y)
-                overlay.line(trim_x - local_offset - local_length, trim_top, trim_x - local_offset, trim_top)
-            if right_mark and segment_is_clear(
-                index, "right", trim_y, trim_right + right_mark[0], trim_right + right_mark[0] + right_mark[1]
-            ) and segment_is_clear(
-                index, "right", trim_top, trim_right + right_mark[0], trim_right + right_mark[0] + right_mark[1]
-            ):
+                start = trim_x - local_offset - local_length
+                end = trim_x - local_offset
+                if segment_is_clear(index, "left", trim_y, start, end):
+                    overlay.line(start, trim_y, end, trim_y)
+                if segment_is_clear(index, "left", trim_top, start, end):
+                    overlay.line(start, trim_top, end, trim_top)
+            if right_mark:
                 local_offset, local_length = right_mark
-                overlay.line(trim_right + local_offset, trim_y, trim_right + local_offset + local_length, trim_y)
-                overlay.line(trim_right + local_offset, trim_top, trim_right + local_offset + local_length, trim_top)
-            if bottom_mark and segment_is_clear(
-                index, "bottom", trim_x, trim_y - bottom_mark[0] - bottom_mark[1], trim_y - bottom_mark[0]
-            ) and segment_is_clear(
-                index, "bottom", trim_right, trim_y - bottom_mark[0] - bottom_mark[1], trim_y - bottom_mark[0]
-            ):
+                start = trim_right + local_offset
+                end = trim_right + local_offset + local_length
+                if segment_is_clear(index, "right", trim_y, start, end):
+                    overlay.line(start, trim_y, end, trim_y)
+                if segment_is_clear(index, "right", trim_top, start, end):
+                    overlay.line(start, trim_top, end, trim_top)
+            if bottom_mark:
                 local_offset, local_length = bottom_mark
-                overlay.line(trim_x, trim_y - local_offset - local_length, trim_x, trim_y - local_offset)
-                overlay.line(trim_right, trim_y - local_offset - local_length, trim_right, trim_y - local_offset)
-            if top_mark and segment_is_clear(
-                index, "top", trim_x, trim_top + top_mark[0], trim_top + top_mark[0] + top_mark[1]
-            ) and segment_is_clear(
-                index, "top", trim_right, trim_top + top_mark[0], trim_top + top_mark[0] + top_mark[1]
-            ):
+                start = trim_y - local_offset - local_length
+                end = trim_y - local_offset
+                if segment_is_clear(index, "bottom", trim_x, start, end):
+                    overlay.line(trim_x, start, trim_x, end)
+                if segment_is_clear(index, "bottom", trim_right, start, end):
+                    overlay.line(trim_right, start, trim_right, end)
+            if top_mark:
                 local_offset, local_length = top_mark
-                overlay.line(trim_x, trim_top + local_offset, trim_x, trim_top + local_offset + local_length)
-                overlay.line(trim_right, trim_top + local_offset, trim_right, trim_top + local_length + local_offset)
+                start = trim_top + local_offset
+                end = trim_top + local_offset + local_length
+                if segment_is_clear(index, "top", trim_x, start, end):
+                    overlay.line(trim_x, start, trim_x, end)
+                if segment_is_clear(index, "top", trim_right, start, end):
+                    overlay.line(trim_right, start, trim_right, end)
 
     if bool(marks.get("registration", False)):
         radius = 2.5 * mm
@@ -1400,14 +1404,31 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
                     transform = Transformation().scale(scale).rotate(placement_rotation).translate(
                         offset_x, offset_y,
                     )
-                    outer_bleed = min(booklet_bleed, form_gap / 2) if booklet_up == 4 else booklet_bleed
-                    toward_left = scaled_spine_gap / 2 if column == 1 else outer_bleed
-                    toward_right = scaled_spine_gap / 2 if column == 0 else outer_bleed
-                    toward_top = form_gap / 2 if row == 1 else outer_bleed
-                    toward_bottom = form_gap / 2 if row == 0 and booklet_up == 4 else outer_bleed
-                    if form_rotation:
+                    # Bleed is allowed on the outside of the complete press
+                    # form. At every internal boundary it is capped to half
+                    # the available gap; when pages touch, that means exactly
+                    # zero, so artwork can never enter the neighbouring page.
+                    outer_bleed = booklet_bleed
+                    spine_bleed = min(booklet_bleed, scaled_spine_gap / 2)
+                    row_bleed = min(booklet_bleed, form_gap / 2)
+                    toward_left = spine_bleed if column == 1 else outer_bleed
+                    toward_right = spine_bleed if column == 0 else outer_bleed
+                    if booklet_up == 4 and form_rotation == 270:
+                        # row_v() reverses the two forms when the press form is
+                        # turned clockwise: row 0 is physically on the left,
+                        # so its top edge (not its bottom edge) faces row 1.
+                        toward_top = row_bleed if row == 0 else outer_bleed
+                        toward_bottom = row_bleed if row == 1 else outer_bleed
+                    else:
+                        toward_top = row_bleed if booklet_up == 4 and row == 1 else outer_bleed
+                        toward_bottom = row_bleed if booklet_up == 4 and row == 0 else outer_bleed
+                    if form_rotation == 90:
                         bleed_left, bleed_bottom, bleed_right, bleed_top = (
                             toward_top, toward_left, toward_bottom, toward_right,
+                        )
+                    elif form_rotation == 270:
+                        bleed_left, bleed_bottom, bleed_right, bleed_top = (
+                            toward_bottom, toward_right, toward_top, toward_left,
                         )
                     else:
                         bleed_left, bleed_bottom, bleed_right, bleed_top = (
@@ -1434,8 +1455,10 @@ def _impose_booklet(reader: PdfReader, output_path: str, config: dict) -> dict:
                     render_placements.append({
                         "x": x, "y": y,
                         "width": width, "height": height,
-                        "bleed_x": max(bleed_left, bleed_right),
-                        "bleed_y": max(bleed_top, bleed_bottom),
+                        "bleed_left": bleed_left,
+                        "bleed_right": bleed_right,
+                        "bleed_bottom": bleed_bottom,
+                        "bleed_top": bleed_top,
                     })
                     metadata_placements.append({
                         "page": entry["number"],
@@ -1540,6 +1563,10 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
     fill_last_sheet = bool(config.get("fill_last_sheet", False))
     trim_sheet_height = bool(config.get("trim_sheet_height", False))
     repeat_product = bool(config.get("repeat_product", False))
+    page_distribution = str(config.get("page_distribution", "sequential"))
+    if page_distribution not in {"sequential", "repeat_each"}:
+        raise ValueError("Distribuzione pagine non valida")
+    repeat_each_element = page_distribution == "repeat_each"
     fixed_columns = int(config.get("columns", 0) or 0)
     fixed_rows = int(config.get("rows", 0) or 0)
     if fixed_columns < 0 or fixed_rows < 0:
@@ -1557,6 +1584,10 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         else:
             work_style = "single_sided"
     duplex_enabled = work_style != "single_sided"
+    if repeat_each_element and duplex_enabled and len(reader.pages) % 2:
+        raise ValueError(
+            "Una plancia per elemento richiede coppie complete fronte/retro"
+        )
     plate_mode = (
         "duplex_separate" if work_style in {"sheetwise", "perfecting"}
         else "duplex_same_set" if work_style in {"work_and_turn", "work_and_tumble"}
@@ -1676,12 +1707,12 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         isinstance(config.get("side_page_counts"), list)
         and len(config.get("side_page_counts")) == 2
     )
-    if repeat_product and work_style == "work_and_turn" and (
-        len(reader.pages) == 2 or paired_input_hint
+    if (repeat_product or repeat_each_element) and work_style == "work_and_turn" and (
+        len(reader.pages) == 2 or paired_input_hint or repeat_each_element
     ) and columns % 2:
         columns -= 1
-    if repeat_product and work_style == "work_and_tumble" and (
-        len(reader.pages) == 2 or paired_input_hint
+    if (repeat_product or repeat_each_element) and work_style == "work_and_tumble" and (
+        len(reader.pages) == 2 or paired_input_hint or repeat_each_element
     ) and rows % 2:
         rows -= 1
     if columns < 1 or rows < 1:
@@ -1701,7 +1732,11 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
     same_form_product = False
     same_form_product_capacity = 0
     same_form_product_count = 0
+    repeat_each_separate = False
+    repeat_each_same_form = False
     same_form_paired_input = (
+        not repeat_each_element
+        and
         explicit_same_form_style
         and
         side_page_counts is not None
@@ -1710,7 +1745,16 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         and input_pages % 2 == 0
     )
     repeated_duplex_product = repeat_product and input_pages == 2 and duplex_enabled
-    if side_page_counts is not None and not same_form_paired_input:
+    if repeat_each_element:
+        if work_style in {"work_and_turn", "work_and_tumble"}:
+            repeat_each_same_form = True
+            same_form_product = True
+            sheets = input_pages // 2
+        else:
+            repeat_each_separate = True
+            sheets = input_pages
+        placements_total = sheets * slots_per_sheet
+    elif side_page_counts is not None and not same_form_paired_input:
         if not duplex_enabled:
             raise ValueError(
                 "Le pagine fronte/retro richiedono una modalità fronte/retro"
@@ -1806,7 +1850,13 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         content_parts = []
         rendered_placements = []
         sheet_head_rotation = source_rotation
-        if same_form_paired_input:
+        if repeat_each_separate:
+            group_start = sheet_index
+            group_pages = 1
+            group_offset = 0
+            remaining = slots_per_sheet
+            placements_on_sheet = slots_per_sheet
+        elif same_form_paired_input:
             remaining_products = same_form_product_count - sheet_index * same_form_product_capacity
             products_on_sheet = (
                 same_form_product_capacity
@@ -1864,12 +1914,14 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
                 if side_index:
                     placement_rotation = (source_rotation + 180) % 360
             elif same_form_product and work_style == "work_and_turn":
-                source_index = 0 if column < columns / 2 else 1
-                if source_index == 1:
+                side_index = 0 if column < columns / 2 else 1
+                source_index = (sheet_index * 2 if repeat_each_same_form else 0) + side_index
+                if side_index == 1:
                     placement_rotation = (source_rotation + 180) % 360
             elif same_form_product and work_style == "work_and_tumble":
-                source_index = 0 if row < rows / 2 else 1
-                if source_index == 1:
+                side_index = 0 if row < rows / 2 else 1
+                source_index = (sheet_index * 2 if repeat_each_same_form else 0) + side_index
+                if side_index == 1:
                     placement_rotation = (source_rotation + 180) % 360
             if same_form_paired_input and source_index is not None and source_index >= input_pages:
                 source_index %= input_pages
@@ -1878,8 +1930,8 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
                 if duplex_groups
                 else sheet_index % 2 == 1 and duplex_enabled
             )
-            if is_back_sheet and work_style == "sheetwise":
-                column = columns - 1 - column
+            mirror_sheetwise_back = is_back_sheet and work_style == "sheetwise"
+            if mirror_sheetwise_back:
                 placement_rotation = flipped_rotation(source_rotation, "horizontal")
             elif is_back_sheet and work_style == "perfecting":
                 row = rows - 1 - row
@@ -1903,9 +1955,18 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
                 y = output_height - margin_top - placed_height - row * (
                     placed_height + gap_y
                 )
+            if mirror_sheetwise_back:
+                # The back is printed after turning the sheet on its vertical
+                # axis. Mirror the final position, not merely the cell order:
+                # a front anchored top-left must therefore have its back
+                # anchored top-right, including the unused area and margins.
+                x = sheet_width - x - placed_width
+                column = columns - 1 - column
 
             if source_index is None:
-                if repeat_product and (input_pages == 1 or repeated_duplex_product):
+                if repeat_each_separate:
+                    source_index = group_start
+                elif repeat_product and (input_pages == 1 or repeated_duplex_product):
                     source_index = group_start
                 else:
                     source_index = group_start + ((group_offset + slot_index) % group_pages)
@@ -1951,6 +2012,8 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
                 "row": row + 1,
                 "column": column + 1,
                 "rotation": placement_rotation,
+                "x_mm": x / mm,
+                "y_mm": y / mm,
             })
             if slot_index == 0:
                 sheet_head_rotation = placement_rotation
@@ -1991,6 +2054,7 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
         "plate_mode": plate_mode,
         "duplex_orientation": duplex_orientation,
         "work_style": work_style,
+        "page_distribution": page_distribution,
         "source_direction": source_direction,
         "source_rotation": source_rotation,
         "trim_sheet_height": trim_sheet_height,
@@ -1999,7 +2063,11 @@ def impose(input_path: str, output_path: str, config: dict) -> dict:
             if duplex_groups
             else None
         ),
-        "sheet_pairs": sheets // 2 if duplex_groups else None,
+        "sheet_pairs": (
+            sheets // 2
+            if duplex_groups or (repeat_each_separate and duplex_enabled)
+            else None
+        ),
         "scale": 1.0,
         "shared_resources": use_shared_resources,
         "placements": metadata_placements,

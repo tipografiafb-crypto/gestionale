@@ -15,6 +15,7 @@ if (root) {
   config.booklet_up = config.booklet_up && config.booklet_up !== 'auto' ? config.booklet_up : '2';
   config.booklet_work_style ||= 'sheetwise';
   config.last_signature_padding ||= 'multiple_of_4';
+  config.page_distribution ||= 'sequential';
   delete config.pages_per_side;
   delete config.booklet_scheme;
   const elements = {
@@ -233,7 +234,9 @@ if (root) {
     const capacity = Math.max(0, columns * rows);
     const pageCount = Math.max(1, Math.round(number(config.sample_pages, 1)));
     const isDuplexProduct = config.work_style !== 'single_sided' && pageCount >= 2;
-    const count = config.fill_last_sheet || isDuplexProduct ? capacity : Math.min(capacity, pageCount);
+    const repeatEachElement = config.page_distribution === 'repeat_each';
+    const count = repeatEachElement || config.fill_last_sheet || isDuplexProduct
+      ? capacity : Math.min(capacity, pageCount);
     const usedWidth = columns * footprintWidth + Math.max(0, columns - 1) * dims.gapX;
     const usedHeight = rows * footprintHeight + Math.max(0, rows - 1) * dims.gapY;
     let startX = dims.marginLeft;
@@ -249,7 +252,7 @@ if (root) {
       if (state.side === 'back' && config.work_style === 'perfecting') row = rows - 1 - row;
       if (String(config.anchor).endsWith('right')) column = columns - 1 - column;
       if (String(config.anchor).startsWith('bottom')) row = rows - 1 - row;
-      let page = (index % pageCount) + 1;
+      let page = repeatEachElement ? 1 : (index % pageCount) + 1;
       let rotation = dims.sourceRotation;
       if (config.work_style === 'sheetwise' || config.work_style === 'perfecting') {
         page = state.side === 'front' ? 1 : Math.min(2, pageCount);
@@ -280,7 +283,13 @@ if (root) {
         bleed: dims.bleed
       });
     }
-    return { placements, columns, rows, capacity, sheets: config.work_style === 'single_sided' ? Math.max(1, Math.ceil(pageCount / Math.max(capacity, 1))) : (['sheetwise', 'perfecting'].includes(config.work_style) ? 2 : 1), usedWidth, usedHeight };
+    const sheets = repeatEachElement
+      ? (config.work_style === 'single_sided' || ['sheetwise', 'perfecting'].includes(config.work_style)
+        ? pageCount : Math.ceil(pageCount / 2))
+      : (config.work_style === 'single_sided'
+        ? Math.max(1, Math.ceil(pageCount / Math.max(capacity, 1)))
+        : (['sheetwise', 'perfecting'].includes(config.work_style) ? 2 : 1));
+    return { placements, columns, rows, capacity, sheets, usedWidth, usedHeight };
   }
 
   function nestingLayout(dims) {
@@ -658,7 +667,7 @@ if (root) {
     const sideTitle = activeWorkStyle === 'work_and_turn'
       ? 'Bianca e volta'
       : (state.side === 'front' ? 'Fronte' : (mirroredBack ? 'Retro · forme inverse a -90°' : 'Retro'));
-    elements.previewTitle.textContent = `Forma 1 · ${sideTitle}`;
+    elements.previewTitle.textContent = `${config.layout_mode === 'grid' && config.page_distribution === 'repeat_each' ? 'Elemento 1' : 'Forma 1'} · ${sideTitle}`;
     elements.sheetSize.textContent = `${result.dims.sheetWidth} × ${result.dims.sheetHeight} mm`;
     const area = result.placements.reduce((sum, item) => sum + item.width * item.height, 0);
     const sheetArea = result.dims.sheetWidth * result.dims.sheetHeight;
@@ -683,7 +692,10 @@ if (root) {
       ['Fogli stimati', String(result.sheets || 1)],
       ['Abbondanza', config.bleed_mode === 'none' ? 'Nessuna' : `${number(config.bleed_mm)} mm`]
     ];
-    if (config.layout_mode === 'grid') rows.splice(2, 0, ['Griglia', `${result.columns} × ${result.rows}`]);
+    if (config.layout_mode === 'grid') {
+      rows.splice(2, 0, ['Griglia', `${result.columns} × ${result.rows}`]);
+      rows.splice(3, 0, ['Distribuzione', config.page_distribution === 'repeat_each' ? 'Una plancia per elemento' : 'Pagine sulla stessa plancia']);
+    }
     if (config.layout_mode === 'booklet') {
       rows.splice(2, 0, ['Legatura', bookletBindingLabels[config.binding_method]]);
       rows.splice(3, 0, ['Forma', `${result.up || 2}-up · ${result.up === 4 ? 'due forme 2-up' : 'una forma 2-up'}`]);
@@ -704,6 +716,7 @@ if (root) {
     if (config.layout_mode === 'booklet' && result.scale < .999) warnings.push(`La forma booklet viene ridotta al ${Math.round(result.scale * 100)}% per entrare nel foglio.`);
     if (config.layout_mode === 'grid' && config.work_style === 'work_and_turn' && result.columns % 2) warnings.push('La volta richiede un numero pari di colonne.');
     if (config.layout_mode === 'grid' && config.work_style === 'work_and_tumble' && result.rows % 2) warnings.push('La voltura testa-piede richiede un numero pari di righe.');
+    if (config.layout_mode === 'grid' && config.page_distribution === 'repeat_each' && config.work_style !== 'single_sided' && number(config.sample_pages) % 2) warnings.push('Una lavorazione fronte/retro richiede un numero pari di pagine: fronte e retro consecutivi per ogni elemento.');
     if (config.bleed_mode === 'none') warnings.push('La plancia non aggiungerà né controllerà abbondanze.');
     if (config.marks.crop && result.dims.marginTop < number(config.marks.length_mm) + number(config.marks.offset_mm)) warnings.push('Il margine superiore può essere insufficiente per i crocini.');
     if (config.marks.crop && config.layout_mode === 'grid') {
