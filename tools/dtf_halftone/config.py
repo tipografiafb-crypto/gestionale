@@ -31,6 +31,8 @@ class HalftoneConfig:
     mask_black: float = 36.0
     mask_white: float = 245.0
     mask_gamma: float = 1.0
+    output_black: float = 0.0
+    output_white: float = 255.0
     alpha_threshold: float = 0.01
 
     def validate(self) -> None:
@@ -60,3 +62,5 @@ class HalftoneConfig:
             raise ValueError("mask_black and mask_white must be between 0 and 255, with black < white")
         if self.mask_gamma <= 0:
             raise ValueError("mask_gamma must be greater than 0")
+        if not 0 <= self.output_black <= self.output_white <= 255:
+            raise ValueError("output_black and output_white must be between 0 and 255, with black <= white")

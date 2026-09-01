@@ -308,6 +308,90 @@
     width: 14px;
   }
 
+  .ht-levels-control {
+    margin: 5px 8px 10px;
+    position: relative;
+  }
+
+  .ht-levels-track {
+    background: linear-gradient(90deg, #050505 0%, #fff 100%);
+    border: 1px solid var(--ht-line);
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16);
+    height: 13px;
+    position: relative;
+    touch-action: none;
+  }
+
+  .ht-level-handle {
+    background: var(--handle-color, var(--ht-panel));
+    border: 2px solid var(--handle-border, var(--ht-ink));
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+    cursor: ew-resize;
+    height: 17px;
+    left: calc(var(--level-pos, 0) * 100%);
+    padding: 0;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 17px;
+    z-index: 2;
+  }
+
+  .ht-level-handle.is-black { --handle-color: #050505; --handle-border: #fff; }
+  .ht-level-handle.is-white { --handle-color: #fff; --handle-border: #171717; }
+
+  .ht-level-handle.is-gamma {
+    --handle-color: var(--ht-reg);
+    --handle-border: #fff;
+    height: 15px;
+    width: 15px;
+    z-index: 3;
+  }
+
+  .ht-level-handle:focus-visible,
+  .ht-level-handle.is-dragging {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ht-reg) 35%, transparent), 0 1px 3px rgba(0, 0, 0, .35);
+    outline: none;
+    z-index: 5;
+  }
+
+  .ht-level-source {
+    height: 1px;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    position: absolute;
+    width: 1px;
+  }
+
+  .ht-level-values {
+    display: grid;
+    gap: 6px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 9px;
+  }
+
+  .ht-level-values.is-output { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ht-level-value { min-width: 0; }
+
+  .ht-level-value > label {
+    color: var(--ht-dim);
+    display: block;
+    font-size: 10px;
+    margin-bottom: 2px;
+    text-align: center;
+  }
+
+  .ht-level-value .ht-number-wrap {
+    display: flex;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .ht-level-value .ht-number-input { flex: 1; width: 100%; }
+
   .ht-seg {
     border: 1px solid var(--ht-line);
     border-radius: 4px;
@@ -631,19 +715,41 @@
     </div>
 
     <div class="ht-group">
-      <h5>Tono e copertura</h5>
+      <h5>Levels</h5>
       <label class="ht-check"><input type="checkbox" id="invert">Inverti copertura</label>
-      <div class="ht-hint">Disattivato lavora sulle zone chiare; attivato sulle zone scure.</div>
+      <div class="ht-hint">Regolazione come Photoshop: livelli di ingresso, gamma e livelli di uscita.</div>
       <canvas id="hist" width="256" height="64"></canvas>
 
-      <div class="ht-row"><label for="lvB">Nero input</label><span class="ht-val" id="lvBV">0</span></div>
-      <input class="ht-range" type="range" id="lvB" min="0" max="250" step="1" value="5">
+      <div class="ht-hint">Input Levels</div>
+      <div class="ht-levels-control">
+        <div class="ht-levels-track" id="inputLevelsTrack">
+          <button type="button" class="ht-level-handle is-black" data-level-id="lvB" aria-label="Nero input"></button>
+          <button type="button" class="ht-level-handle is-gamma" data-level-id="lvG" aria-label="Gamma"></button>
+          <button type="button" class="ht-level-handle is-white" data-level-id="lvW" aria-label="Bianco input"></button>
+        </div>
+        <div class="ht-level-values">
+          <div class="ht-level-value"><label for="lvBN">Nero</label><span class="ht-val" id="lvBV">0</span></div>
+          <div class="ht-level-value"><label for="lvGN">Gamma</label><span class="ht-val" id="lvGV">1.00</span></div>
+          <div class="ht-level-value"><label for="lvWN">Bianco</label><span class="ht-val" id="lvWV">255</span></div>
+        </div>
+      </div>
+      <input class="ht-level-source" type="range" id="lvB" min="0" max="250" step="1" value="5">
+      <input class="ht-level-source" type="range" id="lvG" min="0.10" max="10.00" step="0.01" value="1.00">
+      <input class="ht-level-source" type="range" id="lvW" min="5" max="255" step="1" value="100">
 
-      <div class="ht-row"><label for="lvG">Gamma</label><span class="ht-val" id="lvGV">1.00</span></div>
-      <input class="ht-range" type="range" id="lvG" min="0.10" max="10.00" step="0.01" value="1.00">
-
-      <div class="ht-row"><label for="lvW">Bianco input</label><span class="ht-val" id="lvWV">255</span></div>
-      <input class="ht-range" type="range" id="lvW" min="5" max="255" step="1" value="100">
+      <div class="ht-hint mt-2">Output Levels</div>
+      <div class="ht-levels-control">
+        <div class="ht-levels-track" id="outputLevelsTrack">
+          <button type="button" class="ht-level-handle is-black" data-level-id="lvOB" aria-label="Nero output"></button>
+          <button type="button" class="ht-level-handle is-white" data-level-id="lvOW" aria-label="Bianco output"></button>
+        </div>
+        <div class="ht-level-values is-output">
+          <div class="ht-level-value"><label for="lvOBN">Nero</label><span class="ht-val" id="lvOBV">0</span></div>
+          <div class="ht-level-value"><label for="lvOWN">Bianco</label><span class="ht-val" id="lvOWV">255</span></div>
+        </div>
+      </div>
+      <input class="ht-level-source" type="range" id="lvOB" min="0" max="255" step="1" value="0">
+      <input class="ht-level-source" type="range" id="lvOW" min="0" max="255" step="1" value="255">
 
       <div class="ht-row"><label for="sat">Saturazione colore</label><span class="ht-val" id="satV">100%</span></div>
       <input class="ht-range" type="range" id="sat" min="0" max="250" step="5" value="100">
@@ -674,18 +780,7 @@
         <input type="color" id="fabricCol" value="#151515" style="width:42px;height:30px;border:1px solid var(--ht-line);border-radius:4px;padding:1px">
       </div>
       <div class="ht-hint" id="pickHint">Spento: metodo precedente. Acceso: separazione graduale dal colore tessuto.</div>
-
-      <div class="ht-option-block is-disabled" id="fabricOptions">
-        <div class="ht-row"><label for="fabricInner">Inizio transizione</label><span class="ht-val" id="fabricInnerV">3 ΔE</span></div>
-        <input class="ht-range" type="range" id="fabricInner" min="0" max="20" step="0.5" value="3" disabled>
-
-        <div class="ht-row"><label for="fabricOuter">Fine transizione</label><span class="ht-val" id="fabricOuterV">30 ΔE</span></div>
-        <input class="ht-range" type="range" id="fabricOuter" min="20" max="80" step="1" value="30" disabled>
-
-      </div>
-      <div class="ht-row"><label for="cap">Copertura massima globale</label><span class="ht-val" id="capV">100%</span></div>
-      <input class="ht-range" type="range" id="cap" min="40" max="100" step="1" value="100">
-      <div class="ht-hint">100% conserva le campiture piene. Riduci il valore solo per alleggerire intenzionalmente ink e peso della stampa.</div>
+      <div class="ht-hint">Il colore del tessuto sostituisce solo i pixel percettivamente compatibili. Colori lontani e bordi mantengono la copertura definita dai Levels.</div>
     </div>
 
     <div class="ht-group">
@@ -799,10 +894,9 @@
         black: +$('lvB').value,
         white: +$('lvW').value,
         lgamma: +$('lvG').value,
-        sat: +$('sat').value / 100,
-        fabricInner: +$('fabricInner').value,
-        fabricOuter: Math.max(+$('fabricOuter').value, +$('fabricInner').value + 0.1),
-        cap: +$('cap').value / 100
+        outBlack: +$('lvOB').value / 255,
+        outWhite: +$('lvOW').value / 255,
+        sat: +$('sat').value / 100
       };
     }
 
@@ -857,6 +951,7 @@
         unit.textContent = parts ? parts[2].trim() : '';
         const p = (el.value - el.min) / (el.max - el.min) * 100;
         el.style.setProperty('--fill', p + '%');
+        el.dispatchEvent(new CustomEvent('ht-range-updated'));
       };
       el.addEventListener('input', () => {
         upd();
@@ -882,16 +977,102 @@
     bindRange('lvB', v => v, false);
     bindRange('lvG', v => v.toFixed(2), false);
     bindRange('lvW', v => v, false);
+    bindRange('lvOB', v => v, false);
+    bindRange('lvOW', v => v, false);
     bindRange('sat', v => v + '%', true);
     bindRange('dotPx', v => v + ' px', false);
-    bindRange('fabricInner', v => v + ' ΔE', true);
-    bindRange('fabricOuter', v => v + ' ΔE', true);
-    bindRange('cap', v => v + '%', false);
+
+    function initLevelsTrack(trackId, ids, inputTrack) {
+      const track = $(trackId);
+      const handles = Array.from(track.querySelectorAll('.ht-level-handle'));
+      const sources = Object.fromEntries(ids.map(id => [id, $(id)]));
+
+      const inputPosition = id => {
+        const black = +sources.lvB.value / 255;
+        const white = +sources.lvW.value / 255;
+        if (id === 'lvB') return black;
+        if (id === 'lvW') return white;
+        const gamma = Math.max(.1, Math.min(10, +sources.lvG.value));
+        const gammaPosition = Math.log(gamma / .1) / Math.log(100);
+        return black + gammaPosition * Math.max(0, white - black);
+      };
+
+      const sync = () => {
+        handles.forEach(handle => {
+          const id = handle.dataset.levelId;
+          const position = inputTrack ? inputPosition(id) : +sources[id].value / 255;
+          handle.style.setProperty('--level-pos', Math.max(0, Math.min(1, position)));
+          handle.setAttribute('aria-valuenow', sources[id].value);
+        });
+      };
+
+      const setFromPosition = (id, position) => {
+        const source = sources[id];
+        let value;
+        if (inputTrack && id === 'lvG') {
+          const black = +sources.lvB.value / 255;
+          const white = +sources.lvW.value / 255;
+          const normalized = Math.max(0, Math.min(1, (position - black) / Math.max(1 / 255, white - black)));
+          value = .1 * Math.pow(100, normalized);
+        } else {
+          value = position * 255;
+          if (inputTrack && id === 'lvB') value = Math.min(value, +sources.lvW.value - 1);
+          if (inputTrack && id === 'lvW') value = Math.max(value, +sources.lvB.value + 1);
+          if (!inputTrack && id === 'lvOB') value = Math.min(value, +sources.lvOW.value);
+          if (!inputTrack && id === 'lvOW') value = Math.max(value, +sources.lvOB.value);
+        }
+        const step = +source.step || 1;
+        value = Math.round(value / step) * step;
+        source.value = Math.max(+source.min, Math.min(+source.max, value));
+        source.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+
+      const positionFromPointer = event => {
+        const bounds = track.getBoundingClientRect();
+        return Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+      };
+
+      handles.forEach(handle => {
+        const id = handle.dataset.levelId;
+        const source = sources[id];
+        handle.setAttribute('role', 'slider');
+        handle.setAttribute('aria-valuemin', source.min);
+        handle.setAttribute('aria-valuemax', source.max);
+        handle.addEventListener('pointerdown', event => {
+          event.preventDefault();
+          handle.setPointerCapture(event.pointerId);
+          handle.classList.add('is-dragging');
+          setFromPosition(id, positionFromPointer(event));
+        });
+        handle.addEventListener('pointermove', event => {
+          if (!handle.hasPointerCapture(event.pointerId)) return;
+          setFromPosition(id, positionFromPointer(event));
+        });
+        const stopDragging = event => {
+          if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+          handle.classList.remove('is-dragging');
+        };
+        handle.addEventListener('pointerup', stopDragging);
+        handle.addEventListener('pointercancel', stopDragging);
+        handle.addEventListener('keydown', event => {
+          if (!['ArrowLeft', 'ArrowDown', 'ArrowRight', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          let value = +source.value;
+          if (event.key === 'Home') value = +source.min;
+          else if (event.key === 'End') value = +source.max;
+          else value += ['ArrowRight', 'ArrowUp'].includes(event.key) ? +source.step : -source.step;
+          source.value = Math.max(+source.min, Math.min(+source.max, value));
+          source.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+      });
+      Object.values(sources).forEach(source => source.addEventListener('ht-range-updated', sync));
+      sync();
+    }
+
+    initLevelsTrack('inputLevelsTrack', ['lvB', 'lvG', 'lvW'], true);
+    initLevelsTrack('outputLevelsTrack', ['lvOB', 'lvOW'], false);
 
     function syncFabricOptionState() {
-      const enabled = $('knockChk').checked;
-      ['fabricInner', 'fabricOuter'].forEach(id => setRangeDisabled(id, !enabled));
-      $('fabricOptions').classList.toggle('is-disabled', !enabled);
       updateSectionBadges();
     }
 
@@ -962,25 +1143,25 @@
     const deletePresetButton = $('deletePresetButton');
     let customPresets = <%= (@halftone_presets || []).to_json %>;
 
-    const presetFields = ['dpi', 'printw', 'lpi', 'angle', 'invert', 'lvB', 'lvG', 'lvW', 'sat', 'dotChk', 'dotPx', 'knockChk', 'fabricInner', 'fabricOuter', 'cap', 'fabricChk', 'fabricCol'];
+    const presetFields = ['dpi', 'printw', 'lpi', 'angle', 'invert', 'lvB', 'lvG', 'lvW', 'lvOB', 'lvOW', 'sat', 'dotChk', 'dotPx', 'knockChk', 'fabricChk', 'fabricCol'];
     const builtinPresets = {
       gradient: {
         name: 'Retino AM / sfumature',
         dpi: '300', lpi: '30', angle: '22.5', spot: 'round', out: 'color',
-        invert: '0', lvB: '5', lvG: '1.00', lvW: '100', sat: '100', dotChk: '0', dotPx: '3', dotMode: 'drop', knockChk: '0',
-        fabricInner: '3', fabricOuter: '30', cap: '100', fabricChk: '0', fabricCol: '#151515'
+        invert: '0', lvB: '5', lvG: '1.00', lvW: '100', lvOB: '0', lvOW: '255', sat: '100', dotChk: '0', dotPx: '3', dotMode: 'drop', knockChk: '0',
+        fabricChk: '0', fabricCol: '#151515'
       },
       black_shirt: {
         name: 'Maglia nera / colori vivi',
         dpi: '300', lpi: '30', angle: '22.5', spot: 'round', out: 'color',
-        invert: '0', lvB: '0', lvG: '1.00', lvW: '255', sat: '135', dotChk: '0', dotPx: '3', dotMode: 'drop', knockChk: '0',
-        fabricInner: '3', fabricOuter: '30', cap: '100', fabricChk: '1', fabricCol: '#151515'
+        invert: '0', lvB: '0', lvG: '1.00', lvW: '255', lvOB: '0', lvOW: '255', sat: '135', dotChk: '0', dotPx: '3', dotMode: 'drop', knockChk: '0',
+        fabricChk: '1', fabricCol: '#151515'
       },
       soft: {
         name: 'Sfumatura morbida',
         dpi: '300', lpi: '35', angle: '22.5', spot: 'euclid', out: 'color',
-        invert: '0', lvB: '0', lvG: '1.10', lvW: '255', sat: '120', dotChk: '0', dotPx: '3', dotMode: 'drop', knockChk: '0',
-        fabricInner: '3', fabricOuter: '36', cap: '100', fabricChk: '0', fabricCol: '#151515'
+        invert: '0', lvB: '0', lvG: '1.10', lvW: '255', lvOB: '0', lvOW: '255', sat: '120', dotChk: '0', dotPx: '3', dotMode: 'drop', knockChk: '0',
+        fabricChk: '0', fabricCol: '#151515'
       }
     };
 
@@ -1007,6 +1188,10 @@
       if (normalized.mask_black !== undefined && normalized.lvB === undefined) normalized.lvB = normalized.mask_black;
       if (normalized.mask_white !== undefined && normalized.lvW === undefined) normalized.lvW = normalized.mask_white;
       if (normalized.mask_gamma !== undefined && normalized.lvG === undefined) normalized.lvG = normalized.mask_gamma;
+      if (normalized.output_black !== undefined && normalized.lvOB === undefined) normalized.lvOB = normalized.output_black;
+      if (normalized.output_white !== undefined && normalized.lvOW === undefined) normalized.lvOW = normalized.output_white;
+      if (normalized.lvOB === undefined) normalized.lvOB = '0';
+      if (normalized.lvOW === undefined) normalized.lvOW = '255';
       if (normalized.max_coverage !== undefined && normalized.cap === undefined) normalized.cap = pct(normalized.max_coverage);
       if (normalized.knockout_inner !== undefined && normalized.fabricInner === undefined) normalized.fabricInner = normalized.knockout_inner;
       if (normalized.knockout_outer !== undefined && normalized.fabricOuter === undefined) normalized.fabricOuter = normalized.knockout_outer;
@@ -1047,7 +1232,7 @@
       settings.out = S.out;
       settings.dotMode = S.dotMode;
       // The production export is rendered by the authoritative server engine.
-      settings.tone_mode = $('knockChk').checked ? 'dtf_difference' : 'retino_am';
+      settings.tone_mode = 'dtf_difference';
       settings.server_render = '1';
       return settings;
     }
@@ -1179,14 +1364,20 @@
       const imgd = octx.getImageData(0, 0, w, h);
       const d = imgd.data;
       const maskSource = PHOTO_ALGORITHM ? new Uint8ClampedArray(d) : d;
-      const lab = new Float32Array(w * h * 3);
-      for (let i = 0, j = 0; i < w * h; i++, j += 4) {
-        const L = rgb2lab(d[j], d[j + 1], d[j + 2]);
-        lab[i * 3] = L[0];
-        lab[i * 3 + 1] = L[1];
-        lab[i * 3 + 2] = L[2];
+      const fabricEnabled = $('knockChk').checked;
+      let lab = null;
+      if (fabricEnabled) {
+        lab = new Float32Array(w * h * 3);
+        for (let i = 0, j = 0; i < w * h; i++, j += 4) {
+          const L = rgb2lab(d[j], d[j + 1], d[j + 2]);
+          lab[i * 3] = L[0];
+          lab[i * 3 + 1] = L[1];
+          lab[i * 3 + 2] = L[2];
+        }
+        S.lab = lab;
+      } else {
+        S.lab = null;
       }
-      S.lab = lab;
 
       const sat = p.sat;
 
@@ -1213,19 +1404,24 @@
       const separationG = technicalBlack ? 0 : fabricG;
       const separationB = technicalBlack ? 0 : fabricB;
       const fabricLab = rgb2lab(separationR, separationG, separationB);
-      const fabricEnabled = $('knockChk').checked;
 
       for (let i = 0, j = 0; i < S.tone.length; i++, j += 4) {
         const a = d[j + 3] / 255;
         let enc;
-        if (PHOTO_ALGORITHM && fabricEnabled) {
-          enc = (0.230 * Math.abs(maskSource[j] - separationR) + 0.520 * Math.abs(maskSource[j + 1] - separationG) + 0.250 * Math.abs(maskSource[j + 2] - separationB)) / 255;
-          const dL = lab[i * 3] - fabricLab[0];
-          const da = lab[i * 3 + 1] - fabricLab[1];
-          const db = lab[i * 3 + 2] - fabricLab[2];
-          const deltaE = Math.sqrt(dL * dL + da * da + db * db);
-          const gx = Math.max(0, Math.min(1, (deltaE - p.fabricInner) / Math.max(0.1, p.fabricOuter - p.fabricInner)));
-          S.guard[i] = gx * gx * (3 - 2 * gx);
+        if (PHOTO_ALGORITHM) {
+          if (fabricEnabled) {
+            const dL = lab[i * 3] - fabricLab[0];
+            const da = lab[i * 3 + 1] - fabricLab[1];
+            const db = lab[i * 3 + 2] - fabricLab[2];
+            const deltaE = Math.sqrt(dL * dL + da * da + db * db);
+            enc = (a > 0.01 && a < 0.99) ? 1 : Math.max(0, Math.min(1, deltaE / 26));
+            S.guard[i] = 1;
+          } else {
+            enc = (0.230 * Math.abs(maskSource[j] - separationR) + 0.520 * Math.abs(maskSource[j + 1] - separationG) + 0.250 * Math.abs(maskSource[j + 2] - separationB)) / 255 * a;
+            const distance = Math.max(Math.abs(maskSource[j] - separationR), Math.abs(maskSource[j + 1] - separationG), Math.abs(maskSource[j + 2] - separationB));
+            const gx = Math.max(0, Math.min(1, (distance - 5) / 43));
+            S.guard[i] = gx * gx * (3 - 2 * gx);
+          }
         } else {
           const L = 0.2126 * s2l[d[j]] + 0.7152 * s2l[d[j + 1]] + 0.0722 * s2l[d[j + 2]];
           enc = (L <= 0.0031308 ? L * 12.92 : 1.055 * Math.pow(L, 1 / 2.4) - 0.055) * a;
@@ -1248,6 +1444,7 @@
     function makeSpot(kind) {
       if (kind === 'round') return (x, y) => {
         const raw = Math.max(0, Math.min(1, (x * x + y * y) * 0.5));
+        if (!$('knockChk').checked) return raw;
         const radiusSquared = 2 * raw;
         if (raw <= 0.5) return Math.PI * radiusSquared / 4;
         const radius = Math.sqrt(radiusSquared);
@@ -1268,19 +1465,19 @@
       let v = value;
       const span = Math.max(1, p.white - p.black);
       v = (v * 255 - p.black) / span;
-      if (v <= 0) return 0;
-      if (v >= 1) return 1;
-      return Math.pow(v, 1 / Math.max(0.01, p.lgamma));
+      if (v <= 0) v = 0;
+      else if (v >= 1) v = 1;
+      else v = Math.pow(v, 1 / Math.max(0.01, p.lgamma));
+      return p.outBlack + v * (p.outWhite - p.outBlack);
     }
 
     function coverageAt(tone, alpha, p, guard = 1) {
-      if (alpha <= 0.01) return 0;
+      if (alpha <= (p.fabricEnabled ? 0 : 0.01)) return 0;
       const coverage = leveledCoverage(p.invert ? 1 - tone : tone, p);
       if (PHOTO_ALGORITHM && p.fabricEnabled) {
-        return Math.min(p.cap, coverage * guard) * alpha;
+        return coverage;
       }
-      // Legacy retino_am already includes alpha in its tone calculation and
-      // deliberately preserves full-coverage pixels.
+      if (PHOTO_ALGORITHM) return coverage * guard;
       return coverage >= 1 ? 1 : Math.min(p.cap, coverage);
     }
 
@@ -1364,7 +1561,10 @@
             continue;
           }
           if (c >= 1) {
-            out[i] = useColor ? (color[i] | 0xFF000000) : ink;
+            const edgeAlpha = Math.max(0, Math.min(255, Math.round(S.alpha[i] * 255)));
+            out[i] = p.fabricEnabled
+              ? (useColor ? color[i] : ((edgeAlpha << 24) | (ink & 0x00FFFFFF)) >>> 0)
+              : (useColor ? (color[i] | 0xFF000000) : ink);
             if (inkMask) inkMask[i] = 1;
             continue;
           }
@@ -1378,7 +1578,10 @@
           const sy = v * 2 - 1;
           const threshold = spot(sx, sy);
           if (c > threshold) {
-            out[i] = useColor ? (color[i] | 0xFF000000) : ink;
+            const edgeAlpha = Math.max(0, Math.min(255, Math.round(S.alpha[i] * 255)));
+            out[i] = p.fabricEnabled
+              ? (useColor ? color[i] : ((edgeAlpha << 24) | (ink & 0x00FFFFFF)) >>> 0)
+              : (useColor ? (color[i] | 0xFF000000) : ink);
             if (inkMask) inkMask[i] = 1;
           } else {
             out[i] = bg;

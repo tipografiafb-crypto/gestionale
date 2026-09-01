@@ -111,6 +111,8 @@ def _load_rgba_arrays(input_path: str) -> Tuple[np.ndarray, np.ndarray]:
 
 
 def _finalize_output_alpha(alpha: np.ndarray, config: HalftoneConfig) -> np.ndarray:
+    if config.tone_mode == "dtf_difference" and config.shirt_color is not None:
+        return np.clip(alpha, 0.0, 1.0).astype(np.float32)
     if config.antialias_px > 0:
         return alpha
     return (alpha >= 0.5).astype(np.float32)
@@ -208,17 +210,24 @@ def _dtf_difference_tone(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneCon
         shirt_rgb[:] = 0.0
     shirt = shirt_rgb / 255.0
     difference = np.abs(rgb - shirt.reshape(1, 1, 3))
-    tone = (
-        (0.230 * difference[:, :, 0])
-        + (0.520 * difference[:, :, 1])
-        + (0.250 * difference[:, :, 2])
-    )
-    if config.invert:
-        tone = 1.0 - tone
-    # Photoshop Levels semantics used by ActionSeps: input range first,
-    # followed by the inverse-gamma curve (gamma 2 makes midtones lighter).
-    tone = _apply_actionseps_levels(tone, config)
-    # Use a perceptual garment transition instead of a binary colour knockout.
+    # The Lab garment transition is only enabled when a shirt colour is
+    # explicitly supplied.  With the fabric option off, preserve yesterday's
+    # photographic DTF guard based on RGB distance.
+    if config.shirt_color is None:
+        tone = (
+            (0.230 * difference[:, :, 0])
+            + (0.520 * difference[:, :, 1])
+            + (0.250 * difference[:, :, 2])
+        )
+        if config.invert:
+            tone = 1.0 - tone
+        tone = _apply_actionseps_levels(tone, config)
+        colour_distance = np.max(difference, axis=2)
+        shadow_guard = _smoothstep(5.0 / 255.0, 48.0 / 255.0, colour_distance)
+        tone *= shadow_guard
+        return np.where(alpha > config.alpha_threshold, tone * alpha, 0.0).astype(np.float32)
+
+    # Use a perceptual garment transition when the fabric option is enabled.
     # OpenCV encodes Lab as L=0..255 and a/b=0..255; convert it back to the
     # conventional CIE Lab ranges so the UI and server use the same Delta E 76.
     source_lab = cv2.cvtColor((rgb * 255).astype(np.uint8), cv2.COLOR_RGB2LAB).astype(np.float32)
@@ -229,20 +238,29 @@ def _dtf_difference_tone(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneCon
     target_lab[0] *= 100.0 / 255.0
     target_lab[1:] -= 128.0
     delta_e = np.linalg.norm(source_lab - target_lab.reshape(1, 1, 3), axis=2)
-    garment_transition = _smoothstep(config.knockout_inner, config.knockout_outer, delta_e)
-
-    # Even colours far from the garment retain a small open hole. Besides
-    # reducing ink/underbase, this makes max_coverage behave consistently for
-    # black, white and coloured garments.
-    tone = np.minimum(tone * garment_transition, config.max_coverage)
-    return np.where(alpha > config.alpha_threshold, tone * alpha, 0.0).astype(np.float32)
+    # ActionSeps-like perceptual separation.  Delta E is converted into a
+    # Photoshop Levels input: identical garment colour is zero, colours around
+    # 26 Delta E or farther reach the end of the 0..255 source range.  Levels
+    # then controls the curve independently from garment selection.
+    tone = np.clip(delta_e / 26.0, 0.0, 1.0)
+    if config.invert:
+        tone = 1.0 - tone
+    tone = _apply_actionseps_levels(tone, config)
+    # Preserve the source antialias ring.  ActionSeps protects partial-alpha
+    # contour pixels from garment knockout, preventing eaten or jagged edges.
+    edge = (alpha > 0.0) & (alpha < 1.0)
+    tone = np.where(edge, 1.0, tone)
+    return np.where(alpha > 0.0, tone, 0.0).astype(np.float32)
 
 
 def _apply_actionseps_levels(value: np.ndarray, config: HalftoneConfig) -> np.ndarray:
     black = config.mask_black / 255.0
     white = config.mask_white / 255.0
     normalized = np.clip((value - black) / max(white - black, 1e-6), 0.0, 1.0)
-    return np.power(normalized, 1.0 / max(config.mask_gamma, 0.01)).astype(np.float32)
+    adjusted = np.power(normalized, 1.0 / max(config.mask_gamma, 0.01))
+    output_black = config.output_black / 255.0
+    output_white = config.output_white / 255.0
+    return (output_black + adjusted * (output_white - output_black)).astype(np.float32)
 
 
 def _dtf_difference_alpha(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneConfig) -> np.ndarray:
@@ -252,7 +270,13 @@ def _dtf_difference_alpha(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneCo
     mask = _dtf_radius_screen(tone, config)
     # Photoshop's DTX cleanup is a local Dust & Scratches / median operation.
     # It removes micro-dots without the very expensive full-image component scan.
-    return _dtf_cleanup(mask, alpha > config.alpha_threshold, config)
+    printable_mask = alpha > (0.0 if config.shirt_color is not None else config.alpha_threshold)
+    cleaned = _dtf_cleanup(mask, printable_mask, config)
+    if config.shirt_color is not None:
+        # ActionSeps keeps the source antialias on retained edge pixels.  The
+        # screen chooses where ink exists; source alpha still shapes the edge.
+        return (cleaned * alpha).astype(np.float32)
+    return cleaned
 
 
 def _dtf_cleanup(mask: np.ndarray, printable_mask: np.ndarray, config: HalftoneConfig) -> np.ndarray:
@@ -286,7 +310,12 @@ def _dtf_radius_screen(tone: np.ndarray, config: HalftoneConfig) -> np.ndarray:
     # Photoshop's Round screen grows circular dots and, above the midpoint,
     # leaves shrinking round holes. It reaches full coverage at white.
     if config.dot_shape in {"circle", "round"}:
-        threshold = _retino_am_spot_threshold(local_x, local_y, "round")
+        threshold = _retino_am_spot_threshold(
+            local_x,
+            local_y,
+            "round",
+            normalize_area=config.shirt_color is not None,
+        )
         return (printable_tone > threshold).astype(np.float32)
 
     radius = np.sqrt(printable_tone / math.pi) * cell_px
@@ -400,21 +429,25 @@ def _enforce_min_dot_components(
     return result.astype(np.float32)
 
 
-def _retino_am_spot_threshold(local_x: np.ndarray, local_y: np.ndarray, dot_shape: str) -> np.ndarray:
+def _retino_am_spot_threshold(
+    local_x: np.ndarray,
+    local_y: np.ndarray,
+    dot_shape: str,
+    normalize_area: bool = False,
+) -> np.ndarray:
     if dot_shape in {"circle", "round"}:
         raw = ((local_x * local_x) + (local_y * local_y)) * 0.5
-        # Convert the radial spot value to its covered-area percentile. Without
-        # this normalization a nominal 85% round dot covers about 98% of a cell.
-        # The geometry remains round; only the tone-to-area mapping is corrected.
-        radius_squared = 2.0 * np.clip(raw, 0.0, 1.0)
-        inside_circle = (math.pi * radius_squared) / 4.0
-        radius = np.sqrt(np.maximum(radius_squared, 1.0))
-        corner_segment = (
-            radius_squared * np.arccos(np.clip(1.0 / radius, 0.0, 1.0))
-            - np.sqrt(np.maximum(radius_squared - 1.0, 0.0))
-        )
-        outside_circle = ((math.pi * radius_squared) - (4.0 * corner_segment)) / 4.0
-        return np.where(raw <= 0.5, inside_circle, outside_circle).astype(np.float32)
+        if normalize_area:
+            radius_squared = 2.0 * np.clip(raw, 0.0, 1.0)
+            inside_circle = (math.pi * radius_squared) / 4.0
+            radius = np.sqrt(np.maximum(radius_squared, 1.0))
+            corner_segment = (
+                radius_squared * np.arccos(np.clip(1.0 / radius, 0.0, 1.0))
+                - np.sqrt(np.maximum(radius_squared - 1.0, 0.0))
+            )
+            outside_circle = ((math.pi * radius_squared) - (4.0 * corner_segment)) / 4.0
+            return np.where(raw <= 0.5, inside_circle, outside_circle).astype(np.float32)
+        return np.clip(raw, 0.0, 1.0).astype(np.float32)
     if dot_shape == "ellipse":
         threshold = ((local_x * local_x / 1.55) + (local_y * local_y * 1.55)) * 0.5
         return np.clip(threshold, 0.0, 1.0).astype(np.float32)

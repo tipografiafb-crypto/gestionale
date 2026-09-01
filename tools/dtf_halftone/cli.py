@@ -42,6 +42,8 @@ def main() -> int:
     parser.add_argument("--mask-black", type=float, default=36.0)
     parser.add_argument("--mask-white", type=float, default=245.0)
     parser.add_argument("--mask-gamma", type=float, default=1.0)
+    parser.add_argument("--output-black", type=float, default=0.0)
+    parser.add_argument("--output-white", type=float, default=255.0)
     parser.add_argument("--resize-width-cm", type=float, default=0.0, help="Resize input width before halftone, interpreted at target DPI")
     parser.add_argument("--resize-height-cm", type=float, default=0.0, help="Resize input height before halftone, interpreted at target DPI")
     parser.add_argument("--preview-max-px", type=int, default=0, help="Resize input for fast preview; export remains full size")
@@ -78,6 +80,8 @@ def main() -> int:
         mask_black=args.mask_black,
         mask_white=args.mask_white,
         mask_gamma=args.mask_gamma,
+        output_black=args.output_black,
+        output_white=args.output_white,
     )
 
     output_path = Path(args.output)
