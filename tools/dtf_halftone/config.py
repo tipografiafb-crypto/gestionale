@@ -14,7 +14,7 @@ class HalftoneConfig:
     min_dot_px: float = 0.0
     min_dot_percent: float = 0.06
     min_hole_percent: float = 0.04
-    max_coverage: float = 0.85
+    max_coverage: float = 1.0
     highlight_mode: str = "drop"
     tone_mode: str = "alpha"
     invert: bool = False
@@ -23,8 +23,10 @@ class HalftoneConfig:
     brightness: float = 0.0
     shirt_color: Optional[RGBColor] = None
     knockout_strength: float = 0.0
-    knockout_inner: float = 8.0
-    knockout_outer: float = 45.0
+    # CIE Lab (Delta E 76) transition: identical garment colours are fully
+    # revealed, nearby colours fade in, and distant colours remain printable.
+    knockout_inner: float = 3.0
+    knockout_outer: float = 30.0
     antialias_px: float = 0.0
     mask_black: float = 36.0
     mask_white: float = 245.0
@@ -50,6 +52,8 @@ class HalftoneConfig:
             raise ValueError("max_coverage must be between 0 and 1")
         if not 0 <= self.knockout_strength <= 1:
             raise ValueError("knockout_strength must be between 0 and 1")
+        if self.knockout_inner < 0:
+            raise ValueError("knockout_inner must be greater than or equal to 0")
         if self.knockout_outer <= self.knockout_inner:
             raise ValueError("knockout_outer must be greater than knockout_inner")
         if not 0 <= self.mask_black < self.mask_white <= 255:

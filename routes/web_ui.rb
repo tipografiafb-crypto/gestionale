@@ -93,14 +93,15 @@ class PrintOrchestrator < Sinatra::Base
   end
 
   def halftone_command(input_path, output_path, request_params, preview: false)
-    target_dpi = numeric_param(request_params, 'target_dpi', 300, min: 1).to_i
+    target_dpi_raw = request_params['target_dpi'].presence || request_params['dpi'].presence
+    target_dpi = numeric_param({ 'target_dpi' => target_dpi_raw }, 'target_dpi', 300, min: 1).to_i
     lpi = numeric_param(request_params, 'lpi', 35, min: 1, max: 120)
     angle = numeric_param(request_params, 'angle', 22.5, min: 0, max: 90)
     min_dot_default = truthy_param?(request_params, 'dotChk') ? request_params['dotPx'].presence || 3 : 0
     min_dot_px = numeric_param(request_params, 'min_dot_px', min_dot_default, min: 0, max: 50)
-    dot_shape = request_params['dot_shape'].presence || 'circle'
-    highlight_mode = request_params['highlight_mode'].presence || 'drop'
-    tone_mode = request_params['tone_mode'].presence || 'dtf_difference'
+    dot_shape = request_params['dot_shape'].presence || request_params['spot'].presence || 'round'
+    highlight_mode = request_params['highlight_mode'].presence || request_params['dotMode'].presence || 'drop'
+    tone_mode = request_params['tone_mode'].presence || (truthy_param?(request_params, 'knockChk') ? 'dtf_difference' : 'retino_am')
     invert = truthy_param?(request_params, 'invert')
     saturation_raw = request_params['saturation'].presence || request_params['sat']
     saturation_raw = saturation_raw.to_f / 100.0 if request_params['saturation'].blank? && request_params['sat'].present?
@@ -112,9 +113,13 @@ class PrintOrchestrator < Sinatra::Base
     mask_black = numeric_param(request_params, 'mask_black', request_params['lvB'].presence || 0, min: 0, max: 254)
     mask_white = numeric_param(request_params, 'mask_white', request_params['lvW'].presence || 255, min: mask_black + 1, max: 255)
     mask_gamma = numeric_param(request_params, 'mask_gamma', request_params['lvG'].presence || 1.0, min: 0.1, max: 10)
+    max_coverage = numeric_param(request_params, 'max_coverage', request_params['cap'].presence || 100, min: 0, max: 100)
+    knockout_inner = numeric_param(request_params, 'knockout_inner', request_params['fabricInner'].presence || 3, min: 0, max: 99)
+    knockout_outer = numeric_param(request_params, 'knockout_outer', request_params['fabricOuter'].presence || 30, min: knockout_inner + 0.1, max: 100)
     resize_width_cm = numeric_param(request_params, 'resize_width_cm', request_params['printw'].presence || 0, min: 0, max: 300)
     resize_height_cm = numeric_param(request_params, 'resize_height_cm', 0, min: 0, max: 300)
     shirt_color = request_params['shirt_color'].presence || request_params['fabricCol'].presence
+    shirt_color = nil unless tone_mode == 'dtf_difference'
 
     command = [
       'python3', '-m', 'tools.dtf_halftone.cli',
@@ -125,12 +130,15 @@ class PrintOrchestrator < Sinatra::Base
       '--angle', angle.to_s,
       '--dot-shape', dot_shape,
       '--min-dot-px', min_dot_px.to_s,
+      '--max-coverage', max_coverage.to_s,
       '--highlight-mode', highlight_mode,
       '--tone-mode', tone_mode,
       '--saturation', saturation.to_s,
       '--contrast', contrast.to_s,
       '--brightness', brightness.to_s,
       '--knockout-strength', knockout_strength.to_s,
+      '--knockout-inner', knockout_inner.to_s,
+      '--knockout-outer', knockout_outer.to_s,
       '--antialias-px', antialias_px.to_s,
       '--mask-black', mask_black.to_s,
       '--mask-white', mask_white.to_s,
@@ -1043,7 +1051,7 @@ class PrintOrchestrator < Sinatra::Base
 
       # Production export uses the authoritative server engine. The browser PNG
       # remains accepted below for legacy clients and older saved jobs.
-      if settings['server_render'].to_s == '1' && settings['tone_mode'].to_s == 'dtf_difference'
+      if settings['server_render'].to_s == '1'
         operational_path = asset.local_path_full
         source_path = halftone_source_path(asset)
         source_backup_path = ensure_halftone_backup!(asset, source_path)

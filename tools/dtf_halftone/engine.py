@@ -213,14 +213,28 @@ def _dtf_difference_tone(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneCon
         + (0.520 * difference[:, :, 1])
         + (0.250 * difference[:, :, 2])
     )
+    if config.invert:
+        tone = 1.0 - tone
     # Photoshop Levels semantics used by ActionSeps: input range first,
     # followed by the inverse-gamma curve (gamma 2 makes midtones lighter).
     tone = _apply_actionseps_levels(tone, config)
-    # Preserve chromatic artwork while automatically dropping neutral shadows
-    # that are only a few RGB values away from the garment colour.
-    colour_distance = np.max(difference, axis=2)
-    shadow_guard = _smoothstep(5.0 / 255.0, 48.0 / 255.0, colour_distance)
-    tone *= shadow_guard
+    # Use a perceptual garment transition instead of a binary colour knockout.
+    # OpenCV encodes Lab as L=0..255 and a/b=0..255; convert it back to the
+    # conventional CIE Lab ranges so the UI and server use the same Delta E 76.
+    source_lab = cv2.cvtColor((rgb * 255).astype(np.uint8), cv2.COLOR_RGB2LAB).astype(np.float32)
+    target_u8 = np.clip(np.rint(shirt * 255.0), 0, 255).astype(np.uint8).reshape(1, 1, 3)
+    target_lab = cv2.cvtColor(target_u8, cv2.COLOR_RGB2LAB).astype(np.float32)[0, 0]
+    source_lab[:, :, 0] *= 100.0 / 255.0
+    source_lab[:, :, 1:] -= 128.0
+    target_lab[0] *= 100.0 / 255.0
+    target_lab[1:] -= 128.0
+    delta_e = np.linalg.norm(source_lab - target_lab.reshape(1, 1, 3), axis=2)
+    garment_transition = _smoothstep(config.knockout_inner, config.knockout_outer, delta_e)
+
+    # Even colours far from the garment retain a small open hole. Besides
+    # reducing ink/underbase, this makes max_coverage behave consistently for
+    # black, white and coloured garments.
+    tone = np.minimum(tone * garment_transition, config.max_coverage)
     return np.where(alpha > config.alpha_threshold, tone * alpha, 0.0).astype(np.float32)
 
 
@@ -388,7 +402,19 @@ def _enforce_min_dot_components(
 
 def _retino_am_spot_threshold(local_x: np.ndarray, local_y: np.ndarray, dot_shape: str) -> np.ndarray:
     if dot_shape in {"circle", "round"}:
-        return ((local_x * local_x) + (local_y * local_y)) * 0.5
+        raw = ((local_x * local_x) + (local_y * local_y)) * 0.5
+        # Convert the radial spot value to its covered-area percentile. Without
+        # this normalization a nominal 85% round dot covers about 98% of a cell.
+        # The geometry remains round; only the tone-to-area mapping is corrected.
+        radius_squared = 2.0 * np.clip(raw, 0.0, 1.0)
+        inside_circle = (math.pi * radius_squared) / 4.0
+        radius = np.sqrt(np.maximum(radius_squared, 1.0))
+        corner_segment = (
+            radius_squared * np.arccos(np.clip(1.0 / radius, 0.0, 1.0))
+            - np.sqrt(np.maximum(radius_squared - 1.0, 0.0))
+        )
+        outside_circle = ((math.pi * radius_squared) - (4.0 * corner_segment)) / 4.0
+        return np.where(raw <= 0.5, inside_circle, outside_circle).astype(np.float32)
     if dot_shape == "ellipse":
         threshold = ((local_x * local_x / 1.55) + (local_y * local_y * 1.55)) * 0.5
         return np.clip(threshold, 0.0, 1.0).astype(np.float32)

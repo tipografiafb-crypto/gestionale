@@ -666,25 +666,26 @@
       </div>
     </div>
 
-    <div class="ht-group is-collapsed" data-active-control="knockChk">
-      <h5>Tessuto come base <span class="ht-badge">Attivo</span></h5>
+    <div class="ht-group" data-active-control="knockChk">
+      <h5>Tessuto come base <span class="ht-badge">Nuovo metodo</span></h5>
       <label class="ht-check"><input type="checkbox" id="knockChk">Usa colore tessuto come base</label>
       <div class="ht-row" style="gap:8px">
         <button id="pickBtn" type="button" class="ht-button" style="flex:1">Contagocce</button>
         <input type="color" id="fabricCol" value="#151515" style="width:42px;height:30px;border:1px solid var(--ht-line);border-radius:4px;padding:1px">
       </div>
-      <div class="ht-hint" id="pickHint">Preleva il colore dalla preview oppure sceglilo dal riquadro.</div>
+      <div class="ht-hint" id="pickHint">Spento: metodo precedente. Acceso: separazione graduale dal colore tessuto.</div>
 
-      <div class="ht-option-block is-disabled" id="knockOptions">
-        <label class="ht-check"><input type="checkbox" id="dualTone" checked disabled>Preserva dettagli chiari e scuri</label>
-        <div class="ht-row"><label for="tol">Tolleranza</label><span class="ht-val" id="tolV">18</span></div>
-        <input class="ht-range" type="range" id="tol" min="1" max="60" step="1" value="18" disabled>
+      <div class="ht-option-block is-disabled" id="fabricOptions">
+        <div class="ht-row"><label for="fabricInner">Inizio transizione</label><span class="ht-val" id="fabricInnerV">3 ΔE</span></div>
+        <input class="ht-range" type="range" id="fabricInner" min="0" max="20" step="0.5" value="3" disabled>
 
-        <div class="ht-row"><label for="tolL">Peso luminosita</label><span class="ht-val" id="tolLV">30%</span></div>
-        <input class="ht-range" type="range" id="tolL" min="0" max="100" step="5" value="30" disabled>
+        <div class="ht-row"><label for="fabricOuter">Fine transizione</label><span class="ht-val" id="fabricOuterV">30 ΔE</span></div>
+        <input class="ht-range" type="range" id="fabricOuter" min="20" max="80" step="1" value="30" disabled>
 
-        <label class="ht-check"><input type="checkbox" id="knockShow" disabled>Evidenzia selezione in anteprima</label>
       </div>
+      <div class="ht-row"><label for="cap">Copertura massima globale</label><span class="ht-val" id="capV">100%</span></div>
+      <input class="ht-range" type="range" id="cap" min="40" max="100" step="1" value="100">
+      <div class="ht-hint">100% conserva le campiture piene. Riduci il valore solo per alleggerire intenzionalmente ink e peso della stampa.</div>
     </div>
 
     <div class="ht-group">
@@ -747,7 +748,6 @@
       guard: null,
       alpha: null,
       lab: null,
-      knock: null,
       hist: null,
       color: null,
       tw: 0,
@@ -795,11 +795,14 @@
         lpi: +$('lpi').value,
         angle: +$('angle').value * Math.PI / 180,
         invert: $('invert').checked,
-        dualTone: $('knockChk').checked && $('dualTone').checked,
+        fabricEnabled: $('knockChk').checked,
         black: +$('lvB').value,
         white: +$('lvW').value,
         lgamma: +$('lvG').value,
-        sat: +$('sat').value / 100
+        sat: +$('sat').value / 100,
+        fabricInner: +$('fabricInner').value,
+        fabricOuter: Math.max(+$('fabricOuter').value, +$('fabricInner').value + 0.1),
+        cap: +$('cap').value / 100
       };
     }
 
@@ -881,14 +884,14 @@
     bindRange('lvW', v => v, false);
     bindRange('sat', v => v + '%', true);
     bindRange('dotPx', v => v + ' px', false);
-    bindRange('tol', v => v, false);
-    bindRange('tolL', v => v + '%', false);
+    bindRange('fabricInner', v => v + ' ΔE', true);
+    bindRange('fabricOuter', v => v + ' ΔE', true);
+    bindRange('cap', v => v + '%', false);
 
-    function syncKnockOptionState() {
+    function syncFabricOptionState() {
       const enabled = $('knockChk').checked;
-      ['dualTone', 'knockShow'].forEach(id => { $(id).disabled = !enabled; });
-      ['tol', 'tolL'].forEach(id => setRangeDisabled(id, !enabled));
-      $('knockOptions').classList.toggle('is-disabled', !enabled);
+      ['fabricInner', 'fabricOuter'].forEach(id => setRangeDisabled(id, !enabled));
+      $('fabricOptions').classList.toggle('is-disabled', !enabled);
       updateSectionBadges();
     }
 
@@ -927,22 +930,14 @@
     });
 
     $('invert').addEventListener('change', () => schedule(false));
-    $('dualTone').addEventListener('change', () => schedule(false));
     $('printw').addEventListener('input', () => schedule(true));
     $('fabricChk').addEventListener('change', () => schedule(false));
-    $('fabricCol').addEventListener('input', () => { if ($('fabricChk').checked || S.view === 'shirt') schedule(false); });
-    $('knockChk').addEventListener('change', () => {
-      syncKnockOptionState();
-      refreshKnock();
-    });
+    $('knockChk').addEventListener('change', () => { syncFabricOptionState(); schedule(true); });
+    $('fabricCol').addEventListener('input', () => { if ($('knockChk').checked) schedule(true); else schedule(false); });
     $('dotChk').addEventListener('change', () => {
       syncDotOptionState();
       schedule(false);
     });
-    $('knockShow').addEventListener('change', () => schedule(false));
-    $('tol').addEventListener('input', () => refreshKnock());
-    $('tolL').addEventListener('input', () => refreshKnock());
-    $('fabricCol').addEventListener('input', () => refreshKnock());
 
     function bindSeg(id, cb) {
       $(id).addEventListener('click', e => {
@@ -967,25 +962,25 @@
     const deletePresetButton = $('deletePresetButton');
     let customPresets = <%= (@halftone_presets || []).to_json %>;
 
-    const presetFields = ['dpi', 'printw', 'lpi', 'angle', 'invert', 'dualTone', 'lvB', 'lvG', 'lvW', 'sat', 'dotChk', 'dotPx', 'knockChk', 'tol', 'tolL', 'knockShow', 'fabricChk', 'fabricCol'];
+    const presetFields = ['dpi', 'printw', 'lpi', 'angle', 'invert', 'lvB', 'lvG', 'lvW', 'sat', 'dotChk', 'dotPx', 'knockChk', 'fabricInner', 'fabricOuter', 'cap', 'fabricChk', 'fabricCol'];
     const builtinPresets = {
       gradient: {
         name: 'Retino AM / sfumature',
         dpi: '300', lpi: '30', angle: '22.5', spot: 'round', out: 'color',
-        invert: '0', dualTone: '1', lvB: '5', lvG: '1.00', lvW: '100', sat: '100', dotChk: '0', dotPx: '3', dotMode: 'drop',
-        knockChk: '0', tol: '18', tolL: '30', knockShow: '0', fabricChk: '0', fabricCol: '#151515'
+        invert: '0', lvB: '5', lvG: '1.00', lvW: '100', sat: '100', dotChk: '0', dotPx: '3', dotMode: 'drop', knockChk: '0',
+        fabricInner: '3', fabricOuter: '30', cap: '100', fabricChk: '0', fabricCol: '#151515'
       },
       black_shirt: {
         name: 'Maglia nera / colori vivi',
         dpi: '300', lpi: '30', angle: '22.5', spot: 'round', out: 'color',
-        invert: '0', dualTone: '1', lvB: '0', lvG: '1.00', lvW: '255', sat: '135', dotChk: '0', dotPx: '3', dotMode: 'drop',
-        knockChk: '0', tol: '18', tolL: '30', knockShow: '0', fabricChk: '1', fabricCol: '#151515'
+        invert: '0', lvB: '0', lvG: '1.00', lvW: '255', sat: '135', dotChk: '0', dotPx: '3', dotMode: 'drop', knockChk: '0',
+        fabricInner: '3', fabricOuter: '30', cap: '100', fabricChk: '1', fabricCol: '#151515'
       },
       soft: {
         name: 'Sfumatura morbida',
         dpi: '300', lpi: '35', angle: '22.5', spot: 'euclid', out: 'color',
-        invert: '0', dualTone: '1', lvB: '0', lvG: '1.10', lvW: '255', sat: '120', dotChk: '0', dotPx: '3', dotMode: 'drop',
-        knockChk: '0', tol: '18', tolL: '30', knockShow: '0', fabricChk: '0', fabricCol: '#151515'
+        invert: '0', lvB: '0', lvG: '1.10', lvW: '255', sat: '120', dotChk: '0', dotPx: '3', dotMode: 'drop', knockChk: '0',
+        fabricInner: '3', fabricOuter: '36', cap: '100', fabricChk: '0', fabricCol: '#151515'
       }
     };
 
@@ -1012,6 +1007,10 @@
       if (normalized.mask_black !== undefined && normalized.lvB === undefined) normalized.lvB = normalized.mask_black;
       if (normalized.mask_white !== undefined && normalized.lvW === undefined) normalized.lvW = normalized.mask_white;
       if (normalized.mask_gamma !== undefined && normalized.lvG === undefined) normalized.lvG = normalized.mask_gamma;
+      if (normalized.max_coverage !== undefined && normalized.cap === undefined) normalized.cap = pct(normalized.max_coverage);
+      if (normalized.knockout_inner !== undefined && normalized.fabricInner === undefined) normalized.fabricInner = normalized.knockout_inner;
+      if (normalized.knockout_outer !== undefined && normalized.fabricOuter === undefined) normalized.fabricOuter = normalized.knockout_outer;
+      if (normalized.tol !== undefined && normalized.fabricOuter === undefined) normalized.fabricOuter = normalized.tol;
       if (normalized.saturation !== undefined && normalized.sat === undefined) {
         const saturation = Number(normalized.saturation);
         normalized.sat = Number.isNaN(saturation) ? normalized.saturation : String(Math.round(saturation * 100));
@@ -1032,8 +1031,8 @@
       if (settings.spot) setSegValue('spotSeg', settings.spot);
       if (settings.out) setSegValue('outSeg', settings.out);
       if (settings.dotMode) setSegValue('dotModeSeg', settings.dotMode);
-      syncKnockOptionState();
       syncDotOptionState();
+      syncFabricOptionState();
       schedule(true);
     }
 
@@ -1047,8 +1046,8 @@
       settings.spot = S.spot;
       settings.out = S.out;
       settings.dotMode = S.dotMode;
-      // The production export is rendered by the single authoritative DTF engine.
-      settings.tone_mode = 'dtf_difference';
+      // The production export is rendered by the authoritative server engine.
+      settings.tone_mode = $('knockChk').checked ? 'dtf_difference' : 'retino_am';
       settings.server_render = '1';
       return settings;
     }
@@ -1213,18 +1212,19 @@
       const separationR = technicalBlack ? 0 : fabricR;
       const separationG = technicalBlack ? 0 : fabricG;
       const separationB = technicalBlack ? 0 : fabricB;
+      const fabricLab = rgb2lab(separationR, separationG, separationB);
+      const fabricEnabled = $('knockChk').checked;
 
       for (let i = 0, j = 0; i < S.tone.length; i++, j += 4) {
         const a = d[j + 3] / 255;
         let enc;
-        if (PHOTO_ALGORITHM) {
-          enc = (0.230 * Math.abs(maskSource[j] - separationR) + 0.520 * Math.abs(maskSource[j + 1] - separationG) + 0.250 * Math.abs(maskSource[j + 2] - separationB)) / 255 * a;
-          const distance = Math.max(
-            Math.abs(maskSource[j] - separationR),
-            Math.abs(maskSource[j + 1] - separationG),
-            Math.abs(maskSource[j + 2] - separationB)
-          );
-          const gx = Math.max(0, Math.min(1, (distance - 5) / 43));
+        if (PHOTO_ALGORITHM && fabricEnabled) {
+          enc = (0.230 * Math.abs(maskSource[j] - separationR) + 0.520 * Math.abs(maskSource[j + 1] - separationG) + 0.250 * Math.abs(maskSource[j + 2] - separationB)) / 255;
+          const dL = lab[i * 3] - fabricLab[0];
+          const da = lab[i * 3 + 1] - fabricLab[1];
+          const db = lab[i * 3 + 2] - fabricLab[2];
+          const deltaE = Math.sqrt(dL * dL + da * da + db * db);
+          const gx = Math.max(0, Math.min(1, (deltaE - p.fabricInner) / Math.max(0.1, p.fabricOuter - p.fabricInner)));
           S.guard[i] = gx * gx * (3 - 2 * gx);
         } else {
           const L = 0.2126 * s2l[d[j]] + 0.7152 * s2l[d[j + 1]] + 0.0722 * s2l[d[j + 2]];
@@ -1243,44 +1243,17 @@
         'sorgente: <b>' + S.img.naturalWidth + ' x ' + S.img.naturalHeight + '</b> px<br>' +
         'lavoro: <b>' + w + ' x ' + h + '</b> px<br>' +
         'stampa: <b>' + cmW + ' x ' + cmH + ' cm</b> @ ' + p.dpi + ' dpi';
-      buildKnock();
-    }
-
-    function refreshKnock() {
-      buildKnock();
-      schedule(false);
-    }
-
-    function buildKnock() {
-      if (!S.lab || !$('knockChk').checked) {
-        S.knock = null;
-        return;
-      }
-
-      const hex = $('fabricCol').value;
-      const tr = parseInt(hex.slice(1, 3), 16);
-      const tg = parseInt(hex.slice(3, 5), 16);
-      const tb = parseInt(hex.slice(5, 7), 16);
-      const target = rgb2lab(tr, tg, tb);
-      const tol = +$('tol').value;
-      const lightWeight = +$('tolL').value / 100;
-      const tol2 = tol * tol;
-      const labData = S.lab;
-      const count = S.tw * S.th;
-      const mask = new Uint8Array(count);
-
-      for (let i = 0; i < count; i++) {
-        const dL = (labData[i * 3] - target[0]) * lightWeight;
-        const da = labData[i * 3 + 1] - target[1];
-        const db = labData[i * 3 + 2] - target[2];
-        if (dL * dL + da * da + db * db <= tol2) mask[i] = 1;
-      }
-
-      S.knock = mask;
     }
 
     function makeSpot(kind) {
-      if (kind === 'round') return (x, y) => (x * x + y * y) * 0.5;
+      if (kind === 'round') return (x, y) => {
+        const raw = Math.max(0, Math.min(1, (x * x + y * y) * 0.5));
+        const radiusSquared = 2 * raw;
+        if (raw <= 0.5) return Math.PI * radiusSquared / 4;
+        const radius = Math.sqrt(radiusSquared);
+        const cornerSegment = radiusSquared * Math.acos(1 / radius) - Math.sqrt(radiusSquared - 1);
+        return (Math.PI * radiusSquared - 4 * cornerSegment) / 4;
+      };
       if (kind === 'ellipse') return (x, y) => Math.max(0, Math.min(1, (x * x / 1.55 + y * y * 1.55) * 0.5));
       if (kind === 'line') return (_x, y) => Math.abs(y);
       return (x, y) => {
@@ -1302,11 +1275,13 @@
 
     function coverageAt(tone, alpha, p, guard = 1) {
       if (alpha <= 0.01) return 0;
-      if (p.dualTone) {
-        return Math.max(leveledCoverage(tone, p), leveledCoverage(1 - tone, p));
-      }
       const coverage = leveledCoverage(p.invert ? 1 - tone : tone, p);
-      return PHOTO_ALGORITHM ? coverage * guard : coverage;
+      if (PHOTO_ALGORITHM && p.fabricEnabled) {
+        return Math.min(p.cap, coverage * guard) * alpha;
+      }
+      // Legacy retino_am already includes alpha in its tone calculation and
+      // deliberately preserves full-coverage pixels.
+      return coverage >= 1 ? 1 : Math.min(p.cap, coverage);
     }
 
     function drawHist() {
@@ -1364,9 +1339,6 @@
         bg = (0xFF << 24 | b << 16 | g << 8 | r) >>> 0;
       }
 
-      const knock = S.knock;
-      const showKnock = $('knockShow').checked;
-      const hilite = 0xFF00E5E5;
       const enforcePhysicalDot = $('dotChk').checked && (S.view === 'retino' || S.view === 'shirt');
       const inkMask = enforcePhysicalDot ? new Uint8Array(w * h) : null;
       if (!enforcePhysicalDot) $('dotInfo').style.display = 'none';
@@ -1377,10 +1349,6 @@
         const row = y * w;
         for (let x = 0; x < w; x++) {
           const i = row + x;
-          if (knock && knock[i] && S.view !== 'original') {
-            out[i] = showKnock ? hilite : (S.view === 'mask' ? 0xFF000000 : bg);
-            continue;
-          }
           const c = coverageAt(S.tone[i], S.alpha[i], p, S.guard ? S.guard[i] : 1);
           if (S.view === 'mask') {
             const g = Math.max(0, Math.min(255, Math.round(c * 255)));
@@ -1419,7 +1387,7 @@
       }
 
       if (inkMask) {
-        enforceMinDot(out, inkMask, w, h, +$('dotPx').value, S.dotMode, useColor, color, ink, bg, S.alpha, knock);
+        enforceMinDot(out, inkMask, w, h, +$('dotPx').value, S.dotMode, useColor, color, ink, bg, S.alpha, null);
       }
       ctx.putImageData(imgd, 0, 0);
       S.renderedMode = S.view;
@@ -1546,13 +1514,13 @@
       const hex = '#' + [rr, gg, bb].map(v => v.toString(16).padStart(2, '0')).join('');
       $('fabricCol').value = hex;
       $('knockChk').checked = true;
-      syncKnockOptionState();
+      syncFabricOptionState();
       picking = false;
       $('pickBtn').style.background = '';
       $('pickBtn').style.color = '';
       cv.style.cursor = 'crosshair';
       $('pickHint').innerHTML = 'Colore tessuto prelevato: <b>' + hex + '</b>.';
-      refreshKnock();
+      schedule(true);
     });
 
     const loupe = $('loupe');
@@ -1634,10 +1602,8 @@
         $('saveStatus').textContent = 'Preparo PNG...';
         const oldView = S.view;
         const fabricWas = $('fabricChk').checked;
-        const knockShowWas = $('knockShow').checked;
         S.view = 'retino';
         $('fabricChk').checked = false;
-        $('knockShow').checked = false;
         render();
 
         let dataUrl = cv.toDataURL('image/png');
@@ -1647,7 +1613,6 @@
 
         S.view = oldView;
         $('fabricChk').checked = fabricWas;
-        $('knockShow').checked = knockShowWas;
         setSegValue('viewSeg', oldView);
         render();
       }
