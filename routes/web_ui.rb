@@ -122,8 +122,11 @@ class PrintOrchestrator < Sinatra::Base
     knockout_outer = numeric_param(request_params, 'knockout_outer', request_params['fabricOuter'].presence || 30, min: knockout_inner + 0.1, max: 100)
     resize_width_cm = numeric_param(request_params, 'resize_width_cm', request_params['printw'].presence || 0, min: 0, max: 300)
     resize_height_cm = numeric_param(request_params, 'resize_height_cm', 0, min: 0, max: 300)
-    shirt_color = request_params['shirt_color'].presence || request_params['fabricCol'].presence
-    shirt_color = nil unless tone_mode == 'dtf_difference' && truthy_param?(request_params, 'knockChk')
+    # A garment reference is always present. Black is the default and follows
+    # the established black-shirt separation; choosing another colour enables
+    # the perceptual garment transition automatically.
+    shirt_color = request_params['shirt_color'].presence || request_params['fabricCol'].presence || '#000000'
+    shirt_color = '#000000' unless tone_mode == 'dtf_difference'
 
     dtf_python = ENV['DTF_PYTHON'].presence || File.join(settings.root, '.venv', 'bin', 'python')
     dtf_python = 'python3' unless File.executable?(dtf_python)

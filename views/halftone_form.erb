@@ -502,6 +502,77 @@
     max-width: calc(100% - 40px);
   }
 
+  .ht-compare-slider {
+    cursor: ew-resize;
+    display: none;
+    position: absolute;
+    touch-action: none;
+    width: 32px;
+    z-index: 12;
+  }
+
+  .ht-compare-slider.is-visible {
+    display: block;
+  }
+
+  .ht-compare-slider::before {
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(17, 17, 20, .65), 0 0 8px rgba(17, 17, 20, .35);
+    content: "";
+    inset: 0 auto 0 50%;
+    position: absolute;
+    transform: translateX(-50%);
+    width: 2px;
+  }
+
+  .ht-compare-handle {
+    align-items: center;
+    background: var(--ht-ink);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
+    color: #fff;
+    display: flex;
+    font-family: var(--ht-mono);
+    font-size: 15px;
+    height: 34px;
+    justify-content: center;
+    left: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    user-select: none;
+    width: 34px;
+  }
+
+  .ht-compare-label {
+    background: rgba(17, 17, 20, .84);
+    border-radius: 3px;
+    color: #fff;
+    font-family: var(--ht-mono);
+    font-size: 9px;
+    letter-spacing: .06em;
+    padding: 3px 6px;
+    position: absolute;
+    text-transform: uppercase;
+    top: 8px;
+    white-space: nowrap;
+  }
+
+  .ht-compare-label.is-original {
+    right: 22px;
+  }
+
+  .ht-compare-label.is-halftone {
+    left: 22px;
+  }
+
+  .ht-compare-slider:focus-visible .ht-compare-handle,
+  .ht-compare-slider.is-dragging .ht-compare-handle {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ht-reg) 45%, transparent), 0 2px 8px rgba(0, 0, 0, .35);
+    outline: none;
+  }
+
   .ht-viewport.fit-off {
     align-items: flex-start;
     justify-content: flex-start;
@@ -716,7 +787,6 @@
 
     <div class="ht-group">
       <h5>Levels</h5>
-      <label class="ht-check"><input type="checkbox" id="invert">Inverti copertura</label>
       <div class="ht-hint">Regolazione come Photoshop: livelli di ingresso, gamma e livelli di uscita.</div>
       <canvas id="hist" width="256" height="64"></canvas>
 
@@ -772,28 +842,32 @@
       </div>
     </div>
 
-    <div class="ht-group" data-active-control="knockChk">
-      <h5>Tessuto come base <span class="ht-badge">Nuovo metodo</span></h5>
-      <label class="ht-check"><input type="checkbox" id="knockChk">Usa colore tessuto come base</label>
+    <div class="ht-group">
+      <h5>Tessuto come base</h5>
       <div class="ht-row" style="gap:8px">
         <button id="pickBtn" type="button" class="ht-button" style="flex:1">Contagocce</button>
-        <input type="color" id="fabricCol" value="#151515" style="width:42px;height:30px;border:1px solid var(--ht-line);border-radius:4px;padding:1px">
+        <input type="color" id="fabricCol" value="#000000" style="width:42px;height:30px;border:1px solid var(--ht-line);border-radius:4px;padding:1px">
       </div>
-      <div class="ht-hint" id="pickHint">Spento: metodo precedente. Acceso: separazione graduale dal colore tessuto.</div>
+      <div class="ht-hint" id="pickHint">Nero predefinito. Scegli un altro colore per adattare automaticamente la separazione al tessuto.</div>
       <div class="ht-hint">Il colore del tessuto sostituisce solo i pixel percettivamente compatibili. Colori lontani e bordi mantengono la copertura definita dai Levels.</div>
+
+      <div class="ht-option-block" id="fabricOptions">
+        <div class="ht-row"><label for="fabricInner">Colore eliminato fino a</label><span class="ht-val" id="fabricInnerV">3 ΔE</span></div>
+        <input class="ht-range" type="range" id="fabricInner" min="0" max="20" step="0.5" value="3">
+
+        <div class="ht-row"><label for="fabricOuter">Fine sfumatura</label><span class="ht-val" id="fabricOuterV">30 ΔE</span></div>
+        <input class="ht-range" type="range" id="fabricOuter" min="20" max="80" step="1" value="30">
+        <div class="ht-hint">Aumenta “Fine sfumatura” se il tessuto ha gradienti, pieghe o variazioni dello stesso colore.</div>
+      </div>
+
+      <div class="ht-row"><label for="cap">Copertura massima globale</label><span class="ht-val" id="capV">100%</span></div>
+      <input class="ht-range" type="range" id="cap" min="40" max="100" step="1" value="100">
+      <div class="ht-hint">100% mantiene le campiture piene. Riduci il valore solo per alleggerire intenzionalmente la stampa.</div>
     </div>
 
     <div class="ht-group">
       <h5>Export</h5>
-      <div class="ht-row"><label>Resa</label></div>
-      <div class="ht-seg" id="outSeg">
-        <button type="button" data-v="color" class="on">Colore</button>
-        <button type="button" data-v="kb">Nero/Bianco</button>
-      </div>
-      <label class="ht-check" style="justify-content:space-between">
-        <span style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="fabricChk">Simula tessuto sotto</span>
-      </label>
-      <div class="ht-hint">Solo anteprima. Il PNG esportato mantiene sempre la trasparenza.</div>
+      <div class="ht-hint">Il PNG esportato mantiene sempre la trasparenza.</div>
       <button class="ht-button ht-button-primary" id="btnSave" type="button" disabled>Esporta nel flusso</button>
       <div class="ht-hint mt-2" id="saveStatus">Il PNG finale viene salvato sull'asset, con backup automatico dell'originale.</div>
     </div>
@@ -807,14 +881,22 @@
         <button type="button" data-v="mask">Maschera</button>
         <button type="button" data-v="shirt">Maglia</button>
       </div>
-      <div class="ht-seg" id="zoomSeg" style="width:140px">
+      <div class="ht-seg" id="zoomSeg" style="width:300px">
         <button type="button" data-v="fit" class="on">Adatta</button>
+        <button type="button" data-v="25">25%</button>
+        <button type="button" data-v="50">50%</button>
+        <button type="button" data-v="75">75%</button>
         <button type="button" data-v="100">100%</button>
       </div>
       <span class="ht-meta ms-auto" id="stageMeta">caricamento...</span>
     </div>
     <div class="ht-viewport" id="viewport">
       <canvas id="cv"></canvas>
+      <div class="ht-compare-slider" id="compareSlider" role="slider" tabindex="0" aria-label="Confronto tra originale e retinato" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+        <span class="ht-compare-label is-original">Originale</span>
+        <span class="ht-compare-label is-halftone">Retinato</span>
+        <span class="ht-compare-handle" aria-hidden="true">↔</span>
+      </div>
       <div class="ht-busy" id="busy">retinatura...</div>
     </div>
     <div class="ht-footer">
@@ -836,6 +918,9 @@
     const RETURN_URL = '/orders/<%= @order.id %>/items/<%= @item.id %>';
     const MAX_PIXELS = 80e6;
     const PHOTO_ALGORITHM = true;
+    const MIN_HOLE_FRACTION = 0.04;
+    // Raw round spots reach 96% printed cell area at this tonal value.
+    const ROUND_SOLID_TONE_CUTOFF = 0.74425277;
 
     const S = {
       img: null,
@@ -848,10 +933,11 @@
       tw: 0,
       th: 0,
       spot: 'round',
-      out: 'color',
       dotMode: 'drop',
       view: 'retino',
       fit: true,
+      zoom: 1,
+      comparePosition: 0.5,
       renderedMode: 'retino'
     };
 
@@ -860,6 +946,11 @@
     const ctx = cv.getContext('2d', { willReadFrequently: true });
     const viewport = $('viewport');
     const busy = $('busy');
+    const compareSlider = $('compareSlider');
+    const compareRetinoCanvas = document.createElement('canvas');
+    const compareRetinoCtx = compareRetinoCanvas.getContext('2d');
+    const compareOriginalCanvas = document.createElement('canvas');
+    const compareOriginalCtx = compareOriginalCanvas.getContext('2d');
 
     const s2l = new Float32Array(256);
     for (let i = 0; i < 256; i++) {
@@ -889,35 +980,27 @@
         printw: Math.max(0, parseFloat($('printw').value) || 0),
         lpi: +$('lpi').value,
         angle: +$('angle').value * Math.PI / 180,
-        invert: $('invert').checked,
-        fabricEnabled: $('knockChk').checked,
+        fabricEnabled: true,
         black: +$('lvB').value,
         white: +$('lvW').value,
         lgamma: +$('lvG').value,
         outBlack: +$('lvOB').value / 255,
         outWhite: +$('lvOW').value / 255,
-        sat: +$('sat').value / 100
+        sat: +$('sat').value / 100,
+        fabricInner: +$('fabricInner').value,
+        fabricOuter: Math.max(+$('fabricOuter').value, +$('fabricInner').value + 0.1),
+        cap: +$('cap').value / 100
       };
     }
 
     function clampToRange(el, raw) {
       const min = Number(el.min);
       const max = Number(el.max);
-      let value = Number(raw);
+      let value = Number(String(raw).trim().replace(',', '.'));
       if (!Number.isFinite(value)) value = Number(el.value) || min || 0;
       if (Number.isFinite(min)) value = Math.max(min, value);
       if (Number.isFinite(max)) value = Math.min(max, value);
       return value;
-    }
-
-    function isInRange(el, raw) {
-      const value = Number(raw);
-      const min = Number(el.min);
-      const max = Number(el.max);
-      if (!Number.isFinite(value)) return false;
-      if (Number.isFinite(min) && value < min) return false;
-      if (Number.isFinite(max) && value > max) return false;
-      return true;
     }
 
     function setRangeDisabled(id, disabled) {
@@ -933,7 +1016,9 @@
       const number = document.createElement('input');
       const unit = document.createElement('span');
       number.className = 'ht-number-input';
-      number.type = 'number';
+      number.type = 'text';
+      number.inputMode = String(el.step).includes('.') ? 'decimal' : 'numeric';
+      number.pattern = '[0-9.,-]*';
       number.id = id + 'N';
       number.min = el.min;
       number.max = el.max;
@@ -957,16 +1042,16 @@
         upd();
         schedule(Boolean(rebuildTone));
       });
-      number.addEventListener('input', () => {
-        if (number.value === '' || !isInRange(el, number.value)) return;
-        el.value = number.value;
-        upd();
-        schedule(Boolean(rebuildTone));
-      });
-      number.addEventListener('change', () => {
+      const commitNumber = () => {
         el.value = clampToRange(el, number.value);
         upd();
         schedule(Boolean(rebuildTone));
+      };
+      number.addEventListener('blur', commitNumber);
+      number.addEventListener('keydown', event => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        number.blur();
       });
       upd();
     }
@@ -981,6 +1066,9 @@
     bindRange('lvOW', v => v, false);
     bindRange('sat', v => v + '%', true);
     bindRange('dotPx', v => v + ' px', false);
+    bindRange('fabricInner', v => v + ' ΔE', true);
+    bindRange('fabricOuter', v => v + ' ΔE', true);
+    bindRange('cap', v => v + '%', false);
 
     function initLevelsTrack(trackId, ids, inputTrack) {
       const track = $(trackId);
@@ -1110,11 +1198,8 @@
       });
     });
 
-    $('invert').addEventListener('change', () => schedule(false));
     $('printw').addEventListener('input', () => schedule(true));
-    $('fabricChk').addEventListener('change', () => schedule(false));
-    $('knockChk').addEventListener('change', () => { syncFabricOptionState(); schedule(true); });
-    $('fabricCol').addEventListener('input', () => { if ($('knockChk').checked) schedule(true); else schedule(false); });
+    $('fabricCol').addEventListener('input', () => schedule(true));
     $('dotChk').addEventListener('change', () => {
       syncDotOptionState();
       schedule(false);
@@ -1130,11 +1215,11 @@
     }
 
     bindSeg('spotSeg', v => { S.spot = v; schedule(false); });
-    bindSeg('outSeg', v => { S.out = v; schedule(false); });
     bindSeg('dotModeSeg', v => { S.dotMode = v; if ($('dotChk').checked) schedule(false); });
     bindSeg('viewSeg', v => { S.view = v; schedule(false); });
     bindSeg('zoomSeg', v => {
       S.fit = v === 'fit';
+      if (!S.fit) S.zoom = Number(v) / 100;
       applyView();
     });
 
@@ -1143,26 +1228,11 @@
     const deletePresetButton = $('deletePresetButton');
     let customPresets = <%= (@halftone_presets || []).to_json %>;
 
-    const presetFields = ['dpi', 'printw', 'lpi', 'angle', 'invert', 'lvB', 'lvG', 'lvW', 'lvOB', 'lvOW', 'sat', 'dotChk', 'dotPx', 'knockChk', 'fabricChk', 'fabricCol'];
-    const builtinPresets = {
-      gradient: {
-        name: 'Retino AM / sfumature',
-        dpi: '300', lpi: '30', angle: '22.5', spot: 'round', out: 'color',
-        invert: '0', lvB: '5', lvG: '1.00', lvW: '100', lvOB: '0', lvOW: '255', sat: '100', dotChk: '0', dotPx: '3', dotMode: 'drop', knockChk: '0',
-        fabricChk: '0', fabricCol: '#151515'
-      },
-      black_shirt: {
-        name: 'Maglia nera / colori vivi',
-        dpi: '300', lpi: '30', angle: '22.5', spot: 'round', out: 'color',
-        invert: '0', lvB: '0', lvG: '1.00', lvW: '255', lvOB: '0', lvOW: '255', sat: '135', dotChk: '0', dotPx: '3', dotMode: 'drop', knockChk: '0',
-        fabricChk: '1', fabricCol: '#151515'
-      },
-      soft: {
-        name: 'Sfumatura morbida',
-        dpi: '300', lpi: '35', angle: '22.5', spot: 'euclid', out: 'color',
-        invert: '0', lvB: '0', lvG: '1.10', lvW: '255', lvOB: '0', lvOW: '255', sat: '120', dotChk: '0', dotPx: '3', dotMode: 'drop', knockChk: '0',
-        fabricChk: '0', fabricCol: '#151515'
-      }
+    const presetFields = ['dpi', 'printw', 'lpi', 'angle', 'lvB', 'lvG', 'lvW', 'lvOB', 'lvOW', 'sat', 'dotChk', 'dotPx', 'fabricInner', 'fabricOuter', 'cap', 'fabricCol'];
+    const defaultPreset = {
+      dpi: '300', lpi: '30', angle: '22.5', spot: 'round',
+      lvB: '5', lvG: '1.00', lvW: '100', lvOB: '0', lvOW: '255', sat: '100', dotChk: '0', dotPx: '3', dotMode: 'drop', fabricInner: '3', fabricOuter: '30', cap: '100',
+      fabricCol: '#000000'
     };
 
     function setSegValue(id, value) {
@@ -1171,7 +1241,6 @@
       if (!button) return;
       seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === button));
       if (id === 'spotSeg') S.spot = value;
-      if (id === 'outSeg') S.out = value;
       if (id === 'dotModeSeg') S.dotMode = value;
     }
 
@@ -1214,7 +1283,6 @@
         if (field.type === 'range') field.dispatchEvent(new Event('input'));
       });
       if (settings.spot) setSegValue('spotSeg', settings.spot);
-      if (settings.out) setSegValue('outSeg', settings.out);
       if (settings.dotMode) setSegValue('dotModeSeg', settings.dotMode);
       syncDotOptionState();
       syncFabricOptionState();
@@ -1229,7 +1297,6 @@
         settings[id] = field.type === 'checkbox' ? (field.checked ? '1' : '0') : field.value;
       });
       settings.spot = S.spot;
-      settings.out = S.out;
       settings.dotMode = S.dotMode;
       // The production export is rendered by the authoritative server engine.
       settings.tone_mode = 'dtf_difference';
@@ -1239,12 +1306,10 @@
 
     function renderPresetOptions(selectedValue) {
       presetSelect.innerHTML = '';
-      Object.keys(builtinPresets).forEach(key => {
-        const option = document.createElement('option');
-        option.value = 'builtin:' + key;
-        option.textContent = builtinPresets[key].name;
-        presetSelect.appendChild(option);
-      });
+      const defaultOption = document.createElement('option');
+      defaultOption.value = 'default';
+      defaultOption.textContent = 'Default';
+      presetSelect.appendChild(defaultOption);
 
       if (customPresets.length > 0) {
         const group = document.createElement('optgroup');
@@ -1258,7 +1323,7 @@
         presetSelect.appendChild(group);
       }
 
-      presetSelect.value = selectedValue || 'builtin:gradient';
+      presetSelect.value = selectedValue || 'default';
       updateDeletePresetState();
     }
 
@@ -1274,7 +1339,7 @@
 
     presetSelect.addEventListener('change', event => {
       const value = event.target.value;
-      if (value.startsWith('builtin:')) applyPreset(builtinPresets[value.replace('builtin:', '')]);
+      if (value === 'default') applyPreset(defaultPreset);
       else {
         const preset = selectedCustomPreset();
         if (preset) applyPreset(preset.settings);
@@ -1315,8 +1380,8 @@
         const result = await response.json();
         if (!response.ok || !result.success) throw new Error(result.error || 'Cancellazione preset fallita');
         customPresets = customPresets.filter(item => item.id !== preset.id);
-        renderPresetOptions('builtin:gradient');
-        applyPreset(builtinPresets.gradient);
+        renderPresetOptions('default');
+        applyPreset(defaultPreset);
         $('saveStatus').textContent = 'Preset eliminato.';
       } catch (error) {
         window.alert(error.message);
@@ -1364,7 +1429,7 @@
       const imgd = octx.getImageData(0, 0, w, h);
       const d = imgd.data;
       const maskSource = PHOTO_ALGORITHM ? new Uint8ClampedArray(d) : d;
-      const fabricEnabled = $('knockChk').checked;
+      const fabricEnabled = true;
       let lab = null;
       if (fabricEnabled) {
         lab = new Float32Array(w * h * 3);
@@ -1399,7 +1464,9 @@
       const fabricR = parseInt(fabricHex.slice(1, 3), 16);
       const fabricG = parseInt(fabricHex.slice(3, 5), 16);
       const fabricB = parseInt(fabricHex.slice(5, 7), 16);
-      const technicalBlack = Math.max(fabricR, fabricG, fabricB) <= 32;
+      // With the option disabled the colour swatch must have no influence: the
+      // established separation always uses technical black as its reference.
+      const technicalBlack = !fabricEnabled || Math.max(fabricR, fabricG, fabricB) <= 32;
       const separationR = technicalBlack ? 0 : fabricR;
       const separationG = technicalBlack ? 0 : fabricG;
       const separationB = technicalBlack ? 0 : fabricB;
@@ -1409,15 +1476,15 @@
         const a = d[j + 3] / 255;
         let enc;
         if (PHOTO_ALGORITHM) {
-          if (fabricEnabled) {
+          enc = (0.230 * Math.abs(maskSource[j] - separationR) + 0.520 * Math.abs(maskSource[j + 1] - separationG) + 0.250 * Math.abs(maskSource[j + 2] - separationB)) / 255;
+          if (fabricEnabled && !technicalBlack) {
             const dL = lab[i * 3] - fabricLab[0];
             const da = lab[i * 3 + 1] - fabricLab[1];
             const db = lab[i * 3 + 2] - fabricLab[2];
             const deltaE = Math.sqrt(dL * dL + da * da + db * db);
-            enc = (a > 0.01 && a < 0.99) ? 1 : Math.max(0, Math.min(1, deltaE / 26));
-            S.guard[i] = 1;
+            const gx = Math.max(0, Math.min(1, (deltaE - p.fabricInner) / Math.max(0.1, p.fabricOuter - p.fabricInner)));
+            S.guard[i] = gx * gx * (3 - 2 * gx);
           } else {
-            enc = (0.230 * Math.abs(maskSource[j] - separationR) + 0.520 * Math.abs(maskSource[j + 1] - separationG) + 0.250 * Math.abs(maskSource[j + 2] - separationB)) / 255 * a;
             const distance = Math.max(Math.abs(maskSource[j] - separationR), Math.abs(maskSource[j + 1] - separationG), Math.abs(maskSource[j + 2] - separationB));
             const gx = Math.max(0, Math.min(1, (distance - 5) / 43));
             S.guard[i] = gx * gx * (3 - 2 * gx);
@@ -1444,12 +1511,7 @@
     function makeSpot(kind) {
       if (kind === 'round') return (x, y) => {
         const raw = Math.max(0, Math.min(1, (x * x + y * y) * 0.5));
-        if (!$('knockChk').checked) return raw;
-        const radiusSquared = 2 * raw;
-        if (raw <= 0.5) return Math.PI * radiusSquared / 4;
-        const radius = Math.sqrt(radiusSquared);
-        const cornerSegment = radiusSquared * Math.acos(1 / radius) - Math.sqrt(radiusSquared - 1);
-        return (Math.PI * radiusSquared - 4 * cornerSegment) / 4;
+        return raw;
       };
       if (kind === 'ellipse') return (x, y) => Math.max(0, Math.min(1, (x * x / 1.55 + y * y * 1.55) * 0.5));
       if (kind === 'line') return (_x, y) => Math.abs(y);
@@ -1472,12 +1534,14 @@
     }
 
     function coverageAt(tone, alpha, p, guard = 1) {
-      if (alpha <= (p.fabricEnabled ? 0 : 0.01)) return 0;
-      const coverage = leveledCoverage(p.invert ? 1 - tone : tone, p);
-      if (PHOTO_ALGORITHM && p.fabricEnabled) {
-        return coverage;
+      if (alpha <= 0.01) return 0;
+      const coverage = leveledCoverage(tone, p);
+      if (PHOTO_ALGORITHM) {
+        let printable = coverage * guard;
+        const solidCutoff = S.spot === 'round' ? ROUND_SOLID_TONE_CUTOFF : 1 - MIN_HOLE_FRACTION;
+        if (p.cap >= 0.999999 && p.outWhite >= 0.999999 && printable > solidCutoff) printable = 1;
+        return Math.min(p.cap, printable) * alpha;
       }
-      if (PHOTO_ALGORITHM) return coverage * guard;
       return coverage >= 1 ? 1 : Math.min(p.cap, coverage);
     }
 
@@ -1510,6 +1574,7 @@
     function render() {
       if (!S.tone) return;
       const t0 = performance.now();
+      const comparing = S.view === 'original';
       const p = P();
       const w = S.tw;
       const h = S.th;
@@ -1523,11 +1588,14 @@
       const imgd = ctx.createImageData(w, h);
       const out = new Uint32Array(imgd.data.buffer);
       const color = S.color;
-      const useColor = S.out === 'color';
+      const maskView = S.view === 'mask';
+      const useColor = !maskView;
       const ink = 0xFF141411;
-      let bg = S.out === 'kb' ? 0xFFFFFFFF : 0x00000000;
+      let bg = maskView ? 0xFFFFFFFF : 0x00000000;
 
-      const showFabric = $('fabricChk').checked || S.view === 'shirt';
+      // The before/after comparison must show the retino as it will read on the
+      // selected garment colour. The normal retino view remains transparent.
+      const showFabric = S.view === 'shirt' || S.view === 'original';
       if (showFabric && bg === 0 && S.view !== 'mask') {
         const hex = $('fabricCol').value;
         const r = parseInt(hex.slice(1, 3), 16);
@@ -1536,7 +1604,7 @@
         bg = (0xFF << 24 | b << 16 | g << 8 | r) >>> 0;
       }
 
-      const enforcePhysicalDot = $('dotChk').checked && (S.view === 'retino' || S.view === 'shirt');
+      const enforcePhysicalDot = $('dotChk').checked && (S.view === 'retino' || S.view === 'original' || S.view === 'mask' || S.view === 'shirt');
       const inkMask = enforcePhysicalDot ? new Uint8Array(w * h) : null;
       if (!enforcePhysicalDot) $('dotInfo').style.display = 'none';
       const invCell = 1 / cell;
@@ -1547,24 +1615,12 @@
         for (let x = 0; x < w; x++) {
           const i = row + x;
           const c = coverageAt(S.tone[i], S.alpha[i], p, S.guard ? S.guard[i] : 1);
-          if (S.view === 'mask') {
-            const g = Math.max(0, Math.min(255, Math.round(c * 255)));
-            out[i] = (0xFF << 24 | g << 16 | g << 8 | g) >>> 0;
-            continue;
-          }
-          if (S.view === 'original') {
-            out[i] = S.alpha[i] > 0 ? (color[i] | 0xFF000000) : bg;
-            continue;
-          }
           if (c <= 0) {
             out[i] = bg;
             continue;
           }
           if (c >= 1) {
-            const edgeAlpha = Math.max(0, Math.min(255, Math.round(S.alpha[i] * 255)));
-            out[i] = p.fabricEnabled
-              ? (useColor ? color[i] : ((edgeAlpha << 24) | (ink & 0x00FFFFFF)) >>> 0)
-              : (useColor ? (color[i] | 0xFF000000) : ink);
+            out[i] = useColor ? (color[i] | 0xFF000000) : ink;
             if (inkMask) inkMask[i] = 1;
             continue;
           }
@@ -1578,10 +1634,7 @@
           const sy = v * 2 - 1;
           const threshold = spot(sx, sy);
           if (c > threshold) {
-            const edgeAlpha = Math.max(0, Math.min(255, Math.round(S.alpha[i] * 255)));
-            out[i] = p.fabricEnabled
-              ? (useColor ? color[i] : ((edgeAlpha << 24) | (ink & 0x00FFFFFF)) >>> 0)
-              : (useColor ? (color[i] | 0xFF000000) : ink);
+            out[i] = useColor ? (color[i] | 0xFF000000) : ink;
             if (inkMask) inkMask[i] = 1;
           } else {
             out[i] = bg;
@@ -1592,9 +1645,28 @@
       if (inkMask) {
         enforceMinDot(out, inkMask, w, h, +$('dotPx').value, S.dotMode, useColor, color, ink, bg, S.alpha, null);
       }
-      ctx.putImageData(imgd, 0, 0);
+      if (comparing) {
+        compareRetinoCanvas.width = w;
+        compareRetinoCanvas.height = h;
+        compareRetinoCtx.putImageData(imgd, 0, 0);
+
+        compareOriginalCanvas.width = w;
+        compareOriginalCanvas.height = h;
+        compareOriginalCtx.clearRect(0, 0, w, h);
+        if (bg !== 0) {
+          const rr = bg & 0xFF;
+          const gg = (bg >> 8) & 0xFF;
+          const bb = (bg >> 16) & 0xFF;
+          compareOriginalCtx.fillStyle = 'rgb(' + rr + ',' + gg + ',' + bb + ')';
+          compareOriginalCtx.fillRect(0, 0, w, h);
+        }
+        compareOriginalCtx.drawImage(S.img, 0, 0, w, h);
+      } else {
+        ctx.putImageData(imgd, 0, 0);
+      }
       S.renderedMode = S.view;
       applyView();
+      if (comparing) paintComparison();
       drawHist();
 
       const ms = (performance.now() - t0).toFixed(0);
@@ -1604,7 +1676,9 @@
         (cell < 4 ? '<br><span style="color:var(--ht-reg)">cella &lt; 4 px: aumenta DPI o riduci LPI</span>' : '');
       $('ftCell').textContent = 'cella ' + cell.toFixed(1) + 'px @ ' + p.dpi + 'dpi';
       $('ftTime').textContent = ms + ' ms';
-      $('stageMeta').textContent = w + ' x ' + h + ' px · lente 1:1 col mouse';
+      $('stageMeta').textContent = comparing
+        ? w + ' x ' + h + ' px · trascina la maniglia per confrontare'
+        : w + ' x ' + h + ' px · lente 1:1 col mouse';
     }
 
     function enforceMinDot(out, inkMask, width, height, diameter, mode, useColor, color, ink, bg, alpha, knock) {
@@ -1683,16 +1757,85 @@
         : 'Punti eliminati sotto soglia: <b>' + removed + '</b>';
     }
 
+    function paintComparison() {
+      if (S.view !== 'original' || compareRetinoCanvas.width === 0) return;
+      const split = Math.round(cv.width * S.comparePosition);
+      ctx.clearRect(0, 0, cv.width, cv.height);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, split, cv.height);
+      ctx.clip();
+      ctx.drawImage(compareOriginalCanvas, 0, 0);
+      ctx.restore();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(split, 0, cv.width - split, cv.height);
+      ctx.clip();
+      ctx.drawImage(compareRetinoCanvas, 0, 0);
+      ctx.restore();
+      syncCompareSlider();
+    }
+
+    function syncCompareSlider() {
+      const visible = S.view === 'original' && cv.width > 0;
+      compareSlider.classList.toggle('is-visible', visible);
+      if (!visible) return;
+      const canvasRect = cv.getBoundingClientRect();
+      const viewportRect = viewport.getBoundingClientRect();
+      compareSlider.style.left = (canvasRect.left - viewportRect.left + viewport.scrollLeft + canvasRect.width * S.comparePosition - 16) + 'px';
+      compareSlider.style.top = (canvasRect.top - viewportRect.top + viewport.scrollTop) + 'px';
+      compareSlider.style.height = canvasRect.height + 'px';
+      compareSlider.setAttribute('aria-valuenow', String(Math.round(S.comparePosition * 100)));
+    }
+
+    function setComparePositionFromPointer(event) {
+      const bounds = cv.getBoundingClientRect();
+      if (bounds.width <= 0) return;
+      S.comparePosition = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+      paintComparison();
+    }
+
+    compareSlider.addEventListener('pointerdown', event => {
+      event.preventDefault();
+      compareSlider.setPointerCapture(event.pointerId);
+      compareSlider.classList.add('is-dragging');
+      setComparePositionFromPointer(event);
+    });
+    compareSlider.addEventListener('pointermove', event => {
+      if (!compareSlider.hasPointerCapture(event.pointerId)) return;
+      setComparePositionFromPointer(event);
+    });
+    const stopCompareDragging = event => {
+      if (compareSlider.hasPointerCapture(event.pointerId)) compareSlider.releasePointerCapture(event.pointerId);
+      compareSlider.classList.remove('is-dragging');
+    };
+    compareSlider.addEventListener('pointerup', stopCompareDragging);
+    compareSlider.addEventListener('pointercancel', stopCompareDragging);
+    compareSlider.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      if (event.key === 'Home') S.comparePosition = 0;
+      else if (event.key === 'End') S.comparePosition = 1;
+      else S.comparePosition = Math.max(0, Math.min(1, S.comparePosition + (event.key === 'ArrowRight' ? 0.02 : -0.02)));
+      paintComparison();
+    });
+
     function applyView() {
       viewport.classList.toggle('fit-off', !S.fit);
       if (!S.fit) {
-        cv.style.width = cv.width + 'px';
-        cv.style.height = cv.height + 'px';
+        cv.style.width = Math.max(1, Math.round(cv.width * S.zoom)) + 'px';
+        cv.style.height = Math.max(1, Math.round(cv.height * S.zoom)) + 'px';
       } else {
         cv.style.width = '';
         cv.style.height = '';
       }
+      requestAnimationFrame(syncCompareSlider);
     }
+
+    viewport.addEventListener('scroll', syncCompareSlider);
+    window.addEventListener('resize', syncCompareSlider);
 
     let picking = false;
     $('pickBtn').addEventListener('click', () => {
@@ -1716,13 +1859,12 @@
       const bb = (c >> 16) & 0xFF;
       const hex = '#' + [rr, gg, bb].map(v => v.toString(16).padStart(2, '0')).join('');
       $('fabricCol').value = hex;
-      $('knockChk').checked = true;
       syncFabricOptionState();
       picking = false;
       $('pickBtn').style.background = '';
       $('pickBtn').style.color = '';
       cv.style.cursor = 'crosshair';
-      $('pickHint').innerHTML = 'Colore tessuto prelevato: <b>' + hex + '</b>.';
+      $('pickHint').innerHTML = 'Colore tessuto impostato: <b>' + hex + '</b>.';
       schedule(true);
     });
 
@@ -1804,9 +1946,7 @@
       if (exportSettings.server_render !== '1') {
         $('saveStatus').textContent = 'Preparo PNG...';
         const oldView = S.view;
-        const fabricWas = $('fabricChk').checked;
         S.view = 'retino';
-        $('fabricChk').checked = false;
         render();
 
         let dataUrl = cv.toDataURL('image/png');
@@ -1815,7 +1955,6 @@
         formData.append('png', blob, 'retino_canvas.png');
 
         S.view = oldView;
-        $('fabricChk').checked = fabricWas;
         setSegValue('viewSeg', oldView);
         render();
       }
@@ -1871,8 +2010,8 @@
       });
     }
 
-    renderPresetOptions('builtin:gradient');
-    applyPreset(builtinPresets.gradient);
+    renderPresetOptions('default');
+    applyPreset(defaultPreset);
     loadSource();
   });
 </script>
