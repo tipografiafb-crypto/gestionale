@@ -8,21 +8,39 @@ if ( ! defined('ABSPATH') ) {
 if ( ! function_exists('wos_sync_order_to_ftp') ) {
 
     add_action('woocommerce_order_status_processing', 'wos_sync_order_to_ftp');
+    
+    // New Actions for CRM Live Sync — trigger for ALL status changes
+    add_action('woocommerce_order_status_changed', 'wos_trigger_crm_sync_status', 10, 4);
+    add_action('woocommerce_order_refunded', 'wos_trigger_crm_sync_refund', 10, 2);
+    // WooCommerce fires this hook for both legacy post storage and HPOS.
+    add_action('woocommerce_trash_order', 'wos_trigger_crm_sync_trash', 10, 1);
+
+    function wos_trigger_crm_sync_status($order_id, $from, $to, $order) {
+        // Send CRM updates for ANY status change to ensure data integrity
+        wos_sync_crm_data_only($order_id);
+    }
+    
+    function wos_trigger_crm_sync_refund($order_id, $refund_id) {
+        wos_sync_crm_data_only($order_id);
+    }
+
+    function wos_trigger_crm_sync_trash($order_id) {
+        wos_sync_crm_data_only($order_id);
+    }
 
     function wos_sync_order_to_ftp($order_id) {
         if ($order_id === null || $order_id === '' ) {
             return;
         }
 
-        // Evita doppio invio
-        $synced = get_post_meta($order_id, '_wos_synced', true);
-        if ($synced) {
-            return;
-        }
-
         $order = wc_get_order($order_id);
         if (!$order) {
             error_log('WP Order Sync: Ordine non trovato. ID: ' . $order_id);
+            return;
+        }
+
+        // WC_Order CRUD uses wp_postmeta on legacy stores and wc_orders_meta on HPOS.
+        if (wos_order_is_synced($order)) {
             return;
         }
 
@@ -283,18 +301,7 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
             if (!$product) continue;
 
             $meta = wos_get_order_item_meta_data($item);
-            $sku  = $product->get_sku();
-
-            if (isset($meta['_wc_ai_customization']['selected_size']) && $meta['_wc_ai_customization']['selected_size'] !== '') {
-                $sku .= '-' . $meta['_wc_ai_customization']['selected_size'];
-            }
-
-            
-            // Override SKU se presente final_sku nei meta (solo nel payload dell'ordine)
-            $maybe_final = wos_extract_final_sku($meta);
-            if (is_string($maybe_final) && $maybe_final !== '') {
-                $sku = $maybe_final;
-            }
+            $sku  = wos_get_item_sku($item, $product);
 
             $order_data['line_items'][] = [
                 'quantity'  => $item->get_quantity(),
@@ -313,7 +320,7 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
             return;
         }
 
-        // --- 5) Upload FTP ---
+        // --- 5) Upload FTP (Production JSON) ---
         $order_number    = $order->get_order_number();
         $filename        = 'order_' . $order_number . '.json';
         $remote_file     = rtrim($ftp_path, '/') . '/' . $filename;
@@ -321,11 +328,44 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
         $upload_response = wos_upload_to_ftp($ftp_host, $ftp_port, $ftp_username, $ftp_password, $remote_file, $json_data);
 
         if (is_wp_error($upload_response)) {
-            error_log('WP Order Sync: Upload fallito - ' . $upload_response->get_error_message());
+            error_log('WP Order Sync: Upload produzione fallito - ' . $upload_response->get_error_message());
             return;
         }
 
-        update_post_meta($order_id, '_wos_synced', 1);
+        // --- 6) CRM JSON Upload ---
+        // DEPRECATO: Adesso wos_sync_crm_data_only si occupa sia della parte FTP CRM che della Webhook API CRM
+        // ed è agganciato a woocommerce_order_status_changed (che include anche 'processing')
+        
+        wos_set_order_synced($order, true);
+    }
+}
+
+/**
+ * Read/write the production sync marker through WooCommerce CRUD so it works
+ * with both the legacy posts datastore and HPOS.
+ */
+if ( ! function_exists('wos_order_is_synced') ) {
+    function wos_order_is_synced($order_or_id) {
+        $order = $order_or_id instanceof WC_Order ? $order_or_id : wc_get_order($order_or_id);
+        return $order ? (bool)$order->get_meta('_wos_synced', true) : false;
+    }
+}
+
+if ( ! function_exists('wos_set_order_synced') ) {
+    function wos_set_order_synced($order_or_id, $is_synced) {
+        $order = $order_or_id instanceof WC_Order ? $order_or_id : wc_get_order($order_or_id);
+        if (!$order) {
+            return false;
+        }
+
+        if ($is_synced) {
+            $order->update_meta_data('_wos_synced', 1);
+        } else {
+            $order->delete_meta_data('_wos_synced');
+        }
+
+        $order->save_meta_data();
+        return true;
     }
 }
 
@@ -451,6 +491,7 @@ if ( ! function_exists('wos_get_order_item_meta_data') ) {
             '_wc_ai_preview_url',
             '_wc_ai_print_url',
             '_wc_ai_customization',
+            'final_sku',
         ];
 
         foreach ($meta_data as $meta) {
@@ -537,11 +578,158 @@ if ( ! function_exists('wos_extract_final_sku') ) {
     }
 }
 
+/**
+ * Consistently extract SKU for an order item, including size and final_sku overrides.
+ */
+if ( ! function_exists('wos_get_item_sku') ) {
+    function wos_get_item_sku($item, $product) {
+        if (!$product) return '';
+        
+        $meta = wos_get_order_item_meta_data($item);
+        $sku  = $product->get_sku();
+
+        // Add size suffix if present
+        if (isset($meta['_wc_ai_customization']['selected_size']) && $meta['_wc_ai_customization']['selected_size'] !== '') {
+            $sku .= '-' . $meta['_wc_ai_customization']['selected_size'];
+        }
+
+        // Apply final_sku override if present
+        $maybe_final = wos_extract_final_sku($meta);
+        if (is_string($maybe_final) && $maybe_final !== '') {
+            $sku = $maybe_final;
+        }
+        
+        return $sku;
+    }
+}
+
+/**
+ * Generate CRM JSON payload from a WooCommerce order.
+ * Extracts standard customer and financial data only.
+ */
+if ( ! function_exists('wos_generate_crm_json') ) {
+    function wos_generate_crm_json($order, $site_name) {
+        if (!$order) return false;
+
+        // Return a special payload for cancelled, failed, or trashed orders
+        $delete_statuses = ['cancelled', 'failed', 'trash'];
+        if (in_array($order->get_status(), $delete_statuses)) {
+            $crm_data = [
+                'type'         => 'crm_delete',
+                'site_name'    => $site_name,
+                'order_number' => $order->get_order_number(),
+            ];
+            return json_encode($crm_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        }
+
+        // Skip refunds or other sub-types that do not support get_billing_email()
+        if (!is_callable([$order, 'get_billing_email'])) {
+            return false;
+        }
+
+        // Customer data
+        $customer_data = [
+            'email'            => $order->get_billing_email(),
+            'first_name'       => $order->get_billing_first_name(),
+            'last_name'        => $order->get_billing_last_name(),
+            'phone'            => $order->get_billing_phone(),
+            'billing_address'  => implode(', ', array_filter([
+                $order->get_billing_address_1(),
+                $order->get_billing_address_2(),
+                $order->get_billing_postcode(),
+                $order->get_billing_city(),
+                $order->get_billing_state(),
+                $order->get_billing_country(),
+            ])),
+            'shipping_address' => implode(', ', array_filter([
+                $order->get_shipping_address_1(),
+                $order->get_shipping_address_2(),
+                $order->get_shipping_postcode(),
+                $order->get_shipping_city(),
+                $order->get_shipping_state(),
+                $order->get_shipping_country(),
+            ])),
+        ];
+
+        // Financial data
+        // get_total_refunded() e get_total_tax_refunded() in WooCommerce
+        // restituiscono numeri positivi (es: "10.00" per un rimborso di 10 euro).
+        $refund_amount = (float)$order->get_total_refunded();
+        $refund_tax = (float)$order->get_total_tax_refunded();
+        
+        $net_total = (float)$order->get_total() - $refund_amount;
+        $net_tax = (float)$order->get_total_tax() - $refund_tax;
+
+        // Include both standard WooCommerce coupons and promo codes applied by
+        // the product customizer. These values are also used by CRM analytics.
+        $coupon_codes = $order->get_coupon_codes();
+        foreach ($order->get_items() as $item) {
+            $meta = $item->get_meta('_wc_ai_customization');
+            if (is_array($meta) && isset($meta['discount_applied'])) {
+                $discount_data = $meta['discount_applied'];
+                if (
+                    isset($discount_data['source'], $discount_data['code']) &&
+                    $discount_data['source'] === 'promo_code' &&
+                    $discount_data['code'] !== ''
+                ) {
+                    $coupon_codes[] = strtoupper(trim((string)$discount_data['code']));
+                }
+            }
+        }
+        $coupon_codes = array_values(array_unique(array_filter(array_map('trim', $coupon_codes))));
+        
+        $financials = [
+            'total'          => $net_total, // Netto (Lordo - Rimborso)
+            'tax'            => $net_tax,   // Tasse Nette
+            'shipping'       => (float)$order->get_shipping_total(), // La spedizione di solito non cambia, a meno che non sia rimborsata specificamente
+            'discount'       => (float)$order->get_discount_total(),
+            'coupons'        => $coupon_codes,
+            'refund_amount'  => $refund_amount,
+            'refund_tax'     => $refund_tax,
+            'payment_method' => $order->get_payment_method_title(),
+            'currency'       => $order->get_currency(),
+        ];
+
+        // Products
+        $products = [];
+        foreach ($order->get_items() as $item) {
+            $product = $item->get_product();
+            $sku = wos_get_item_sku($item, $product);
+
+            $products[] = [
+                'sku'        => $sku,
+                'name'       => $item->get_name(),
+                'quantity'   => $item->get_quantity(),
+                'line_total' => (float)$item->get_total(),
+            ];
+        }
+
+        $crm_data = [
+            'type'         => 'crm_order',
+            'site_name'    => $site_name,
+            'order_number' => $order->get_order_number(),
+            'order_date'   => $order->get_date_created() ? $order->get_date_created()->date('c') : date('c'),
+            'status'       => $order->get_status(),
+            'customer'     => $customer_data,
+            'financials'   => $financials,
+            'products'     => $products,
+        ];
+
+        $json = json_encode($crm_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($json === false) {
+            error_log('WP Order Sync: Errore json_encode CRM per ordine ' . $order->get_id());
+            return false;
+        }
+
+        return $json;
+    }
+}
 
 /**
  * Admin bulk actions
  */
 add_filter('bulk_actions-edit-shop_order', 'wos_register_bulk_actions');
+add_filter('bulk_actions-woocommerce_page_wc-orders', 'wos_register_bulk_actions');
 function wos_register_bulk_actions($bulk_actions) {
     $bulk_actions['wos_reset_sync']  = __('Reset Sync (wos)', 'wp-order-sync');
     $bulk_actions['wos_mark_synced'] = __('Mark as Synced (wos)', 'wp-order-sync');
@@ -549,21 +737,24 @@ function wos_register_bulk_actions($bulk_actions) {
 }
 
 add_filter('handle_bulk_actions-edit-shop_order', 'wos_handle_bulk_actions', 10, 3);
-function wos_handle_bulk_actions($redirect_to, $doaction, $post_ids) {
+add_filter('handle_bulk_actions-woocommerce_page_wc-orders', 'wos_handle_bulk_actions', 10, 3);
+function wos_handle_bulk_actions($redirect_to, $doaction, $order_ids) {
     if ($doaction === 'wos_reset_sync') {
         $reset_count = 0;
-        foreach ($post_ids as $post_id) {
-            delete_post_meta($post_id, '_wos_synced');
-            $reset_count++;
+        foreach ($order_ids as $order_id) {
+            if (wos_set_order_synced($order_id, false)) {
+                $reset_count++;
+            }
         }
         $redirect_to = add_query_arg('wos_reset_sync', $reset_count, $redirect_to);
     }
 
     if ($doaction === 'wos_mark_synced') {
         $mark_count = 0;
-        foreach ($post_ids as $post_id) {
-            update_post_meta($post_id, '_wos_synced', 1);
-            $mark_count++;
+        foreach ($order_ids as $order_id) {
+            if (wos_set_order_synced($order_id, true)) {
+                $mark_count++;
+            }
         }
         $redirect_to = add_query_arg('wos_mark_synced', $mark_count, $redirect_to);
     }
@@ -593,5 +784,157 @@ function wos_bulk_action_admin_notice() {
                 $count
             )
         );
+    }
+}
+
+/**
+ * Sincronizza SOLO i dati CRM per un ordine specifico via REST API.
+ */
+function wos_sync_crm_data_only($order_id) {
+    if (!$order_id) return;
+    $order = wc_get_order($order_id);
+    if (!$order) return;
+
+    $options = get_option('wos_settings');
+    $api_url = $options['wos_crm_api_url'] ?? '';
+    $api_key = $options['wos_crm_api_key'] ?? '';
+    $site_name = $options['wos_site_name'] ?? get_bloginfo('name');
+    
+    if (empty($api_url)) {
+        return;
+    }
+
+    $crm_json = wos_generate_crm_json($order, $site_name);
+    if ($crm_json === false) {
+        return;
+    }
+
+    $headers = [
+        'Content-Type' => 'application/json',
+        'Accept'       => 'application/json',
+    ];
+    if (!empty($api_key)) {
+        $headers['Authorization'] = 'Bearer ' . $api_key;
+    }
+
+    $response = wp_remote_post($api_url, [
+        'method'      => 'POST',
+        'timeout'     => 15,
+        'redirection' => 5,
+        'httpversion' => '1.0',
+        'blocking'    => true,
+        'headers'     => $headers,
+        'body'        => $crm_json,
+        'cookies'     => array()
+    ]);
+
+    if (is_wp_error($response)) {
+        error_log('WP Order Sync: Errore chiamata CRM API per ordine ' . $order->get_order_number() . ' - ' . $response->get_error_message());
+    } else {
+        $http_code = wp_remote_retrieve_response_code($response);
+        if ($http_code < 200 || $http_code >= 300) {
+             error_log('WP Order Sync: La CRM API ha restituito errore ' . $http_code . ' per ordine ' . $order->get_order_number() . '. Body: ' . wp_remote_retrieve_body($response));
+        }
+    }
+}
+
+/**
+ * AJAX handler to test the CRM API connection.
+ */
+add_action('wp_ajax_wos_test_api_connection', 'wos_test_api_connection_ajax');
+function wos_test_api_connection_ajax() {
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(['message' => __('Permesso negato.', 'wp-order-sync')]);
+    }
+
+    $api_url = isset($_POST['url']) ? sanitize_url($_POST['url']) : '';
+    $api_key = isset($_POST['key']) ? sanitize_text_field($_POST['key']) : '';
+
+    if (empty($api_url)) {
+        wp_send_json_error(['message' => __('URL Webhook mancante.', 'wp-order-sync')]);
+    }
+
+    // Prepare a test payload (similar to health check or dummy order)
+    $test_data = [
+        'type'         => 'crm_test',
+        'site_name'    => get_bloginfo('name'),
+        'timestamp'    => date('c'),
+        'message'      => 'Test connection from WordPress'
+    ];
+
+    $headers = [
+        'Content-Type' => 'application/json',
+        'Accept'       => 'application/json',
+    ];
+    if (!empty($api_key)) {
+        $headers['Authorization'] = 'Bearer ' . $api_key;
+    }
+
+    $response = wp_remote_post($api_url, [
+        'method'  => 'POST',
+        'timeout' => 10,
+        'headers' => $headers,
+        'body'    => json_encode($test_data),
+    ]);
+
+    if (is_wp_error($response)) {
+        wp_send_json_error(['message' => $response->get_error_message()]);
+    } else {
+        $http_code = wp_remote_retrieve_response_code($response);
+        if ($http_code >= 200 && $http_code < 300) {
+            wp_send_json_success(['message' => __('Connessione riuscita!', 'wp-order-sync')]);
+        } else {
+            wp_send_json_error(['message' => sprintf(__('Errore HTTP %d: %s', 'wp-order-sync'), $http_code, wp_remote_retrieve_body($response))]);
+        }
+    }
+}
+
+/**
+ * Sends a generic payload to the CRM API.
+ */
+if ( ! function_exists('wos_send_payload_to_api') ) {
+    function wos_send_payload_to_api($payload) {
+        $options = get_option('wos_settings');
+        $api_url = $options['wos_crm_api_url'] ?? '';
+        $api_key = $options['wos_crm_api_key'] ?? '';
+
+        if (empty($api_url)) {
+            error_log('WP Order Sync: Impossibile sincronizzare. URL Webhook mancante nelle impostazioni.');
+            return false;
+        }
+
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Accept'       => 'application/json',
+        ];
+        if (!empty($api_key)) {
+            $headers['Authorization'] = 'Bearer ' . $api_key;
+        }
+
+        $body = is_string($payload) ? $payload : json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        $response = wp_remote_post($api_url, [
+            'method'      => 'POST',
+            'timeout'     => 15,
+            'redirection' => 5,
+            'httpversion' => '1.0',
+            'blocking'    => true,
+            'headers'     => $headers,
+            'body'        => $body,
+            'cookies'     => array()
+        ]);
+
+        if (is_wp_error($response)) {
+            error_log('WP Order Sync: Errore chiamata CRM API - ' . $response->get_error_message());
+            return false;
+        }
+
+        $http_code = wp_remote_retrieve_response_code($response);
+        if ($http_code < 200 || $http_code >= 300) {
+             error_log('WP Order Sync: La CRM API ha restituito errore ' . $http_code . '. Body: ' . wp_remote_retrieve_body($response));
+             return false;
+        }
+
+        return true;
     }
 }
