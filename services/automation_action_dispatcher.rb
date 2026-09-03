@@ -235,12 +235,27 @@ class AutomationActionLifecycle
       )
       asset.original_url = artifact.filename
       asset.save!
+      DesignGroupWorkflow.propagate_preprint_output!(run.order_item, asset)
     end
 
     def result_artifact(run)
-      graph = run.automation_flow_version.graph
-      finish = Array(graph['nodes']).find { |node| node['type'] == 'finish' }
-      requested_kind = finish&.dig('config', 'result_artifact_kind').presence
+      requested_kind = run.context.dig('runtime', 'final_result_kind').presence
+      unless requested_kind
+        graph_nodes = Array(run.automation_flow_version.graph['nodes'])
+        finish_step = run.automation_step_runs
+                         .where(node_type: 'finish', status: %w[completed skipped])
+                         .order(finished_at: :desc, id: :desc)
+                         .first
+        finish = if finish_step
+                   graph_nodes.find { |node| node['id'] == finish_step.node_key }
+                 end
+        # A parent run stopped at a fork and only coordinates its child
+        # branches. It must not publish the pre-fork artifact as a final file.
+        return nil if finish.nil? && graph_nodes.any? { |node| node['type'] == 'finish' }
+
+        requested_kind = finish&.dig('config', 'result_artifact_kind').presence
+      end
+
       requested_kind ? run.artifact_by_kind(requested_kind) : run.current_artifact
     end
   end

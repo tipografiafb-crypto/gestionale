@@ -107,6 +107,8 @@ class PrintOrchestrator < Sinatra::Base
           )
           asset.save!
           puts "[SWITCH_REPORT] Asset created: #{asset.id} with local_path: #{saved_file_path}"
+          DesignGroupWorkflow.propagate_preprint_output!(item, asset)
+          puts "[SWITCH_REPORT] Preprint output propagated to linked design rows"
           
           # Asset ID can be used directly in preview URL: /file/{asset.id}
           preview_url = "/file/#{asset.id}"

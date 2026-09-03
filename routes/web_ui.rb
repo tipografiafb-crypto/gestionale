@@ -619,6 +619,11 @@ class PrintOrchestrator < Sinatra::Base
   get '/orders/:order_id/items/:item_id/preprint_result_section' do
     @order = Order.find(params[:order_id])
     @item = @order.order_items.includes(:assets).find(params[:item_id])
+    linked_rows = @item.design_group_items.length
+    confirm_label = linked_rows > 1 ? "✓ Conferma Pre-stampa (#{linked_rows} righe)" : '✓ Conferma Pre-stampa'
+    processing_rows = @item.design_group_items.select { |item| item.preprint_status == 'processing' }
+    ready_rows = processing_rows.select { |item| item.latest_preprint_asset&.downloaded? }
+    group_preprint_ready = processing_rows.any? && ready_rows.length == processing_rows.length
     
     # Get the Switch output file (created when Switch returns the file)
     print_output_asset = @item.assets.where(asset_type: 'print_output').first
@@ -640,7 +645,7 @@ class PrintOrchestrator < Sinatra::Base
         </div>
       HTML
     # If file exists (from Switch), show result button and confirm button
-    elsif print_output_asset && @item.preprint_status == 'processing'
+    elsif print_output_asset && @item.preprint_status == 'processing' && group_preprint_ready
       html = <<~HTML
         <div style="display: flex; gap: 10px; align-items: center;">
           <a href="/file/#{print_output_asset.id}" class="btn btn-outline-secondary" target="_blank" title="Switch result file: #{print_output_asset.original_url}">
@@ -648,9 +653,18 @@ class PrintOrchestrator < Sinatra::Base
           </a>
           <form action="/orders/#{@order.id}/items/#{@item.id}/confirm_preprint" method="post" class="d-inline">
             <button type="submit" class="btn btn-success">
-              ✓ Conferma Pre-stampa
+              #{confirm_label}
             </button>
           </form>
+        </div>
+      HTML
+    elsif print_output_asset && @item.preprint_status == 'processing'
+      html = <<~HTML
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <a href="/file/#{print_output_asset.id}" class="btn btn-outline-secondary" target="_blank" title="Switch result file: #{print_output_asset.original_url}">
+            📄 Result
+          </a>
+          <span style="font-size: 12px; color: #6c757d;">⏳ In attesa delle altre righe collegate (#{ready_rows.length}/#{processing_rows.length})</span>
         </div>
       HTML
     # If preprint is completed and file exists, show only result button (user can still view file)
@@ -675,6 +689,8 @@ class PrintOrchestrator < Sinatra::Base
   get '/orders/:order_id/items/:item_id/print_result_section' do
     @order = Order.find(params[:order_id])
     @item = @order.order_items.includes(:assets).find(params[:item_id])
+    linked_rows = @item.design_group_items.length
+    confirm_label = linked_rows > 1 ? "✓ Conferma Stampa (#{linked_rows} righe)" : '✓ Conferma Stampa'
     
     # Get the Switch output file from print phase (asset_type: 'print_result' or similar)
     # For now, we check if a new print_output was created after print_status changed to processing
@@ -697,7 +713,7 @@ class PrintOrchestrator < Sinatra::Base
           </div>
           <form action="/orders/#{@order.id}/items/#{@item.id}/confirm_print" method="post" class="d-inline">
             <button type="submit" class="btn btn-success btn-sm">
-              ✓ Conferma Stampa
+              #{confirm_label}
             </button>
           </form>
         </div>
@@ -711,7 +727,7 @@ class PrintOrchestrator < Sinatra::Base
           </a>
           <form action="/orders/#{@order.id}/items/#{@item.id}/confirm_print" method="post" class="d-inline">
             <button type="submit" class="btn btn-success">
-              ✓ Conferma Stampa
+              #{confirm_label}
             </button>
           </form>
         </div>

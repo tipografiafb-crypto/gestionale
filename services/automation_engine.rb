@@ -43,6 +43,13 @@ class AutomationGraphValidator
       end
     end
 
+    nodes.select { |node| node['type'] == 'finish' }.each do |node|
+      label = node['label'].presence || node['id']
+      if edges.any? { |edge| edge['source'].to_s == node['id'].to_s }
+        result << "Il blocco finale #{label} non può avere collegamenti in uscita"
+      end
+    end
+
     nodes.select { |node| node['type'] == 'fork' }.each do |node|
       label = node['label'].presence || node['id']
       outgoing = edges.count { |edge| edge['source'].to_s == node['id'].to_s }
@@ -1471,13 +1478,47 @@ class AutomationNodeExecutor
     when 'label_printer' then execute_label_printer
     when 'approval' then {'state' => 'waiting_review'}
     when 'handoff' then execute_handoff
-    when 'finish' then {}
+    when 'finish' then execute_finish
     else
       raise ArgumentError, "Tipo di blocco non supportato: #{@step.node_type}"
     end
   end
 
   private
+
+  # A finish node gives a business meaning to the last artifact produced by
+  # its own branch. The user therefore does not need to repeat the same
+  # technical kind on the preceding processing node (resize, imposition, …).
+  def execute_finish
+    requested_kind = @config['result_artifact_kind'].to_s.strip
+    source = @run.current_artifact
+    final_kind = requested_kind.presence || source&.kind
+    updates = {
+      'runtime.final_result_node_key' => @step.node_key,
+      'runtime.final_result_kind' => final_kind
+    }
+
+    return {'context_updates' => updates} if requested_kind.empty?
+    raise ArgumentError, 'Il blocco finale non riceve alcun file' unless source&.available?
+    return {'artifact_id' => source.id, 'context_updates' => updates} if source.kind == requested_kind
+
+    artifact = AutomationEngine.create_artifact!(
+      run: @run,
+      step: @step,
+      kind: requested_kind,
+      path: source.full_path,
+      filename: source.filename,
+      media_type: source.media_type,
+      metadata: (source.metadata || {}).merge(
+        'source_artifact_id' => source.id,
+        'final_result_node_key' => @step.node_key
+      )
+    )
+    {
+      'artifact_id' => artifact.id,
+      'context_updates' => updates.merge('runtime.current_artifact_id' => artifact.id)
+    }
+  end
 
   def execute_handoff
     target_id = @config['target_flow_id'].to_i

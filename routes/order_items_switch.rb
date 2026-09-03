@@ -5,26 +5,14 @@
 class PrintOrchestrator < Sinatra::Base
   # POST /orders/:order_id/items/:item_id/send_preprint - Send item to preprint phase
   post '/orders/:order_id/items/:item_id/send_preprint' do
-    puts "\n[DEBUG_PREPRINT_START] Order: #{params[:order_id]}, Item: #{params[:item_id]}"
-    
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
-    
-    # Mark order as in processing when user starts working on an item
-    order.update(status: 'processing') if order.status == 'new'
-
-    # Get selected print flow or use default
     print_flow_id = params[:print_flow_id] || item.product&.default_print_flow_id
-    puts "[DEBUG_PREPRINT] print_flow_id: #{print_flow_id.inspect}"
     print_flow = PrintFlow.find_by(id: print_flow_id)
-    puts "[DEBUG_PREPRINT] print_flow found: #{print_flow.present?}"
-    
     unless print_flow
       redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Flusso+di+stampa+non+trovato"
     end
-    
-    # Get percentuale and azione_photoshop from form and build campi_webhook
-    percentuale = params[:percentuale].to_i rescue 0
+
     azione_photoshop = params[:azione_photoshop]&.strip
     requested_quantity = params[:preprint_quantity].to_s.strip
     quantity_override = nil
@@ -35,116 +23,16 @@ class PrintOrchestrator < Sinatra::Base
       end
     end
 
-    campi_webhook = { percentuale: percentuale.to_s }
-    campi_webhook["azione photoshop"] = azione_photoshop if azione_photoshop.present?
-    campi_webhook['preprint_quantity_override'] = quantity_override.to_s if quantity_override
-    
-    # Store selected print flow in item
-    item.update(
-      preprint_print_flow_id: print_flow.id, 
-      preprint_status: 'processing',
-      campi_webhook: campi_webhook
+    result = DesignGroupWorkflow.new(item).send_preprint!(
+      print_flow: print_flow,
+      percentuale: params[:percentuale],
+      azione_photoshop: azione_photoshop,
+      quantity_override: quantity_override
     )
-
-    # Get all print assets (assets are auto-downloaded during import)
-    print_assets = item.switch_print_assets
-    unless print_assets.any?
-      item.update(preprint_status: 'failed')
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Nessun+asset+trovato+per+questo+item"
-    end
-
-    if print_flow.executor_for('preprint') == 'automation'
-      begin
-        result = AutomationActionDispatcher.dispatch!(
-          print_flow: print_flow,
-          action: 'preprint',
-          order_item: item,
-          assets: print_assets
-        )
-        redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=#{result[:runs].length}+flussi+interni+di+prestampa+avviati"
-      rescue StandardError => e
-        item.update(preprint_status: 'failed')
-        redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore flusso interno: ' + e.message)}"
-      end
-    end
-
-    webhook_hook_path = print_flow.preprint_webhook&.hook_path
-    unless webhook_hook_path.present?
-      item.update(preprint_status: 'failed')
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Webhook+pre-stampa+non+configurato"
-    end
-
-    product = item.product
-    server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
-    
-    # Send each print asset to preprint webhook
-    begin
-      errors = []
-      successful_assets = []
-      
-      print_assets.each do |print_asset|
-        puts "[DEBUG_PREPRINT] Processing asset: #{print_asset.id}"
-        # Build Switch payload according to SWITCH_WORKFLOW.md
-        job_data = {
-          id_riga: item.item_number,
-          codice_ordine: order.external_order_code,
-          product: "#{product&.sku} - #{product&.name}",
-          operation_id: 1,  # 1=prepress, 2=stampa, 3=etichetta
-          job_operation_id: item.id.to_s,
-          url: "#{server_url}/api/assets/#{print_asset.id}/download",
-          widegest_url: "#{server_url}/api/v1/reports_create",
-          filename: item.switch_filename_for_asset(print_asset) || "#{order.external_order_code.downcase}-#{item.id}.png",
-          quantita: item.workflow_quantity,
-          materiale: product&.notes || 'N/A',
-          campi_custom: {},
-          opzioni_stampa: {},
-          campi_webhook: campi_webhook
-        }
-        
-        # Add cut file (SVG) if present
-        cut_asset = item.assets.find { |a| a.asset_type == 'cut' && a.downloaded? }
-        if cut_asset
-          job_data[:cut_url] = "#{server_url}/api/assets/#{cut_asset.id}/download"
-          job_data[:cut_filename] = "#{order.external_order_code}-#{item.item_number}-cut.svg"
-        end
-
-        puts "[DEBUG_PREPRINT] Calling SwitchClient.send_to_switch with webhook_path: #{webhook_hook_path.inspect}"
-        result = SwitchClient.send_to_switch(
-          webhook_path: webhook_hook_path,
-          job_data: job_data
-        )
-        puts "[DEBUG_PREPRINT] Result: #{result.inspect}"
-        
-        if result[:success]
-          successful_assets << print_asset.id
-        else
-          errors << result[:error]
-        end
-      end
-      
-      if errors.any?
-        item.update(preprint_status: 'failed')
-        redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + errors.join(', '))}"
-      else
-        item.update(preprint_status: 'processing', preprint_job_id: successful_assets.join(','))
-        redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=#{successful_assets.length}+asset+inviati+a+pre-stampa"
-      end
-    rescue => e
-      item.update(preprint_status: 'failed')
-      puts "[PREPRINT_ERROR] #{e.class}: #{e.message}"
-      puts "[PREPRINT_ERROR_INSPECT] #{e.inspect}"
-      puts "[PREPRINT_BACKTRACE]"
-      e.backtrace.each { |line| puts "  #{line}" }
-      
-      error_msg = begin
-        msg = e.message.to_s
-        msg.length > 50 ? msg[0..50] + "..." : msg
-      rescue => msg_error
-        "Errore sconosciuto: #{e.class}"
-      end
-      
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + error_msg)}"
-    end
+    message = "#{result[:rows]} righe collegate inviate a pre-stampa (#{result[:jobs]} lavorazioni)"
+    redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=#{URI.encode_www_form_component(message)}"
+  rescue DesignGroupWorkflow::Error => e
+    redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end
 
   # POST /orders/:order_id/items/:item_id/confirm_preprint - Manually confirm preprint completion
@@ -152,12 +40,9 @@ class PrintOrchestrator < Sinatra::Base
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
 
-    unless item.preprint_status == 'processing'
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Questo+item+non+è+in+fase+di+pre-stampa"
-    end
-
-    item.update(preprint_status: 'completed', preprint_completed_at: Time.now)
-    redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=Pre-stampa+confermata+manualmente"
+    result = DesignGroupWorkflow.new(item).confirm_preprint!
+    message = "Pre-stampa confermata per #{result[:rows]} righe collegate"
+    redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=#{URI.encode_www_form_component(message)}"
   rescue => e
     redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore conferma: ' + e.message)}"
   end
@@ -191,96 +76,16 @@ class PrintOrchestrator < Sinatra::Base
   post '/orders/:order_id/items/:item_id/send_print' do
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
-    
-    # Mark order as in processing when user starts working on an item
-    order.update(status: 'processing') if order.status == 'new'
-
-    # Get selected print machine
-    print_machine_id = params[:print_machine_id]
-    print_machine = PrintMachine.find_by(id: print_machine_id) if print_machine_id.present?
-    
+    print_machine = PrintMachine.find_by(id: params[:print_machine_id]) if params[:print_machine_id].present?
     unless print_machine
       redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Macchina+di+stampa+non+selezionata"
     end
-    
-    # Update status and machine
-    item.update(print_status: 'processing', print_machine_id: print_machine.id)
 
-    # Get print flow and configured executor
-    print_flow = item.print_flow
-    unless print_flow
-      item.update(print_status: 'failed')
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Flusso+di+stampa+non+configurato"
-    end
-
-    # Get the preprint output PDF(s)
-    print_output_assets = item.assets.where(asset_type: 'print_output').select(&:downloaded?)
-    unless print_output_assets.any?
-      item.update(print_status: 'failed')
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=File+preprint+non+trovato"
-    end
-
-    if print_flow.executor_for('print') == 'automation'
-      begin
-        result = AutomationActionDispatcher.dispatch!(
-          print_flow: print_flow,
-          action: 'print',
-          order_item: item,
-          assets: print_output_assets,
-          print_machine: print_machine
-        )
-        redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=#{result[:runs].length}+flussi+interni+di+stampa+avviati"
-      rescue StandardError => e
-        item.update(print_status: 'failed')
-        redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore flusso interno: ' + e.message)}"
-      end
-    end
-
-    print_output_asset = print_output_assets.first
-    unless print_flow.print_webhook&.hook_path.present?
-      item.update(print_status: 'failed')
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Webhook+stampa+non+configurato"
-    end
-
-    product = item.product
-    server_url = ENV['SERVER_BASE_URL'] || 'http://localhost:5000'
-    
-    # Send the preprint output PDF to print webhook
-    begin
-      # Build Switch payload with only nome_macchina (simplified)
-      job_data = {
-        id_riga: item.item_number,
-        codice_ordine: order.external_order_code,
-        product: "#{product&.sku} - #{product&.name}",
-        operation_id: 2,  # 2=stampa
-        job_operation_id: item.id.to_s,
-        url: "#{server_url}/api/assets/#{print_output_asset.id}/download",
-        widegest_url: "#{server_url}/api/v1/reports_create",
-        filename: print_output_asset.original_url || "#{order.external_order_code.downcase}-#{item.id}-print.pdf",
-        nome_macchina: print_machine.name,
-        campi_webhook: item.campi_webhook || {}
-      }
-
-      puts "[PRINT] Sending to Switch: #{job_data.inspect}"
-      
-      result = SwitchClient.send_to_switch(
-        webhook_path: print_flow.print_webhook&.hook_path,
-        job_data: job_data
-      )
-      
-      if result[:success]
-        item.update(print_status: 'ripped')
-        redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=PDF+inviato+in+stampa"
-      else
-        item.update(print_status: 'failed')
-        redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + result[:error].to_s)}"
-      end
-    rescue => e
-      item.update(print_status: 'failed')
-      error_msg = e.message.length > 50 ? e.message[0..50] + "..." : e.message
-      puts "[PRINT_ERROR] #{e.class}: #{e.message}"
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore invio: ' + error_msg)}"
-    end
+    result = DesignGroupWorkflow.new(item).send_print!(print_machine: print_machine)
+    message = "#{result[:rows]} righe collegate inviate a stampa (#{result[:jobs]} lavorazioni)"
+    redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=#{URI.encode_www_form_component(message)}"
+  rescue DesignGroupWorkflow::Error => e
+    redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component(e.message)}"
   end
 
   # POST /orders/:order_id/items/:item_id/confirm_print - Manually confirm print completion
@@ -288,19 +93,9 @@ class PrintOrchestrator < Sinatra::Base
     order = Order.find(params[:order_id])
     item = order.order_items.find(params[:item_id])
 
-    # Accept both 'processing' (single item) and 'ripped' (bulk print) statuses
-    unless %w[processing ripped].include?(item.print_status)
-      redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=Questo+item+non+è+in+fase+di+stampa"
-    end
-
-    item.update(print_status: 'completed', print_completed_at: Time.now)
-    
-    # Check if all items are now completed
-    if order.order_items.all? { |oi| oi.print_status == 'completed' }
-      order.update(status: 'done')
-    end
-    
-    redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=Stampa+confermata,+item+completato"
+    result = DesignGroupWorkflow.new(item).confirm_print!
+    message = "Stampa confermata per #{result[:rows]} righe collegate"
+    redirect "/orders/#{order.id}/items/#{item.id}?msg=success&text=#{URI.encode_www_form_component(message)}"
   rescue => e
     redirect "/orders/#{order.id}/items/#{item.id}?msg=error&text=#{URI.encode_www_form_component('Errore conferma: ' + e.message)}"
   end

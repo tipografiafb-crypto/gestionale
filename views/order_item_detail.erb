@@ -39,7 +39,7 @@
                 <small class="d-block text-muted mt-1">
                   <%= design_rows.map { |row| "#{row.sku} × #{row.quantity}" }.join(' · ') %>
                 </small>
-                <small class="d-block text-success mt-1"><i class="fas fa-link"></i> Le modifiche all’editor vengono applicate alle taglie collegate.</small>
+                <small class="d-block text-success mt-1"><i class="fas fa-link"></i> Modifiche, prestampa, stampa e conferme vengono applicate alle taglie collegate.</small>
               <% else %>
                 <small class="d-block text-muted mt-1">Nessun’altra taglia collegata</small>
               <% end %>
@@ -419,7 +419,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-          <button type="submit" class="btn btn-warning">🖨️ Invia a Pre-stampa</button>
+          <button type="submit" class="btn btn-warning">🖨️ Invia a Pre-stampa<%= " (#{design_rows.length} righe)" if design_rows.length > 1 %></button>
         </div>
       </form>
     </div>
@@ -453,7 +453,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-          <button type="submit" class="btn btn-success"><i class="fas fa-check-circle"></i> Invia a Stampa</button>
+          <button type="submit" class="btn btn-success"><i class="fas fa-check-circle"></i> Invia a Stampa<%= " (#{design_rows.length} righe)" if design_rows.length > 1 %></button>
         </div>
       </form>
     </div>

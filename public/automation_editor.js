@@ -162,6 +162,18 @@
     finish: {result_artifact_kind: ''}
   };
 
+  const finalResultChoices = [
+    ['', 'Ultimo file prodotto (automatico)'],
+    ['imposition_pdf', 'Plancia di stampa'],
+    ['identification_sheet_pdf', 'Foglio di lavoro / identificativo'],
+    ['preview_pdf', 'Anteprima'],
+    ['customer_pdf', 'File per il cliente']
+  ];
+
+  function finalResultLabel(kind) {
+    return finalResultChoices.find(([value]) => value === String(kind || ''))?.[1] || kind;
+  }
+
   const simpleConfigSchemas = {
     select_resource: [
       {
@@ -515,8 +527,10 @@
     finish: [
       {
         key: 'result_artifact_kind',
-        label: 'Risultato della lavorazione',
-        help: 'Lascia vuoto per usare l’ultimo file prodotto. In prestampa verrà registrato come print_output.'
+        label: 'Salva questo risultato come',
+        choices: finalResultChoices,
+        selectWithCustom: true,
+        help: 'Il programma userà automaticamente l’ultimo PDF prodotto da questo ramo. Scegli “Tipo personalizzato” solo per integrazioni avanzate.'
       }
     ]
   };
@@ -893,7 +907,46 @@
     label.textContent = field.label;
     const choices = choicesFor(field.choices);
     let input;
-    if (choices && field.allowCustomChoice) {
+    if (choices && field.selectWithCustom) {
+      const knownValues = choices.map(([choiceValue]) => String(choiceValue));
+      const configuredValue = String(value ?? field.default ?? '');
+      const isCustom = configuredValue !== '' && !knownValues.includes(configuredValue);
+      const stored = document.createElement('input');
+      stored.type = 'hidden';
+      stored.dataset.configRole = role;
+      stored.value = configuredValue;
+      const select = document.createElement('select');
+      select.className = 'form-select form-select-sm';
+      choices.forEach(([choiceValue, choiceLabel]) => {
+        const option = document.createElement('option');
+        option.value = choiceValue;
+        option.textContent = choiceLabel;
+        select.appendChild(option);
+      });
+      const customOption = document.createElement('option');
+      customOption.value = '__custom__';
+      customOption.textContent = 'Tipo personalizzato…';
+      select.appendChild(customOption);
+      select.value = isCustom ? '__custom__' : configuredValue;
+
+      const custom = document.createElement('input');
+      custom.className = 'form-control form-control-sm mt-2';
+      custom.type = 'text';
+      custom.placeholder = 'Codice del risultato personalizzato';
+      custom.value = isCustom ? configuredValue : '';
+      custom.hidden = !isCustom;
+
+      const syncChoice = () => {
+        const customSelected = select.value === '__custom__';
+        custom.hidden = !customSelected;
+        stored.value = customSelected ? custom.value.trim() : select.value;
+        if (customSelected) custom.focus();
+      };
+      select.addEventListener('change', syncChoice);
+      custom.addEventListener('input', syncChoice);
+      wrapper.append(label, select, custom, stored);
+      input = stored;
+    } else if (choices && field.allowCustomChoice) {
       input = document.createElement('input');
       input.className = 'form-control form-control-sm';
       input.type = 'text';
@@ -933,7 +986,7 @@
       input.value = value ?? field.default ?? '';
     }
     input.dataset.configRole = role;
-    if (!field.allowCustomChoice) wrapper.append(label, input);
+    if (!field.allowCustomChoice && !field.selectWithCustom) wrapper.append(label, input);
     if (field.help) {
       const help = document.createElement('div');
       help.className = 'form-text';
@@ -1786,7 +1839,11 @@
 
       const body = document.createElement('div');
       body.className = 'automation-node-body';
-      body.textContent = `${node.type} · ${node.id}`;
+      if (node.type === 'finish') {
+        body.textContent = `Risultato: ${finalResultLabel(node.config?.result_artifact_kind)}`;
+      } else {
+        body.textContent = `${node.type} · ${node.id}`;
+      }
       element.append(header, body);
 
       if (node.type !== 'trigger') {
