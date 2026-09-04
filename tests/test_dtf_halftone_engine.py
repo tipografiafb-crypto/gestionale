@@ -4,6 +4,7 @@ import numpy as np
 
 from tools.dtf_halftone.config import HalftoneConfig
 from tools.dtf_halftone.engine import (
+    _choke_outer_alpha_fringe,
     _dtf_difference_alpha,
     _dtf_difference_tone,
     _enforce_min_dot_components,
@@ -127,6 +128,79 @@ class DtfGarmentTransitionTest(unittest.TestCase):
             _dtf_difference_alpha(rgb, alpha, disabled),
             _dtf_difference_alpha(rgb, alpha, black),
         )
+
+    def test_difference_uses_photoshop_grayscale_weights(self):
+        tone = self.tone_for(
+            [(255, 0, 0), (0, 255, 0), (0, 0, 255)],
+            (0, 0, 0),
+            min_hole_percent=0,
+        )
+
+        np.testing.assert_allclose(tone, [0.299, 0.587, 0.114], atol=1e-6)
+
+    def test_source_alpha_is_flattened_before_levels(self):
+        rgb = np.ones((5, 5, 3), dtype=np.float32)
+        alpha = np.ones((5, 5), dtype=np.float32)
+        alpha[2, 2] = 0.10
+        alpha[2, 3] = 0.02
+        config = HalftoneConfig(
+            tone_mode="dtf_difference",
+            shirt_color=(0, 0, 0),
+            mask_black=9,
+            mask_white=28,
+            min_hole_percent=0,
+        )
+
+        tone = _dtf_difference_tone(rgb, alpha, config)
+
+        expected_middle = ((0.10 - (9.0 / 255.0)) / ((28.0 - 9.0) / 255.0))
+        np.testing.assert_allclose(
+            [tone[0, 0], tone[2, 2], tone[2, 3]],
+            [1.0, expected_middle, 0.0],
+            atol=1e-6,
+        )
+
+    def test_final_dtf_mask_is_strictly_binary(self):
+        rgb = np.full((32, 64, 3), (184, 115, 51), dtype=np.float32) / 255.0
+        alpha = np.tile(np.linspace(0.0, 1.0, 64, dtype=np.float32), (32, 1))
+        config = HalftoneConfig(
+            tone_mode="dtf_difference",
+            shirt_color=(0, 0, 0),
+            target_dpi=300,
+            lpi=30,
+            angle=22,
+            dot_shape="round",
+            mask_black=9,
+            mask_white=28,
+            min_hole_percent=0,
+        )
+
+        result = _dtf_difference_alpha(rgb, alpha, config)
+
+        self.assertTrue(set(np.unique(result)).issubset({0.0, 1.0}))
+
+    def test_outer_alpha_choke_removes_only_the_faint_external_fringe(self):
+        alpha = np.zeros((7, 7), dtype=np.float32)
+        alpha[1:6, 1:6] = 0.8
+        alpha[1, 1:6] = 0.3
+        alpha[5, 1:6] = 0.3
+        alpha[1:6, 1] = 0.3
+        alpha[1:6, 5] = 0.3
+        alpha[3, 3] = 0.3
+
+        result = _choke_outer_alpha_fringe(alpha, 0.01)
+
+        self.assertTrue(np.all(result[1, 1:6] == 0.0))
+        self.assertTrue(np.all(result[5, 1:6] == 0.0))
+        self.assertAlmostEqual(float(result[3, 3]), 0.3, places=6)
+        self.assertAlmostEqual(float(result[2, 2]), 0.8, places=6)
+
+    def test_outer_alpha_choke_never_changes_opaque_image_pixels(self):
+        alpha = np.ones((12, 18), dtype=np.float32)
+
+        result = _choke_outer_alpha_fringe(alpha, 0.01)
+
+        np.testing.assert_array_equal(result, alpha)
 
     def test_maximum_coverage_caps_every_garment_colour(self):
         cap = 0.72

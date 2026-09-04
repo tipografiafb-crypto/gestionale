@@ -1474,9 +1474,34 @@
 
       for (let i = 0, j = 0; i < S.tone.length; i++, j += 4) {
         const a = d[j + 3] / 255;
+        let maskAlpha = a;
+        if (PHOTO_ALGORITHM && a > 0.01 && a < 0.5) {
+          const px = i % w;
+          const py = (i / w) | 0;
+          let touchesTransparency = px === 0 || py === 0 || px === w - 1 || py === h - 1;
+          for (let dy = -1; dy <= 1 && !touchesTransparency; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (dx === 0 && dy === 0) continue;
+              const neighborAlpha = maskSource[((py + dy) * w + px + dx) * 4 + 3];
+              if (neighborAlpha <= 2.55) {
+                touchesTransparency = true;
+                break;
+              }
+            }
+          }
+          if (touchesTransparency) maskAlpha = 0;
+        }
         let enc;
         if (PHOTO_ALGORITHM) {
-          enc = (0.230 * Math.abs(maskSource[j] - separationR) + 0.520 * Math.abs(maskSource[j + 1] - separationG) + 0.250 * Math.abs(maskSource[j + 2] - separationB)) / 255;
+          // Photoshop action order: composite against the garment first,
+          // convert that RGB difference to grayscale, then apply Levels and
+          // the binary halftone. Alpha is therefore part of the input tone,
+          // never a semi-transparent value in the exported mask.
+          enc = maskAlpha * (
+            0.299 * Math.abs(maskSource[j] - separationR) +
+            0.587 * Math.abs(maskSource[j + 1] - separationG) +
+            0.114 * Math.abs(maskSource[j + 2] - separationB)
+          ) / 255;
           if (fabricEnabled && !technicalBlack) {
             const dL = lab[i * 3] - fabricLab[0];
             const da = lab[i * 3 + 1] - fabricLab[1];
@@ -1493,8 +1518,8 @@
           const L = 0.2126 * s2l[d[j]] + 0.7152 * s2l[d[j + 1]] + 0.0722 * s2l[d[j + 2]];
           enc = (L <= 0.0031308 ? L * 12.92 : 1.055 * Math.pow(L, 1 / 2.4) - 0.055) * a;
         }
-        S.tone[i] = enc;
-        S.alpha[i] = a;
+        S.tone[i] = PHOTO_ALGORITHM ? enc * S.guard[i] : enc;
+        S.alpha[i] = PHOTO_ALGORITHM ? maskAlpha : a;
         S.hist[Math.max(0, Math.min(255, (enc * 255) | 0))]++;
       }
 
@@ -1533,14 +1558,14 @@
       return p.outBlack + v * (p.outWhite - p.outBlack);
     }
 
-    function coverageAt(tone, alpha, p, guard = 1) {
+    function coverageAt(tone, alpha, p) {
       if (alpha <= 0.01) return 0;
       const coverage = leveledCoverage(tone, p);
       if (PHOTO_ALGORITHM) {
-        let printable = coverage * guard;
+        let printable = coverage;
         const solidCutoff = S.spot === 'round' ? ROUND_SOLID_TONE_CUTOFF : 1 - MIN_HOLE_FRACTION;
         if (p.cap >= 0.999999 && p.outWhite >= 0.999999 && printable > solidCutoff) printable = 1;
-        return Math.min(p.cap, printable) * alpha;
+        return Math.min(p.cap, printable);
       }
       return coverage >= 1 ? 1 : Math.min(p.cap, coverage);
     }
@@ -1614,7 +1639,7 @@
         const row = y * w;
         for (let x = 0; x < w; x++) {
           const i = row + x;
-          const c = coverageAt(S.tone[i], S.alpha[i], p, S.guard ? S.guard[i] : 1);
+          const c = coverageAt(S.tone[i], S.alpha[i], p);
           if (c <= 0) {
             out[i] = bg;
             continue;

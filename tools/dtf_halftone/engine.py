@@ -210,17 +210,19 @@ def _dtf_difference_tone(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneCon
     shirt = shirt_rgb / 255.0
     difference = np.abs(rgb - shirt.reshape(1, 1, 3))
 
-    # Keep one authoritative tone curve for every garment.  Selecting a fabric
-    # colour changes only the reference colour and its soft similarity guard;
-    # it must not replace the proven black-shirt separation with another scale.
+    # Reproduce Photoshop's black-background action for every garment colour:
+    # flatten the artwork against the selected fabric first, then convert the
+    # resulting RGB difference to Photoshop grayscale.  Multiplying by source
+    # alpha here (before Levels and Bitmap) is essential: partial source pixels
+    # become a tonal transition which the bitmap later resolves to 0/1, rather
+    # than surviving as semi-transparent pixels in the file sent to the RIP.
+    mask_alpha = _choke_outer_alpha_fringe(alpha, config.alpha_threshold)
+    flattened_difference = difference * mask_alpha[:, :, None]
     tone = (
-        (0.230 * difference[:, :, 0])
-        + (0.520 * difference[:, :, 1])
-        + (0.250 * difference[:, :, 2])
+        (0.299 * flattened_difference[:, :, 0])
+        + (0.587 * flattened_difference[:, :, 1])
+        + (0.114 * flattened_difference[:, :, 2])
     )
-    if config.invert:
-        tone = 1.0 - tone
-    tone = _apply_actionseps_levels(tone, config)
 
     if config.shirt_color is None or technical_black:
         # This is the established black-shirt transition.  Explicit black uses
@@ -242,8 +244,38 @@ def _dtf_difference_tone(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneCon
         delta_e = np.linalg.norm(source_lab - target_lab.reshape(1, 1, 3), axis=2)
         garment_guard = _smoothstep(config.knockout_inner, config.knockout_outer, delta_e)
 
-    tone = _protect_solid_tones(tone * garment_guard, config)
-    return np.where(alpha > config.alpha_threshold, tone * alpha, 0.0).astype(np.float32)
+    # The similarity guard is part of the pre-Levels grayscale, just like the
+    # composited edge tone.  Levels can therefore turn flat colours into clean
+    # solids while keeping the final mask strictly binary after screening.
+    tone *= garment_guard
+    if config.invert:
+        tone = 1.0 - tone
+    tone = _apply_actionseps_levels(tone, config)
+    tone = _protect_solid_tones(tone, config)
+    return np.where(mask_alpha > config.alpha_threshold, tone, 0.0).astype(np.float32)
+
+
+def _choke_outer_alpha_fringe(
+    alpha: np.ndarray, alpha_threshold: float, midpoint: float = 0.5
+) -> np.ndarray:
+    """Trim only the low-alpha outer fringe before binary screening.
+
+    Photoshop's bitmap mask cannot carry semi-transparent edge pixels.  Levels
+    9..28 can otherwise promote the faintest antialias fringe to solid ink and
+    make the silhouette look heavier.  Remove only sub-midpoint pixels touching
+    real transparency; intentional translucent areas and every opaque interior
+    pixel keep their original tone.
+    """
+    transparent = alpha <= alpha_threshold
+    touches_transparency = cv2.dilate(
+        transparent.astype(np.uint8),
+        np.ones((3, 3), dtype=np.uint8),
+        iterations=1,
+        borderType=cv2.BORDER_CONSTANT,
+        borderValue=1,
+    ).astype(bool)
+    outer_fringe = (alpha > alpha_threshold) & (alpha < midpoint) & touches_transparency
+    return np.where(outer_fringe, 0.0, alpha).astype(np.float32)
 
 
 def _protect_solid_tones(tone: np.ndarray, config: HalftoneConfig) -> np.ndarray:
@@ -292,7 +324,7 @@ def _dtf_difference_alpha(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneCo
     mask = _dtf_radius_screen(tone, config)
     # Photoshop's DTX cleanup is a local Dust & Scratches / median operation.
     # It removes micro-dots without the very expensive full-image component scan.
-    printable_mask = alpha > config.alpha_threshold
+    printable_mask = _choke_outer_alpha_fringe(alpha, config.alpha_threshold) > config.alpha_threshold
     return _dtf_cleanup(mask, printable_mask, config)
 
 
