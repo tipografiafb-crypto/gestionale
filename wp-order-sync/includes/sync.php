@@ -285,11 +285,18 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
         }
 
         // --- 4) line_items + JSON finale ---
+        $price_decimals = function_exists('wc_get_price_decimals') ? wc_get_price_decimals() : 2;
+        $created_at = $order->get_date_created();
         $order_data = [
             'id'                        => $order->get_order_number(),
             'number'                    => $order->get_order_number(),
             'site_name'                 => $site_name,
+            // ISO 8601 preserves the real order timestamp and its timezone;
+            // the explicit GMT value makes cross-system comparisons reliable.
+            'order_date'                => $created_at ? $created_at->date('c') : '',
+            'order_date_gmt'            => $created_at ? gmdate('c', $created_at->getTimestamp()) : '',
             'customer_note'             => $order->get_customer_note(),
+            'invoice'                   => wos_get_production_invoice_data($order),
             'print_files_with_cart_id'  => $print_files_with_cart_id,
             'screenshots_with_cart_id'  => $screenshots_with_cart_id,
             'cut_with_cart_id'          => $cuts_with_cart_id,
@@ -304,8 +311,14 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
             $sku  = wos_get_item_sku($item, $product);
 
             $order_data['line_items'][] = [
-                'quantity'  => $item->get_quantity(),
-                'sku'       => $sku,
+                'product_id' => $product->get_id(),
+                'name'       => $item->get_name(),
+                'quantity'   => $item->get_quantity(),
+                'sku'        => $sku,
+                // Excluding tax, matching WooCommerce item totals.
+                'unit_price' => round((float) ( $item->get_quantity() > 0 ? $item->get_subtotal() / $item->get_quantity() : 0 ), $price_decimals),
+                'line_total' => round((float) $item->get_total(), $price_decimals),
+                'line_tax'   => round((float) $item->get_total_tax(), $price_decimals),
                 'image'     => [
                     'id'  => $product->get_image_id(),
                     'src' => wp_get_attachment_url($product->get_image_id()),
@@ -313,6 +326,17 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
                 'meta_data' => $meta,
             ];
         }
+
+        // Explicit totals keep the ERP independent from customization metadata.
+        $order_data['totals'] = [
+            'subtotal'     => round((float) $order->get_subtotal(), $price_decimals),
+            'discount'     => round((float) $order->get_discount_total(), $price_decimals),
+            'shipping'     => round((float) $order->get_shipping_total(), $price_decimals),
+            'shipping_tax' => round((float) $order->get_shipping_tax(), $price_decimals),
+            'tax'          => round((float) $order->get_total_tax(), $price_decimals),
+            'total'        => round((float) $order->get_total(), $price_decimals),
+            'currency'     => $order->get_currency(),
+        ];
 
         $json_data = json_encode($order_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         if ($json_data === false) {
@@ -337,6 +361,73 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
         // ed è agganciato a woocommerce_order_status_changed (che include anche 'processing')
         
         wos_set_order_synced($order, true);
+    }
+}
+
+/**
+ * Return the stable invoice block used only by the production FTP payload.
+ * Older orders and orders without a request still expose an explicit false
+ * flag, allowing the ERP to branch without testing for missing properties.
+ */
+if ( ! function_exists('wos_get_production_invoice_data') ) {
+    function wos_get_production_invoice_data($order) {
+        $not_requested = [
+            'schema_version' => 1,
+            'requested'      => false,
+        ];
+
+        if (!$order || 'yes' !== $order->get_meta('_wc_ai_invoice_requested', true)) {
+            return $not_requested;
+        }
+
+        $invoice = $order->get_meta('_wc_ai_invoice_data', true);
+        if (!is_array($invoice)) {
+            return $not_requested;
+        }
+
+        // Whitelist the versioned contract so unrelated order metadata can
+        // never leak into the production file.
+        $address = isset($invoice['address']) && is_array($invoice['address']) ? $invoice['address'] : [];
+        // Preserve contacts even for legacy orders whose invoice metadata was
+        // saved before the dedicated fields existed.
+        $invoice_email = trim((string)($invoice['email'] ?? ''));
+        $invoice_phone = trim((string)($invoice['phone'] ?? ''));
+        if ('' === $invoice_email && is_callable([$order, 'get_billing_email'])) {
+            $invoice_email = (string)$order->get_billing_email();
+        }
+        if ('' === $invoice_email && is_callable([$order, 'get_shipping_email'])) {
+            $invoice_email = (string)$order->get_shipping_email();
+        }
+        if ('' === $invoice_phone && is_callable([$order, 'get_billing_phone'])) {
+            $invoice_phone = (string)$order->get_billing_phone();
+        }
+        if ('' === $invoice_phone && is_callable([$order, 'get_shipping_phone'])) {
+            $invoice_phone = (string)$order->get_shipping_phone();
+        }
+
+        return [
+            'schema_version' => 1,
+            'requested'      => true,
+            'customer_type'  => (string)($invoice['customer_type'] ?? ''),
+            'company_name'   => (string)($invoice['company_name'] ?? ''),
+            'first_name'     => (string)($invoice['first_name'] ?? ''),
+            'last_name'      => (string)($invoice['last_name'] ?? ''),
+            'tax_country'    => (string)($invoice['tax_country'] ?? ''),
+            'vat_number'     => (string)($invoice['vat_number'] ?? ''),
+            'tax_code'       => (string)($invoice['tax_code'] ?? ''),
+            'recipient_code' => (string)($invoice['recipient_code'] ?? ''),
+            'pec'            => (string)($invoice['pec'] ?? ''),
+            'email'          => $invoice_email,
+            'phone'          => $invoice_phone,
+            'address'        => [
+                'address_1' => (string)($address['address_1'] ?? ''),
+                'address_2' => (string)($address['address_2'] ?? ''),
+                'postcode'  => (string)($address['postcode'] ?? ''),
+                'city'      => (string)($address['city'] ?? ''),
+                'province'  => (string)($address['province'] ?? ''),
+                'country'   => (string)($address['country'] ?? ''),
+            ],
+        ];
     }
 }
 

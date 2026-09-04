@@ -8,6 +8,7 @@ class Order < ActiveRecord::Base
   has_many :order_items, dependent: :destroy
   has_many :assets, through: :order_items
   has_one :switch_job, dependent: :destroy
+  has_one :invoice_request, dependent: :destroy
 
   validates :external_order_code, presence: true
   validates :status, inclusion: { in: STATUSES }

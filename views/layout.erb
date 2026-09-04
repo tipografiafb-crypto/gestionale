@@ -539,10 +539,12 @@
             <a class="nav-link <%= 'active' if request.path_info =~ %r{^/inventory} %>" href="/inventory"><i class="fas fa-boxes"></i> Magazzino</a>
           </li>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="settingsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              <i class="fas fa-cog"></i> Impostazioni
+            <a class="nav-link dropdown-toggle <%= 'active' if request.path_info =~ %r{^/(?:invoices|stores|print_flows|admin/print_machines|webhooks|products|product_categories|logs|admin/cleanup|admin/backup)} %>" href="#" id="toolsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-toolbox"></i> Strumenti
             </a>
-            <ul class="dropdown-menu" aria-labelledby="settingsDropdown">
+            <ul class="dropdown-menu" aria-labelledby="toolsDropdown">
+              <li><a class="dropdown-item" href="/invoices"><i class="fas fa-file-invoice-dollar"></i> Fatture</a></li>
+              <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="/stores"><i class="fas fa-store"></i> Negozi</a></li>
               <li><a class="dropdown-item" href="/print_flows"><i class="fas fa-random"></i> Flussi di Stampa</a></li>
               <li><a class="dropdown-item" href="/admin/print_machines"><i class="fas fa-wrench"></i> Macchine da Stampa</a></li>

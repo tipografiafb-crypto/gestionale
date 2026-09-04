@@ -168,6 +168,8 @@ class FTPPoller
           status: 'new',
           source: 'ftp'
         )
+
+        InvoiceRequest.capture_from_payload!(order: order, payload: data)
         
         data['items'].each_with_index do |item_data, idx|
           order_item = order.order_items.create!(
@@ -290,6 +292,10 @@ class FTPPoller
       'external_order_code' => raw_data['number'] || raw_data['id'],
       'customer_name' => raw_data['customer_name'],
       'customer_note' => raw_data['customer_note'],
+      'order_date' => raw_data['order_date'] || raw_data['date_created'],
+      'invoice' => raw_data['invoice'],
+      'totals' => raw_data['totals'],
+      'line_items' => raw_data['line_items'],
       'items' => normalize_items(raw_data)
     }
   end

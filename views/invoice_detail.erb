@@ -1,0 +1,114 @@
+<% h = Rack::Utils.method(:escape_html) %>
+<% invoice = @invoice_request %>
+<% badge_classes = {'not_issued' => 'bg-warning text-dark', 'issued' => 'bg-success', 'data_requested' => 'bg-info text-dark'} %>
+
+<div class="mb-5">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+      <a class="text-decoration-none small" href="/invoices">← Torna alle fatture</a>
+      <h1 class="h3 mt-2 mb-1">Fattura ordine <%= h.call(invoice.order.external_order_code) %></h1>
+      <div class="text-muted"><%= h.call(invoice.order.store.name) %> · richiesta ricevuta il <%= invoice.created_at.strftime('%d/%m/%Y alle %H:%M') %></div>
+    </div>
+    <span class="badge fs-6 <%= badge_classes.fetch(invoice.status, 'bg-secondary') %>"><%= invoice.status_label %></span>
+  </div>
+
+  <% if params[:msg].present? %>
+    <div class="alert alert-<%= params[:msg] == 'error' ? 'danger' : 'success' %>"><%= h.call(params[:text].to_s) %></div>
+  <% end %>
+
+  <% if invoice.missing_data.any? %>
+    <div class="alert alert-warning">
+      <strong>Dati da verificare:</strong> <%= h.call(invoice.missing_data.join(', ')) %>.
+    </div>
+  <% end %>
+
+  <div class="row g-4">
+    <div class="col-xl-8">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white"><h2 class="h5 mb-0">Dati di fatturazione</h2></div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6"><div class="small text-muted">Tipo cliente</div><div><%= h.call(invoice.customer_type_label) %></div></div>
+            <div class="col-md-6"><div class="small text-muted">Ragione sociale</div><div class="fw-semibold"><%= h.call(invoice.company_name.presence || '—') %></div></div>
+            <div class="col-md-6"><div class="small text-muted">Nome e cognome</div><div><%= h.call([invoice.first_name, invoice.last_name].compact_blank.join(' ').presence || '—') %></div></div>
+            <div class="col-md-3"><div class="small text-muted">Partita IVA</div><div><%= h.call(invoice.vat_number.presence || '—') %></div></div>
+            <div class="col-md-3"><div class="small text-muted">Codice fiscale</div><div><%= h.call(invoice.tax_code.presence || '—') %></div></div>
+            <div class="col-md-3"><div class="small text-muted">Paese fiscale</div><div><%= h.call(invoice.tax_country.presence || '—') %></div></div>
+            <div class="col-md-3"><div class="small text-muted">Codice destinatario</div><div><%= h.call(invoice.recipient_code.presence || '—') %></div></div>
+            <div class="col-md-6"><div class="small text-muted">PEC</div><div><%= h.call(invoice.pec.presence || '—') %></div></div>
+            <div class="col-md-6">
+              <div class="small text-muted">Email</div>
+              <div>
+                <% if invoice.email.present? %>
+                  <a href="mailto:<%= h.call(invoice.email) %>"><%= h.call(invoice.email) %></a>
+                <% else %>
+                  —
+                <% end %>
+              </div>
+            </div>
+            <div class="col-md-6"><div class="small text-muted">Telefono</div><div><%= h.call(invoice.phone.presence || '—') %></div></div>
+            <div class="col-12"><div class="small text-muted">Indirizzo</div><div><%= h.call(invoice.full_address.presence || '—') %></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white"><h2 class="h5 mb-0">Righe dell’ordine</h2></div>
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead><tr><th>Prodotto</th><th>SKU</th><th class="text-end">Quantità</th><th class="text-end">Prezzo unitario</th><th class="text-end">Imposte</th><th class="text-end">Totale</th></tr></thead>
+            <tbody>
+              <% invoice.line_items.each do |line| %>
+                <tr>
+                  <td><%= h.call(line['name'].presence || '—') %></td>
+                  <td><%= h.call(line['sku'].presence || '—') %></td>
+                  <td class="text-end"><%= line['quantity'] %></td>
+                  <td class="text-end"><%= line['unit_price'].present? ? format('%.2f', line['unit_price'].to_f) : '—' %></td>
+                  <td class="text-end"><%= line['line_tax'].present? ? format('%.2f', line['line_tax'].to_f) : '—' %></td>
+                  <td class="text-end"><%= line['line_total'].present? ? format('%.2f', line['line_total'].to_f) : '—' %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-4">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white"><h2 class="h5 mb-0">Gestione richiesta</h2></div>
+        <div class="card-body">
+          <form method="post" action="/invoices/<%= invoice.id %>">
+            <input type="hidden" name="_method" value="put">
+            <label class="form-label">Stato</label>
+            <select class="form-select mb-3" name="status">
+              <% InvoiceRequest::STATUSES.each do |status| %>
+                <option value="<%= status %>" <%= 'selected' if invoice.status == status %>><%= InvoiceRequest::STATUS_LABELS.fetch(status) %></option>
+              <% end %>
+            </select>
+            <label class="form-label">Note interne</label>
+            <textarea class="form-control mb-3" rows="4" name="notes" placeholder="Informazioni utili per la fatturazione"><%= h.call(invoice.notes.to_s) %></textarea>
+            <button class="btn btn-primary w-100"><i class="fas fa-save me-1"></i>Salva</button>
+          </form>
+          <% if invoice.issued_at.present? %><div class="small text-muted mt-3">Segnata come emessa il <%= invoice.issued_at.strftime('%d/%m/%Y alle %H:%M') %></div><% end %>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white"><h2 class="h5 mb-0">Riepilogo</h2></div>
+        <div class="card-body">
+          <% [['Data ordine', invoice.order_placed_at&.strftime('%d/%m/%Y %H:%M')], ['Subtotale', invoice.subtotal], ['Sconto', invoice.discount], ['Spedizione', invoice.shipping], ['IVA spedizione', invoice.shipping_tax], ['Imposte', invoice.tax], ['Totale', invoice.total]].each do |label, value| %>
+            <div class="d-flex justify-content-between py-1"><span class="text-muted"><%= label %></span><strong><%= value.is_a?(Numeric) || value.is_a?(BigDecimal) ? format('%.2f %s', value, invoice.currency.presence || 'EUR') : h.call(value.presence || '—') %></strong></div>
+          <% end %>
+          <hr>
+          <a class="btn btn-outline-secondary w-100" href="/orders/<%= invoice.order.id %>"><i class="fas fa-box me-1"></i>Apri ordine</a>
+        </div>
+      </div>
+
+      <form method="post" action="/invoices/<%= invoice.id %>" onsubmit="return confirm('Cancellare questa richiesta di fattura? L’ordine non verrà eliminato.');">
+        <input type="hidden" name="_method" value="delete">
+        <button class="btn btn-outline-danger w-100"><i class="fas fa-trash me-1"></i>Cancella richiesta</button>
+      </form>
+    </div>
+  </div>
+</div>

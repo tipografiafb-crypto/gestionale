@@ -1,0 +1,102 @@
+<% h = Rack::Utils.method(:escape_html) %>
+<% badge_classes = {'not_issued' => 'bg-warning text-dark', 'issued' => 'bg-success', 'data_requested' => 'bg-info text-dark'} %>
+
+<div class="mb-5">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+      <h1 class="h3 mb-1"><i class="fas fa-file-invoice-dollar me-2"></i>Fatture</h1>
+      <p class="text-muted mb-0">Richieste di fatturazione ricevute dagli ordini</p>
+    </div>
+    <span class="badge bg-secondary fs-6"><%= @total_count %> richieste</span>
+  </div>
+
+  <% if params[:msg].present? %>
+    <div class="alert alert-<%= params[:msg] == 'error' ? 'danger' : 'success' %>"><%= h.call(params[:text].to_s) %></div>
+  <% end %>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <form method="get" action="/invoices" class="row g-3 align-items-end">
+        <div class="col-lg-7">
+          <label class="form-label">Cerca</label>
+          <input class="form-control" name="q" value="<%= h.call(@filter_query) %>"
+                 placeholder="Ordine, cliente, partita IVA, codice fiscale o email">
+        </div>
+        <div class="col-lg-3">
+          <label class="form-label">Stato</label>
+          <select class="form-select" name="status">
+            <option value="">Tutti gli stati</option>
+            <% InvoiceRequest::STATUSES.each do |status| %>
+              <option value="<%= status %>" <%= 'selected' if @filter_status == status %>>
+                <%= InvoiceRequest::STATUS_LABELS.fetch(status) %> (<%= @status_counts.fetch(status, 0) %>)
+              </option>
+            <% end %>
+          </select>
+        </div>
+        <div class="col-lg-2 d-flex gap-2">
+          <button class="btn btn-primary flex-grow-1"><i class="fas fa-search me-1"></i>Cerca</button>
+          <a class="btn btn-outline-secondary" href="/invoices" title="Azzera filtri"><i class="fas fa-rotate-left"></i></a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <% if @invoice_requests.empty? %>
+      <div class="card-body text-center py-5">
+        <i class="fas fa-file-circle-xmark text-muted d-block mb-3" style="font-size:3rem"></i>
+        <h2 class="h5">Nessuna richiesta trovata</h2>
+        <p class="text-muted mb-0">Le richieste appariranno quando un ordine contiene una richiesta di fattura.</p>
+      </div>
+    <% else %>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Data ordine</th>
+              <th>Negozio</th>
+              <th>Ordine</th>
+              <th>Cliente</th>
+              <th>P. IVA / C.F.</th>
+              <th class="text-end">Totale</th>
+              <th>Stato</th>
+              <th class="text-end">Azioni</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @invoice_requests.each do |invoice| %>
+              <tr>
+                <td><%= (invoice.order_placed_at || invoice.created_at).strftime('%d/%m/%Y') %></td>
+                <td><%= h.call(invoice.order.store.name) %></td>
+                <td><a class="fw-semibold text-decoration-none" href="/invoices/<%= invoice.id %>"><%= h.call(invoice.order.external_order_code) %></a></td>
+                <td>
+                  <div class="fw-semibold"><%= h.call(invoice.customer_display_name) %></div>
+                  <% if invoice.email.present? %><div class="small text-muted"><%= h.call(invoice.email) %></div><% end %>
+                </td>
+                <td><%= h.call(invoice.vat_number.presence || invoice.tax_code.presence || '—') %></td>
+                <td class="text-end fw-semibold"><%= invoice.total.nil? ? '—' : format('%.2f %s', invoice.total, invoice.currency.presence || 'EUR') %></td>
+                <td><span class="badge <%= badge_classes.fetch(invoice.status, 'bg-secondary') %>"><%= invoice.status_label %></span></td>
+                <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="/invoices/<%= invoice.id %>"><i class="fas fa-eye me-1"></i>Apri</a></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </div>
+
+  <% if @total_pages > 1 %>
+    <% preserved = {q: @filter_query.presence, status: @filter_status.presence}.compact %>
+    <nav class="mt-4" aria-label="Paginazione fatture">
+      <ul class="pagination justify-content-center">
+        <li class="page-item <%= 'disabled' if @current_page <= 1 %>">
+          <a class="page-link" href="/invoices?<%= Rack::Utils.build_query(preserved.merge(page: @current_page - 1)) %>">← Precedente</a>
+        </li>
+        <li class="page-item disabled"><span class="page-link"><%= @current_page %> / <%= @total_pages %></span></li>
+        <li class="page-item <%= 'disabled' if @current_page >= @total_pages %>">
+          <a class="page-link" href="/invoices?<%= Rack::Utils.build_query(preserved.merge(page: @current_page + 1)) %>">Successivo →</a>
+        </li>
+      </ul>
+    </nav>
+  <% end %>
+</div>

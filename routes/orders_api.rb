@@ -91,6 +91,8 @@ class PrintOrchestrator < Sinatra::Base
           customer_note: data['customer_note'],
           status: 'new'
         )
+
+        InvoiceRequest.capture_from_payload!(order: order, payload: data)
         
           # Create order items and assets
           data['items'].each do |item_data|
