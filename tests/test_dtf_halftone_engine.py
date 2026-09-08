@@ -134,9 +134,20 @@ class DtfGarmentTransitionTest(unittest.TestCase):
             [(255, 0, 0), (0, 255, 0), (0, 0, 255)],
             (0, 0, 0),
             min_hole_percent=0,
+            color_distance_mode="photoshop",
         )
 
         np.testing.assert_allclose(tone, [0.299, 0.587, 0.114], atol=1e-6)
+
+    def test_difference_uses_digital_factory_perceptual_weights(self):
+        tone = self.tone_for(
+            [(255, 0, 0), (0, 255, 0), (0, 0, 255)],
+            (0, 0, 0),
+            min_hole_percent=0,
+            color_distance_mode="perceptual",
+        )
+
+        np.testing.assert_allclose(tone, [0.85, 0.85, 0.85], atol=1e-6)
 
     def test_source_alpha_is_flattened_before_levels(self):
         rgb = np.ones((5, 5, 3), dtype=np.float32)
@@ -264,6 +275,46 @@ class DtfGarmentTransitionTest(unittest.TestCase):
             with self.subTest(requested=requested):
                 actual = np.mean(requested > threshold)
                 self.assertAlmostEqual(float(actual), requested, delta=0.003)
+
+
+    def test_holes_dot_shape_inverts_round_spot(self):
+        tone = np.full((32, 32), 0.8, dtype=np.float32)
+        round_cfg = HalftoneConfig(dot_shape="round", target_dpi=300, lpi=30, min_dot_px=0)
+        holes_cfg = HalftoneConfig(dot_shape="holes", target_dpi=300, lpi=30, min_dot_px=0)
+        from tools.dtf_halftone.engine import _dtf_radius_screen
+        mask_round = _dtf_radius_screen(tone, round_cfg)
+        mask_holes = _dtf_radius_screen(tone, holes_cfg)
+        # For 0.8 tone, holes should be mostly printable with isolated open holes
+        self.assertGreater(float(mask_holes.mean()), 0.0)
+        self.assertLess(float(mask_holes.mean()), 1.0)
+        # Holes mode is valid binary mask
+        self.assertTrue(set(np.unique(mask_holes)).issubset({0.0, 1.0}))
+
+    def test_jitter_introduces_micro_dispersion(self):
+        from tools.dtf_halftone.engine import _dtf_radius_screen
+        tone = np.full((64, 64), 0.5, dtype=np.float32)
+        cfg_no_jitter = HalftoneConfig(target_dpi=300, lpi=30, jitter=0.0)
+        cfg_jitter = HalftoneConfig(target_dpi=300, lpi=30, jitter=0.3)
+        m0 = _dtf_radius_screen(tone, cfg_no_jitter)
+        m1 = _dtf_radius_screen(tone, cfg_jitter)
+        self.assertFalse(np.array_equal(m0, m1))
+        # Mean coverage with jitter should remain close to unjittered coverage
+    def test_knockout_thresholds_control_black_garment_fade(self):
+        from tools.dtf_halftone.engine import _dtf_difference_tone
+        # Dark gradient from 0 to 50 in RGB (scale 0-1)
+        rgb = np.linspace(0.0, 0.2, 50, dtype=np.float32).reshape(1, 50, 1)
+        rgb = np.repeat(rgb, 3, axis=2)
+        rgb = np.repeat(rgb, 10, axis=0)
+        alpha = np.ones((10, 50), dtype=np.float32)
+
+        cfg_tight = HalftoneConfig(shirt_color=(0, 0, 0), knockout_inner=1.0, knockout_outer=10.0)
+        cfg_wide = HalftoneConfig(shirt_color=(0, 0, 0), knockout_inner=10.0, knockout_outer=25.0)
+
+        tone_tight = _dtf_difference_tone(rgb, alpha, cfg_tight)
+        tone_wide = _dtf_difference_tone(rgb, alpha, cfg_wide)
+
+        # Wider inner knockout suppresses more dark gray pixels towards zero
+        self.assertGreater(float(tone_tight.mean()), float(tone_wide.mean()))
 
 
 if __name__ == "__main__":

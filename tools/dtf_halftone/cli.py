@@ -23,7 +23,9 @@ def main() -> int:
     parser.add_argument("--target-dpi", type=int, default=300)
     parser.add_argument("--lpi", type=float, default=35.0)
     parser.add_argument("--angle", type=float, default=22.5)
-    parser.add_argument("--dot-shape", choices=["circle", "round", "euclid", "ellipse", "line"], default="circle")
+    parser.add_argument("--dot-shape", choices=["circle", "round", "euclid", "ellipse", "line", "holes"], default="circle")
+    parser.add_argument("--jitter", type=float, default=0.0, help="Jitter/organic micro-dither amount (0.0 to 1.0)")
+    parser.add_argument("--color-distance-mode", choices=["perceptual", "photoshop"], default="perceptual", help="Color distance mode (perceptual or photoshop)")
     parser.add_argument("--min-dot-px", type=float, default=0.0)
     parser.add_argument("--min-dot-percent", type=float, default=6.0, help="Minimum printable dot coverage; accepts 6 or 0.06")
     parser.add_argument("--min-hole-percent", type=float, default=4.0, help="Minimum open hole coverage; accepts 4 or 0.04")
@@ -82,6 +84,8 @@ def main() -> int:
         mask_gamma=args.mask_gamma,
         output_black=args.output_black,
         output_white=args.output_white,
+        jitter=args.jitter,
+        color_distance_mode=args.color_distance_mode,
     )
 
     output_path = Path(args.output)

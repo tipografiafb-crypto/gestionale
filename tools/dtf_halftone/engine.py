@@ -71,6 +71,8 @@ def process_image(input_path: str, output_path: str, config: HalftoneConfig) -> 
             "min_hole_percent": config.min_hole_percent,
             "max_coverage": config.max_coverage,
             "tone_mode": config.tone_mode,
+            "jitter": config.jitter,
+            "color_distance_mode": config.color_distance_mode,
         }
     )
     return info
@@ -218,22 +220,39 @@ def _dtf_difference_tone(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneCon
     # than surviving as semi-transparent pixels in the file sent to the RIP.
     mask_alpha = _choke_outer_alpha_fringe(alpha, config.alpha_threshold)
     flattened_difference = difference * mask_alpha[:, :, None]
-    tone = (
-        (0.299 * flattened_difference[:, :, 0])
-        + (0.587 * flattened_difference[:, :, 1])
-        + (0.114 * flattened_difference[:, :, 2])
-    )
+
+    if config.color_distance_mode == "photoshop":
+        tone = (
+            (0.299 * flattened_difference[:, :, 0])
+            + (0.587 * flattened_difference[:, :, 1])
+            + (0.114 * flattened_difference[:, :, 2])
+        )
+    else:
+        # Fiery Digital Factory style: perceptual symmetric color distance.
+        # Combines luminance and maximum channel difference so that saturated
+        # primary colors (blue, red, green) are never crushed to 11% or 30%,
+        # while neutral gradients and transparency fades remain exact.
+        lum = (
+            (0.299 * flattened_difference[:, :, 0])
+            + (0.587 * flattened_difference[:, :, 1])
+            + (0.114 * flattened_difference[:, :, 2])
+        )
+        d_max = np.max(flattened_difference, axis=2)
+        tone = np.maximum(lum, d_max * 0.85)
 
     if config.shirt_color is None or technical_black:
-        # This is the established black-shirt transition.  Explicit black uses
-        # this exact branch as well, guaranteeing parity with fabric disabled.
+        # This is the established black-shirt transition.  Knockout inner/outer
+        # dynamically control the knockout threshold and fade transition.
         colour_distance = np.max(difference, axis=2)
-        garment_guard = _smoothstep(5.0 / 255.0, 48.0 / 255.0, colour_distance)
+        inner = config.knockout_inner if config.knockout_inner > 0 else 2.0
+        outer = config.knockout_outer if config.knockout_outer > inner else 20.0
+        if inner > 1.0:
+            inner = inner / 100.0
+        if outer > 1.0:
+            outer = outer / 100.0
+        garment_guard = _smoothstep(inner, outer, colour_distance)
     else:
-        # For coloured garments, use perceptual distance only as a broad soft
-        # guard.  The weighted RGB difference above still drives the dots, so a
-        # sampled shade and nearby shades fade together instead of jumping from
-        # transparent to almost fully printed.
+        # For coloured garments, use perceptual distance in CIE Lab.
         source_lab = cv2.cvtColor((rgb * 255).astype(np.uint8), cv2.COLOR_RGB2LAB).astype(np.float32)
         target_u8 = np.clip(np.rint(shirt * 255.0), 0, 255).astype(np.uint8).reshape(1, 1, 3)
         target_lab = cv2.cvtColor(target_u8, cv2.COLOR_RGB2LAB).astype(np.float32)[0, 0]
@@ -242,7 +261,9 @@ def _dtf_difference_tone(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneCon
         target_lab[0] *= 100.0 / 255.0
         target_lab[1:] -= 128.0
         delta_e = np.linalg.norm(source_lab - target_lab.reshape(1, 1, 3), axis=2)
-        garment_guard = _smoothstep(config.knockout_inner, config.knockout_outer, delta_e)
+        inner = config.knockout_inner if config.knockout_inner > 0 else 3.0
+        outer = config.knockout_outer if config.knockout_outer > inner else 30.0
+        garment_guard = _smoothstep(inner, outer, delta_e)
 
     # The similarity guard is part of the pre-Levels grayscale, just like the
     # composited edge tone.  Levels can therefore turn flat colours into clean
@@ -292,7 +313,7 @@ def _protect_solid_tones(tone: np.ndarray, config: HalftoneConfig) -> np.ndarray
 def _spot_area_coverage(tone: np.ndarray, dot_shape: str) -> np.ndarray:
     """Return the approximate printed cell area produced by a tonal value."""
     value = np.clip(tone, 0.0, 1.0)
-    if dot_shape in {"circle", "round"}:
+    if dot_shape in {"circle", "round", "holes"}:
         radius_squared = 2.0 * value
         inside_circle = (math.pi * radius_squared) / 4.0
         radius = np.sqrt(np.maximum(radius_squared, 1.0))
@@ -332,14 +353,30 @@ def _dtf_cleanup(mask: np.ndarray, printable_mask: np.ndarray, config: HalftoneC
     if config.min_dot_px <= 0:
         return ((mask >= 0.5) & printable_mask).astype(np.float32)
 
-    minimum = config.min_dot_px
-    kernel = max(3, int(round(minimum)))
-    if kernel % 2 == 0:
-        kernel += 1
-    kernel = min(kernel, 7)
-    binary = ((mask >= 0.5).astype(np.uint8) * 255)
-    cleaned = cv2.medianBlur(binary, kernel) >= 128
-    return (cleaned & printable_mask).astype(np.float32)
+    binary = ((mask >= 0.5) & printable_mask).astype(np.uint8) * 255
+    min_area = max(2, int(round(math.pi * (config.min_dot_px ** 2) / 4.0)))
+
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary, connectivity=8)
+    if num_labels <= 1:
+        return (binary.astype(np.float32) / 255.0) * printable_mask.astype(np.float32)
+
+    areas = stats[:, cv2.CC_STAT_AREA]
+    small_mask = areas < min_area
+    small_mask[0] = False  # background label 0 is never modified
+
+    # Drop mode: remove isolated dots whose area is smaller than min_area
+    cleaned = np.where(small_mask[labels], 0, binary)
+
+    # Force mode: enlarge tiny dots up to min_dot_px diameter
+    if config.highlight_mode == "force":
+        small_indices = np.where(small_mask)[0]
+        radius = int(math.ceil(config.min_dot_px / 2.0))
+        for idx in small_indices:
+            cx = int(round(centroids[idx][0]))
+            cy = int(round(centroids[idx][1]))
+            cv2.circle(cleaned, (cx, cy), radius, 255, -1)
+
+    return (cleaned.astype(np.float32) / 255.0) * printable_mask.astype(np.float32)
 
 
 def _dtf_radius_screen(tone: np.ndarray, config: HalftoneConfig) -> np.ndarray:
@@ -352,28 +389,63 @@ def _dtf_radius_screen(tone: np.ndarray, config: HalftoneConfig) -> np.ndarray:
     cos_a, sin_a = math.cos(angle), math.sin(angle)
     xr = (xx * cos_a) - (yy * sin_a)
     yr = (xx * sin_a) + (yy * cos_a)
-    local_x = (np.mod(xr, cell_px) / cell_px) * 2.0 - 1.0
-    local_y = (np.mod(yr, cell_px) / cell_px) * 2.0 - 1.0
+    cell_ix = np.floor(xr / cell_px)
+    cell_iy = np.floor(yr / cell_px)
+    local_x = ((xr / cell_px) - cell_ix) * 2.0 - 1.0
+    local_y = ((yr / cell_px) - cell_iy) * 2.0 - 1.0
     printable_tone = np.clip(tone, 0.0, 1.0)
 
-    # Photoshop's Round screen grows circular dots and, above the midpoint,
-    # leaves shrinking round holes. It reaches full coverage at white.
+    # Fiery Digital Factory style Jitter / Organic cell-level micro-dispersion:
+    # 1. Coordinate jitter: slightly displaces the dot center within each cell,
+    #    breaking the rigid grid alignment that causes moiré and "newspaper" looks.
+    # 2. Size jitter: slightly modulates per-dot threshold.
+    jitter_offset = 0.0
+    if config.jitter > 0:
+        rnd1 = np.sin(cell_ix * 12.9898 + cell_iy * 78.233) * 43758.5453
+        rnd_pos1 = (rnd1 - np.floor(rnd1)) - 0.5
+        rnd2 = np.cos(cell_ix * 39.346 + cell_iy * 11.135) * 23421.631
+        rnd_pos2 = (rnd2 - np.floor(rnd2)) - 0.5
+        local_x = local_x - rnd_pos1 * (config.jitter * 0.5)
+        local_y = local_y - rnd_pos2 * (config.jitter * 0.5)
+
+        rnd_size = np.sin(cell_ix * 91.345 + cell_iy * 47.812) * 31415.92
+        rnd_size = (rnd_size - np.floor(rnd_size)) - 0.5
+        jitter_offset = rnd_size * (config.jitter * 0.3)
+
     if config.dot_shape in {"circle", "round"}:
-        # Preserve the established round-dot geometry in both fabric modes.
         threshold = _retino_am_spot_threshold(local_x, local_y, "round")
-        return (printable_tone > threshold).astype(np.float32)
+        if config.jitter > 0:
+            threshold = np.clip(threshold + jitter_offset, 0.0, 1.0)
+        inside = (printable_tone > threshold).astype(np.float32)
+        return np.where(tone <= 0, 0.0, inside)
+
+    if config.dot_shape == "holes":
+        # Inverted round: holes in solid ink field (Fiery Digital Factory Holes mode)
+        threshold = 1.0 - _retino_am_spot_threshold(local_x, local_y, "round")
+        if config.jitter > 0:
+            threshold = np.clip(threshold + jitter_offset, 0.0, 1.0)
+        inside = (printable_tone > threshold).astype(np.float32)
+        return np.where(tone <= 0, 0.0, inside)
+
+    if config.dot_shape == "line":
+        threshold = np.abs(local_y)
+        if config.jitter > 0:
+            threshold = np.clip(threshold + jitter_offset, 0.0, 1.0)
+        inside = (printable_tone > threshold).astype(np.float32)
+        return np.where(tone <= 0, 0.0, inside)
+
+    if config.dot_shape == "ellipse":
+        threshold = _retino_am_spot_threshold(local_x, local_y, "ellipse")
+        if config.jitter > 0:
+            threshold = np.clip(threshold + jitter_offset, 0.0, 1.0)
+        inside = (printable_tone > threshold).astype(np.float32)
+        return np.where(tone <= 0, 0.0, inside)
 
     radius = np.sqrt(printable_tone / math.pi) * cell_px
     local_x_px = local_x * (cell_px / 2.0)
     local_y_px = local_y * (cell_px / 2.0)
-    if config.dot_shape == "line":
-        inside = np.abs(local_y_px) <= (radius / np.sqrt(2.0))
-    elif config.dot_shape == "ellipse":
-        inside = ((local_x_px / np.maximum(radius * 1.45, 1e-6)) ** 2 +
-                  (local_y_px / np.maximum(radius / 1.45, 1e-6)) ** 2) <= 1.0
-    else:
-        inside = (local_x_px * local_x_px + local_y_px * local_y_px) <= (radius * radius)
-    return np.where(tone <= 0, 0.0, inside.astype(np.float32))
+    inside = ((local_x_px * local_x_px + local_y_px * local_y_px) <= (radius * radius)).astype(np.float32)
+    return np.where(tone <= 0, 0.0, inside)
 
 
 def _apply_mask_levels(value: np.ndarray, config: HalftoneConfig) -> np.ndarray:

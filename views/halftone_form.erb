@@ -778,19 +778,23 @@
       <div class="ht-row"><label>Forma punto</label></div>
       <div class="ht-seg" id="spotSeg">
         <button type="button" data-v="round" class="on">Rotondo</button>
-        <button type="button" data-v="euclid">Euclideo</button>
-        <button type="button" data-v="ellipse">Ellittico</button>
+        <button type="button" data-v="holes">Fori</button>
         <button type="button" data-v="line">Linea</button>
       </div>
+
+      <div class="ht-row mt-2"><label for="jitter">Dispersione (Jitter)</label><span class="ht-val" id="jitterV">0%</span></div>
+      <input class="ht-range" type="range" id="jitter" min="0" max="100" step="5" value="0">
+      <div class="ht-hint">Stile Fiery Digital Factory: micro-dispersione organica per eliminare la griglia a punti e sfumare vellutatamente nel tessuto.</div>
+
       <div class="ht-info mt-2" id="cellInfo"></div>
     </div>
 
     <div class="ht-group">
       <h5>Levels</h5>
-      <div class="ht-hint">Regolazione come Photoshop: livelli di ingresso, gamma e livelli di uscita.</div>
+      <div class="ht-hint">Regolazione livelli di ingresso e gamma per contrasto e alte luci.</div>
       <canvas id="hist" width="256" height="64"></canvas>
 
-      <div class="ht-hint">Input Levels</div>
+      <div class="ht-hint">Livelli Input (Nero · Gamma · Bianco)</div>
       <div class="ht-levels-control">
         <div class="ht-levels-track" id="inputLevelsTrack">
           <button type="button" class="ht-level-handle is-black" data-level-id="lvB" aria-label="Nero input"></button>
@@ -807,21 +811,11 @@
       <input class="ht-level-source" type="range" id="lvG" min="0.10" max="10.00" step="0.01" value="1.00">
       <input class="ht-level-source" type="range" id="lvW" min="5" max="255" step="1" value="100">
 
-      <div class="ht-hint mt-2">Output Levels</div>
-      <div class="ht-levels-control">
-        <div class="ht-levels-track" id="outputLevelsTrack">
-          <button type="button" class="ht-level-handle is-black" data-level-id="lvOB" aria-label="Nero output"></button>
-          <button type="button" class="ht-level-handle is-white" data-level-id="lvOW" aria-label="Bianco output"></button>
-        </div>
-        <div class="ht-level-values is-output">
-          <div class="ht-level-value"><label for="lvOBN">Nero</label><span class="ht-val" id="lvOBV">0</span></div>
-          <div class="ht-level-value"><label for="lvOWN">Bianco</label><span class="ht-val" id="lvOWV">255</span></div>
-        </div>
-      </div>
-      <input class="ht-level-source" type="range" id="lvOB" min="0" max="255" step="1" value="0">
-      <input class="ht-level-source" type="range" id="lvOW" min="0" max="255" step="1" value="255">
+      <!-- Hidden compatibility inputs for output levels -->
+      <input type="hidden" id="lvOB" value="0">
+      <input type="hidden" id="lvOW" value="255">
 
-      <div class="ht-row"><label for="sat">Saturazione colore</label><span class="ht-val" id="satV">100%</span></div>
+      <div class="ht-row mt-3"><label for="sat">Saturazione colore</label><span class="ht-val" id="satV">100%</span></div>
       <input class="ht-range" type="range" id="sat" min="0" max="250" step="5" value="100">
     </div>
 
@@ -848,21 +842,20 @@
         <button id="pickBtn" type="button" class="ht-button" style="flex:1">Contagocce</button>
         <input type="color" id="fabricCol" value="#000000" style="width:42px;height:30px;border:1px solid var(--ht-line);border-radius:4px;padding:1px">
       </div>
-      <div class="ht-hint" id="pickHint">Nero predefinito. Scegli un altro colore per adattare automaticamente la separazione al tessuto.</div>
-      <div class="ht-hint">Il colore del tessuto sostituisce solo i pixel percettivamente compatibili. Colori lontani e bordi mantengono la copertura definita dai Levels.</div>
+      <div class="ht-hint" id="pickHint">Colore del tessuto: rimuove il colore di fondo e crea la fusione morbida con la maglia.</div>
 
       <div class="ht-option-block" id="fabricOptions">
-        <div class="ht-row"><label for="fabricInner">Colore eliminato fino a</label><span class="ht-val" id="fabricInnerV">3 ΔE</span></div>
-        <input class="ht-range" type="range" id="fabricInner" min="0" max="20" step="0.5" value="3">
+        <div class="ht-row"><label for="fabricInner">Tolleranza fondo</label><span class="ht-val" id="fabricInnerV">2%</span></div>
+        <input class="ht-range" type="range" id="fabricInner" min="0" max="25" step="0.5" value="2">
 
-        <div class="ht-row"><label for="fabricOuter">Fine sfumatura</label><span class="ht-val" id="fabricOuterV">30 ΔE</span></div>
-        <input class="ht-range" type="range" id="fabricOuter" min="20" max="80" step="1" value="30">
-        <div class="ht-hint">Aumenta “Fine sfumatura” se il tessuto ha gradienti, pieghe o variazioni dello stesso colore.</div>
+        <div class="ht-row"><label for="fabricOuter">Profondità dissolvenza</label><span class="ht-val" id="fabricOuterV">20%</span></div>
+        <input class="ht-range" type="range" id="fabricOuter" min="5" max="60" step="1" value="20">
+        <div class="ht-hint">Tolleranza: elimina il colore identico al tessuto. Profondità: quanto a fondo il tessuto penetra nella grafica (valori più alti attenuano o cancellano più pixel scuri).</div>
       </div>
 
-      <div class="ht-row"><label for="cap">Copertura massima globale</label><span class="ht-val" id="capV">100%</span></div>
+      <div class="ht-row mt-2"><label for="cap">Copertura massima globale</label><span class="ht-val" id="capV">100%</span></div>
       <input class="ht-range" type="range" id="cap" min="40" max="100" step="1" value="100">
-      <div class="ht-hint">100% mantiene le campiture piene. Riduci il valore solo per alleggerire intenzionalmente la stampa.</div>
+      <div class="ht-hint">100% mantiene i pieni coprenti. 80-90% alleggerisce la mano e rende la maglia traspirante.</div>
     </div>
 
     <div class="ht-group">
@@ -989,7 +982,8 @@
         sat: +$('sat').value / 100,
         fabricInner: +$('fabricInner').value,
         fabricOuter: Math.max(+$('fabricOuter').value, +$('fabricInner').value + 0.1),
-        cap: +$('cap').value / 100
+        cap: +$('cap').value / 100,
+        jitter: ($('jitter') ? +$('jitter').value : 0) / 100
       };
     }
 
@@ -1059,15 +1053,14 @@
     bindRange('dpi', v => v, true);
     bindRange('lpi', v => v, false);
     bindRange('angle', v => v + ' deg', false);
+    bindRange('jitter', v => v + '%', false);
     bindRange('lvB', v => v, false);
     bindRange('lvG', v => v.toFixed(2), false);
     bindRange('lvW', v => v, false);
-    bindRange('lvOB', v => v, false);
-    bindRange('lvOW', v => v, false);
     bindRange('sat', v => v + '%', true);
     bindRange('dotPx', v => v + ' px', false);
-    bindRange('fabricInner', v => v + ' ΔE', true);
-    bindRange('fabricOuter', v => v + ' ΔE', true);
+    bindRange('fabricInner', v => v + '%', true);
+    bindRange('fabricOuter', v => v + '%', true);
     bindRange('cap', v => v + '%', false);
 
     function initLevelsTrack(trackId, ids, inputTrack) {
@@ -1158,7 +1151,7 @@
     }
 
     initLevelsTrack('inputLevelsTrack', ['lvB', 'lvG', 'lvW'], true);
-    initLevelsTrack('outputLevelsTrack', ['lvOB', 'lvOW'], false);
+    if ($('outputLevelsTrack')) initLevelsTrack('outputLevelsTrack', ['lvOB', 'lvOW'], false);
 
     function syncFabricOptionState() {
       updateSectionBadges();
@@ -1228,12 +1221,20 @@
     const deletePresetButton = $('deletePresetButton');
     let customPresets = <%= (@halftone_presets || []).to_json %>;
 
-    const presetFields = ['dpi', 'printw', 'lpi', 'angle', 'lvB', 'lvG', 'lvW', 'lvOB', 'lvOW', 'sat', 'dotChk', 'dotPx', 'fabricInner', 'fabricOuter', 'cap', 'fabricCol'];
+    const presetFields = ['dpi', 'printw', 'lpi', 'angle', 'lvB', 'lvG', 'lvW', 'lvOB', 'lvOW', 'sat', 'dotChk', 'dotPx', 'fabricInner', 'fabricOuter', 'cap', 'fabricCol', 'jitter'];
     const defaultPreset = {
       dpi: '300', lpi: '30', angle: '22.5', spot: 'round',
-      lvB: '5', lvG: '1.00', lvW: '100', lvOB: '0', lvOW: '255', sat: '100', dotChk: '0', dotPx: '3', dotMode: 'drop', fabricInner: '3', fabricOuter: '30', cap: '100',
-      fabricCol: '#000000'
+      lvB: '5', lvG: '1.00', lvW: '85', lvOB: '0', lvOW: '255', sat: '100', dotChk: '0', dotPx: '3', dotMode: 'drop', fabricInner: '2', fabricOuter: '20', cap: '90',
+      jitter: '20', fabricCol: '#000000'
     };
+
+    const factoryPresets = [
+      { id: 'builtin:df_black', name: 'Fiery DF - Maglia Nera (Morbida)', settings: { dpi: '300', lpi: '30', angle: '22.5', spot: 'round', lvB: '5', lvG: '1.00', lvW: '85', lvOB: '0', lvOW: '255', sat: '100', dotChk: '0', dotPx: '3', dotMode: 'drop', fabricInner: '2', fabricOuter: '20', cap: '90', jitter: '25', fabricCol: '#000000' } },
+      { id: 'builtin:df_white', name: 'Fiery DF - Maglia Bianca (Pulita)', settings: { dpi: '300', lpi: '35', angle: '22.5', spot: 'round', lvB: '3', lvG: '1.00', lvW: '100', lvOB: '0', lvOW: '255', sat: '100', dotChk: '0', dotPx: '3', dotMode: 'drop', fabricInner: '2', fabricOuter: '20', cap: '90', jitter: '20', fabricCol: '#ffffff' } },
+      { id: 'builtin:df_color', name: 'Fiery DF - Maglia Colorata (Color Guard)', settings: { dpi: '300', lpi: '30', angle: '22.5', spot: 'round', lvB: '4', lvG: '1.00', lvW: '80', lvOB: '0', lvOW: '255', sat: '100', dotChk: '0', dotPx: '3', dotMode: 'drop', fabricInner: '3', fabricOuter: '30', cap: '90', jitter: '25', fabricCol: '#ef649b' } },
+      { id: 'builtin:df_lines', name: 'Fiery DF - Righe Traspiranti (Lines Weave)', settings: { dpi: '300', lpi: '32', angle: '0', spot: 'line', lvB: '5', lvG: '1.00', lvW: '85', lvOB: '0', lvOW: '255', sat: '100', dotChk: '0', dotPx: '3', dotMode: 'drop', fabricInner: '2', fabricOuter: '20', cap: '85', jitter: '10', fabricCol: '#000000' } },
+      { id: 'builtin:df_holes', name: 'Fiery DF - Foratura Pieni (Inverted Holes)', settings: { dpi: '300', lpi: '30', angle: '22.5', spot: 'holes', lvB: '5', lvG: '1.00', lvW: '85', lvOB: '0', lvOW: '255', sat: '100', dotChk: '0', dotPx: '3', dotMode: 'drop', fabricInner: '2', fabricOuter: '20', cap: '85', jitter: '15', fabricCol: '#000000' } }
+    ];
 
     function setSegValue(id, value) {
       const seg = $(id);
@@ -1265,6 +1266,10 @@
       if (normalized.knockout_inner !== undefined && normalized.fabricInner === undefined) normalized.fabricInner = normalized.knockout_inner;
       if (normalized.knockout_outer !== undefined && normalized.fabricOuter === undefined) normalized.fabricOuter = normalized.knockout_outer;
       if (normalized.tol !== undefined && normalized.fabricOuter === undefined) normalized.fabricOuter = normalized.tol;
+      if (normalized.jitter !== undefined) {
+        const j = Number(normalized.jitter);
+        normalized.jitter = Number.isNaN(j) ? normalized.jitter : String(j <= 1 ? Math.round(j * 100) : j);
+      }
       if (normalized.saturation !== undefined && normalized.sat === undefined) {
         const saturation = Number(normalized.saturation);
         normalized.sat = Number.isNaN(saturation) ? normalized.saturation : String(Math.round(saturation * 100));
@@ -1298,6 +1303,8 @@
       });
       settings.spot = S.spot;
       settings.dotMode = S.dotMode;
+      settings.jitter = $('jitter') ? $('jitter').value : '0';
+      settings.color_distance_mode = 'perceptual';
       // The production export is rendered by the authoritative server engine.
       settings.tone_mode = 'dtf_difference';
       settings.server_render = '1';
@@ -1308,8 +1315,18 @@
       presetSelect.innerHTML = '';
       const defaultOption = document.createElement('option');
       defaultOption.value = 'default';
-      defaultOption.textContent = 'Default';
+      defaultOption.textContent = 'Default (Digital Factory)';
       presetSelect.appendChild(defaultOption);
+
+      const dfGroup = document.createElement('optgroup');
+      dfGroup.label = 'Stili Fiery Digital Factory';
+      factoryPresets.forEach(preset => {
+        const opt = document.createElement('option');
+        opt.value = preset.id;
+        opt.textContent = preset.name;
+        dfGroup.appendChild(opt);
+      });
+      presetSelect.appendChild(dfGroup);
 
       if (customPresets.length > 0) {
         const group = document.createElement('optgroup');
@@ -1340,7 +1357,10 @@
     presetSelect.addEventListener('change', event => {
       const value = event.target.value;
       if (value === 'default') applyPreset(defaultPreset);
-      else {
+      else if (value.startsWith('builtin:')) {
+        const p = factoryPresets.find(item => item.id === value);
+        if (p) applyPreset(p.settings);
+      } else {
         const preset = selectedCustomPreset();
         if (preset) applyPreset(preset.settings);
       }
@@ -1493,25 +1513,29 @@
         }
         let enc;
         if (PHOTO_ALGORITHM) {
-          // Photoshop action order: composite against the garment first,
-          // convert that RGB difference to grayscale, then apply Levels and
-          // the binary halftone. Alpha is therefore part of the input tone,
-          // never a semi-transparent value in the exported mask.
-          enc = maskAlpha * (
-            0.299 * Math.abs(maskSource[j] - separationR) +
-            0.587 * Math.abs(maskSource[j + 1] - separationG) +
-            0.114 * Math.abs(maskSource[j + 2] - separationB)
-          ) / 255;
+          // Fiery Digital Factory style: symmetric perceptual color distance.
+          // Eliminates the luminance bias that crushes saturated blues and reds,
+          // while preserving exact neutral tones and transparency transitions.
+          const diffR = Math.abs(maskSource[j] - separationR);
+          const diffG = Math.abs(maskSource[j + 1] - separationG);
+          const diffB = Math.abs(maskSource[j + 2] - separationB);
+          const lum = (0.299 * diffR + 0.587 * diffG + 0.114 * diffB) / 255;
+          const dMax = Math.max(diffR, diffG, diffB) / 255;
+          enc = maskAlpha * Math.max(lum, dMax * 0.85);
           if (fabricEnabled && !technicalBlack) {
             const dL = lab[i * 3] - fabricLab[0];
             const da = lab[i * 3 + 1] - fabricLab[1];
             const db = lab[i * 3 + 2] - fabricLab[2];
             const deltaE = Math.sqrt(dL * dL + da * da + db * db);
-            const gx = Math.max(0, Math.min(1, (deltaE - p.fabricInner) / Math.max(0.1, p.fabricOuter - p.fabricInner)));
+            const innerE = p.fabricInner;
+            const outerE = Math.max(innerE + 0.5, p.fabricOuter);
+            const gx = Math.max(0, Math.min(1, (deltaE - innerE) / (outerE - innerE)));
             S.guard[i] = gx * gx * (3 - 2 * gx);
           } else {
-            const distance = Math.max(Math.abs(maskSource[j] - separationR), Math.abs(maskSource[j + 1] - separationG), Math.abs(maskSource[j + 2] - separationB));
-            const gx = Math.max(0, Math.min(1, (distance - 5) / 43));
+            const distance = Math.max(diffR, diffG, diffB);
+            const innerPx = (p.fabricInner / 100) * 255;
+            const outerPx = Math.max(innerPx + 1, (p.fabricOuter / 100) * 255);
+            const gx = Math.max(0, Math.min(1, (distance - innerPx) / (outerPx - innerPx)));
             S.guard[i] = gx * gx * (3 - 2 * gx);
           }
         } else {
@@ -1534,18 +1558,13 @@
     }
 
     function makeSpot(kind) {
-      if (kind === 'round') return (x, y) => {
+      if (kind === 'holes') return (x, y) => {
         const raw = Math.max(0, Math.min(1, (x * x + y * y) * 0.5));
-        return raw;
+        return 1.0 - raw;
       };
-      if (kind === 'ellipse') return (x, y) => Math.max(0, Math.min(1, (x * x / 1.55 + y * y * 1.55) * 0.5));
       if (kind === 'line') return (_x, y) => Math.abs(y);
-      return (x, y) => {
-        const a = Math.abs(x);
-        const b = Math.abs(y);
-        const s = (a + b <= 1) ? 1 - (x * x + y * y) : ((a - 1) * (a - 1) + (b - 1) * (b - 1)) - 1;
-        return (1 - s) * 0.5;
-      };
+      // Default: round spot
+      return (x, y) => Math.max(0, Math.min(1, (x * x + y * y) * 0.5));
     }
 
     function leveledCoverage(value, p) {
@@ -1563,7 +1582,7 @@
       const coverage = leveledCoverage(tone, p);
       if (PHOTO_ALGORITHM) {
         let printable = coverage;
-        const solidCutoff = S.spot === 'round' ? ROUND_SOLID_TONE_CUTOFF : 1 - MIN_HOLE_FRACTION;
+        const solidCutoff = (S.spot === 'round' || S.spot === 'holes') ? ROUND_SOLID_TONE_CUTOFF : 1 - MIN_HOLE_FRACTION;
         if (p.cap >= 0.999999 && p.outWhite >= 0.999999 && printable > solidCutoff) printable = 1;
         return Math.min(p.cap, printable);
       }
@@ -1651,13 +1670,29 @@
           }
           const xr = x * cos - ys;
           const yr = x * sin + yc;
-          let u = (xr * invCell) % 1;
-          let v = (yr * invCell) % 1;
-          if (u < 0) u += 1;
-          if (v < 0) v += 1;
-          const sx = u * 2 - 1;
-          const sy = v * 2 - 1;
-          const threshold = spot(sx, sy);
+          const cx = Math.floor(xr * invCell);
+          const cy = Math.floor(yr * invCell);
+          let u = (xr * invCell) - cx;
+          let v = (yr * invCell) - cy;
+          let sx = u * 2 - 1;
+          let sy = v * 2 - 1;
+          let jOffset = 0;
+          if (p.jitter > 0) {
+            const rnd1 = Math.sin(cx * 12.9898 + cy * 78.233) * 43758.5453;
+            const rndPos1 = (rnd1 - Math.floor(rnd1)) - 0.5;
+            const rnd2 = Math.cos(cx * 39.346 + cy * 11.135) * 23421.631;
+            const rndPos2 = (rnd2 - Math.floor(rnd2)) - 0.5;
+            sx -= rndPos1 * (p.jitter * 0.5);
+            sy -= rndPos2 * (p.jitter * 0.5);
+
+            const rndSize = Math.sin(cx * 91.345 + cy * 47.812) * 31415.92;
+            const rndNormSize = (rndSize - Math.floor(rndSize)) - 0.5;
+            jOffset = rndNormSize * (p.jitter * 0.3);
+          }
+          let threshold = spot(sx, sy);
+          if (jOffset !== 0) {
+            threshold = Math.max(0, Math.min(1, threshold + jOffset));
+          }
           if (c > threshold) {
             out[i] = useColor ? (color[i] | 0xFF000000) : ink;
             if (inkMask) inkMask[i] = 1;

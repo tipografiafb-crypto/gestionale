@@ -34,18 +34,24 @@ class HalftoneConfig:
     output_black: float = 0.0
     output_white: float = 255.0
     alpha_threshold: float = 0.01
+    jitter: float = 0.0
+    color_distance_mode: str = "perceptual"
 
     def validate(self) -> None:
         if self.target_dpi <= 0:
             raise ValueError("target_dpi must be greater than 0")
         if self.lpi <= 0:
             raise ValueError("lpi must be greater than 0")
-        if self.dot_shape not in {"circle", "round", "euclid", "ellipse", "line"}:
-            raise ValueError("dot_shape must be circle, round, euclid, ellipse, or line")
+        if self.dot_shape not in {"circle", "round", "euclid", "ellipse", "line", "holes"}:
+            raise ValueError("dot_shape must be circle, round, euclid, ellipse, line, or holes")
         if self.highlight_mode not in {"drop", "force"}:
             raise ValueError("highlight_mode must be drop or force")
         if self.tone_mode not in {"alpha", "luminance", "combined", "photoshop_action", "retino_am", "dtf_difference"}:
             raise ValueError("tone_mode must be alpha, luminance, combined, photoshop_action, retino_am, or dtf_difference")
+        if self.color_distance_mode not in {"perceptual", "photoshop"}:
+            raise ValueError("color_distance_mode must be perceptual or photoshop")
+        if not 0 <= self.jitter <= 1.0:
+            raise ValueError("jitter must be between 0 and 1")
         if not 0 <= self.min_dot_percent <= 1:
             raise ValueError("min_dot_percent must be between 0 and 1")
         if not 0 <= self.min_hole_percent <= 1:

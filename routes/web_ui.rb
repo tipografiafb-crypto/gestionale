@@ -99,7 +99,12 @@ class PrintOrchestrator < Sinatra::Base
     angle = numeric_param(request_params, 'angle', 22.5, min: 0, max: 90)
     min_dot_default = truthy_param?(request_params, 'dotChk') ? request_params['dotPx'].presence || 3 : 0
     min_dot_px = numeric_param(request_params, 'min_dot_px', min_dot_default, min: 0, max: 50)
-    dot_shape = request_params['dot_shape'].presence || request_params['spot'].presence || 'round'
+    raw_dot_shape = request_params['dot_shape'].presence || request_params['spot'].presence || 'round'
+    dot_shape = case raw_dot_shape
+                when 'holes' then 'holes'
+                when 'line' then 'line'
+                else 'round'
+                end
     highlight_mode = request_params['highlight_mode'].presence || request_params['dotMode'].presence || 'drop'
     # The photographic DTF method is the default in both UI modes.  The
     # fabric checkbox only enables the optional Lab garment transition.
@@ -118,15 +123,18 @@ class PrintOrchestrator < Sinatra::Base
     output_black = numeric_param(request_params, 'output_black', request_params['lvOB'].presence || 0, min: 0, max: 255)
     output_white = numeric_param(request_params, 'output_white', request_params['lvOW'].presence || 255, min: output_black, max: 255)
     max_coverage = numeric_param(request_params, 'max_coverage', request_params['cap'].presence || 100, min: 0, max: 100)
-    knockout_inner = numeric_param(request_params, 'knockout_inner', request_params['fabricInner'].presence || 3, min: 0, max: 99)
-    knockout_outer = numeric_param(request_params, 'knockout_outer', request_params['fabricOuter'].presence || 30, min: knockout_inner + 0.1, max: 100)
+    knockout_inner = numeric_param(request_params, 'knockout_inner', request_params['fabricInner'].presence || 2, min: 0, max: 99)
+    knockout_outer = numeric_param(request_params, 'knockout_outer', request_params['fabricOuter'].presence || 20, min: knockout_inner + 0.1, max: 100)
     resize_width_cm = numeric_param(request_params, 'resize_width_cm', request_params['printw'].presence || 0, min: 0, max: 300)
     resize_height_cm = numeric_param(request_params, 'resize_height_cm', 0, min: 0, max: 300)
     # A garment reference is always present. Black is the default and follows
     # the established black-shirt separation; choosing another colour enables
     # the perceptual garment transition automatically.
     shirt_color = request_params['shirt_color'].presence || request_params['fabricCol'].presence || '#000000'
-    shirt_color = '#000000' unless tone_mode == 'dtf_difference'
+    jitter_raw = request_params['jitter'].presence
+    jitter_raw = jitter_raw.to_f / 100.0 if jitter_raw && jitter_raw.to_f > 1.0
+    jitter = numeric_param({ 'jitter' => jitter_raw }, 'jitter', 0.0, min: 0, max: 1)
+    color_distance_mode = request_params['color_distance_mode'].presence || 'perceptual'
 
     dtf_python = ENV['DTF_PYTHON'].presence || File.join(settings.root, '.venv', 'bin', 'python')
     dtf_python = 'python3' unless File.executable?(dtf_python)
@@ -155,6 +163,8 @@ class PrintOrchestrator < Sinatra::Base
       '--mask-gamma', mask_gamma.to_s,
       '--output-black', output_black.to_s,
       '--output-white', output_white.to_s,
+      '--jitter', jitter.to_s,
+      '--color-distance-mode', color_distance_mode,
       '--json'
     ]
     command << '--invert' if invert
