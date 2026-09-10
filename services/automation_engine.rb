@@ -2318,6 +2318,7 @@ class AutomationNodeExecutor
     filename = AutomationEngine.resolve(@config['filename'], @context).presence || source.filename
     filename = File.basename(filename)
     destination_code = AutomationEngine.resolve(@config['destination_code'], @context).to_s
+    subfolder = AutomationEngine.resolve(@config['subfolder'], @context).to_s
 
     raise ArgumentError, 'Seleziona una hot folder' if destination_code.blank?
 
@@ -2335,12 +2336,14 @@ class AutomationNodeExecutor
       destination: destination,
       source_path: source.full_path,
       filename: filename,
+      subfolder: subfolder,
       simulation: simulation?
     )
     target = delivery[:simulated] ? source.full_path : delivery[:target]
     metadata = {
       'source_artifact_id' => source.id,
       'destination_code' => destination.code,
+      'subfolder' => subfolder,
       'delivered_to' => delivery[:target],
       'simulated' => delivery[:simulated]
     }

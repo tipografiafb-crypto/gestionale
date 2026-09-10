@@ -627,7 +627,13 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
         if not configured_path.is_absolute():
             raise RuntimeError("Il percorso hot folder sul Mac deve essere assoluto")
 
-        target_directory = configured_path.resolve(strict=True)
+        root_directory = configured_path.resolve(strict=True)
+        subfolder = str(config.get("subfolder") or "").strip()
+        relative_folder = Path(subfolder)
+        if subfolder and (relative_folder.is_absolute() or ".." in relative_folder.parts):
+            raise RuntimeError("La sottocartella hot folder deve essere relativa e non può contenere ..")
+
+        target_directory = (root_directory / relative_folder).resolve(strict=False)
         allowed_roots = [
             root.resolve(strict=True) for root in self.hotfolder_roots if root.is_dir()
         ]
@@ -638,6 +644,8 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
             raise RuntimeError(
                 f"Hot folder non autorizzata: {target_directory}"
             )
+        target_directory.mkdir(parents=True, exist_ok=True)
+        target_directory = target_directory.resolve(strict=True)
         if not target_directory.is_dir() or not os.access(target_directory, os.W_OK):
             raise RuntimeError(f"Hot folder non scrivibile: {target_directory}")
 

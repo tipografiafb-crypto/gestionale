@@ -17,15 +17,15 @@ class AutomationDestinationService
       Result.new(success?: false, message: e.message, details: {})
     end
 
-    def deliver(destination:, source_path:, filename:, simulation: false)
+    def deliver(destination:, source_path:, filename:, subfolder: nil, simulation: false)
       raise ArgumentError, 'La destinazione non è una hot folder' unless destination.network_folder?
       raise ArgumentError, 'La destinazione è disattivata' unless destination.active?
 
-      target_dir = allowed_folder_path!(destination)
+      target_dir = delivery_folder_path!(destination, subfolder)
       target = File.join(target_dir, File.basename(filename))
       return {target: target, simulated: true} if simulation
 
-      raise ArgumentError, "Hot folder non disponibile: #{target_dir}" unless File.directory?(target_dir)
+      FileUtils.mkdir_p(target_dir)
       raise ArgumentError, "Hot folder non scrivibile: #{target_dir}" unless File.writable?(target_dir)
 
       temporary = "#{target}.partial-#{Process.pid}-#{SecureRandom.hex(4)}"
@@ -94,6 +94,26 @@ class AutomationDestinationService
       end
 
       target.to_s
+    end
+
+    # A destination is the trusted root. Individual flows may choose a
+    # relative child folder, but can never escape that root.
+    def delivery_folder_path!(destination, subfolder = nil)
+      root = Pathname.new(allowed_folder_path!(destination)).expand_path
+      value = subfolder.to_s.strip
+      return root.to_s if value.empty? || value == '.'
+
+      candidate_relative = Pathname.new(value)
+      if candidate_relative.absolute? || candidate_relative.each_filename.any? { |part| part == '..' }
+        raise ArgumentError, 'La sottocartella deve essere relativa e non può contenere ..'
+      end
+
+      candidate = root.join(candidate_relative).cleanpath
+      unless candidate.to_s.start_with?("#{root}/")
+        raise ArgumentError, 'La sottocartella deve trovarsi nella destinazione selezionata'
+      end
+
+      candidate.to_s
     end
 
     private

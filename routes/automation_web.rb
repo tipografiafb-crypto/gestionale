@@ -222,7 +222,8 @@ class PrintOrchestrator < Sinatra::Base
       resolved.merge(
         'agent_key' => destination_config['agent_key'].to_s,
         'agent_path' => destination_config['agent_path'].to_s,
-        'destination_code' => destination.code
+        'destination_code' => destination.code,
+        'subfolder' => resolved['subfolder'].to_s
       )
     end
 

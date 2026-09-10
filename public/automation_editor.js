@@ -148,6 +148,7 @@
     },
     hot_folder: {
       destination_code: '{{machine.destination_code}}',
+      subfolder: '',
       artifact_kind: 'source',
       filename: '{{file.filename}}',
       output_kind: 'delivered'
@@ -496,6 +497,12 @@
         label: 'Hot folder',
         choices: 'network_destinations',
         help: 'La cartella deve essere configurata nel menu Destinazioni.'
+      },
+      {
+        key: 'subfolder',
+        label: 'Sottocartella destinazione',
+        default: '',
+        help: 'Opzionale. Ad esempio tshirt o quadri. Viene creata automaticamente nella hot folder selezionata.'
       },
       {key: 'artifact_kind', label: 'File da consegnare'},
       {
