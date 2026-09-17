@@ -2248,6 +2248,8 @@ class AutomationNodeExecutor
       compatibility_metadata.merge!(blank_metadata.merge('integrated_blank_rules' => true))
     end
 
+    pdfx_finalize_enabled = ENV['PDFX_FINALIZER_ENABLED'].to_s == '1'
+    raw_output = File.join(run_output_dir, "#{@step.node_key}-raw-#{SecureRandom.hex(4)}.pdf")
     output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
     impose_config = preset.config.deep_dup
     side_page_counts = if compatibility_metadata['input_page_counts'].is_a?(Array)
@@ -2267,9 +2269,21 @@ class AutomationNodeExecutor
     metadata = run_pdf_tool(
       'impose',
       '--input', input_path,
-      '--output', output,
+      '--output', pdfx_finalize_enabled ? raw_output : output,
       '--config', JSON.generate(impose_config)
     ).merge(compatibility_metadata)
+    if pdfx_finalize_enabled
+      pdfx_metadata = run_pdf_tool(
+        'pdfx-finalize',
+        '--input', raw_output,
+        '--output', output,
+        '--config', '{}'
+      )
+      FileUtils.rm_f(raw_output)
+      metadata.merge!(pdfx_metadata.transform_keys { |key| "pdfx_#{key}" })
+    else
+      metadata['pdfx_finalizer'] = 'disabled'
+    end
     artifact = AutomationEngine.create_artifact!(
       run: @run,
       step: @step,

@@ -11,6 +11,10 @@ import argparse
 import io
 import json
 import math
+import os
+import re
+import subprocess
+import tempfile
 from pathlib import Path
 
 from PIL import Image
@@ -2268,6 +2272,243 @@ def inspect_pdf(input_path: str) -> dict:
     return {"page_count": len(pages), "pages": pages}
 
 
+def _resolve_pdf_object(value):
+    return value.get_object() if hasattr(value, "get_object") else value
+
+
+def _spot_names_in_pdf(input_path: str) -> set[str]:
+    """Return every Separation/DeviceN colorant name used by page resources."""
+    reader = PdfReader(input_path)
+    names: set[str] = set()
+    visited_xobjects: set[tuple[int | None, int | None, int]] = set()
+
+    def inspect_color_space(value) -> None:
+        color_space = _resolve_pdf_object(value)
+        if not isinstance(color_space, (list, tuple)) or not color_space:
+            return
+        family = str(_resolve_pdf_object(color_space[0]))
+        if family == "/Separation" and len(color_space) >= 2:
+            names.add(str(_resolve_pdf_object(color_space[1])).lstrip("/"))
+        elif family == "/DeviceN" and len(color_space) >= 2:
+            for name in _resolve_pdf_object(color_space[1]):
+                names.add(str(_resolve_pdf_object(name)).lstrip("/"))
+
+    def inspect_resources(value) -> None:
+        resources = _resolve_pdf_object(value)
+        if not isinstance(resources, dict):
+            return
+        for color_space in _resolve_pdf_object(resources.get("/ColorSpace", {})).values():
+            inspect_color_space(color_space)
+        for xobject_ref in _resolve_pdf_object(resources.get("/XObject", {})).values():
+            xobject = _resolve_pdf_object(xobject_ref)
+            identity = (
+                getattr(xobject_ref, "idnum", None),
+                getattr(xobject_ref, "generation", None),
+                id(xobject) if not hasattr(xobject_ref, "idnum") else 0,
+            )
+            if identity in visited_xobjects or not isinstance(xobject, dict):
+                continue
+            visited_xobjects.add(identity)
+            if str(xobject.get("/Subtype")) == "/Image":
+                inspect_color_space(xobject.get("/ColorSpace"))
+            elif str(xobject.get("/Subtype")) == "/Form":
+                inspect_resources(xobject.get("/Resources"))
+
+    for page in reader.pages:
+        inspect_resources(page.get("/Resources"))
+    return names
+
+
+def _has_rgb_color_space(value) -> bool:
+    color_space = _resolve_pdf_object(value)
+    if str(color_space) == "/DeviceRGB":
+        return True
+    if not isinstance(color_space, (list, tuple)) or not color_space:
+        return False
+    family = str(_resolve_pdf_object(color_space[0]))
+    if family == "/ICCBased" and len(color_space) >= 2:
+        profile = _resolve_pdf_object(color_space[1])
+        return str(profile.get("/N", "")) == "3" if isinstance(profile, dict) else False
+    return family == "/DeviceRGB"
+
+
+def _validate_pdfx_1a(output_path: str, expected_spots: set[str]) -> dict:
+    reader = PdfReader(output_path)
+    if not reader.pages:
+        raise ValueError("Il PDF/X generato non contiene pagine")
+    if reader.pdf_header != "%PDF-1.3":
+        raise ValueError("Il PDF/X generato non è PDF 1.3")
+
+    info = reader.metadata or {}
+    if str(info.get("/GTS_PDFXVersion", "")) != "PDF/X-1:2001":
+        raise ValueError("Il PDF generato non dichiara PDF/X-1:2001")
+    if str(info.get("/GTS_PDFXConformance", "")) != "PDF/X-1a:2001":
+        raise ValueError("Il PDF generato non dichiara PDF/X-1a:2001")
+
+    root = _resolve_pdf_object(reader.trailer["/Root"])
+    output_intents = _resolve_pdf_object(root.get("/OutputIntents", []))
+    if not output_intents:
+        raise ValueError("Il PDF/X generato non contiene un OutputIntent")
+    output_intent = _resolve_pdf_object(output_intents[0])
+    profile = _resolve_pdf_object(output_intent.get("/DestOutputProfile"))
+    if (
+        str(output_intent.get("/S", "")) != "/GTS_PDFX"
+        or not isinstance(profile, dict)
+        or str(profile.get("/N", "")) != "4"
+    ):
+        raise ValueError("L'OutputIntent PDF/X non contiene un profilo CMYK valido")
+
+    visited_xobjects: set[tuple[int | None, int | None, int]] = set()
+
+    def validate_resources(value) -> None:
+        resources = _resolve_pdf_object(value)
+        if not isinstance(resources, dict):
+            return
+        for color_space in _resolve_pdf_object(resources.get("/ColorSpace", {})).values():
+            if _has_rgb_color_space(color_space):
+                raise ValueError("Il PDF/X generato contiene ancora un colore RGB")
+        for xobject_ref in _resolve_pdf_object(resources.get("/XObject", {})).values():
+            xobject = _resolve_pdf_object(xobject_ref)
+            identity = (
+                getattr(xobject_ref, "idnum", None),
+                getattr(xobject_ref, "generation", None),
+                id(xobject) if not hasattr(xobject_ref, "idnum") else 0,
+            )
+            if identity in visited_xobjects or not isinstance(xobject, dict):
+                continue
+            visited_xobjects.add(identity)
+            if str(xobject.get("/Subtype")) == "/Image" and _has_rgb_color_space(xobject.get("/ColorSpace")):
+                raise ValueError("Il PDF/X generato contiene un'immagine RGB")
+            if str(xobject.get("/Subtype")) == "/Form":
+                validate_resources(xobject.get("/Resources"))
+
+    for page in reader.pages:
+        validate_resources(page.get("/Resources"))
+
+    output_spots = _spot_names_in_pdf(output_path)
+    missing_spots = sorted(expected_spots - output_spots, key=str.casefold)
+    if missing_spots:
+        raise ValueError(
+            "Il PDF/X generato ha perso le tinte piatte: " + ", ".join(missing_spots)
+        )
+    return {
+        "pdf_version": "1.3",
+        "pdfx_version": "PDF/X-1:2001",
+        "pdfx_conformance": "PDF/X-1a:2001",
+        "output_intent": str(output_intent.get("/OutputConditionIdentifier", "")),
+        "spot_colors": sorted(output_spots, key=str.casefold),
+        "pages": len(reader.pages),
+    }
+
+
+def _postscript_string(value: str) -> str:
+    return "(" + value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)") + ")"
+
+
+def pdfx_finalize(input_path: str, output_path: str, config: dict) -> dict:
+    """Normalize an imposed sheet as PDF/X-1a without lossy raster re-encoding."""
+    ghostscript = str(config.get("ghostscript_bin") or os.environ.get("PDFX_GHOSTSCRIPT_BIN") or "").strip()
+    profile_path = str(config.get("output_intent_icc") or os.environ.get("PDFX_OUTPUT_INTENT_ICC") or "").strip()
+    output_condition = str(config.get("output_condition") or os.environ.get("PDFX_OUTPUT_CONDITION") or "Coated FOGRA39 (ISO 12647-2:2004)")
+    output_identifier = str(config.get("output_condition_identifier") or os.environ.get("PDFX_OUTPUT_CONDITION_IDENTIFIER") or "FOGRA39")
+    if not ghostscript:
+        raise ValueError("PDFX_GHOSTSCRIPT_BIN non è configurato")
+    if not profile_path:
+        raise ValueError("PDFX_OUTPUT_INTENT_ICC non è configurato")
+    if not Path(ghostscript).is_file() or not os.access(ghostscript, os.X_OK):
+        raise ValueError("Il programma Ghostscript PDF/X configurato non è eseguibile")
+    if not Path(profile_path).is_file():
+        raise ValueError("Il profilo ICC PDF/X configurato non esiste")
+
+    version_result = subprocess.run(
+        [ghostscript, "--version"], capture_output=True, text=True, check=False, timeout=15
+    )
+    version_match = re.search(r"(\d+)\.(\d+)(?:\.(\d+))?", version_result.stdout)
+    if version_result.returncode != 0 or not version_match:
+        raise ValueError("Impossibile leggere la versione di Ghostscript PDF/X")
+    version = tuple(int(part or 0) for part in version_match.groups())
+    if version < (10, 5, 0):
+        raise ValueError("Ghostscript PDF/X deve essere almeno alla versione 10.05")
+
+    expected_spots = _spot_names_in_pdf(input_path)
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    definition_file = tempfile.NamedTemporaryFile(
+        mode="w", encoding="ascii", suffix=".ps", prefix="pdfx-", dir=output.parent, delete=False
+    )
+    candidate_file = tempfile.NamedTemporaryFile(
+        suffix=".pdf", prefix="pdfx-", dir=output.parent, delete=False
+    )
+    definition_path = Path(definition_file.name)
+    candidate_path = Path(candidate_file.name)
+    candidate_file.close()
+    definition_file.write(
+        "%!\n"
+        "[ /GTS_PDFXVersion (PDF/X-1:2001)\n"
+        "  /GTS_PDFXConformance (PDF/X-1a:2001)\n"
+        "  /Title (Gestionale print sheet)\n"
+        "  /Trapped /False\n"
+        "/DOCINFO pdfmark\n"
+        "[/_objdef {icc_PDFX} /type /stream /OBJ pdfmark\n"
+        "[{icc_PDFX} << /N 4 >> /PUT pdfmark\n"
+        f"[{{icc_PDFX}} {_postscript_string(profile_path)} (r) file /PUT pdfmark\n"
+        "[/_objdef {OutputIntent_PDFX} /type /dict /OBJ pdfmark\n"
+        "[{OutputIntent_PDFX} <<\n"
+        "  /Type /OutputIntent\n"
+        "  /S /GTS_PDFX\n"
+        f"  /OutputCondition {_postscript_string(output_condition)}\n"
+        f"  /Info {_postscript_string(output_condition)}\n"
+        f"  /OutputConditionIdentifier {_postscript_string(output_identifier)}\n"
+        "  /RegistryName (http://www.color.org)\n"
+        "  /DestOutputProfile {icc_PDFX}\n"
+        ">> /PUT pdfmark\n"
+        "[{Catalog} << /OutputIntents [ {OutputIntent_PDFX} ] >> /PUT pdfmark\n"
+    )
+    definition_file.close()
+
+    command = [
+        ghostscript,
+        "-q",
+        "-dSAFER",
+        f"--permit-file-read={profile_path}",
+        "-dBATCH",
+        "-dNOPAUSE",
+        "-dPDFSTOPONERROR",
+        "-dPDFX=1",
+        "-dCompatibilityLevel=1.3",
+        "-dPreserveMarkedContent=false",
+        "-dPreserveOverprintSettings=true",
+        "-dPreserveSeparation=true",
+        "-dPassThroughJPEGImages=true",
+        "-dAutoFilterColorImages=false",
+        "-dColorImageFilter=/FlateEncode",
+        "-dDownsampleColorImages=false",
+        "-dDownsampleGrayImages=false",
+        "-dDownsampleMonoImages=false",
+        "-dAutoRotatePages=/None",
+        "-dPDFACompatibilityPolicy=2",
+        "-sDEVICE=pdfwrite",
+        "-sColorConversionStrategy=CMYK",
+        f"-sOutputFile={candidate_path}",
+        str(definition_path),
+        input_path,
+    ]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=False, timeout=300)
+        if result.returncode != 0:
+            details = (result.stderr or result.stdout or "errore sconosciuto").strip()
+            raise ValueError(f"Ghostscript PDF/X non ha completato la conversione: {details[-1000:]}")
+        validation = _validate_pdfx_1a(str(candidate_path), expected_spots)
+        os.replace(candidate_path, output)
+        return validation | {
+            "ghostscript_version": ".".join(str(part) for part in version),
+            "preserved_spot_colors": sorted(expected_spots, key=str.casefold),
+        }
+    finally:
+        definition_path.unlink(missing_ok=True)
+        candidate_path.unlink(missing_ok=True)
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -2318,6 +2559,11 @@ def parse_args():
 
     inspect_parser = subparsers.add_parser("inspect")
     inspect_parser.add_argument("--input", required=True)
+
+    pdfx_parser = subparsers.add_parser("pdfx-finalize")
+    pdfx_parser.add_argument("--input", required=True)
+    pdfx_parser.add_argument("--output", required=True)
+    pdfx_parser.add_argument("--config", default="{}")
     return parser.parse_args()
 
 
@@ -2357,6 +2603,8 @@ def main():
         result = impose(args.input, args.output, json.loads(args.config))
     elif args.command == "barcode":
         result = barcode_pdf(args.data, args.output, json.loads(args.config))
+    elif args.command == "pdfx-finalize":
+        result = pdfx_finalize(args.input, args.output, json.loads(args.config))
     else:
         result = inspect_pdf(args.input)
     print(json.dumps(result, ensure_ascii=False))
