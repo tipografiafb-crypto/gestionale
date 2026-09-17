@@ -1,0 +1,24 @@
+<h3>Miglioramento immagini AI</h3>
+<p class="text-muted">Sunburst · Configurazione, consumi e storico del gestionale. Importi calcolati in USD, tasse escluse.</p>
+<div class="row mb-4">
+  <div class="col-md-4"><div class="card card-body"><small>Elaborazioni con costo disponibile</small><strong class="fs-3"><%= @ai_count %></strong></div></div>
+  <div class="col-md-4"><div class="card card-body"><small>Spesa totale registrata</small><strong class="fs-3">$<%= format('%.4f', @ai_total) %></strong></div></div>
+  <div class="col-md-4"><div class="card card-body"><small>Costo medio</small><strong class="fs-3">$<%= format('%.4f', @ai_count > 0 ? @ai_total / @ai_count : 0) %></strong></div></div>
+</div>
+<% if @ai_unknown > 0 %><p class="text-warning"><%= @ai_unknown %> richieste senza costo disponibile (in corso, fallite o consumo non restituito). Il totale non include eventuali addebiti di queste richieste: il rendiconto OpenAI resta il riferimento.</p><% end %>
+<form method="post" action="/admin/ai-images" class="card card-body mb-4" autocomplete="off">
+  <div class="row g-3">
+    <div class="col-md-6"><label class="form-label" for="aiKey">Chiave API · <%= @ai_configured ? 'configurata' : 'non configurata' %></label><input id="aiKey" name="api_key" type="password" class="form-control" autocomplete="new-password" placeholder="Lascia vuoto per mantenere la chiave attuale"><small class="text-muted">Conservata sul server; non viene restituita al browser.</small><div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="removeKey" name="remove_key" value="1"><label class="form-check-label" for="removeKey">Rimuovi la chiave salvata</label></div></div>
+    <div class="col-md-4"><label for="aiModel" class="form-label">Modello</label><input id="aiModel" class="form-control" name="model" value="<%= Rack::Utils.escape_html(@ai_settings['model']) %>"></div>
+    <div class="col-md-2"><label class="form-label" for="aiQuality">Qualità</label><select id="aiQuality" name="quality" class="form-select"><% %w[low medium high xhigh max auto].each do |q| %><option <%= 'selected' if @ai_settings['quality'] == q %>><%= q %></option><% end %></select></div>
+    <div class="col-12"><label class="form-label" for="aiPrompt">Istruzioni di miglioramento</label><textarea id="aiPrompt" name="prompt" class="form-control" rows="7" maxlength="10000" required><%= Rack::Utils.escape_html(@ai_settings['prompt']) %></textarea></div>
+    <div class="col-12"><strong>Tariffe USD per milione di token</strong><p class="small text-muted mb-0">Ogni elaborazione conserva il proprio listino. Modificare queste tariffe non cambia lo storico.</p></div>
+    <% {'text_input_rate' => 'Testo ingresso', 'image_input_rate' => 'Immagine ingresso', 'image_output_rate' => 'Immagine uscita', 'cached_text_rate' => 'Testo in cache', 'cached_image_rate' => 'Immagine in cache'}.each do |key,label| %>
+      <div class="col"><label for="<%= key %>" class="form-label"><%= label %></label><input id="<%= key %>" class="form-control" type="number" name="<%= key %>" min="0" max="1000" step="0.0001" value="<%= Rack::Utils.escape_html(@ai_settings[key]) %>" required></div>
+    <% end %>
+  </div><div class="mt-3"><button class="btn btn-primary">Salva impostazioni</button></div>
+</form>
+<h5>Ultime 100 elaborazioni</h5>
+<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Data</th><th>File / lavoro</th><th>Modello</th><th>Stato</th><th>Token totali</th><th>Costo USD</th></tr></thead><tbody>
+<% @ai_edits.each do |edit| %><tr><td><%= edit.created_at.strftime('%d/%m/%Y %H:%M UTC') %></td><td><% if edit.asset %><a href="/orders/<%= edit.asset.order_item.order_id %>/items/<%= edit.asset.order_item_id %>">File <%= edit.asset_id %> · lavoro <%= edit.asset.order_item_id %></a><% else %>File eliminato<% end %></td><td><%= Rack::Utils.escape_html(edit.options['model'].to_s) %> · <%= edit.options['quality'] %></td><td><%= {'queued'=>'In coda','processing'=>'In elaborazione','ready'=>'Da valutare','accepted'=>'Accettata','discarded'=>'Scartata','failed'=>'Errore'}[edit.status] %></td><td><%= edit.usage['total_tokens'] || '—' %></td><td><%= edit.cost_usd ? '$' + format('%.6f', edit.cost_usd) : 'Non disponibile' %></td></tr><% end %>
+</tbody></table></div>

@@ -59,6 +59,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'models/invoice_request'
   require_relative 'models/order_item'
   require_relative 'models/asset'
+  require_relative 'models/ai_image_edit'
   require_relative 'models/switch_job'
   require_relative 'models/switch_webhook'
   require_relative 'models/print_flow_event_route'
@@ -93,6 +94,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'services/automation_action_dispatcher'
   require_relative 'services/automation_adobe_agent'
   require_relative 'services/image_edit_service'
+  require_relative 'services/ai_image_service'
   require_relative 'services/imposition_config'
   require_relative 'services/design_grouping'
   require_relative 'services/design_group_workflow'
@@ -177,10 +179,11 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'routes/api_print_flows'
   require_relative 'routes/automation_web'
   require_relative 'routes/impositions_web'
+  require_relative 'routes/ai_images_web'
   
   # Start FTP poller in background (if configured)
   # Skip FTP poller when running rake tasks
   configure do
-    FTPPoller.new.start unless $PROGRAM_NAME.include?('rake')
+    FTPPoller.new.start unless $PROGRAM_NAME.include?('rake') || ENV['DISABLE_BACKGROUND_POLLERS'] == '1'
   end
 end

@@ -143,7 +143,7 @@
       <button type="button" class="btn btn-outline-success" 
               data-bs-toggle="modal" data-bs-target="#machineSelectModal"
               <%= 'disabled' if @item.print_completed_at %>>
-<i class="fas fa-check-circle"></i> Stampa
+<i class="fas fa-check-circle"></i> <%= @item.print_status == 'ripped' ? 'Rimanda in stampa' : 'Stampa' %>
         <% if @item.print_status != 'pending' %>
           <span class="badge <%= @item.print_status == 'completed' ? 'bg-success' : 'bg-secondary' %>">
             <%= @item.print_status&.upcase %>
@@ -178,6 +178,7 @@
       <!-- Populated by polling: shows processing bar until Switch sends file, then shows result button -->
     </div>
 
+    <%= erb :_ai_image_modal, layout: false %>
     <!-- File di Stampa e Azioni -->
     <div class="row">
       <div class="col-md-12">
@@ -214,6 +215,7 @@
                       <% if asset.downloaded? %>
                         <a href="/assets/<%= asset.id %>/download" class="btn btn-sm btn-outline-primary" title="Scarica"><i class="fas fa-download"></i></a>
                         <% if asset.local_path_full.to_s.match?(/\.png$/i) %>
+                          <button type="button" class="btn btn-sm btn-outline-primary btn-ai-image" data-asset-id="<%= asset.id %>" title="Migliora con AI"><i class="fas fa-magic"></i> AI</button>
                           <button type="button" class="btn btn-sm btn-outline-warning btn-adjust-image" 
                                   data-asset-id="<%= asset.id %>" 
                                   title="Editor immagine"><i class="fas fa-crop-alt"></i></button>
@@ -453,7 +455,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-          <button type="submit" class="btn btn-success"><i class="fas fa-check-circle"></i> Invia a Stampa<%= " (#{design_rows.length} righe)" if design_rows.length > 1 %></button>
+          <button type="submit" class="btn btn-success"><i class="fas fa-check-circle"></i> <%= @item.print_status == 'ripped' ? 'Invia di nuovo a Stampa' : 'Invia a Stampa' %><%= " (#{design_rows.length} righe)" if design_rows.length > 1 %></button>
         </div>
       </form>
     </div>

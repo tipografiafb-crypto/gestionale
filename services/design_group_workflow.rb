@@ -31,10 +31,13 @@ class DesignGroupWorkflow
 
     begin
       jobs = if plan[:executor] == 'automation'
+               dispatch_item = items.find { |item| item.id == @source_item.id }
+               raise Error, "#{item_label(@source_item)}: riga aggiornata non trovata" unless dispatch_item
+
                result = AutomationActionDispatcher.dispatch!(
                  print_flow: print_flow,
                  action: 'preprint',
-                 order_item: @source_item,
+                 order_item: dispatch_item,
                  assets: plan[:assets]
                )
                result[:runs].length
@@ -95,9 +98,9 @@ class DesignGroupWorkflow
 
   def send_print!(print_machine:)
     require_source_status!(:preprint_status, %w[completed], 'Pre-stampa non completata per questo item')
-    require_source_status!(:print_status, %w[pending], 'Questo item non è in attesa di stampa')
+    require_source_status!(:print_status, %w[pending ripped], 'Questo item non è pronto per la stampa')
     items = group_items.select do |item|
-      item.preprint_status == 'completed' && item.print_status == 'pending'
+      item.preprint_status == 'completed' && %w[pending ripped].include?(item.print_status)
     end
     plans = items.map { |item| print_plan(item) }
 

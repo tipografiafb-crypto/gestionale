@@ -1530,7 +1530,7 @@ class PrintOrchestrator < Sinatra::Base
           product_name: product&.name || item.sku,
           category_name: category_name,
           category_id: product&.product_category_id,
-          sku: item.sku
+          has_notes: order.customer_note.present? || order.notes.present?
         }
       end
     end
@@ -1541,7 +1541,6 @@ class PrintOrchestrator < Sinatra::Base
     @filter_store = params[:store_id]
     @filter_category_id = params[:category_id]
     @filter_product_name = params[:product_name]
-    @filter_sku = params[:sku]
     @filter_status = params[:status_filter]
     
     # Apply filters
@@ -1569,11 +1568,6 @@ class PrintOrchestrator < Sinatra::Base
     # Filter by product name
     if @filter_product_name.present?
       @line_items = @line_items.select { |li| li[:product_name].downcase.include?(@filter_product_name.downcase) }
-    end
-    
-    # Filter by SKU
-    if @filter_sku.present?
-      @line_items = @line_items.select { |li| li[:sku].downcase.include?(@filter_sku.downcase) }
     end
     
     # Filter by workflow status
