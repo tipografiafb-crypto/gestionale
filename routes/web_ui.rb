@@ -510,8 +510,8 @@ class PrintOrchestrator < Sinatra::Base
             next if asset_id.blank?
             asset = Asset.find_by(id: asset_id)
             if asset && asset.order_item_id == order_item.id
-              full_asset_path = File.join(Dir.pwd, asset.local_path)
-              File.delete(full_asset_path) if asset.local_path.present? && File.exist?(full_asset_path)
+              full_asset_path = File.join(Dir.pwd, asset.local_path) if asset.local_path.present?
+              File.delete(full_asset_path) if full_asset_path && File.exist?(full_asset_path)
               asset.destroy
             end
           end
