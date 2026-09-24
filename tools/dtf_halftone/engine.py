@@ -52,7 +52,14 @@ def process_image(input_path: str, output_path: str, config: HalftoneConfig) -> 
 
     output_alpha = _finalize_output_alpha(output_alpha, config)
 
-    output = np.dstack((adjusted_rgb, output_alpha))
+    output_rgb = adjusted_rgb
+    if config.tone_mode == "dtf_difference":
+        # Photoshop's DTF separation composites the artwork over the garment
+        # before calculating its mask. Preserve that garment matte in the
+        # exported RGB so antialiased source pixels form a smooth edge ramp.
+        output_rgb = _composite_over_shirt(adjusted_rgb, alpha, config.shirt_color)
+
+    output = np.dstack((output_rgb, output_alpha))
     output_u8 = np.clip(output * 255.0, 0, 255).astype(np.uint8)
 
     output_image = Image.fromarray(output_u8, mode="RGBA")
@@ -140,6 +147,14 @@ def _adjust_rgb(rgb: np.ndarray, config: HalftoneConfig) -> np.ndarray:
     return np.clip(adjusted, 0.0, 1.0)
 
 
+def _composite_over_shirt(
+    rgb: np.ndarray, alpha: np.ndarray, shirt_color: Optional[RGBColor]
+) -> np.ndarray:
+    shirt = np.array(shirt_color or (0, 0, 0), dtype=np.float32).reshape(1, 1, 3) / 255.0
+    alpha_3d = np.clip(alpha, 0.0, 1.0)[:, :, None]
+    return np.clip((rgb * alpha_3d) + (shirt * (1.0 - alpha_3d)), 0.0, 1.0)
+
+
 def _knockout_scale(rgb: np.ndarray, config: HalftoneConfig) -> np.ndarray:
     if config.shirt_color is None or config.knockout_strength <= 0:
         return np.ones(rgb.shape[:2], dtype=np.float32)
@@ -212,13 +227,11 @@ def _dtf_difference_tone(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneCon
     shirt = shirt_rgb / 255.0
     difference = np.abs(rgb - shirt.reshape(1, 1, 3))
 
-    # Reproduce Photoshop's black-background action for every garment colour:
-    # flatten the artwork against the selected fabric first, then convert the
-    # resulting RGB difference to Photoshop grayscale.  Multiplying by source
-    # alpha here (before Levels and Bitmap) is essential: partial source pixels
-    # become a tonal transition which the bitmap later resolves to 0/1, rather
-    # than surviving as semi-transparent pixels in the file sent to the RIP.
-    mask_alpha = _choke_outer_alpha_fringe(alpha, config.alpha_threshold)
+    # Flattening the artwork over the garment before measuring the difference
+    # is equivalent to scaling this difference by source alpha. Keep the full
+    # antialiased fringe: Levels and screening turn it into a gradual edge
+    # transition instead of chopping it at the 50% alpha contour.
+    mask_alpha = np.clip(alpha, 0.0, 1.0)
     flattened_difference = difference * mask_alpha[:, :, None]
 
     if config.color_distance_mode == "photoshop":
@@ -345,7 +358,7 @@ def _dtf_difference_alpha(rgb: np.ndarray, alpha: np.ndarray, config: HalftoneCo
     mask = _dtf_radius_screen(tone, config)
     # Photoshop's DTX cleanup is a local Dust & Scratches / median operation.
     # It removes micro-dots without the very expensive full-image component scan.
-    printable_mask = _choke_outer_alpha_fringe(alpha, config.alpha_threshold) > config.alpha_threshold
+    printable_mask = alpha > config.alpha_threshold
     return _dtf_cleanup(mask, printable_mask, config)
 
 

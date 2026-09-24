@@ -1475,7 +1475,6 @@
         }
       }
 
-      S.color = new Uint32Array(d.buffer.slice(0));
       S.tone = new Float32Array(w * h);
       S.guard = new Float32Array(w * h);
       S.alpha = new Float32Array(w * h);
@@ -1494,23 +1493,6 @@
 
       for (let i = 0, j = 0; i < S.tone.length; i++, j += 4) {
         const a = d[j + 3] / 255;
-        let maskAlpha = a;
-        if (PHOTO_ALGORITHM && a > 0.01 && a < 0.5) {
-          const px = i % w;
-          const py = (i / w) | 0;
-          let touchesTransparency = px === 0 || py === 0 || px === w - 1 || py === h - 1;
-          for (let dy = -1; dy <= 1 && !touchesTransparency; dy++) {
-            for (let dx = -1; dx <= 1; dx++) {
-              if (dx === 0 && dy === 0) continue;
-              const neighborAlpha = maskSource[((py + dy) * w + px + dx) * 4 + 3];
-              if (neighborAlpha <= 2.55) {
-                touchesTransparency = true;
-                break;
-              }
-            }
-          }
-          if (touchesTransparency) maskAlpha = 0;
-        }
         let enc;
         if (PHOTO_ALGORITHM) {
           // Fiery Digital Factory style: symmetric perceptual color distance.
@@ -1521,7 +1503,9 @@
           const diffB = Math.abs(maskSource[j + 2] - separationB);
           const lum = (0.299 * diffR + 0.587 * diffG + 0.114 * diffB) / 255;
           const dMax = Math.max(diffR, diffG, diffB) / 255;
-          enc = maskAlpha * Math.max(lum, dMax * 0.85);
+          // Compositing over the selected garment before screening makes the
+          // source alpha a continuous edge tone instead of a hard silhouette.
+          enc = a * Math.max(lum, dMax * 0.85);
           if (fabricEnabled && !technicalBlack) {
             const dL = lab[i * 3] - fabricLab[0];
             const da = lab[i * 3 + 1] - fabricLab[1];
@@ -1543,9 +1527,19 @@
           enc = (L <= 0.0031308 ? L * 12.92 : 1.055 * Math.pow(L, 1 / 2.4) - 0.055) * a;
         }
         S.tone[i] = PHOTO_ALGORITHM ? enc * S.guard[i] : enc;
-        S.alpha[i] = PHOTO_ALGORITHM ? maskAlpha : a;
+        S.alpha[i] = a;
         S.hist[Math.max(0, Math.min(255, (enc * 255) | 0))]++;
       }
+
+      // Match the Photoshop garment layer in the exported artwork RGB. Keep
+      // the selected swatch here even for technical-black separation mode.
+      for (let j = 0; j < d.length; j += 4) {
+        const a = d[j + 3] / 255;
+        d[j] = Math.round(d[j] * a + fabricR * (1 - a));
+        d[j + 1] = Math.round(d[j + 1] * a + fabricG * (1 - a));
+        d[j + 2] = Math.round(d[j + 2] * a + fabricB * (1 - a));
+      }
+      S.color = new Uint32Array(d.buffer.slice(0));
 
       S.tw = w;
       S.th = h;
