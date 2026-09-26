@@ -10,6 +10,7 @@ Group=magenta
 WorkingDirectory=/home/magenta/apps/print-orchestrator
 EnvironmentFile=/home/magenta/apps/print-orchestrator/.env
 Environment="PATH=/home/magenta/apps/print-orchestrator/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment=DISABLE_BACKGROUND_POLLERS=1
 ExecStart=/usr/bin/bundle exec ruby -r./app -eAutomationWorker.run
 Restart=on-failure
 RestartSec=5

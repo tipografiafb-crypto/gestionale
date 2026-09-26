@@ -48,6 +48,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://orchestrator_user:postgres123@db:5432/print_orchestrator_dev
       - RACK_ENV=development
+      - DISABLE_BACKGROUND_POLLERS=1
       - AUTOMATION_DESTINATIONS_ROOT=/destinations
     extra_hosts:
       - "host.docker.internal:host-gateway"
