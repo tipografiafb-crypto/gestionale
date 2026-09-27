@@ -89,6 +89,7 @@ class PrintOrchestrator < Sinatra::Base
   require_relative 'services/ftp_poller'
   require_relative 'services/automation_destination_service'
   require_relative 'services/automation_engine'
+  require_relative 'services/storage_graphic_file_cleanup'
   require_relative 'services/automation_flow_transfer'
   require_relative 'services/automation_bundle'
   require_relative 'services/automation_action_dispatcher'

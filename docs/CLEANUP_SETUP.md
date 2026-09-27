@@ -1,186 +1,35 @@
-# Storage Cleanup - Setup & Usage
+# Storage Cleanup - Uso manuale
 
-## Test Pulizia Manuale (DRY RUN)
+La pulizia non è schedulata: si avvia dalla pagina `/admin/cleanup` oppure tramite script. In produzione la retention configurata è di 45 giorni (`DAYS_TO_KEEP=45`).
 
-### Via Web Interface (NO DELETE)
-1. Vai a `/admin/cleanup`
-2. Sezione **"Pulizia Manuale per Mese"**
-3. Seleziona anno e mese
-4. Clicca **"🔍 Anteprima"** (mostra cosa verrebbe cancellato SENZA cancellare)
-5. Poi opzionalmente clicca il pulsante di eliminazione se sei sicuro
+La pulizia per retention scansiona tutta la cartella `storage` e include i file grafici scaricati e quelli elaborati più vecchi della stessa soglia, inclusi i PDF finali e quelli referenziati. Quando un file viene rimosso, gli eventuali record `Asset` vengono marcati come eliminati e gli `AutomationArtifact` associati vengono rimossi. I file non grafici (per esempio JSON di contesto) sono conservati.
 
-### Via Script (DRY RUN - NO DELETE)
+## Anteprima dalla pagina
+
+1. Apri `/admin/cleanup`.
+2. Clicca **Test (anteprima senza cancellare)** per vedere quanti file e quanto spazio sarebbero rimossi.
+3. Clicca **Esegui Pulizia (CANCELLA)** solo quando vuoi applicare la pulizia.
+
+## Script
+
+Anteprima senza cancellare:
+
 ```bash
-cd /home/runner/workspace
 bundle exec ruby scripts/cleanup.rb --dry-run
 ```
-Output: Mostra ESATTAMENTE cosa verrebbe cancellato senza cancellare nulla
 
-### Via Script (LIVE DELETE)
+Esecuzione manuale:
+
 ```bash
-cd /home/runner/workspace
 bundle exec ruby scripts/cleanup.rb
 ```
-Output: Cancella e mostra i risultati
 
-### Parametri Script
-```bash
-# Dry run con retention di 14 giorni
-bundle exec ruby scripts/cleanup.rb --dry-run --days=14
-
-# Live delete con retention di 60 giorni  
-bundle exec ruby scripts/cleanup.rb --days=60
-```
-
----
-
-## Setup Pulizia Automatica su Ubuntu
-
-### Opzione 1: Cron Job (CONSIGLIATO)
-
-#### 1. Apri il crontab dell'utente
-```bash
-crontab -e
-```
-
-#### 2. Aggiungi una linea per la pulizia notturna (es: 02:00 ogni giorno)
-```cron
-# Cleanup storage - Run daily at 2:00 AM
-0 2 * * * cd /path/to/project && bundle exec ruby scripts/cleanup.rb >> /var/log/print-orchestrator-cleanup.log 2>&1
-```
-
-#### 3. Salva (Ctrl+X, Y, Enter in nano)
-
-#### 4. Verifica il cron sia stato aggiunto
-```bash
-crontab -l | grep cleanup
-```
-
----
-
-### Opzione 2: Systemd Timer (MODERNO)
-
-#### 1. Crea il servizio
-```bash
-sudo nano /etc/systemd/system/print-orchestrator-cleanup.service
-```
-
-Incolla:
-```ini
-[Unit]
-Description=Print Orchestrator Storage Cleanup
-After=network.target
-
-[Service]
-Type=oneshot
-User=ubuntu
-WorkingDirectory=/path/to/project
-ExecStart=/usr/bin/bundle exec ruby scripts/cleanup.rb
-StandardOutput=journal
-StandardError=journal
-```
-
-#### 2. Crea il timer
-```bash
-sudo nano /etc/systemd/system/print-orchestrator-cleanup.timer
-```
-
-Incolla:
-```ini
-[Unit]
-Description=Print Orchestrator Storage Cleanup Timer
-Requires=print-orchestrator-cleanup.service
-
-[Timer]
-# Run daily at 2:00 AM
-OnCalendar=daily
-OnCalendar=*-*-* 02:00:00
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-#### 3. Abilita e avvia
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable print-orchestrator-cleanup.timer
-sudo systemctl start print-orchestrator-cleanup.timer
-```
-
-#### 4. Verifica lo stato
-```bash
-sudo systemctl status print-orchestrator-cleanup.timer
-sudo systemctl list-timers print-orchestrator-cleanup.timer
-```
-
----
-
-## Monitoraggio
-
-### Vedere i log del cleanup (Cron)
-```bash
-tail -f /var/log/print-orchestrator-cleanup.log
-```
-
-### Vedere i log del cleanup (Systemd)
-```bash
-sudo journalctl -u print-orchestrator-cleanup.service -f
-```
-
-### Verificare gli asset eliminati nel database
-```sql
-SELECT COUNT(*) FROM assets WHERE deleted_at IS NOT NULL;
-```
-
----
-
-## Variabili di Ambiente
-
-Personalizza la retention nel file `.env`:
-```env
-DAYS_TO_KEEP=30    # Default: 30 giorni
-```
-
----
-
-## Troubleshooting
-
-### Il cron non viene eseguito?
-1. Verifica il permesso di crontab: `sudo -l`
-2. Controlla se cron è attivo: `systemctl status cron`
-3. Vedi i log: `grep CRON /var/log/syslog` (Ubuntu)
-
-### Errore "bundle: command not found"?
-Usa il path completo di Ruby:
-```bash
-/home/ubuntu/.rbenv/shims/bundle exec ruby scripts/cleanup.rb
-```
-
-O installa bundle globalmente:
-```bash
-gem install bundler
-```
-
----
+Per cambiare la retention solo per una singola esecuzione si può passare `--days=N`.
 
 ## Sicurezza
 
-⚠️ **IMPORTANTE:**
-- Il cleanup NON cancella ordini recenti (retention_days)
-- Il cleanup NON cancella asset con deleted_at = NULL (sicurezza)
-- Il cleanup usa `--dry-run` per testare PRIMA di eseguire
-- Sempre fare un backup prima di attivare la pulizia automatica
-
----
-
-## Verificare Adesso (TEST)
-
-```bash
-# Test dry run locale
-cd /home/runner/workspace
-bundle exec ruby scripts/cleanup.rb --dry-run --days=30
-
-# Poi visita: http://localhost:5000/admin/cleanup
-# Per preview via web
-```
+- Gli asset vengono gestiti secondo la data di importazione e il flag `deleted_at`.
+- Tutti i file grafici sotto `storage` (PDF, immagini e formati di grafica) sono candidati in base alla data di modifica del file.
+- Anche i file finali referenziati vengono rimossi alla scadenza; i record asset e artifact associati vengono aggiornati o rimossi dal database.
+- I file non grafici sotto `storage` sono conservati.
+- L'anteprima `--dry-run` non cancella file.

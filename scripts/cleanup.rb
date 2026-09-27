@@ -1,10 +1,11 @@
 #!/usr/bin/env ruby
 # @feature storage-management
 # @domain admin
-# Automated cleanup script - Run via cron to clean old assets
+# Manual cleanup script for old graphical files throughout storage
 # Usage: ruby scripts/cleanup.rb [--dry-run] [--days N]
 
-require_relative '../config/environment'
+ENV['DISABLE_BACKGROUND_POLLERS'] = '1'
+require_relative '../app'
 
 # Parse arguments
 dry_run = ARGV.include?('--dry-run')
@@ -31,31 +32,13 @@ puts "Date cutoff: #{retention_days.days.ago.strftime('%Y-%m-%d %H:%M:%S')}"
 puts
 
 cutoff_date = retention_days.days.ago
-deleted_count = 0
-freed_space = 0
-error_count = 0
-
-Asset.where("created_at < ?", cutoff_date).where(deleted_at: nil).find_each do |asset|
-  if asset.downloaded? && File.exist?(asset.local_path_full)
-    file_size = File.size(asset.local_path_full)
-    
-    begin
-      if dry_run
-        puts "[DRY] Would delete: #{asset.local_path} (#{format_file_size(file_size)})"
-      else
-        File.delete(asset.local_path_full)
-        asset.update(deleted_at: Time.current)
-        puts "[OK] Deleted: #{asset.local_path} (#{format_file_size(file_size)})"
-      end
-      
-      freed_space += file_size
-      deleted_count += 1
-    rescue => e
-      puts "[ERROR] Failed: #{asset.local_path} - #{e.message}"
-      error_count += 1
-    end
-  end
+result = StorageGraphicFileCleanup.new(cutoff: cutoff_date).cleanup(dry_run: dry_run)
+result[:entries].each do |entry|
+  puts "[#{dry_run ? 'DRY' : 'OK'}] #{dry_run ? 'Would delete' : 'Deleted'} graphic file: #{entry[:path]} (#{format_file_size(entry[:size])})"
 end
+deleted_count = dry_run ? result[:candidate_count] : result[:deleted_count]
+freed_space = dry_run ? result[:candidate_bytes] : result[:freed_bytes]
+error_count = result[:errors].length
 
 puts
 puts "━" * 60

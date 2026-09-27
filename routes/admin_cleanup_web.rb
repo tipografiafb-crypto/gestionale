@@ -32,10 +32,12 @@ class PrintOrchestrator < Sinatra::Base
     @deleted_assets = Asset.deleted.count
     @disk_usage = format_file_size(calculate_total_disk_usage)
     @retention_days = RETENTION_DAYS
+    graphic_cleanup = StorageGraphicFileCleanup.new(cutoff: RETENTION_DAYS.days.ago).cleanup(dry_run: true)
+    @graphic_cleanup_count = graphic_cleanup[:candidate_count]
+    @graphic_cleanup_space = format_file_size(graphic_cleanup[:candidate_bytes])
     
     # Get last cleanup time from log or return nil
     @last_cleanup_time = 'N/A'
-    
     erb :admin_cleanup
   end
 
@@ -49,6 +51,9 @@ class PrintOrchestrator < Sinatra::Base
     @deleted_assets = Asset.deleted.count
     @disk_usage = format_file_size(calculate_total_disk_usage)
     @retention_days = RETENTION_DAYS
+    graphic_cleanup = StorageGraphicFileCleanup.new(cutoff: RETENTION_DAYS.days.ago).cleanup(dry_run: true)
+    @graphic_cleanup_count = graphic_cleanup[:candidate_count]
+    @graphic_cleanup_space = format_file_size(graphic_cleanup[:candidate_bytes])
 
     if month > 0 && year > 0
       start_date = Date.new(year, month, 1).beginning_of_month
@@ -69,24 +74,18 @@ class PrintOrchestrator < Sinatra::Base
   post '/admin/cleanup/test' do
     begin
       cutoff_date = RETENTION_DAYS.days.ago
-      test_count = 0
-      test_space = 0
       candidates = 0
 
       # Find all assets older than retention period
       old_assets = Asset.where("created_at < ?", cutoff_date).where(deleted_at: nil)
       candidates = old_assets.count
 
-      old_assets.find_each do |asset|
-        if asset.downloaded? && File.exist?(asset.local_path_full)
-          file_size = File.size(asset.local_path_full)
-          test_space += file_size
-          test_count += 1
-        end
-      end
+      graphic_result = StorageGraphicFileCleanup.new(cutoff: cutoff_date).cleanup(dry_run: true)
+      test_count = graphic_result[:candidate_count]
+      test_space = graphic_result[:candidate_bytes]
 
       if test_count > 0
-        msg = "TEST PULIZIA (NO DELETE): #{test_count} file trovati (#{candidates} candidati), #{format_file_size(test_space)} da liberare"
+        msg = "TEST PULIZIA (NO DELETE): #{test_count} file grafici trovati in storage (#{candidates} asset scaduti per data database), #{format_file_size(test_space)} da liberare"
       else
         msg = "TEST PULIZIA: Nessun file da eliminare. Candidati per età: #{candidates}, con local_path: #{Asset.where("created_at < ?", cutoff_date).where(deleted_at: nil).where.not(local_path: nil).count}"
       end
@@ -100,24 +99,12 @@ class PrintOrchestrator < Sinatra::Base
   post '/admin/cleanup/auto' do
     begin
       cutoff_date = RETENTION_DAYS.days.ago
-      deleted_count = 0
-      freed_space = 0
+      result = StorageGraphicFileCleanup.new(cutoff: cutoff_date).cleanup
+      deleted_count = result[:deleted_count]
+      freed_space = result[:freed_bytes]
 
-      Asset.where("created_at < ?", cutoff_date).where(deleted_at: nil).find_each do |asset|
-        if asset.downloaded? && File.exist?(asset.local_path_full)
-          file_size = File.size(asset.local_path_full)
-          begin
-            File.delete(asset.local_path_full)
-            freed_space += file_size
-            deleted_count += 1
-            asset.update(deleted_at: Time.current)
-          rescue => e
-            puts "Error deleting #{asset.local_path}: #{e.message}"
-          end
-        end
-      end
-
-      redirect "/admin/cleanup?msg=success&text=Pulizia+completata:+#{deleted_count}+file+eliminati,+#{format_file_size(freed_space)}+liberati"
+      message = "Pulizia completata: #{deleted_count} file grafici rimossi da storage, #{format_file_size(freed_space)} liberati; aggiornati #{result[:deleted_asset_count]} asset e rimossi #{result[:deleted_artifact_count]} record artifact"
+      redirect "/admin/cleanup?msg=success&text=#{URI.encode_www_form_component(message)}"
     rescue => e
       redirect "/admin/cleanup?msg=error&text=Errore+durante+la+pulizia:+#{e.message}"
     end

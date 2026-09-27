@@ -6,23 +6,12 @@ namespace :maintenance do
     
     puts "🧹 Starting cleanup of files older than #{days_to_keep} days (before #{cutoff_date.strftime('%Y-%m-%d')})"
     
-    deleted_count = 0
-    freed_space = 0
-    
-    Asset.where("imported_at < ?", cutoff_date).where(deleted_at: nil).find_each do |asset|
-      if asset.downloaded? && File.exist?(asset.local_path_full)
-        file_size = File.size(asset.local_path_full)
-        begin
-          File.delete(asset.local_path_full)
-          freed_space += file_size
-          deleted_count += 1
-          asset.update(deleted_at: Time.current)
-          puts "  ✓ Deleted: #{asset.local_path}"
-        rescue => e
-          puts "  ✗ Error deleting #{asset.local_path}: #{e.message}"
-        end
-      end
-    end
+    result = StorageGraphicFileCleanup.new(cutoff: cutoff_date).cleanup
+    deleted_count = result[:deleted_count]
+    freed_space = result[:freed_bytes]
+    puts "   Asset records updated: #{result[:deleted_asset_count]}"
+    puts "   Artifact records deleted: #{result[:deleted_artifact_count]}"
+    result[:errors].each { |error| puts "  ✗ Error deleting #{error[:path]}: #{error[:message]}" }
     
     puts "\n📊 Cleanup Summary:"
     puts "   Files deleted: #{deleted_count}"
