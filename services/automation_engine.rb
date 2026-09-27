@@ -2200,6 +2200,7 @@ class AutomationNodeExecutor
     repeat_each_element = preset.config['page_distribution'].to_s == 'repeat_each'
 
     input_path = source.full_path
+    intermediate_paths = []
     compatibility_metadata = {}
     duplication_copies = 1
     copies = AutomationEngine.context_value(@context, 'variables.production_copies').to_i
@@ -2209,6 +2210,7 @@ class AutomationNodeExecutor
       copies = 1 if copies < 1
       duplication_copies = copies
       input_path = File.join(run_output_dir, "#{@step.node_key}-legacy-pages-#{SecureRandom.hex(4)}.pdf")
+      intermediate_paths << input_path
       duplicate_arguments = [
         'duplicate-pages',
         '--input', source.full_path,
@@ -2230,6 +2232,7 @@ class AutomationNodeExecutor
     blank_rules = resolve_nested_config(Array(@config['blank_rules'])) if blank_rules.empty?
     if blank_rules.any? && !booklet_layout
       blank_output = File.join(run_output_dir, "#{@step.node_key}-blank-padded-#{SecureRandom.hex(4)}.pdf")
+      intermediate_paths << blank_output
       blank_config = {
         'quantity' => @context.dig('runtime', 'step_repeat_blank_quantity').to_i,
         'rules' => blank_rules
@@ -2293,6 +2296,13 @@ class AutomationNodeExecutor
       media_type: 'application/pdf',
       metadata: metadata.merge('preset_code' => preset_code)
     )
+    intermediate_paths.each do |path|
+      begin
+        FileUtils.rm_f(path)
+      rescue StandardError => e
+        warn "[AutomationWorker] Impossibile rimuovere il PDF intermedio #{path}: #{e.message}"
+      end
+    end
     {
       'artifact_id' => artifact.id,
       'context_updates' => {'runtime.current_artifact_id' => artifact.id}
