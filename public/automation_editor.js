@@ -116,6 +116,7 @@
     photoshop: {
       agent_key: '',
       action_name: 'azione',
+      pdf_preset: '',
       width_mm: 0,
       height_mm: 0,
       dpi: 300,
@@ -220,6 +221,11 @@
         key: 'action_name',
         label: 'Azione Photoshop',
         help: 'Inserisci un nome fisso oppure una variabile, ad esempio {{operation.selected_photoshop_action}}.'
+      },
+      {
+        key: 'pdf_preset',
+        label: 'Preset PDF Photoshop',
+        help: 'Inserisci il nome del preset installato in Photoshop, ad esempio PDF PLANCE, oppure il percorso al file .joboptions sul Mac Adobe.'
       },
       {
         key: 'width_mm',

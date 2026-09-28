@@ -530,6 +530,8 @@ output.close();
     def execute_photoshop(self, input_path, output_path, config, context, workdir):
         action_set = str(config.get("action_set") or "").strip()
         action_name = str(config.get("action_name") or "").strip()
+        pdf_preset = str(config.get("pdf_preset") or "").strip()
+        pdf_preset_path = self.resolve_pdf_preset(pdf_preset) if pdf_preset else None
         target_dpi = float(config.get("dpi") or 300)
         width_mm = float(config.get("width_mm") or 0)
         height_mm = float(config.get("height_mm") or 0)
@@ -547,6 +549,17 @@ output.close();
             if resize_applied else
             f"documentRef.resizeImage(undefined, undefined, {target_dpi}, "
             f"ResampleMethod.{'BICUBIC' if resample_on_dpi_change else 'NONE'});"
+        )
+        preset_line = (
+            # Photoshop expects the preset's registered name here, not the
+            # filesystem path to its .joboptions file.
+            f"saveOptions.presetFile = {self.jsx_string(pdf_preset_path.stem)};"
+            if pdf_preset_path else ""
+        )
+        save_option_overrides = (
+            ""
+            if pdf_preset_path
+            else "saveOptions.embedColorProfile = true;\nsaveOptions.preserveEditing = false;"
         )
         dpi_report_path = workdir / "photoshop-dpi.json"
         jsx = f"""#target photoshop
@@ -574,8 +587,8 @@ reportFile.write('{{"pixels_before":[' + pixelsBeforeWidth + ',' + pixelsBeforeH
   '}}');
 reportFile.close();
 var saveOptions = new PDFSaveOptions();
-saveOptions.embedColorProfile = true;
-saveOptions.preserveEditing = false;
+{preset_line}
+{save_option_overrides}
 documentRef.saveAs(outputFile, saveOptions, true, Extension.LOWERCASE);
 documentRef.close(SaveOptions.DONOTSAVECHANGES);
 """
@@ -599,7 +612,46 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
             raise RuntimeError(
                 f"Risoluzione Photoshop non corretta: {dpi_report.get('dpi')} invece di {target_dpi}"
             )
+        dpi_report["pdf_preset"] = pdf_preset
+        dpi_report["pdf_preset_file"] = pdf_preset_path.name if pdf_preset_path else ""
         return dpi_report
+
+    @staticmethod
+    def resolve_pdf_preset(configured):
+        """Resolve a Photoshop PDF preset name or path on the Adobe Mac."""
+        configured = str(configured or "").strip()
+        if not configured:
+            return None
+
+        direct = Path(configured).expanduser()
+        if direct.is_file():
+            return direct.resolve()
+
+        filename = direct.name
+        if not filename.lower().endswith(".joboptions"):
+            filename += ".joboptions"
+
+        settings_roots = [
+            Path.home() / "Library" / "Application Support" / "Adobe" / "Adobe PDF" / "Settings",
+            Path("/Library/Application Support/Adobe/Adobe PDF/Settings"),
+        ]
+        matches = []
+        for root in settings_roots:
+            if root.is_dir():
+                matches.extend(path.resolve() for path in root.rglob(filename) if path.is_file())
+        matches = sorted(set(matches))
+
+        if not matches:
+            raise RuntimeError(
+                f"Preset PDF Photoshop non trovato: {configured}. "
+                "Inserisci il nome del preset installato o il percorso al file .joboptions sul Mac Adobe."
+            )
+        if len(matches) > 1:
+            raise RuntimeError(
+                f"Preset PDF Photoshop ambiguo: {configured}. "
+                f"File trovati: {', '.join(str(path) for path in matches)}"
+            )
+        return matches[0]
 
     def resolve_template(self, configured):
         configured = str(configured or "").strip()
@@ -861,6 +913,7 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
             metadata_values.update({
                 "action_set": str(config.get("action_set") or ""),
                 "action_name": str(config.get("action_name") or ""),
+                "pdf_preset": str(config.get("pdf_preset") or ""),
             })
         elif task["node_type"] == "illustrator":
             metadata_values["real_adobe"] = True
