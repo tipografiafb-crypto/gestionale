@@ -13,9 +13,11 @@
   function error(e) { el('aiError').textContent = e.message; el('aiError').classList.remove('d-none'); }
   function controls() {
     const ready = current?.status === 'ready';
+    const usable = ready || current?.can_reapply;
     const ratioChanged = current?.result_width && Math.abs((current.result_width / current.result_height) / (current.width / current.height) - 1) > .01;
-    el('aiAspect').classList.toggle('d-none', !ready || !ratioChanged);
-    el('aiAccept').disabled = busy || !ready || (ratioChanged && !el('aiAllowAspect').checked);
+    el('aiAspect').classList.toggle('d-none', !usable || !ratioChanged);
+    el('aiAccept').disabled = busy || !usable || (ratioChanged && !el('aiAllowAspect').checked);
+    el('aiAccept').textContent = ready ? 'Usa versione AI' : 'Riusa versione AI';
     el('aiDiscard').disabled = busy || !ready;
     el('aiGenerate').disabled = busy || ['queued', 'processing'].includes(current?.status);
     el('aiHistory').disabled = busy;
@@ -23,7 +25,7 @@
   }
   function render(edit) {
     current = edit;
-    const labels = {queued:'In coda…', processing:'Miglioramento in corso. Puoi chiudere il modal e tornare più tardi.', ready:'Risultato pronto: confronta prima di accettare.', accepted:'Versione AI accettata. Reset recupera il file originale.', discarded:'Proposta scartata: file operativo invariato.', failed:'Elaborazione non riuscita.'};
+    const labels = {queued:'In coda…', processing:'Miglioramento in corso. Puoi chiudere il modal e tornare più tardi.', ready:'Risultato pronto: confronta prima di accettare.', accepted:edit.currently_applied?'Questa versione AI è già applicata.':'Versione AI archiviata: puoi riutilizzarla.', discarded:'Proposta archiviata: puoi riutilizzarla.', failed:'Elaborazione non riuscita.'};
     el('aiStatus').textContent = labels[edit.status] || '';
     el('aiBefore').src = el('aiWipeBefore').src = edit.source_url;
     if (edit.result_width) el('aiAfter').src = el('aiWipeAfter').src = edit.result_url;
@@ -53,7 +55,8 @@
     bootstrap.Modal.getOrCreateInstance(el('aiImageModal')).show();
     try {
       const data = await api(base()); if (epoch !== generation) return;
-      el('aiHistory').replaceChildren(...data.edits.map(e => { const o = document.createElement('option'); o.value = e.id; o.textContent = `#${e.id} · ${new Date(e.created_at).toLocaleString()} · ${money(e.cost_usd)}`; return o; }));
+      const statusLabels = {queued:'in coda',processing:'in elaborazione',ready:'da valutare',accepted:'accettata',discarded:'scartata',failed:'errore'};
+      el('aiHistory').replaceChildren(...data.edits.map(e => { const o = document.createElement('option'); o.value = e.id; o.textContent = `#${e.id} · ${statusLabels[e.status] || e.status} · ${new Date(e.created_at).toLocaleString()} · ${money(e.cost_usd)}`; return o; }));
       if (data.edits.length) { render(data.edits[0]); poll(data.edits[0].id, epoch); }
       else el('aiStatus').textContent = 'Genera una proposta con le istruzioni salvate nelle impostazioni.';
       if (!data.configured) { el('aiGenerate').disabled = true; el('aiStatus').textContent = 'Configura una chiave API nelle impostazioni per iniziare.'; }

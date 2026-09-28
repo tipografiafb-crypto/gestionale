@@ -45,7 +45,7 @@ class PrintOrchestrator < Sinatra::Base
   get '/assets/:id/ai-edits' do
     ai_json do
       asset = Asset.find(params[:id])
-      edits = AiImageEdit.where(asset_id: asset.id).order(id: :desc).limit(20).map { |e| e.expire_if_stale!.public_data }
+      edits = AiImageEdit.where(asset_id: asset.id).includes(:asset).order(id: :desc).map { |e| e.expire_if_stale!.public_data }
       {edits: edits, configured: !AiImageSettings.api_key.empty?, model: AiImageSettings.config['model']}
     end
   end

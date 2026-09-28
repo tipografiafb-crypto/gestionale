@@ -13,6 +13,14 @@ class AiImageEdit < ActiveRecord::Base
     File.join(directory, 'result.png')
   end
 
+  def currently_applied?
+    asset&.image_edit_data.to_h['ai_edit_id'].to_s == id.to_s
+  end
+
+  def reusable?
+    %w[accepted discarded].include?(status) && File.file?(result_path)
+  end
+
   def expire_if_stale!
     if %w[queued processing].include?(status) && updated_at < 20.minutes.ago
       update!(status: 'failed', error_message: 'Elaborazione interrotta. Il costo non è disponibile: controllare il consumo OpenAI prima di riprovare.')
@@ -26,6 +34,8 @@ class AiImageEdit < ActiveRecord::Base
       error: error_message, model: options['model'], quality: options['quality'],
       width: options['width'], height: options['height'], dpi: options['dpi'],
       result_width: options['result_width'], result_height: options['result_height'],
+      can_reapply: reusable? && !currently_applied?,
+      currently_applied: currently_applied?,
       source_url: "/assets/#{asset_id}/ai-edits/#{id}/source",
       result_url: "/assets/#{asset_id}/ai-edits/#{id}/result",
       created_at: created_at.iso8601, accepted_at: accepted_at&.iso8601

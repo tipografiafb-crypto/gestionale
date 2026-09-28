@@ -119,10 +119,14 @@ module AiImageService
     raise ArgumentError, 'File eliminato' unless asset
     asset.with_lock do
       edit.reload
-      return edit if edit.status == 'accepted'
-      raise ArgumentError, 'Risultato non disponibile' unless edit.status == 'ready' && File.file?(edit.result_path)
+      return edit if edit.status == 'accepted' && edit.currently_applied?
+      raise ArgumentError, 'Risultato non disponibile' unless
+        %w[ready accepted discarded].include?(edit.status) && File.file?(edit.result_path)
       path = asset.local_path_full
-      raise ArgumentError, 'Il file è stato modificato dopo la richiesta AI. Avvia un nuovo confronto.' unless path && File.file?(path) && Digest::SHA256.file(path).hexdigest == edit.source_sha256
+      raise ArgumentError, 'File operativo non disponibile' unless path && File.file?(path)
+      if edit.status == 'ready' && Digest::SHA256.file(path).hexdigest != edit.source_sha256
+        raise ArgumentError, 'Il file è stato modificato dopo la richiesta AI. Avvia un nuovo confronto.'
+      end
       o = edit.options
       ratio = (o['result_width'].to_f / o['result_height']) / (o['width'].to_f / o['height'])
       raise ArgumentError, 'Le proporzioni sono cambiate. Conferma esplicitamente l’adattamento nel modal.' if (ratio - 1).abs > 0.01 && !allow_aspect_change

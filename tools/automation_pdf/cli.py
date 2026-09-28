@@ -18,7 +18,7 @@ import tempfile
 from pathlib import Path
 
 from PIL import Image
-from pypdf import PdfReader, PdfWriter, Transformation
+from pypdf import PdfReader, PdfWriter, Transformation, filters
 from pypdf.generic import (
     DecodedStreamObject,
     DictionaryObject,
@@ -2401,6 +2401,23 @@ def _validate_pdfx_1a(output_path: str, expected_spots: set[str]) -> dict:
     }
 
 
+def _validate_pdfx_candidate(candidate_path: Path, expected_spots: set[str]) -> dict:
+    """Allow large but bounded PDF streams while validating Ghostscript output.
+
+    pypdf's default 75 MB stream limit is too small for some valid, full
+    resolution print assets. Bound the parser to the candidate file size and
+    a fixed ceiling so malformed lengths and unbounded allocations stay
+    rejected.
+    """
+    max_stream_bytes = 512 * 1024 * 1024
+    previous_limit = filters.MAX_DECLARED_STREAM_LENGTH
+    filters.MAX_DECLARED_STREAM_LENGTH = min(candidate_path.stat().st_size, max_stream_bytes)
+    try:
+        return _validate_pdfx_1a(str(candidate_path), expected_spots)
+    finally:
+        filters.MAX_DECLARED_STREAM_LENGTH = previous_limit
+
+
 def _postscript_string(value: str) -> str:
     return "(" + value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)") + ")"
 
@@ -2502,7 +2519,7 @@ def pdfx_finalize(input_path: str, output_path: str, config: dict) -> dict:
         if result.returncode != 0:
             details = (result.stderr or result.stdout or "errore sconosciuto").strip()
             raise ValueError(f"Ghostscript PDF/X non ha completato la conversione: {details[-1000:]}")
-        validation = _validate_pdfx_1a(str(candidate_path), expected_spots)
+        validation = _validate_pdfx_candidate(candidate_path, expected_spots)
         os.replace(candidate_path, output)
         return validation | {
             "ghostscript_version": ".".join(str(part) for part in version),
