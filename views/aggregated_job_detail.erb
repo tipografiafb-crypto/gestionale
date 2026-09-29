@@ -108,7 +108,7 @@
     <% if @aggregated_job.aggregated_file_url.present? && @aggregated_job.aggregated_at.present? %>
       <div class="card mb-4">
         <div class="card-header <%= @aggregated_job.status == 'preview_pending' ? 'bg-warning' : 'bg-success' %> text-white">
-          <strong><i class="fas fa-file-pdf"></i> File Aggregato</strong>
+          <strong><i class="fas fa-file"></i> File Aggregato</strong>
         </div>
         <div class="card-body">
           <p>
@@ -116,7 +116,7 @@
             <strong>Ricevuto:</strong> <%= @aggregated_job.aggregated_at.strftime('%d/%m/%Y %H:%M') %>
           </p>
           <a href="<%= @aggregated_job.aggregated_file_url %>" target="_blank" class="btn btn-primary">
-            <i class="fas fa-download"></i> Apri PDF
+            <i class="fas fa-download"></i> <%= @aggregated_job.aggregated_filename.to_s.end_with?('.zip') ? 'Scarica i PNG' : 'Apri file' %>
           </a>
         </div>
       </div>

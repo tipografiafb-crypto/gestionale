@@ -1292,6 +1292,7 @@ class AutomationEngine
       when '.png' then 'image/png'
       when '.jpg', '.jpeg' then 'image/jpeg'
       when '.svg' then 'image/svg+xml'
+      when '.zip' then 'application/zip'
       else 'application/octet-stream'
       end
     end
@@ -1646,6 +1647,17 @@ class AutomationNodeExecutor
 
     source = require_artifact!
     output_dir = run_output_dir
+    if @step.node_type == 'photoshop' && @config['output_format'].to_s == 'png'
+      raise ArgumentError, 'La simulazione PNG richiede un PNG sorgente' unless source.media_type == 'image/png'
+      output = File.join(output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.png")
+      FileUtils.cp(source.full_path, output)
+      artifact = AutomationEngine.create_artifact!(run: @run, step: @step,
+        kind: @config['output_kind'].presence || 'photoshop_png', path: output,
+        filename: File.basename(output), media_type: 'image/png',
+        metadata: {'simulation' => true, 'output_dpi' => @config.fetch('dpi', 300).to_f})
+      return {'artifact_id' => artifact.id, 'simulation' => true,
+        'context_updates' => {'runtime.current_artifact_id' => artifact.id}}
+    end
     output = File.join(output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
 
     metadata = if source.media_type == 'application/pdf'
@@ -1688,6 +1700,18 @@ class AutomationNodeExecutor
     source = require_artifact!
     copies = AutomationEngine.context_value(@context, 'variables.production_copies').to_i
     copies = 1 if copies < 1
+    if %w[image/png application/zip].include?(source.media_type)
+      output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.zip")
+      metadata = run_pdf_tool('collect-images', '--output', output, '--config',
+        JSON.generate({'inputs' => [{'path' => source.full_path, 'copies' => copies,
+          'dpi' => source.metadata.to_h['output_dpi'] || source.metadata.to_h['dpi'] || 300}]}))
+      artifact = AutomationEngine.create_artifact!(run: @run, step: @step,
+        kind: @config['output_kind'].presence || 'png_collection', path: output,
+        filename: File.basename(output), media_type: 'application/zip',
+        metadata: metadata.merge('copies_applied' => copies, 'production_copies' => copies))
+      return {'artifact_id' => artifact.id,
+        'context_updates' => {'runtime.current_artifact_id' => artifact.id}}
+    end
     output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
     metadata = run_pdf_tool(
       'duplicate-pages',
@@ -1716,6 +1740,11 @@ class AutomationNodeExecutor
     raise ArgumentError, 'Il testo da inserire nel PDF è vuoto' if text.strip.empty?
 
     output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
+    input_path = source.full_path
+    if %w[image/png application/zip].include?(source.media_type)
+      input_path = File.join(run_output_dir, "#{@step.node_key}-source-#{SecureRandom.hex(4)}.pdf")
+      run_pdf_tool('images-to-pdf', '--input', source.full_path, '--output', input_path)
+    end
     label_config = {
       'anchor' => @config.fetch('anchor', 'top_left'),
       'font' => @config.fetch('font', 'Times-Roman'),
@@ -1729,7 +1758,7 @@ class AutomationNodeExecutor
     }
     metadata = run_pdf_tool(
       'add-text-label',
-      '--input', source.full_path,
+      '--input', input_path,
       '--output', output,
       '--text', text,
       '--config', JSON.generate(label_config)
@@ -1743,6 +1772,7 @@ class AutomationNodeExecutor
       media_type: 'application/pdf',
       metadata: metadata.merge('source_artifact_id' => source.id)
     )
+    FileUtils.rm_f(input_path) if input_path != source.full_path
     {
       'artifact_id' => artifact.id,
       'context_updates' => {'runtime.current_artifact_id' => artifact.id}
@@ -1898,8 +1928,17 @@ class AutomationNodeExecutor
       unavailable = members.find { |member| !member.automation_artifact.available? }
       raise ArgumentError, "File del gruppo non disponibile: #{unavailable&.automation_artifact&.filename}" if unavailable
 
-      output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
-      metadata = if members.one?
+      image_members = members.select { |member| %w[image/png application/zip].include?(member.automation_artifact.media_type) }
+      raise ArgumentError, 'Il gruppo contiene formati misti PDF e PNG' if image_members.any? && image_members.length != members.length
+      output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.#{image_members.any? ? 'zip' : 'pdf'}")
+      metadata = if image_members.any?
+                   run_pdf_tool('collect-images', '--output', output, '--config',
+                     JSON.generate({'inputs' => members.map { |member| {
+                       'path' => member.automation_artifact.full_path,
+                       'dpi' => member.automation_artifact.metadata.to_h['output_dpi'] ||
+                                member.automation_artifact.metadata.to_h['dpi'] || 300
+                     } }}))
+                 elsif members.one?
                    FileUtils.cp(members.first.automation_artifact.full_path, output)
                    {
                      'input_files' => 1,
@@ -1917,10 +1956,10 @@ class AutomationNodeExecutor
       artifact = AutomationEngine.create_artifact!(
         run: @run,
         step: @step,
-        kind: @config['output_kind'].presence || 'aggregated_pdf',
+        kind: @config['output_kind'].presence || (image_members.any? ? 'png_collection' : 'aggregated_pdf'),
         path: output,
         filename: File.basename(output),
-        media_type: 'application/pdf',
+        media_type: image_members.any? ? 'application/zip' : 'application/pdf',
         metadata: metadata.merge(
           'collection_id' => collection.id,
           'group_key' => group_key,
@@ -2196,6 +2235,20 @@ class AutomationNodeExecutor
     raise ArgumentError, 'Il preset di imposizione risolto è vuoto' if preset_code.empty?
     preset = AutomationPreset.active.find_by(kind: 'imposition', code: preset_code)
     raise ArgumentError, "Preset di imposizione non trovato: #{preset_code}" unless preset
+    if @config['output_format'].to_s == 'png'
+      raise ArgumentError, 'Il nesting PNG richiede una raccolta PNG' unless %w[image/png application/zip].include?(source.media_type)
+      output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.png")
+      impose_config = preset.config.deep_dup.merge('output_dpi' => @config.fetch('output_dpi', 300).to_f)
+      metadata = run_pdf_tool('impose-images', '--input', source.full_path,
+        '--output', output, '--config', JSON.generate(impose_config))
+      output = metadata.fetch('output_path')
+      artifact = AutomationEngine.create_artifact!(run: @run, step: @step,
+        kind: @config['output_kind'].presence || 'imposition_png', path: output,
+        filename: File.basename(output), media_type: AutomationEngine.media_type_for(output),
+        metadata: metadata.merge('preset_code' => preset_code, 'pdfx_finalizer' => 'not_applicable'))
+      return {'artifact_id' => artifact.id,
+        'context_updates' => {'runtime.current_artifact_id' => artifact.id}}
+    end
     booklet_layout = preset.config['layout_mode'].to_s == 'booklet'
     repeat_each_element = preset.config['page_distribution'].to_s == 'repeat_each'
 
@@ -2341,6 +2394,10 @@ class AutomationNodeExecutor
 
     filename = AutomationEngine.resolve(@config['filename'], @context).presence || source.filename
     filename = File.basename(filename)
+    source_extension = File.extname(source.filename.to_s).downcase
+    if %w[.pdf .png .zip].include?(source_extension) && File.extname(filename).downcase != source_extension
+      filename = "#{File.basename(filename, File.extname(filename))}#{source_extension}"
+    end
     destination_code = AutomationEngine.resolve(@config['destination_code'], @context).to_s
     subfolder = AutomationEngine.resolve(@config['subfolder'], @context).to_s
 
@@ -2356,19 +2413,36 @@ class AutomationNodeExecutor
       return {'state' => 'waiting_external'}
     end
 
-    delivery = AutomationDestinationService.deliver(
-      destination: destination,
-      source_path: source.full_path,
-      filename: filename,
-      subfolder: subfolder,
-      simulation: simulation?
-    )
+    deliveries = if source_extension == '.zip'
+                   require 'zip'
+                   sheet_paths = []
+                   Zip::File.open(source.full_path) do |archive|
+                     raise ArgumentError, 'Archivio plancia PNG vuoto' if archive.entries.empty?
+                     archive.entries.each do |entry|
+                       raise ArgumentError, 'Archivio plancia PNG non valido' unless entry.name.match?(/\Asheet-\d+\.png\z/)
+                       sheet_path = File.join(run_output_dir, "#{SecureRandom.hex(4)}-#{entry.name}")
+                       entry.extract(sheet_path)
+                       sheet_paths << [sheet_path, "#{File.basename(filename, '.zip')}-#{entry.name}"]
+                     end
+                   end
+                   sheet_paths.map do |sheet_path, sheet_filename|
+                     AutomationDestinationService.deliver(destination: destination,
+                       source_path: sheet_path, filename: sheet_filename,
+                       subfolder: subfolder, simulation: simulation?)
+                   end
+                 else
+                   [AutomationDestinationService.deliver(destination: destination,
+                     source_path: source.full_path, filename: filename,
+                     subfolder: subfolder, simulation: simulation?)]
+                 end
+    delivery = deliveries.first
     target = delivery[:simulated] ? source.full_path : delivery[:target]
     metadata = {
       'source_artifact_id' => source.id,
       'destination_code' => destination.code,
       'subfolder' => subfolder,
       'delivered_to' => delivery[:target],
+      'delivered_files' => deliveries.map { |entry| entry[:target] },
       'simulated' => delivery[:simulated]
     }
 

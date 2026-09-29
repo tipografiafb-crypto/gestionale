@@ -121,6 +121,7 @@
       height_mm: 0,
       dpi: 300,
       resample_on_dpi_change: false,
+      output_format: 'pdf',
       output_kind: 'photoshop_pdf'
     },
     illustrator: {
@@ -135,6 +136,8 @@
       preset_source: 'fixed',
       preset_code: 'STANDARD_MONO',
       preset_variable: 'variables.imposition_preset',
+      output_format: 'pdf',
+      output_dpi: 300,
       output_kind: 'imposition_pdf'
     },
     barcode: {
@@ -167,6 +170,7 @@
   const finalResultChoices = [
     ['', 'Ultimo file prodotto (automatico)'],
     ['imposition_pdf', 'Plancia di stampa'],
+    ['imposition_png', 'Plancia PNG trasparente'],
     ['identification_sheet_pdf', 'Foglio di lavoro / identificativo'],
     ['preview_pdf', 'Anteprima'],
     ['customer_pdf', 'File per il cliente']
@@ -227,6 +231,7 @@
         label: 'Preset PDF Photoshop',
         help: 'Inserisci il nome del preset installato in Photoshop, ad esempio PDF PLANCE, oppure il percorso al file .joboptions sul Mac Adobe.'
       },
+      {key: 'output_format', label: 'Formato di uscita', choices: [['pdf', 'PDF'], ['png', 'PNG trasparente']], default: 'pdf'},
       {
         key: 'width_mm',
         label: 'Larghezza finale (mm)',
@@ -477,7 +482,9 @@
         default: 'variables.imposition_preset',
         help: 'Usata quando “Selezione preset” è impostata su variabile.'
       },
-      {key: 'output_kind', label: 'Tipo risultato', default: 'imposition_pdf'}
+      {key: 'output_kind', label: 'Tipo risultato', default: 'imposition_pdf'},
+      {key: 'output_format', label: 'Formato di uscita', choices: [['pdf', 'PDF'], ['png', 'PNG trasparente']], default: 'pdf'},
+      {key: 'output_dpi', label: 'Risoluzione PNG (DPI)', type: 'number', default: 300}
     ],
     barcode: [
       {key: 'data_field', label: 'Valore barcode', choices: 'fields', default: 'order.code'},
@@ -1481,12 +1488,14 @@
         simpleConfigSchemas.step_repeat[3],
         node.config?.output_kind
       );
+      const formatField = configField(simpleConfigSchemas.step_repeat[4], node.config?.output_format || 'pdf');
+      const dpiField = configField(simpleConfigSchemas.step_repeat[5], node.config?.output_dpi || 300);
       const updatePresetFields = () => {
         const variableMode = configValue('preset_source') === 'variable';
         fixedField.hidden = variableMode;
         variableField.hidden = !variableMode;
       };
-      nodeConfigForm.append(sourceField, fixedField, variableField, outputField);
+      nodeConfigForm.append(sourceField, fixedField, variableField, formatField, dpiField, outputField);
       sourceField.querySelector('[data-config-role="preset_source"]')
         .addEventListener('change', updatePresetFields);
       updatePresetFields();
@@ -1636,6 +1645,8 @@
         preset_source: presetSource,
         preset_code: presetSource === 'variable' ? '' : configValue('preset_code'),
         preset_variable: configValue('preset_variable') || 'variables.imposition_preset',
+        output_format: configValue('output_format') || 'pdf',
+        output_dpi: Number(configValue('output_dpi') || 300),
         output_kind: configValue('output_kind') || 'imposition_pdf'
       };
     }

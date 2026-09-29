@@ -3,6 +3,9 @@
 
 import argparse
 import json
+import struct
+import zlib
+import zipfile
 import mimetypes
 import os
 import platform
@@ -469,8 +472,15 @@ output.close();
                 suffix = Path(task.get("input_filename") or "").suffix or ".bin"
                 input_path = workdir / f"input{suffix}"
                 input_path.write_bytes(self.download(task["input_url"]))
-                output_path = workdir / f"{task['node_type']}.pdf"
                 config = task.get("config") or {}
+                output_format = str(config.get("output_format") or "pdf").strip().lower()
+                if task["node_type"] == "photoshop" and output_format not in {"pdf", "png"}:
+                    raise RuntimeError(f"Formato Photoshop non valido: {output_format}")
+                output_path = workdir / (
+                    f"{task['node_type']}.png"
+                    if task["node_type"] == "photoshop" and output_format == "png"
+                    else f"{task['node_type']}.pdf"
+                )
                 execution_metadata = {}
 
                 if task["node_type"] == "photoshop":
@@ -501,7 +511,7 @@ output.close();
                     raise RuntimeError(f"Tipo agente non supportato: {task['node_type']}")
 
                 if not output_path.is_file() or output_path.stat().st_size == 0:
-                    raise RuntimeError("Adobe non ha prodotto il PDF atteso")
+                    raise RuntimeError("Adobe non ha prodotto il file atteso")
                 self.complete(task, output_path, config, execution_metadata)
                 self.last_error = None
                 print(f"[AdobeAgent] Completato step {task['step_id']} ({task['node_type']})", flush=True)
@@ -530,8 +540,11 @@ output.close();
     def execute_photoshop(self, input_path, output_path, config, context, workdir):
         action_set = str(config.get("action_set") or "").strip()
         action_name = str(config.get("action_name") or "").strip()
+        output_format = str(config.get("output_format") or "pdf").strip().lower()
+        if output_format not in {"pdf", "png"}:
+            raise RuntimeError(f"Formato Photoshop non valido: {output_format}")
         pdf_preset = str(config.get("pdf_preset") or "").strip()
-        pdf_preset_path = self.resolve_pdf_preset(pdf_preset) if pdf_preset else None
+        pdf_preset_path = self.resolve_pdf_preset(pdf_preset) if pdf_preset and output_format == "pdf" else None
         target_dpi = float(config.get("dpi") or 300)
         width_mm = float(config.get("width_mm") or 0)
         height_mm = float(config.get("height_mm") or 0)
@@ -541,14 +554,29 @@ output.close();
         if (width_mm > 0) != (height_mm > 0):
             raise RuntimeError("Larghezza e altezza Photoshop devono essere entrambe maggiori di zero")
         resize_applied = width_mm > 0 and height_mm > 0
+        is_png_input = False
+        if Path(input_path).suffix.lower() == ".png":
+            with open(input_path, "rb") as input_file:
+                is_png_input = input_file.read(8) == b"\x89PNG\r\n\x1a\n"
+        bypass_candidate = (
+            output_format == "png"
+            and is_png_input
+            and not action_set and not action_name
+            and not resize_applied
+        )
         target_width_px = round(width_mm / 25.4 * target_dpi) if resize_applied else None
         target_height_px = round(height_mm / 25.4 * target_dpi) if resize_applied else None
-        resize_jsx = (
+        resize_command = (
             f'documentRef.resizeImage(UnitValue({target_width_px}, "px"), '
             f'UnitValue({target_height_px}, "px"), {target_dpi}, ResampleMethod.BICUBIC);'
             if resize_applied else
             f"documentRef.resizeImage(undefined, undefined, {target_dpi}, "
             f"ResampleMethod.{'BICUBIC' if resample_on_dpi_change else 'NONE'});"
+        )
+        resize_jsx = (
+            f"var bypassOriginalPng = {str(bypass_candidate).lower()} && "
+            f"Math.abs(documentRef.resolution - {target_dpi}) <= 0.01;\n"
+            f"if (!bypassOriginalPng) {{ {resize_command} }}"
         )
         preset_line = (
             # Photoshop expects the preset's registered name here, not the
@@ -560,6 +588,15 @@ output.close();
             ""
             if pdf_preset_path
             else "saveOptions.embedColorProfile = true;\nsaveOptions.preserveEditing = false;"
+        )
+        save_jsx = (
+            "var saveOptions = new PNGSaveOptions();\n"
+            "saveOptions.interlaced = false;\n"
+            "documentRef.saveAs(outputFile, saveOptions, true, Extension.LOWERCASE);"
+            if output_format == "png" else
+            "var saveOptions = new PDFSaveOptions();\n"
+            f"{preset_line}\n{save_option_overrides}\n"
+            "documentRef.saveAs(outputFile, saveOptions, true, Extension.LOWERCASE);"
         )
         dpi_report_path = workdir / "photoshop-dpi.json"
         jsx = f"""#target photoshop
@@ -584,12 +621,12 @@ reportFile.write('{{"pixels_before":[' + pixelsBeforeWidth + ',' + pixelsBeforeH
   ',"resize_applied":{str(resize_applied).lower()}' +
   ',"width_mm":{width_mm},"height_mm":{height_mm}' +
   ',"resample_on_dpi_change":{str(resample_on_dpi_change).lower()}' +
+  ',"bypassed_original_png":' + bypassOriginalPng +
   '}}');
 reportFile.close();
-var saveOptions = new PDFSaveOptions();
-{preset_line}
-{save_option_overrides}
-documentRef.saveAs(outputFile, saveOptions, true, Extension.LOWERCASE);
+if (!bypassOriginalPng) {{
+{save_jsx}
+}}
 documentRef.close(SaveOptions.DONOTSAVECHANGES);
 """
         self.execute_jsx(self.photoshop_app, jsx, workdir / "photoshop.jsx")
@@ -612,9 +649,50 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
             raise RuntimeError(
                 f"Risoluzione Photoshop non corretta: {dpi_report.get('dpi')} invece di {target_dpi}"
             )
-        dpi_report["pdf_preset"] = pdf_preset
+        if dpi_report.get("bypassed_original_png"):
+            if not bypass_candidate:
+                raise RuntimeError("Bypass PNG non autorizzato per questo input")
+            shutil.copyfile(input_path, output_path)
+        elif output_format == "png" and Path(output_path).is_file():
+            self.set_png_dpi(Path(output_path), target_dpi)
+        dpi_report["output_format"] = output_format
+        dpi_report["pdf_preset"] = pdf_preset if output_format == "pdf" else ""
         dpi_report["pdf_preset_file"] = pdf_preset_path.name if pdf_preset_path else ""
         return dpi_report
+
+    @staticmethod
+    def set_png_dpi(path, dpi):
+        """Write the PNG pHYs resolution without changing image pixels or alpha."""
+        data = path.read_bytes()
+        if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise RuntimeError("Photoshop non ha prodotto un PNG valido")
+        pixels_per_meter = round(float(dpi) / 0.0254)
+        payload = struct.pack(">IIB", pixels_per_meter, pixels_per_meter, 1)
+        chunk_type = b"pHYs"
+        physical_chunk = (
+            struct.pack(">I", len(payload)) + chunk_type + payload +
+            struct.pack(">I", zlib.crc32(chunk_type + payload) & 0xffffffff)
+        )
+        result = bytearray(data[:8])
+        offset = 8
+        inserted = False
+        while offset < len(data):
+            if offset + 12 > len(data):
+                raise RuntimeError("PNG Photoshop incompleto")
+            length = struct.unpack(">I", data[offset:offset + 4])[0]
+            end = offset + 12 + length
+            if end > len(data):
+                raise RuntimeError("PNG Photoshop incompleto")
+            name = data[offset + 4:offset + 8]
+            if name != b"pHYs":
+                result.extend(data[offset:end])
+            if name == b"IHDR":
+                result.extend(physical_chunk)
+                inserted = True
+            offset = end
+        if not inserted:
+            raise RuntimeError("PNG Photoshop privo di intestazione")
+        path.write_bytes(result)
 
     @staticmethod
     def resolve_pdf_preset(configured):
@@ -702,48 +780,60 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
             raise RuntimeError(f"Hot folder non scrivibile: {target_directory}")
 
         filename = Path(str(config.get("filename") or input_path.name)).name
-        target = target_directory / filename
-        local_delivery = input_path.with_name(filename)
-        if local_delivery != input_path:
-            shutil.copyfile(input_path, local_delivery)
+        if input_path.suffix.lower() in {".pdf", ".png", ".zip"}:
+            filename = Path(filename).stem + input_path.suffix.lower()
+        deliveries = []
+        if input_path.suffix.lower() == ".zip":
+            with zipfile.ZipFile(input_path) as archive:
+                names = archive.namelist()
+                if not names or any(not re.fullmatch(r"sheet-\d+\.png", name) for name in names):
+                    raise RuntimeError("L'archivio della plancia deve contenere solo fogli PNG")
+                stem = Path(filename).stem
+                for name in names:
+                    local_file = input_path.parent / f"{stem}-{name}"
+                    local_file.write_bytes(archive.read(name))
+                    deliveries.append(local_file)
+        else:
+            local_file = input_path.with_name(filename)
+            if local_file != input_path:
+                shutil.copyfile(input_path, local_file)
+            deliveries.append(local_file)
 
         # Il volume Public è montato e autorizzato da Finder. I servizi Python
         # avviati da launchd possono invece ricevere EPERM sui volumi di rete:
         # deleghiamo quindi a Finder la stessa copia già usata operativamente.
-        apple_script = (
-            f"set sourceFile to POSIX file {json.dumps(str(local_delivery))} as alias\n"
-            f"set destinationFolder to POSIX file {json.dumps(str(target_directory) + '/')} as alias\n"
-            "tell application \"Finder\"\n"
-            "duplicate sourceFile to destinationFolder with replacing\n"
-            "end tell\n"
-        )
-        result = subprocess.run(
-            ["/usr/bin/osascript", "-e", apple_script],
-            text=True,
-            capture_output=True,
-            timeout=180,
-        )
-        if result.returncode:
-            # Finder can transiently reject a network-volume copy (for
-            # example while the volume is being refreshed). The volume has
-            # already been validated and direct file I/O is a safe fallback.
-            try:
-                temporary_target = target.with_name(
-                    f".{target.name}.partial-{os.getpid()}"
-                )
-                shutil.copyfile(local_delivery, temporary_target)
-                os.replace(temporary_target, target)
-            except OSError as direct_error:
-                if 'temporary_target' in locals() and temporary_target.exists():
-                    temporary_target.unlink(missing_ok=True)
-                raise RuntimeError(
-                    result.stderr.strip() or result.stdout.strip() or
-                    f"Finder non ha consegnato il file nella hotfolder: {direct_error}"
-                ) from direct_error
+        targets = []
+        for local_delivery in deliveries:
+            target = target_directory / local_delivery.name
+            apple_script = (
+                f"set sourceFile to POSIX file {json.dumps(str(local_delivery))} as alias\n"
+                f"set destinationFolder to POSIX file {json.dumps(str(target_directory) + '/')} as alias\n"
+                "tell application \"Finder\"\n"
+                "duplicate sourceFile to destinationFolder with replacing\n"
+                "end tell\n"
+            )
+            result = subprocess.run(
+                ["/usr/bin/osascript", "-e", apple_script],
+                text=True, capture_output=True, timeout=180,
+            )
+            if result.returncode:
+                try:
+                    temporary_target = target.with_name(f".{target.name}.partial-{os.getpid()}")
+                    shutil.copyfile(local_delivery, temporary_target)
+                    os.replace(temporary_target, target)
+                except OSError as direct_error:
+                    if 'temporary_target' in locals() and temporary_target.exists():
+                        temporary_target.unlink(missing_ok=True)
+                    raise RuntimeError(
+                        result.stderr.strip() or result.stdout.strip() or
+                        f"Finder non ha consegnato il file nella hotfolder: {direct_error}"
+                    ) from direct_error
+            targets.append(str(target))
         return {
             "destination_code": str(config.get("destination_code") or ""),
-            "delivered_to": str(target),
-            "delivered_filename": filename,
+            "delivered_to": targets[0],
+            "delivered_files": targets,
+            "delivered_filename": Path(targets[0]).name,
             "delivery_agent": self.agent_key,
         }
 
@@ -914,6 +1004,7 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
                 "action_set": str(config.get("action_set") or ""),
                 "action_name": str(config.get("action_name") or ""),
                 "pdf_preset": str(config.get("pdf_preset") or ""),
+                "output_format": str(config.get("output_format") or "pdf"),
             })
         elif task["node_type"] == "illustrator":
             metadata_values["real_adobe"] = True

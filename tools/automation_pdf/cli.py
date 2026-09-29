@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 
 from PIL import Image
@@ -33,6 +34,97 @@ from reportlab.lib import colors
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+
+
+def _image_entries(input_path: str, dpi: float = 300, copies: int = 1) -> list[dict]:
+    """Read a PNG or a portable collection of PNGs without discarding alpha."""
+    source = Path(input_path)
+    if source.suffix.lower() == ".png":
+        data = source.read_bytes()
+        with Image.open(io.BytesIO(data)) as image:
+            if image.format != "PNG":
+                raise ValueError(f"Immagine PNG non valida: {source.name}")
+            width, height = image.size
+            image_dpi = image.info.get("dpi", (dpi, dpi))
+        return [{
+            "data": data, "filename": source.name, "width_px": width,
+            "height_px": height, "dpi": float(dpi or image_dpi[0] or 300),
+            "copies": max(1, int(copies)),
+        }]
+    if source.suffix.lower() != ".zip":
+        raise ValueError(f"Il file {source.name} deve essere PNG o archivio PNG")
+    with zipfile.ZipFile(source) as archive:
+        manifest = json.loads(archive.read("manifest.json"))
+        if manifest.get("version") != 1:
+            raise ValueError("Versione della raccolta PNG non supportata")
+        entries = []
+        for item in manifest.get("images", []):
+            name = item["file"]
+            if not name.startswith("images/") or ".." in Path(name).parts:
+                raise ValueError("Percorso PNG non valido nella raccolta")
+            data = archive.read(name)
+            with Image.open(io.BytesIO(data)) as image:
+                if image.format != "PNG":
+                    raise ValueError(f"Immagine non PNG nella raccolta: {name}")
+                width, height = image.size
+            entries.append({
+                "data": data, "filename": item.get("filename") or Path(name).name,
+                "width_px": width, "height_px": height,
+                "dpi": float(item.get("dpi") or 300),
+                "copies": max(1, int(item.get("copies") or 1)) * max(1, int(copies)),
+            })
+        if not entries:
+            raise ValueError("La raccolta PNG è vuota")
+        return entries
+
+
+def collect_images(output_path: str, inputs: list[dict]) -> dict:
+    entries = []
+    for source in inputs:
+        entries.extend(_image_entries(
+            source["path"], float(source.get("dpi") or 300),
+            int(source.get("copies") or 1),
+        ))
+    if not entries:
+        raise ValueError("Nessun PNG da raccogliere")
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    manifest = {"version": 1, "images": []}
+    with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_STORED) as archive:
+        for index, entry in enumerate(entries, 1):
+            name = f"images/{index:05d}.png"
+            archive.writestr(name, entry["data"])
+            manifest["images"].append({
+                "file": name, "filename": entry["filename"],
+                "width_px": entry["width_px"], "height_px": entry["height_px"],
+                "dpi": entry["dpi"], "copies": entry["copies"],
+            })
+        archive.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False))
+    return {
+        "input_files": len(inputs), "images": len(entries),
+        "placements_requested": sum(entry["copies"] for entry in entries),
+        "collection_format": "png_zip",
+    }
+
+
+def images_to_pdf(input_path: str, output_path: str) -> dict:
+    entries = _image_entries(input_path)
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    pdf = canvas.Canvas(output_path)
+    pages = 0
+    for entry in entries:
+        width_pt = entry["width_px"] * 72 / entry["dpi"]
+        height_pt = entry["height_px"] * 72 / entry["dpi"]
+        for _ in range(entry["copies"]):
+            pdf.setPageSize((width_pt, height_pt))
+            pdf.drawImage(
+                ImageReader(io.BytesIO(entry["data"])), 0, 0,
+                width=width_pt, height=height_pt, mask="auto",
+            )
+            pdf.showPage()
+            pages += 1
+    pdf.save()
+    return {"output_pages": pages, "source_images": len(entries)}
 
 
 def image_to_pdf(
@@ -2165,6 +2257,17 @@ def add_text_label(
 
 
 def resize_pdf_pages(input_path: str, output_path: str, config: dict) -> dict:
+    """Resize pages while allowing bounded, image-heavy PDF streams."""
+    max_stream_bytes = 512 * 1024 * 1024
+    previous_limit = filters.MAX_DECLARED_STREAM_LENGTH
+    filters.MAX_DECLARED_STREAM_LENGTH = min(Path(input_path).stat().st_size, max_stream_bytes)
+    try:
+        return _resize_pdf_pages_with_stream_limit(input_path, output_path, config)
+    finally:
+        filters.MAX_DECLARED_STREAM_LENGTH = previous_limit
+
+
+def _resize_pdf_pages_with_stream_limit(input_path: str, output_path: str, config: dict) -> dict:
     reader = PdfReader(input_path)
     if not reader.pages:
         raise ValueError("Il PDF sorgente non contiene pagine")
@@ -2401,6 +2504,203 @@ def _validate_pdfx_1a(output_path: str, expected_spots: set[str]) -> dict:
     }
 
 
+def impose_images(input_path: str, output_path: str, config: dict) -> dict:
+    """Place PNG artwork on transparent RGBA roll sheets at a fixed DPI."""
+    if str(config.get("layout_mode", "nesting")) != "nesting":
+        raise ValueError("L'uscita PNG supporta soltanto il layout nesting")
+    if str(config.get("double_sided_mode", "none")) != "none":
+        raise ValueError("Il nesting PNG non supporta fronte/retro")
+    if any(bool(value) for value in (config.get("marks") or {}).values() if isinstance(value, bool)):
+        raise ValueError("I segni di plancia non sono ammessi nel PNG trasparente")
+
+    dpi = float(config.get("output_dpi") or 300)
+    if dpi <= 0 or dpi > 1200:
+        raise ValueError("DPI PNG non valido")
+    px_per_mm = dpi / 25.4
+    sheet_width = round(float(config["sheet_width_mm"]) * px_per_mm)
+    sheet_height = round(float(config["sheet_height_mm"]) * px_per_mm)
+    margin_left = round(float(config.get("margin_left_mm", config.get("offset_x_mm", 0))) * px_per_mm)
+    margin_right = round(float(config.get("margin_right_mm", config.get("offset_x_mm", 0))) * px_per_mm)
+    margin_top = round(float(config.get("margin_top_mm", config.get("offset_y_mm", 0))) * px_per_mm)
+    margin_bottom = round(float(config.get("margin_bottom_mm", config.get("offset_y_mm", 0))) * px_per_mm)
+    gap_x = round(float(config.get("gap_x_mm", 0)) * px_per_mm)
+    gap_y = round(float(config.get("gap_y_mm", 0)) * px_per_mm)
+    if min(sheet_width, sheet_height) <= 0 or min(margin_left, margin_right, margin_top, margin_bottom, gap_x, gap_y) < 0:
+        raise ValueError("Dimensioni, margini o spazi del nesting PNG non validi")
+    content_width = sheet_width - margin_left - margin_right
+    content_height = sheet_height - margin_top - margin_bottom
+    if content_width <= 0 or content_height <= 0:
+        raise ValueError("I margini non lasciano spazio utile sul foglio PNG")
+    anchor = str(config.get("anchor", "top_left"))
+    if anchor not in {"top_left", "top_center", "top_right", "center", "bottom_left", "bottom_center", "bottom_right"}:
+        raise ValueError(f"Punto di ancoraggio non valido: {anchor}")
+    allow_rotation = bool(config.get("rotate", False))
+    trim_sheet_height = bool(config.get("trim_sheet_height", False))
+
+    entries = _image_entries(input_path)
+    profile = None
+    items = []
+    for index, entry in enumerate(entries):
+        with Image.open(io.BytesIO(entry["data"])) as image:
+            alpha = image.convert("RGBA").getchannel("A")
+            if config.get("require_transparency", True) and alpha.getextrema()[0] == 255:
+                raise ValueError(f"Il PNG {entry['filename']} non contiene pixel trasparenti")
+            embedded_profile = image.info.get("icc_profile")
+            if embedded_profile:
+                if profile is not None and embedded_profile != profile:
+                    raise ValueError("I PNG hanno profili ICC diversi: uniformarli prima del nesting")
+                profile = embedded_profile
+        width = round(entry["width_px"] * dpi / entry["dpi"])
+        height = round(entry["height_px"] * dpi / entry["dpi"])
+        if width < 1 or height < 1:
+            raise ValueError(f"Dimensioni non valide nel PNG {entry['filename']}")
+        for _ in range(entry["copies"]):
+            items.append({"entry_index": index, "width": width, "height": height})
+    if not items:
+        raise ValueError("La raccolta PNG non contiene immagini")
+    items.sort(key=lambda item: (
+        -max(item["width"], item["height"]),
+        -(item["width"] * item["height"]),
+        -min(item["width"], item["height"]),
+        item["entry_index"],
+    ))
+
+    bin_width = content_width + gap_x
+    bin_height = content_height + gap_y
+    same_size = all(item["width"] == items[0]["width"] and item["height"] == items[0]["height"] for item in items)
+    sheets = []
+    if config.get("ordered_equal_size", True) is not False and same_size:
+        orientations = [(items[0]["width"], items[0]["height"], False)]
+        if allow_rotation and items[0]["width"] != items[0]["height"]:
+            orientations.append((items[0]["height"], items[0]["width"], True))
+        def capacity(orientation):
+            width, height, _ = orientation
+            return (
+                math.floor(bin_width / (width + gap_x)),
+                math.floor(bin_height / (height + gap_y)),
+            )
+        placed_width, placed_height, rotated = max(
+            orientations, key=lambda value: math.prod(capacity(value))
+        )
+        columns, rows = capacity((placed_width, placed_height, rotated))
+        if columns * rows < 1:
+            raise ValueError("Il PNG non entra nell'area utile del foglio")
+        for index, item in enumerate(items):
+            sheet_index, slot = divmod(index, columns * rows)
+            while len(sheets) <= sheet_index:
+                sheets.append({"placements": [], "free": []})
+            row, column = divmod(slot, columns)
+            sheets[sheet_index]["placements"].append({
+                **item, "x": column * (placed_width + gap_x),
+                "y": row * (placed_height + gap_y),
+                "width": placed_width, "height": placed_height, "rotated": rotated,
+            })
+        algorithm = "ordered_equal_size_grid"
+    else:
+        for item in items:
+            selected = None
+            for index, sheet in enumerate(sheets):
+                candidate = _best_nesting_position(
+                    sheet["free"], item["width"], item["height"],
+                    gap_x, gap_y, allow_rotation,
+                )
+                if candidate is not None:
+                    candidate["sheet_index"] = index
+                    if selected is None or candidate["score"] < selected["score"]:
+                        selected = candidate
+            if selected is None:
+                sheet = {"placements": [], "free": [
+                    {"x": 0, "y": 0, "width": bin_width, "height": bin_height}
+                ]}
+                sheets.append(sheet)
+                selected = _best_nesting_position(
+                    sheet["free"], item["width"], item["height"],
+                    gap_x, gap_y, allow_rotation,
+                )
+                if selected is None:
+                    raise ValueError(f"Il PNG {entries[item['entry_index']]['filename']} non entra nel foglio")
+                selected["sheet_index"] = len(sheets) - 1
+            sheet = sheets[selected["sheet_index"]]
+            sheet["placements"].append({**item, **selected})
+            sheet["free"] = _split_free_rectangles(sheet["free"], {
+                "x": selected["x"], "y": selected["y"],
+                "width": selected["slot_width"], "height": selected["slot_height"],
+            })
+        algorithm = "maxrects_best_short_side_fit"
+
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    placements = []
+    sheet_heights = []
+    def render_sheet(sheet, sheet_index, target):
+        used_height = max(p["y"] + p["height"] for p in sheet["placements"])
+        height = min(sheet_height, used_height + margin_top + margin_bottom) if trim_sheet_height else sheet_height
+        image = Image.new("RGBA", (sheet_width, height), (0, 0, 0, 0))
+        min_x = min(p["x"] for p in sheet["placements"])
+        min_y = min(p["y"] for p in sheet["placements"])
+        used_width = max(p["x"] + p["width"] for p in sheet["placements"]) - min_x
+        used_height -= min_y
+        for p in sheet["placements"]:
+            if anchor.endswith("right"):
+                x = sheet_width - margin_right - p["x"] - p["width"]
+            elif anchor == "center" or anchor.endswith("center"):
+                x = margin_left + round((content_width - used_width) / 2) + p["x"] - min_x
+            else:
+                x = margin_left + p["x"]
+            if anchor == "center":
+                y = margin_top + round((height - margin_top - margin_bottom - used_height) / 2) + p["y"] - min_y
+            elif anchor.startswith("bottom"):
+                y = height - margin_bottom - p["y"] - p["height"]
+            else:
+                y = margin_top + p["y"]
+            entry = entries[p["entry_index"]]
+            with Image.open(io.BytesIO(entry["data"])) as source:
+                artwork = source.convert("RGBA")
+                target_size = (p["height"], p["width"]) if p["rotated"] else (p["width"], p["height"])
+                if artwork.size != target_size:
+                    artwork = artwork.resize(target_size, Image.Resampling.LANCZOS)
+                if p["rotated"]:
+                    artwork = artwork.transpose(Image.Transpose.ROTATE_90)
+                image.alpha_composite(artwork, (int(x), int(y)))
+            placements.append({
+                "image": entry["filename"], "sheet": sheet_index + 1,
+                "x_mm": round(x / px_per_mm, 4), "y_mm": round(y / px_per_mm, 4),
+                "width_mm": round(p["width"] / px_per_mm, 4),
+                "height_mm": round(p["height"] / px_per_mm, 4),
+                "rotated": bool(p["rotated"]),
+            })
+        options = {"dpi": (dpi, dpi), "compress_level": 6}
+        if profile:
+            options["icc_profile"] = profile
+        image.save(target, format="PNG", **options)
+        sheet_heights.append(round(height / px_per_mm, 4))
+
+    if len(sheets) == 1:
+        render_sheet(sheets[0], 0, output)
+        result_path = output
+    else:
+        result_path = output.with_suffix(".zip")
+        with tempfile.TemporaryDirectory(prefix="png-sheets-", dir=output.parent) as temporary:
+            sheet_files = []
+            for index, sheet in enumerate(sheets):
+                sheet_file = Path(temporary) / f"sheet-{index + 1:03d}.png"
+                render_sheet(sheet, index, sheet_file)
+                sheet_files.append(sheet_file)
+            with zipfile.ZipFile(result_path, "w", compression=zipfile.ZIP_STORED) as archive:
+                for sheet_file in sheet_files:
+                    archive.write(sheet_file, sheet_file.name)
+    return {
+        "layout_mode": "nesting", "algorithm": algorithm,
+        "output_path": str(result_path), "output_dpi": dpi,
+        "sheet_width_mm": float(config["sheet_width_mm"]),
+        "sheet_height_mm": float(config["sheet_height_mm"]),
+        "output_sheet_heights_mm": sheet_heights,
+        "input_images": len(entries), "placed_images": len(items),
+        "sheets": len(sheets), "placements": placements,
+        "alpha_preserved": True, "output_format": "png",
+    }
+
+
 def _validate_pdfx_candidate(candidate_path: Path, expected_spots: set[str]) -> dict:
     """Allow large but bounded PDF streams while validating Ghostscript output.
 
@@ -2541,6 +2841,19 @@ def parse_args():
     image_parser.add_argument("--width-mm", type=float, default=0)
     image_parser.add_argument("--height-mm", type=float, default=0)
 
+    collect_images_parser = subparsers.add_parser("collect-images")
+    collect_images_parser.add_argument("--output", required=True)
+    collect_images_parser.add_argument("--config", required=True)
+
+    images_pdf_parser = subparsers.add_parser("images-to-pdf")
+    images_pdf_parser.add_argument("--input", required=True)
+    images_pdf_parser.add_argument("--output", required=True)
+
+    image_nesting_parser = subparsers.add_parser("impose-images")
+    image_nesting_parser.add_argument("--input", required=True)
+    image_nesting_parser.add_argument("--output", required=True)
+    image_nesting_parser.add_argument("--config", required=True)
+
     impose_parser = subparsers.add_parser("impose")
     impose_parser.add_argument("--input", required=True)
     impose_parser.add_argument("--output", required=True)
@@ -2598,6 +2911,12 @@ def main():
             args.width_mm,
             args.height_mm,
         )
+    elif args.command == "collect-images":
+        result = collect_images(args.output, json.loads(args.config)["inputs"])
+    elif args.command == "images-to-pdf":
+        result = images_to_pdf(args.input, args.output)
+    elif args.command == "impose-images":
+        result = impose_images(args.input, args.output, json.loads(args.config))
     elif args.command == "duplicate-pages":
         result = duplicate_pages(
             args.input,

@@ -421,8 +421,8 @@ class PrintOrchestrator < Sinatra::Base
         return { success: false, error: 'Flusso di stampa non configurato' }.to_json
       end
       
-      # Get the preprint output PDF (print_output asset)
-      print_output_asset = item.assets.where(asset_type: 'print_output').first
+      # Use the latest completed preprint file, including transparent PNG collections.
+      print_output_asset = item.assets.where(asset_type: 'print_output').order(created_at: :desc).first
       unless print_output_asset
         return { success: false, error: 'File preprint non trovato' }.to_json
       end

@@ -101,10 +101,13 @@ class PrintOrchestrator < Sinatra::Base
     begin
       @aggregated_job = AggregatedJob.find(params[:id])
       filename = params[:filename]
+      halt 404 unless [@aggregated_job.aggregated_filename, @aggregated_job.identification_sheet_filename].include?(filename)
       file_path = File.join(Dir.pwd, 'storage', 'aggregated', filename)
       
       if File.exist?(file_path)
-        send_file file_path, disposition: 'inline', type: 'application/pdf'
+        content_type = {'.pdf' => 'application/pdf', '.png' => 'image/png', '.zip' => 'application/zip'}[File.extname(filename).downcase]
+        halt 404 unless content_type
+        send_file file_path, disposition: content_type == 'application/zip' ? 'attachment' : 'inline', type: content_type
       else
         puts "[FILE_SERVE_ERROR] File not found at: #{file_path}"
         status 404

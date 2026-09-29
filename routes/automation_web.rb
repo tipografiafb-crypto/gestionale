@@ -1046,6 +1046,13 @@ class PrintOrchestrator < Sinatra::Base
       AutomationEngine.fail_external_step!(step, 'File di input non disponibile')
       halt 422, {success: false, error: 'File di input non disponibile'}.to_json
     end
+    if node['type'] == 'hot_folder'
+      extension = File.extname(artifact.filename.to_s).downcase
+      if %w[.pdf .png .zip].include?(extension)
+        configured = File.basename(task_config['filename'].presence || artifact.filename)
+        task_config['filename'] = "#{File.basename(configured, File.extname(configured))}#{extension}"
+      end
+    end
 
     {
       success: true,

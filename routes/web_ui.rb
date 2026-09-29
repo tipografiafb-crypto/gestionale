@@ -1584,6 +1584,12 @@ class PrintOrchestrator < Sinatra::Base
         @line_items = @line_items.select { |li| li[:item].print_status == 'ripped' }
       end
     end
+
+    # Keep line items grouped by order and display orders by arrival time,
+    # oldest first. The ID tie-breakers keep rows stable when timestamps match.
+    @line_items.sort_by! do |line_item|
+      [line_item[:order].created_at, line_item[:order].id, line_item[:item].id]
+    end
     
     # Manual pagination (25 per page)
     per_page = 25

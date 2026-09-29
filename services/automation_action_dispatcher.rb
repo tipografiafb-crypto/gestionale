@@ -180,7 +180,9 @@ class AutomationActionLifecycle
       return unless artifact&.available? && artifact.kind != 'source'
       return if artifact.kind == 'identification_sheet_pdf'
 
-      filename = "#{job.aggregation_code}.pdf"
+      extension = File.extname(artifact.filename.to_s).downcase
+      raise ArgumentError, "Formato aggregato non valido: #{extension}" unless %w[.pdf .png .zip].include?(extension)
+      filename = "#{job.aggregation_code}#{extension}"
       destination = File.join(destination_dir, filename)
       FileUtils.cp(artifact.full_path, destination)
       job.update!(
