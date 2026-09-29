@@ -1781,7 +1781,11 @@ class AutomationNodeExecutor
 
   def execute_resize_pdf
     source = require_artifact!
-    output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
+    output_format = @config.fetch('output_format', 'pdf').to_s.downcase
+    raise ArgumentError, "Formato uscita non supportato: #{output_format}" unless %w[pdf png].include?(output_format)
+    token = SecureRandom.hex(4)
+    resized_pdf = File.join(run_output_dir, "#{@step.node_key}-resized-#{token}.pdf")
+    output = output_format == 'png' ? File.join(run_output_dir, "#{@step.node_key}-#{token}.png") : resized_pdf
     resize_config = {
       'width_mm' => @config.fetch('width_mm', 297).to_f,
       'height_mm' => @config.fetch('height_mm', 210).to_f,
@@ -1790,16 +1794,25 @@ class AutomationNodeExecutor
     metadata = run_pdf_tool(
       'resize-pages',
       '--input', source.full_path,
-      '--output', output,
+      '--output', resized_pdf,
       '--config', JSON.generate(resize_config)
     )
+    if output_format == 'png'
+      render_metadata = run_pdf_tool(
+        'pdf-to-png', '--input', resized_pdf, '--output', output,
+        '--config', JSON.generate({'dpi' => @config.fetch('output_dpi', 150).to_f})
+      )
+      output = render_metadata.fetch('output_path')
+      metadata.merge!(render_metadata)
+      FileUtils.rm_f(resized_pdf)
+    end
     artifact = AutomationEngine.create_artifact!(
       run: @run,
       step: @step,
-      kind: @config['output_kind'].presence || 'resized_pdf',
+      kind: @config['output_kind'].presence || (output_format == 'png' ? 'resized_png' : 'resized_pdf'),
       path: output,
       filename: File.basename(output),
-      media_type: 'application/pdf',
+      media_type: AutomationEngine.media_type_for(output),
       metadata: metadata.merge('source_artifact_id' => source.id)
     )
     {

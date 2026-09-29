@@ -78,6 +78,8 @@
       width_mm: 297,
       height_mm: 210,
       mode: 'contain',
+      output_format: 'pdf',
+      output_dpi: 150,
       output_kind: 'resized_pdf'
     },
     collect_group: {
@@ -351,6 +353,8 @@
         ],
         default: 'contain'
       },
+      {key: 'output_format', label: 'Formato in uscita', choices: [['pdf', 'PDF'], ['png', 'PNG']], default: 'pdf'},
+      {key: 'output_dpi', label: 'Risoluzione PNG (DPI)', type: 'number', default: 150},
       {key: 'output_kind', label: 'Tipo risultato', default: 'resized_pdf'}
     ],
     collect_group: [

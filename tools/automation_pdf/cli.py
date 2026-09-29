@@ -13,6 +13,7 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import zipfile
@@ -2324,6 +2325,46 @@ def _resize_pdf_pages_with_stream_limit(input_path: str, output_path: str, confi
     }
 
 
+def pdf_to_png(input_path: str, output_path: str, config: dict) -> dict:
+    """Render already-sized PDF pages to compact, alpha-capable PNG sheets."""
+    dpi = float(config.get("dpi") or 150)
+    if dpi < 36 or dpi > 600:
+        raise ValueError("DPI di rasterizzazione non valido (ammessi 36–600)")
+    ghostscript = shutil.which("gs")
+    if not ghostscript:
+        raise ValueError("Ghostscript non è disponibile per esportare il PDF in PNG")
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="pdf-to-png-", dir=output.parent) as temporary:
+        pattern = str(Path(temporary) / "page-%03d.png")
+        command = [
+            ghostscript, "-dSAFER", "-dBATCH", "-dNOPAUSE",
+            "-sDEVICE=pngalpha", f"-r{dpi:g}", "-dTextAlphaBits=4",
+            "-dGraphicsAlphaBits=4", f"-sOutputFile={pattern}", input_path,
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, check=False, timeout=300)
+        if result.returncode:
+            details = (result.stderr or result.stdout or "errore sconosciuto").strip()
+            raise ValueError(f"Esportazione PNG con Ghostscript fallita: {details[-1000:]}")
+        pages = sorted(Path(temporary).glob("page-*.png"))
+        if not pages:
+            raise ValueError("Ghostscript non ha prodotto pagine PNG")
+        if len(pages) == 1:
+            os.replace(pages[0], output)
+            result_path = output
+        else:
+            result_path = output.with_suffix(".zip")
+            with zipfile.ZipFile(result_path, "w", compression=zipfile.ZIP_STORED) as archive:
+                for index, page in enumerate(pages, 1):
+                    archive.write(page, f"page-{index:03d}.png")
+    return {
+        "output_path": str(result_path), "output_format": "png",
+        "output_pages": len(pages), "output_dpi": dpi,
+        "output_media_type": "image/png" if len(pages) == 1 else "application/zip",
+        "transparent_background": True,
+    }
+
+
 def barcode_pdf(data: str, output_path: str, config: dict) -> dict:
     width_mm = float(config.get("width_mm", 90))
     height_mm = float(config.get("height_mm", 29))
@@ -2886,6 +2927,11 @@ def parse_args():
     resize_parser.add_argument("--output", required=True)
     resize_parser.add_argument("--config", required=True)
 
+    render_parser = subparsers.add_parser("pdf-to-png")
+    render_parser.add_argument("--input", required=True)
+    render_parser.add_argument("--output", required=True)
+    render_parser.add_argument("--config", default="{}")
+
     barcode_parser = subparsers.add_parser("barcode")
     barcode_parser.add_argument("--data", required=True)
     barcode_parser.add_argument("--output", required=True)
@@ -2939,6 +2985,8 @@ def main():
         result = resize_pdf_pages(
             args.input, args.output, json.loads(args.config)
         )
+    elif args.command == "pdf-to-png":
+        result = pdf_to_png(args.input, args.output, json.loads(args.config))
     elif args.command == "impose":
         result = impose(args.input, args.output, json.loads(args.config))
     elif args.command == "barcode":

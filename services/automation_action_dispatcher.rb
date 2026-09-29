@@ -164,9 +164,14 @@ class AutomationActionLifecycle
       destination_dir = File.join(Dir.pwd, 'storage', 'aggregated')
       FileUtils.mkdir_p(destination_dir)
 
-      identification_artifact = run.artifact_by_kind('identification_sheet_pdf')
+      identification_artifact = run.artifact_by_kind('identification_sheet_png') ||
+                                run.artifact_by_kind('identification_sheet_pdf')
       if identification_artifact&.available?
-        identification_filename = "#{job.aggregation_code}-scheda-ordini.pdf"
+        identification_extension = File.extname(identification_artifact.filename.to_s).downcase
+        unless %w[.pdf .png .zip].include?(identification_extension)
+          raise ArgumentError, "Formato scheda identificativa non valido: #{identification_extension}"
+        end
+        identification_filename = "#{job.aggregation_code}-scheda-ordini#{identification_extension}"
         identification_destination = File.join(destination_dir, identification_filename)
         FileUtils.cp(identification_artifact.full_path, identification_destination)
         job.update!(
@@ -178,7 +183,7 @@ class AutomationActionLifecycle
 
       artifact = result_artifact(run)
       return unless artifact&.available? && artifact.kind != 'source'
-      return if artifact.kind == 'identification_sheet_pdf'
+      return if %w[identification_sheet_pdf identification_sheet_png].include?(artifact.kind)
 
       extension = File.extname(artifact.filename.to_s).downcase
       raise ArgumentError, "Formato aggregato non valido: #{extension}" unless %w[.pdf .png .zip].include?(extension)
