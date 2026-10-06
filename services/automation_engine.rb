@@ -121,6 +121,9 @@ class AutomationGraphValidator
       label = node['label'].presence || node['id']
       config = node['config'] || {}
       source = config.fetch('preset_source', 'fixed').to_s
+      unless %w[quantity once].include?(config.fetch('copies_mode', 'quantity').to_s)
+        result << "Gestione copie non valida nel blocco #{label}"
+      end
       unless %w[fixed variable].include?(source)
         result << "Origine preset non valida nel blocco #{label}"
       end
@@ -2238,6 +2241,10 @@ class AutomationNodeExecutor
 
   def execute_step_repeat
     source = require_artifact!
+    copies_mode = @config.fetch('copies_mode', 'quantity').to_s
+    unless %w[quantity once].include?(copies_mode)
+      raise ArgumentError, "Gestione copie non valida: #{copies_mode}"
+    end
     preset_code = if @config.fetch('preset_source', 'fixed') == 'variable'
                     variable = @config['preset_variable'].presence || 'variables.imposition_preset'
                     AutomationEngine.context_value(@context, variable)
@@ -2248,22 +2255,31 @@ class AutomationNodeExecutor
     raise ArgumentError, 'Il preset di imposizione risolto è vuoto' if preset_code.empty?
     preset = AutomationPreset.active.find_by(kind: 'imposition', code: preset_code)
     raise ArgumentError, "Preset di imposizione non trovato: #{preset_code}" unless preset
+    impose_config = preset.config.deep_dup
+    if copies_mode == 'once'
+      impose_config.merge!(
+        'page_distribution' => 'sequential',
+        'repeat_product' => false,
+        'fill_last_sheet' => false,
+        'booklet_repeat_mode' => 'sequential'
+      )
+    end
     if @config['output_format'].to_s == 'png'
       raise ArgumentError, 'Il nesting PNG richiede una raccolta PNG' unless %w[image/png application/zip].include?(source.media_type)
       output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.png")
-      impose_config = preset.config.deep_dup.merge('output_dpi' => @config.fetch('output_dpi', 300).to_f)
+      impose_config['output_dpi'] = @config.fetch('output_dpi', 300).to_f
       metadata = run_pdf_tool('impose-images', '--input', source.full_path,
         '--output', output, '--config', JSON.generate(impose_config))
       output = metadata.fetch('output_path')
       artifact = AutomationEngine.create_artifact!(run: @run, step: @step,
         kind: @config['output_kind'].presence || 'imposition_png', path: output,
         filename: File.basename(output), media_type: AutomationEngine.media_type_for(output),
-        metadata: metadata.merge('preset_code' => preset_code, 'pdfx_finalizer' => 'not_applicable'))
+        metadata: metadata.merge('preset_code' => preset_code, 'copies_mode' => copies_mode, 'pdfx_finalizer' => 'not_applicable'))
       return {'artifact_id' => artifact.id,
         'context_updates' => {'runtime.current_artifact_id' => artifact.id}}
     end
-    booklet_layout = preset.config['layout_mode'].to_s == 'booklet'
-    repeat_each_element = preset.config['page_distribution'].to_s == 'repeat_each'
+    booklet_layout = impose_config['layout_mode'].to_s == 'booklet'
+    repeat_each_element = impose_config['page_distribution'].to_s == 'repeat_each'
 
     input_path = source.full_path
     intermediate_paths = []
@@ -2272,7 +2288,7 @@ class AutomationNodeExecutor
     copies = AutomationEngine.context_value(@context, 'variables.production_copies').to_i
     already_materialized = source.metadata.to_h['copies_already_materialized'] == true ||
                            source.metadata.to_h['copies_applied'].to_i == copies && copies.positive?
-    if copies.positive? && !already_materialized && !booklet_layout && !repeat_each_element
+    if copies_mode == 'quantity' && copies.positive? && !already_materialized && !booklet_layout && !repeat_each_element
       copies = 1 if copies < 1
       duplication_copies = copies
       input_path = File.join(run_output_dir, "#{@step.node_key}-legacy-pages-#{SecureRandom.hex(4)}.pdf")
@@ -2320,7 +2336,6 @@ class AutomationNodeExecutor
     pdfx_finalize_enabled = ENV['PDFX_FINALIZER_ENABLED'].to_s == '1'
     raw_output = File.join(run_output_dir, "#{@step.node_key}-raw-#{SecureRandom.hex(4)}.pdf")
     output = File.join(run_output_dir, "#{@step.node_key}-#{SecureRandom.hex(4)}.pdf")
-    impose_config = preset.config.deep_dup
     side_page_counts = if compatibility_metadata['input_page_counts'].is_a?(Array)
                          compatibility_metadata['input_page_counts'].map(&:to_i)
                        else
@@ -2360,7 +2375,7 @@ class AutomationNodeExecutor
       path: output,
       filename: File.basename(output),
       media_type: 'application/pdf',
-      metadata: metadata.merge('preset_code' => preset_code)
+      metadata: metadata.merge('preset_code' => preset_code, 'copies_mode' => copies_mode)
     )
     intermediate_paths.each do |path|
       begin

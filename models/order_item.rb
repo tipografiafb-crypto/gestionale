@@ -126,7 +126,7 @@ class OrderItem < ActiveRecord::Base
   end
   
   # Always order by position for consistent display and numbering
-  scope :ordered, -> { order(:position) }
+  scope :ordered, -> { order(:position, :id) }
 
   # Determine workflow status based on preprint and print completion
   # Returns: 'nuovo', 'pre-stampa', 'stampa', 'rippato', 'completato'

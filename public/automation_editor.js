@@ -135,6 +135,7 @@
       output_kind: 'unit_pdf'
     },
     step_repeat: {
+      copies_mode: 'quantity',
       preset_source: 'fixed',
       preset_code: 'STANDARD_MONO',
       preset_variable: 'variables.imposition_preset',
@@ -488,7 +489,17 @@
       },
       {key: 'output_kind', label: 'Tipo risultato', default: 'imposition_pdf'},
       {key: 'output_format', label: 'Formato di uscita', choices: [['pdf', 'PDF'], ['png', 'PNG trasparente']], default: 'pdf'},
-      {key: 'output_dpi', label: 'Risoluzione PNG (DPI)', type: 'number', default: 300}
+      {key: 'output_dpi', label: 'Risoluzione PNG (DPI)', type: 'number', default: 300},
+      {
+        key: 'copies_mode',
+        label: 'Gestione copie',
+        choices: [
+          ['quantity', 'Moltiplica secondo la quantità'],
+          ['once', 'Inserisci ogni elemento una sola volta']
+        ],
+        default: 'quantity',
+        help: 'Per i gruppi già preparati da Moltiplica pagine, scegli una sola volta: conserva tutte le copie ricevute e disattiva le ripetizioni e il riempimento automatico della plancia.'
+      }
     ],
     barcode: [
       {key: 'data_field', label: 'Valore barcode', choices: 'fields', default: 'order.code'},
@@ -1475,7 +1486,8 @@
       return;
     }
     if (node.type === 'step_repeat') {
-      configHint('Legge automaticamente copie e pagine vuote dai blocchi Calcola quantità e Inserisci pagine vuote collegati prima di questo passaggio.');
+      configHint('Scegli se applicare la quantità calcolata oppure impaginare una sola volta tutti gli elementi ricevuti. Le copie già presenti nel file vengono conservate.');
+      const copiesField = configField(simpleConfigSchemas.step_repeat[6], node.config?.copies_mode || 'quantity');
       const sourceField = configField(
         simpleConfigSchemas.step_repeat[0],
         node.config?.preset_source || 'fixed'
@@ -1499,7 +1511,7 @@
         fixedField.hidden = variableMode;
         variableField.hidden = !variableMode;
       };
-      nodeConfigForm.append(sourceField, fixedField, variableField, formatField, dpiField, outputField);
+      nodeConfigForm.append(copiesField, sourceField, fixedField, variableField, formatField, dpiField, outputField);
       sourceField.querySelector('[data-config-role="preset_source"]')
         .addEventListener('change', updatePresetFields);
       updatePresetFields();
@@ -1646,6 +1658,7 @@
     if (node.type === 'step_repeat') {
       const presetSource = configValue('preset_source') || 'fixed';
       return {
+        copies_mode: configValue('copies_mode') || 'quantity',
         preset_source: presetSource,
         preset_code: presetSource === 'variable' ? '' : configValue('preset_code'),
         preset_variable: configValue('preset_variable') || 'variables.imposition_preset',

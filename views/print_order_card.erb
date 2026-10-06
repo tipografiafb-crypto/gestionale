@@ -157,7 +157,7 @@
         </tr>
       </thead>
       <tbody>
-        <% @order.order_items.each_with_index do |item, index| %>
+        <% @order.order_items.ordered.each_with_index do |item, index| %>
           <tr>
             <td><strong><%= index + 1 %></strong></td>
             <td><%= item.product&.name || item.sku %></td>

@@ -1,4 +1,12 @@
 <?php
+/* MODULE
+@module: OrderSync
+@path: includes/sync.php
+@domain: orders, erp
+@feature: order-sync
+@purpose: Production order JSON export and CRM synchronization through WooCommerce CRUD
+@risk: HIGH
+*/
 // File: includes/sync.php (aligned arrays; preserves cart_id "0"; robust URL normalization)
 
 if ( ! defined('ABSPATH') ) {
@@ -43,6 +51,19 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
         if (wos_order_is_synced($order)) {
             return;
         }
+
+        // Best effort only. Missing HD files must never hide an order from the ERP.
+        // Magenta owns recovery/verification and retries; this plugin still sends once.
+        try {
+            do_action('wc_ai_prepare_order_files', $order_id);
+        } catch (Throwable $error) {
+            error_log('WP Order Sync: preparazione archivio fallita, invio ordine comunque: ' . $error->getMessage());
+            $order->update_meta_data('_wc_ai_archive_status', 'incomplete');
+            $order->update_meta_data('_wc_ai_archive_errors', [$error->getMessage()]);
+            $order->save_meta_data();
+            $order->add_order_note("Preparazione dell'archivio fallita; l'esportazione dell'ordine prosegue: " . $error->getMessage());
+        }
+        $order = wc_get_order($order_id) ?: $order;
 
         // Impostazioni
         $options      = get_option('wos_settings');
@@ -146,9 +167,13 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
         $print_files_with_cart_id  = [];
         $screenshots_with_cart_id  = [];
         $cuts_with_cart_id         = [];
+        $export_file_errors        = [];
 
         foreach ($order->get_items() as $item) {
             $meta = wos_get_order_item_meta_data($item);
+            $verified_prints = $item->get_meta('_wc_ai_archive_verified_print_urls', true);
+            $archive_checked = is_array($verified_prints) || $order->get_meta('_wc_ai_archive_status', true) === 'incomplete';
+            $verified_prints = is_array($verified_prints) ? $verified_prints : [];
 
             // cart_id da Lumise o AI; preserva "0" come stringa valida
             $cart_id = '';
@@ -191,7 +216,7 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
                         $row_screen[] = $u;
                     }
                 }
-                if (!empty($custom['print_url']) && is_string($custom['print_url'])) {
+                if (!$archive_checked && !empty($custom['print_url']) && is_string($custom['print_url'])) {
                     $u = wos_normalize_url($custom['print_url']);
                     if (filter_var($u, FILTER_VALIDATE_URL)) {
                         $row_print[] = $u;
@@ -210,7 +235,7 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
                             }
                         }
                     }
-                    if (!empty($mc['stage_prints']) && is_array($mc['stage_prints'])) {
+                    if (!$archive_checked && !empty($mc['stage_prints']) && is_array($mc['stage_prints'])) {
                         foreach ($mc['stage_prints'] as $u) {
                             if (!is_string($u)) continue;
                             $u = wos_normalize_url($u);
@@ -240,7 +265,7 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
                         }
                     }
                 }
-                if (!empty($custom['stage_prints']) && is_array($custom['stage_prints'])) {
+                if (!$archive_checked && !empty($custom['stage_prints']) && is_array($custom['stage_prints'])) {
                     foreach ($custom['stage_prints'] as $u) {
                         if (!is_string($u)) continue;
                         $u = wos_normalize_url($u);
@@ -258,16 +283,41 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
                     $row_screen[] = $u;
                 }
             }
-            if (isset($meta['_wc_ai_print_url']) && is_string($meta['_wc_ai_print_url'])) {
+            if (!$archive_checked && isset($meta['_wc_ai_print_url']) && is_string($meta['_wc_ai_print_url'])) {
                 $u = wos_normalize_url($meta['_wc_ai_print_url']);
                 if (filter_var($u, FILTER_VALIDATE_URL)) {
                     $row_print[] = $u;
+                }
+            }
+            if ($archive_checked) {
+                foreach ($verified_prints as $url) {
+                    if (is_string($url) && filter_var($url, FILTER_VALIDATE_URL)) {
+                        $row_print[] = wos_normalize_url($url);
+                    }
                 }
             }
 // Deduplica
             $row_print  = array_values(array_unique($row_print));
             $row_screen = array_values(array_unique($row_screen));
             $row_cut    = array_values(array_unique($row_cut));
+            if (isset($meta['_wc_ai_customization']) && is_array($meta['_wc_ai_customization'])) {
+                // Original metadata is retained for recovery. Its URL and the
+                // archived URL can describe the same preview, not two sides.
+                $row_screen = wos_deduplicate_customizer_previews($row_screen);
+                $custom = $meta['_wc_ai_customization'];
+                $mc = isset($custom['multicanvas_data']) && is_array($custom['multicanvas_data'])
+                    ? $custom['multicanvas_data'] : $custom;
+                $expected_hd = max(1,
+                    isset($mc['stage_list']) && is_array($mc['stage_list']) ? count($mc['stage_list']) : 0,
+                    isset($mc['stage_previews']) && is_array($mc['stage_previews']) ? count($mc['stage_previews']) : 0
+                );
+                if (count($row_print) < $expected_hd) {
+                    // A missing or older preparation callback may not have
+                    // persisted an archive status. Never export empty HDs silently.
+                    $export_file_errors[] = 'Item #' . $item->get_id() . ': HD nel JSON '
+                        . count($row_print) . '/' . $expected_hd . '; archiviazione non confermata per tutti i lati.';
+                }
+            }
 
             // Aggiungi SEMPRE la riga, anche se vuota
             $print_files_with_cart_id[] = [
@@ -287,6 +337,16 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
         // --- 4) line_items + JSON finale ---
         $price_decimals = function_exists('wc_get_price_decimals') ? wc_get_price_decimals() : 2;
         $created_at = $order->get_date_created();
+        $customer_note = (string) $order->get_customer_note();
+        if ( 'incomplete' === $order->get_meta('_wc_ai_archive_status', true) || $export_file_errors ) {
+            $archive_errors = $order->get_meta('_wc_ai_archive_errors', true);
+            $archive_errors = is_array($archive_errors) ? array_filter($archive_errors, 'is_string') : array();
+            $archive_errors = array_unique(array_merge($archive_errors, $export_file_errors));
+            $archive_note = 'ERRORE ARCHIVIAZIONE FILE: ' . ( $archive_errors
+                ? implode(' | ', $archive_errors)
+                : 'uno o più file non risultano verificati nella cartella di archivio.' );
+            $customer_note .= ( '' !== $customer_note ? "\n\n" : '' ) . $archive_note;
+        }
         $order_data = [
             'id'                        => $order->get_order_number(),
             'number'                    => $order->get_order_number(),
@@ -295,7 +355,7 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
             // the explicit GMT value makes cross-system comparisons reliable.
             'order_date'                => $created_at ? $created_at->date('c') : '',
             'order_date_gmt'            => $created_at ? gmdate('c', $created_at->getTimestamp()) : '',
-            'customer_note'             => $order->get_customer_note(),
+            'customer_note'             => $customer_note,
             'invoice'                   => wos_get_production_invoice_data($order),
             'print_files_with_cart_id'  => $print_files_with_cart_id,
             'screenshots_with_cart_id'  => $screenshots_with_cart_id,
@@ -361,6 +421,27 @@ if ( ! function_exists('wos_sync_order_to_ftp') ) {
         // ed è agganciato a woocommerce_order_status_changed (che include anche 'processing')
         
         wos_set_order_synced($order, true);
+    }
+}
+
+/** Keep one URL for each generated preview, preferring its permanent copy. */
+if ( ! function_exists('wos_deduplicate_customizer_previews') ) {
+    function wos_deduplicate_customizer_previews($urls) {
+        $previews = [];
+        foreach ($urls as $url) {
+            $path = parse_url($url, PHP_URL_PATH);
+            $filename = $path ? basename($path) : '';
+            // Only generated Magenta names identify the same file across buckets.
+            // Arbitrary URLs with matching basenames must remain distinct.
+            $key = preg_match('/^screenshot-[0-9]+-[a-zA-Z0-9_-]+\.png$/D', $filename) ? $filename : $url;
+            if (!isset($previews[$key]) || (
+                strpos($path, '/wc-ai-customizer/archive/') !== false
+                && strpos(parse_url($previews[$key], PHP_URL_PATH), '/wc-ai-customizer/archive/') === false
+            )) {
+                $previews[$key] = $url;
+            }
+        }
+        return array_values($previews);
     }
 }
 
@@ -582,6 +663,7 @@ if ( ! function_exists('wos_get_order_item_meta_data') ) {
             '_wc_ai_preview_url',
             '_wc_ai_print_url',
             '_wc_ai_customization',
+            '_wc_ai_archive_errors',
             'final_sku',
         ];
 
@@ -704,7 +786,7 @@ if ( ! function_exists('wos_generate_crm_json') ) {
 
         // Return a special payload for cancelled, failed, or trashed orders
         $delete_statuses = ['cancelled', 'failed', 'trash'];
-        if (in_array($order->get_status(), $delete_statuses)) {
+        if (in_array($order->get_status(), $delete_statuses) && !(function_exists('wos_automation_enabled') && wos_automation_enabled())) {
             $crm_data = [
                 'type'         => 'crm_delete',
                 'site_name'    => $site_name,
@@ -883,6 +965,9 @@ function wos_bulk_action_admin_notice() {
  */
 function wos_sync_crm_data_only($order_id) {
     if (!$order_id) return;
+    if (function_exists('wos_automation_enabled') && wos_automation_enabled()) {
+        return wos_automation_order_event($order_id);
+    }
     $order = wc_get_order($order_id);
     if (!$order) return;
 

@@ -9,15 +9,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Agganciamo l'admin_menu e admin_init per le impostazioni
  */
-add_action('admin_menu', 'wos_add_submenu_under_psoft');
+add_action('admin_menu', 'wos_add_submenu_under_woocommerce');
 add_action('admin_init', 'wos_settings_init');
 
 /**
- * Aggiunge un sottomenu sotto "PSoft" (slug ipotetico: psoft_main_menu).
+ * Aggiunge il pannello di configurazione sotto WooCommerce.
  */
-function wos_add_submenu_under_psoft() {
+function wos_add_submenu_under_woocommerce() {
     add_submenu_page(
-        'psoft_main_menu',
+        'woocommerce',
         __('WP Order Sync', 'wp-order-sync'),
         __('Order Sync', 'wp-order-sync'),
         'manage_options',
@@ -626,4 +626,3 @@ function wos_sync_all_processing_orders() {
            . '</p></div>';
     }
 }
-

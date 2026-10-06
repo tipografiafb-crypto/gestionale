@@ -2,7 +2,7 @@
 /*
 Plugin Name: WP Order Sync
 Description: Sincronizza i nuovi ordini di WooCommerce al gestionale tramite REST API.
-Version: 3.12
+Version: 4.1.1
 Author: Paolo AI
 */
 
@@ -27,3 +27,5 @@ add_action('before_woocommerce_init', function () {
 include_once plugin_dir_path(__FILE__) . 'includes/sync.php';
 include_once plugin_dir_path(__FILE__) . 'includes/settings.php';
 include_once plugin_dir_path(__FILE__) . 'includes/cf7-sync.php';
+include_once plugin_dir_path(__FILE__) . 'includes/automations.php';
+register_activation_hook(__FILE__, 'wos_automation_install');
