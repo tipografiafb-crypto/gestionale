@@ -275,7 +275,7 @@ class AdobeAgent:
                     }
                     for path in self.hotfolder_roots
                 ],
-                "agent_version": 7,
+                "agent_version": 8,
             },
             "last_error": self.last_error,
         }
@@ -553,6 +553,7 @@ output.close();
         ).strip().lower() in {"1", "true", "yes", "si", "sì"}
         if (width_mm > 0) != (height_mm > 0):
             raise RuntimeError("Larghezza e altezza Photoshop devono essere entrambe maggiori di zero")
+        flatten_transparency = str(config.get("flatten_transparency", False)).strip().lower() in {"1", "true", "yes", "si", "sì"}
         resize_applied = width_mm > 0 and height_mm > 0
         is_png_input = False
         if Path(input_path).suffix.lower() == ".png":
@@ -563,6 +564,7 @@ output.close();
             and is_png_input
             and not action_set and not action_name
             and not resize_applied
+            and not flatten_transparency
         )
         target_width_px = round(width_mm / 25.4 * target_dpi) if resize_applied else None
         target_height_px = round(height_mm / 25.4 * target_dpi) if resize_applied else None
@@ -612,6 +614,19 @@ documentRef = app.activeDocument;
 var pixelsBeforeWidth = Math.round(documentRef.width.as("px"));
 var pixelsBeforeHeight = Math.round(documentRef.height.as("px"));
 {resize_jsx}
+if ({str(flatten_transparency).lower()}) {{
+  var previousBackground = app.backgroundColor;
+  try {{
+    var whiteBackground = new SolidColor();
+    whiteBackground.rgb.red = 255;
+    whiteBackground.rgb.green = 255;
+    whiteBackground.rgb.blue = 255;
+    app.backgroundColor = whiteBackground;
+    documentRef.flatten();
+  }} finally {{
+    app.backgroundColor = previousBackground;
+  }}
+}}
 var pixelsAfterWidth = Math.round(documentRef.width.as("px"));
 var pixelsAfterHeight = Math.round(documentRef.height.as("px"));
 reportFile.open("w");
@@ -621,6 +636,7 @@ reportFile.write('{{"pixels_before":[' + pixelsBeforeWidth + ',' + pixelsBeforeH
   ',"resize_applied":{str(resize_applied).lower()}' +
   ',"width_mm":{width_mm},"height_mm":{height_mm}' +
   ',"resample_on_dpi_change":{str(resample_on_dpi_change).lower()}' +
+  ',"flatten_transparency":{str(flatten_transparency).lower()}' +
   ',"bypassed_original_png":' + bypassOriginalPng +
   '}}');
 reportFile.close();
@@ -633,6 +649,8 @@ documentRef.close(SaveOptions.DONOTSAVECHANGES);
         if not dpi_report_path.is_file():
             raise RuntimeError("Photoshop non ha prodotto il controllo DPI")
         dpi_report = json.loads(dpi_report_path.read_text(encoding="utf-8"))
+        if flatten_transparency and dpi_report.get("flatten_transparency") is not True:
+            raise RuntimeError("Photoshop non ha confermato l’appiattimento della trasparenza")
         if resize_applied:
             expected_pixels = [target_width_px, target_height_px]
             if dpi_report.get("pixels_after") != expected_pixels:

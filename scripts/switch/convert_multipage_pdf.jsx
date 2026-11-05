@@ -3,7 +3,7 @@
 // 2. Places Page 1 (Graphics) -> Centers it
 // 3. Places Page 2 (Cut) -> Centers it
 // 4. Cleans CutContour layer (removes unwanted boxes)
-// 5. Fits Artboard to valid CutContour bounds
+// 5. Fits Artboard to valid CutContour bounds plus 1 mm on each side
 
 #target illustrator
 
@@ -69,7 +69,13 @@ function main() {
         }
 
         if (finalBounds != null) {
-            doc.artboards[0].artboardRect = finalBounds;
+            var bleedPoints = 72 / 25.4; // 1 mm, Illustrator uses points
+            doc.artboards[0].artboardRect = [
+                finalBounds[0] - bleedPoints,
+                finalBounds[1] + bleedPoints,
+                finalBounds[2] + bleedPoints,
+                finalBounds[3] - bleedPoints
+            ];
         }
     }
     app.executeMenuCommand('deselectall');

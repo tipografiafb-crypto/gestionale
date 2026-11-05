@@ -121,6 +121,17 @@ class AutomationAdobeAgent
       }
       documentRef = app.activeDocument;
       #{resize_line}
+      if (#{%w[1 true yes si sì].include?(config['flatten_transparency'].to_s.strip.downcase)}) {
+        var previousBackground = app.backgroundColor;
+        try {
+          var whiteBackground = new SolidColor();
+          whiteBackground.rgb.red = whiteBackground.rgb.green = whiteBackground.rgb.blue = 255;
+          app.backgroundColor = whiteBackground;
+          documentRef.flatten();
+        } finally {
+          app.backgroundColor = previousBackground;
+        }
+      }
       var saveOptions = new PDFSaveOptions();
       saveOptions.embedColorProfile = true;
       saveOptions.preserveEditing = false;

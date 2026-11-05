@@ -1037,6 +1037,14 @@ class PrintOrchestrator < Sinatra::Base
     run = step.automation_run
     node = AutomationEngine.node_for(step)
     task_config = automation_agent_task_config(node, run, agent_key: worker_id)
+    if node['type'] == 'photoshop' &&
+       %w[1 true yes si sì].include?(task_config['flatten_transparency'].to_s.strip.downcase) &&
+       agent.metadata['agent_version'].to_i < 8
+      message = 'Aggiorna Magenta Adobe Agent alla versione 8 per appiattire la trasparenza'
+      agent.update!(last_error: message)
+      AutomationEngine.fail_external_step!(step, message)
+      halt 422, {success: false, error: message}.to_json
+    end
     artifact = if node['type'] == 'hot_folder' && task_config['artifact_kind'].present?
                  run.artifact_by_kind(task_config['artifact_kind'])
                else

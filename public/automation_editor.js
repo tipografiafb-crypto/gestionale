@@ -123,6 +123,7 @@
       height_mm: 0,
       dpi: 300,
       resample_on_dpi_change: false,
+      flatten_transparency: false,
       output_format: 'pdf',
       output_kind: 'photoshop_pdf'
     },
@@ -265,6 +266,9 @@
         ],
         help: 'Usa Sì per convertire, ad esempio, un file da 150 a 300 DPI creando i pixel mancanti. Con larghezza e altezza compilate il ricampionamento è già automatico.'
       },
+      {key: 'flatten_transparency', label: 'Appiattisci trasparenza su fondo bianco',
+        choices: [[false, 'No · conserva trasparenza'], [true, 'Sì · fondo bianco']],
+        help: 'Compone i pixel trasparenti sul bianco prima del salvataggio, preservando dimensioni e DPI. Per grafica adesivi da unire al taglio vettoriale.'},
       {key: 'output_kind', label: 'Tipo risultato', default: 'photoshop_pdf'}
     ],
     illustrator: [
