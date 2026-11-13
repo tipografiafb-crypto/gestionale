@@ -2,33 +2,36 @@
 # Backup system for database and files
 require 'fileutils'
 require 'open3'
+require 'set'
 require 'tempfile'
+require 'tmpdir'
 require 'zlib'
 
 class BackupManager
   BACKUP_EXTENSIONS = %w[.tar .zip].freeze
+  ORDER_FILE_DAYS = 15
+  STORAGE_RESOURCES = %w[storage/pdfx_profiles storage/ai_configuration].freeze
 
   def self.perform_backup(config = nil)
     config ||= BackupConfig.current
     return { success: false, error: 'Configurazione backup non trovata' } unless config&.remote_ip.present?
 
-    timestamp = Time.current.strftime('%Y%m%d_%H%M%S')
+    now = Time.current
+    timestamp = now.strftime('%Y%m%d_%H%M%S')
     backup_dir = File.join(Dir.pwd, 'tmp', 'backups')
     FileUtils.mkdir_p(backup_dir)
 
-    db_file = File.join(backup_dir, "database_#{timestamp}.sql")
-    storage_tar = File.join(backup_dir, "storage_#{timestamp}.tar.gz")
-    backup_file = File.join(backup_dir, "backup_#{timestamp}.tar")
+    validate_remote_config!(config)
+    Dir.mktmpdir('build-', backup_dir) do |work_dir|
+      db_file = File.join(work_dir, "database_#{timestamp}.sql")
+      storage_tar = File.join(work_dir, "storage_#{timestamp}.tar.gz")
+      backup_file = File.join(work_dir, "backup_#{timestamp}.tar")
 
-    begin
       db_url = ENV['DATABASE_URL'] || 'postgresql://localhost/print_orchestrator_development'
       run_command!('pg_dump', db_url, out: db_file)
       raise 'Il dump del database è vuoto' unless File.size?(db_file)
 
-      storage_path = File.join(Dir.pwd, 'storage')
-      raise 'Cartella storage non trovata' unless Dir.exist?(storage_path)
-
-      run_command!('tar', '-czf', storage_tar, '-C', Dir.pwd, 'storage')
+      archive_recent_storage!(storage_tar, now - ORDER_FILE_DAYS.days)
       raise 'Archivio storage vuoto' unless File.size?(storage_tar)
 
       # The old implementation placed storage.tar.gz inside another ZIP using
@@ -36,28 +39,24 @@ class BackupManager
       # container supports large members and does not recompress the gzip file.
       run_command!(
         'tar', '-cf', backup_file,
-        '-C', backup_dir,
+        '-C', work_dir,
         File.basename(db_file),
         File.basename(storage_tar)
       )
       validate_backup_container!(backup_file)
 
-      validate_remote_config!(config)
       transfer_backup!(backup_file, config)
 
-      result = {
+      {
         success: true,
         file: File.basename(backup_file),
         size: File.size(backup_file),
         remote_path: "#{config.remote_path}/#{File.basename(backup_file)}",
         message: "✓ Backup trasferito su server remoto (#{config.remote_ip})"
       }
-
-      FileUtils.rm_f([db_file, storage_tar, backup_file])
-      result
-    rescue StandardError => e
-      { success: false, error: e.message }
     end
+  rescue StandardError => e
+    { success: false, error: e.message }
   end
 
   def self.test_connection(ip, path)
@@ -121,6 +120,77 @@ class BackupManager
 
   class << self
     private
+
+    def archive_recent_storage!(archive, cutoff)
+      raise 'Cartella storage non trovata' unless Dir.exist?('storage')
+
+      paths = recent_storage_paths(cutoff)
+      if paths.empty?
+        run_command!('tar', '-czf', archive, '--no-recursion', 'storage')
+        return
+      end
+
+      Tempfile.create('backup-storage-paths', File.dirname(archive)) do |list|
+        list.binmode
+        paths.each { |path| list.write(path.b + "\0") }
+        list.flush
+        run_command!('tar', '-czf', archive, '--null', '-T', list.path)
+      end
+    end
+
+    def recent_storage_paths(cutoff)
+      orders = Order.where('orders.created_at >= ?', cutoff)
+      items = OrderItem.where(order_id: orders.select(:id))
+      assets = Asset.where(order_item_id: items.select(:id)).where(deleted_at: nil)
+      order_runs = AutomationRun.where(order_item_id: items.select(:id))
+      runs = order_runs.or(AutomationRun.where(root_run_id: order_runs.select(:id)))
+      jobs = AggregatedJob.where(id: AggregatedJobItem.where(order_item_id: items.select(:id)).select(:aggregated_job_id))
+
+      paths = STORAGE_RESOURCES.dup
+      orders.joins(:store).pluck('stores.code', 'orders.external_order_code').each do |store, code|
+        next unless [store, code].all? { |part| part && !part.empty? && !%w[. ..].include?(part) && File.basename(part) == part }
+
+        paths << File.join('storage', store, code)
+      end
+      assets.where.not(local_path: nil).find_each do |asset|
+        paths << asset.local_path << ImageEditService.backup_path(asset)
+      end
+      runs.pluck(:id).each { |id| paths << "storage/automation/runs/#{id}" }
+      paths.concat(AutomationArtifact.where(automation_run_id: runs.select(:id)).pluck(:local_path))
+      AiImageEdit.where(asset_id: assets.select(:id)).pluck(:id).each { |id| paths << "storage/ai_image_edits/#{id}" }
+      jobs.pluck(:aggregated_filename, :identification_sheet_filename, :notes).flatten.compact.each do |filename|
+        paths << File.join('storage', 'aggregated', filename) if File.basename(filename) == filename
+      end
+
+      existing_storage_paths(paths)
+    end
+
+    def existing_storage_paths(paths)
+      root = File.expand_path('storage')
+      real_root = File.realpath(root)
+      selected = paths.compact.filter_map do |path|
+        full = File.expand_path(path)
+        next unless full.start_with?("#{root}/") && File.exist?(full)
+        next unless File.realpath(full).start_with?("#{real_root}/")
+
+        full.delete_prefix("#{Dir.pwd}/")
+      rescue Errno::ENOENT
+        nil
+      end.to_set
+
+      selected.reject do |path|
+        parent = File.dirname(path)
+        covered = false
+        while parent != 'storage'
+          if selected.include?(parent)
+            covered = true
+            break
+          end
+          parent = File.dirname(parent)
+        end
+        covered
+      end.sort
+    end
 
     def do_restore(backup_path)
       backup_dir = File.join(Dir.pwd, 'tmp', 'backups')
