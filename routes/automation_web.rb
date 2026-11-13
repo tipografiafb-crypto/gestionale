@@ -310,41 +310,16 @@ class PrintOrchestrator < Sinatra::Base
     erb :automation_runs_list
   end
 
-  # Cancella in un'unica operazione tutto lo storico dei debug. Non tocca
-  # ordini, asset, flussi o preset; elimina solo runtime, raccolte e artefatti
-  # generati sotto storage/automation/runs.
+  # Elimina le catene concluse una alla volta, senza interrompere il lavoro attivo.
   post '/automation_runs/delete_all' do
-    active_statuses = %w[queued running waiting_external waiting_review waiting_group]
-    AutomationRun.where(parent_run_id: nil).where(status: active_statuses).find_each do |run|
-      AutomationEngine.cancel_run!(run)
-    rescue StandardError
-      # Il purge successivo resta comunque protetto da transazione; un run già
-      # terminato nel frattempo non deve impedire la pulizia degli altri.
-    end
-
-    artifacts = AutomationArtifact.all.to_a
-    artifact_paths = artifacts.map(&:full_path).select do |path|
-      root = File.expand_path(File.join(Dir.pwd, 'storage', 'automation', 'runs'))
-      expanded = File.expand_path(path.to_s)
-      expanded == root || expanded.start_with?("#{root}#{File::SEPARATOR}")
-    end.reject do |path|
-      relative = path.sub(/^#{Regexp.escape(Dir.pwd)}\//, '')
-      Asset.where(local_path: [path, relative]).exists?
-    end.uniq
-
     deleted_count = 0
-    AutomationRun.transaction do
-      AutomationGroupCollectionItem.delete_all
-      AutomationGroupCollection.delete_all
-      AutomationRun.order(id: :desc).to_a.each do |run|
-        run.destroy!
-        deleted_count += 1
-      end
+    AutomationRun.where(parent_run_id: nil).find_each(batch_size: 100) do |root|
+      deleted_count += 1 if AutomationRunRetention.delete_finished_chain!(root)
     end
-    artifact_paths.each { |path| FileUtils.rm_f(path) }
-    redirect "/automation_runs?msg=success&text=#{URI.encode_www_form_component("Storico debug svuotato: #{deleted_count} esecuzioni eliminate")}"
+    text = "Storico pulito: #{deleted_count} esecuzioni eliminate. Le esecuzioni attive sono state conservate."
+    redirect "/automation_runs?msg=success&text=#{URI.encode_www_form_component(text)}"
   rescue StandardError => e
-    redirect "/automation_runs?msg=error&text=#{URI.encode_www_form_component("Pulizia fallita: #{e.message}")}"
+    redirect "/automation_runs?msg=error&text=#{URI.encode_www_form_component("Pulizia interrotta: #{e.message}")}"
   end
 
   get '/automations/backup' do

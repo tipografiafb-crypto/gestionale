@@ -2616,9 +2616,18 @@ class AutomationWorker
 
   def initialize(worker_id: "worker-#{Socket.gethostname}-#{Process.pid}")
     @worker_id = worker_id
+    @next_retention_at = 0
   end
 
   def run_once
+    if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= @next_retention_at
+      @next_retention_at = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 60
+      begin
+        AutomationRunRetention.prune!
+      rescue StandardError => e
+        warn "[AutomationWorker] Pulizia storico: #{e.class}: #{e.message}"
+      end
+    end
     step = claim_step
     return false unless step
 

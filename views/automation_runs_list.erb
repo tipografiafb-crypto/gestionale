@@ -9,11 +9,11 @@
   <div>
     <a href="/automations" class="small text-decoration-none"><i class="fas fa-arrow-left me-1"></i>Automazioni</a>
     <h1 class="mb-1 mt-2"><i class="fas fa-clock-rotate-left me-2"></i>Esecuzioni e debug</h1>
-    <p class="text-muted mb-0">Storico dei flussi, stati di attesa ed errori utili alla diagnosi.</p>
+    <p class="text-muted mb-0">Sono conservate le ultime 50 esecuzioni; quelle ancora attive restano disponibili fino al termine.</p>
   </div>
   <span class="badge bg-secondary fs-6"><%= @automation_runs_count %> esecuzioni</span>
   <form method="post" action="/automation_runs/delete_all"
-        onsubmit="return confirm('Svuotare tutto lo storico dei debug? Verranno rimossi solo esecuzioni, raccolte e file generati; ordini, asset e configurazione resteranno intatti.');">
+        onsubmit="return confirm('Eliminare lo storico delle esecuzioni concluse? Le esecuzioni attive saranno conservate.');">
     <button class="btn btn-outline-danger" type="submit" <%= 'disabled' if @automation_runs_count.to_i.zero? %>>
       <i class="fas fa-trash-can me-1"></i>Svuota tutto
     </button>
