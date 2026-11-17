@@ -165,6 +165,7 @@ class FTPPoller
           external_order_code: data['external_order_code'],
           customer_name: data['customer_name'],
           customer_note: data['customer_note'],
+          payment_method: data['payment_method'].presence,
           status: 'new',
           source: 'ftp'
         )
@@ -292,6 +293,7 @@ class FTPPoller
       'external_order_code' => raw_data['number'] || raw_data['id'],
       'customer_name' => raw_data['customer_name'],
       'customer_note' => raw_data['customer_note'],
+      'payment_method' => raw_data['payment_method'],
       'order_date' => raw_data['order_date'] || raw_data['date_created'],
       'invoice' => raw_data['invoice'],
       'totals' => raw_data['totals'],

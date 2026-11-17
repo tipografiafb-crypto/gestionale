@@ -89,6 +89,7 @@ class PrintOrchestrator < Sinatra::Base
           store: store,
           external_order_code: data['external_order_code'],
           customer_note: data['customer_note'],
+          payment_method: data['payment_method'].presence,
           status: 'new'
         )
 

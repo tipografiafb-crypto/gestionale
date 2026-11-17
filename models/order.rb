@@ -21,6 +21,10 @@ class Order < ActiveRecord::Base
   scope :by_order_code, ->(code) { where('external_order_code ILIKE ?', "%#{code}%") if code.present? }
   scope :by_date, ->(date_str) { where('DATE(created_at) = ?', date_str) if date_str.present? }
 
+  def bank_transfer?
+    payment_method == 'bacs'
+  end
+
   # Check if all assets have been downloaded
   def assets_downloaded?
     assets.any? && assets.all? { |asset| asset.local_path.present? }

@@ -164,6 +164,7 @@ CREATE TABLE public.orders (
     source character varying DEFAULT 'api'::character varying,
     customer_name character varying,
     customer_note text,
+    payment_method character varying,
     notes text
 );
 

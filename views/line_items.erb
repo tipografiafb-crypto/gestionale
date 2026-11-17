@@ -1,12 +1,20 @@
 
 <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
-  <form method="get" action="/line_items" style="display: flex; gap: 10px; align-items: center;">
+  <form method="get" action="/line_items" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+    <% @line_item_filters.except('status_filter', 'indicator_filter').each do |name, value| %>
+      <input type="hidden" name="<%= name %>" value="<%= Rack::Utils.escape_html(value) %>">
+    <% end %>
     <select class="form-select form-select-sm" name="status_filter" onchange="this.form.submit()" style="width: auto;">
       <option value="">Tutti gli stati</option>
       <option value="nuovo" <%= 'selected' if @filter_status == 'nuovo' %>>Nuovo</option>
       <option value="pre-stampa" <%= 'selected' if @filter_status == 'pre-stampa' %>>Pre-stampa (in corso)</option>
       <option value="stampa" <%= 'selected' if @filter_status == 'stampa' %>>Attende Stampa</option>
       <option value="rippato" <%= 'selected' if @filter_status == 'rippato' %>>Rippato</option>
+    </select>
+    <select class="form-select form-select-sm" name="indicator_filter" aria-label="Filtra per pallino" onchange="this.form.submit()" style="width: auto;">
+      <option value="">Tutti i pallini</option>
+      <option value="green" <%= 'selected' if @filter_indicator == 'green' %>>Verde · Note</option>
+      <option value="red" <%= 'selected' if @filter_indicator == 'red' %>>Rosso · Bonifico</option>
     </select>
     <a href="/line_items" class="btn btn-outline-secondary btn-sm"><i class="fas fa-redo"></i> Reset</a>
   </form>
@@ -42,7 +50,7 @@
           <th>Negozio</th>
           <th>Categoria</th>
           <th>Nome Prodotto</th>
-          <th class="text-center">Note</th>
+          <th class="text-center">Note / Pagamento</th>
           <th>Quantità</th>
           <th>Stato Ordine</th>
           <th>Azioni</th>
@@ -52,6 +60,7 @@
           <td>
             <form method="get" action="/line_items" style="display: contents;">
               <input type="hidden" name="status_filter" value="<%= @filter_status %>">
+              <input type="hidden" name="indicator_filter" value="<%= Rack::Utils.escape_html(@filter_indicator.to_s) %>">
               <input type="date" class="form-control form-control-sm" name="order_date" value="<%= @filter_order_date %>">
           </td>
           <td>
@@ -113,9 +122,15 @@
             <td class="text-center">
               <% if li[:has_notes] %>
                 <a href="/orders/<%= li[:order].id %>" class="text-success" title="L'ordine contiene note" aria-label="L'ordine contiene note">
-                  <i class="fas fa-circle"></i>
+                  <i class="fas fa-circle" aria-hidden="true"></i>
                 </a>
-              <% else %>
+              <% end %>
+              <% if li[:bank_transfer] %>
+                <a href="/orders/<%= li[:order].id %>" class="text-danger" title="Pagamento con bonifico bancario" aria-label="Pagamento con bonifico bancario">
+                  <i class="fas fa-circle" aria-hidden="true"></i>
+                </a>
+              <% end %>
+              <% unless li[:has_notes] || li[:bank_transfer] %>
                 <span class="text-muted">—</span>
               <% end %>
             </td>
@@ -152,13 +167,13 @@
     <% if @total_line_items > 0 && @total_pages > 1 %>
       <div style="display: flex; justify-content: center; gap: 10px; margin-top: 15px; padding: 10px; border-top: 1px solid #ddd;">
         <% if @current_page > 1 %>
-          <a href="/line_items?page=<%= @current_page - 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %><%= "&order_code=#{@filter_order_code}" if @filter_order_code.present? %><%= "&order_date=#{@filter_order_date}" if @filter_order_date.present? %><%= "&category_id=#{@filter_category_id}" if @filter_category_id.present? %><%= "&product_name=#{@filter_product_name}" if @filter_product_name.present? %><%= "&status_filter=#{@filter_status}" if @filter_status.present? %>#line-items" class="btn btn-sm btn-outline-secondary">← Precedente</a>
+          <a href="/line_items?<%= Rack::Utils.escape_html(Rack::Utils.build_query(@line_item_filters.merge('page' => @current_page - 1))) %>#line-items" class="btn btn-sm btn-outline-secondary">← Precedente</a>
         <% else %>
           <button class="btn btn-sm btn-outline-secondary" disabled>← Precedente</button>
         <% end %>
         <span class="btn btn-sm btn-light" style="pointer-events: none;">Pagina <%= @current_page %> / <%= @total_pages %></span>
         <% if @current_page < @total_pages %>
-          <a href="/line_items?page=<%= @current_page + 1 %><%= "&store_id=#{@filter_store}" if @filter_store.present? %><%= "&order_code=#{@filter_order_code}" if @filter_order_code.present? %><%= "&order_date=#{@filter_order_date}" if @filter_order_date.present? %><%= "&category_id=#{@filter_category_id}" if @filter_category_id.present? %><%= "&product_name=#{@filter_product_name}" if @filter_product_name.present? %><%= "&status_filter=#{@filter_status}" if @filter_status.present? %>#line-items" class="btn btn-sm btn-outline-secondary">Successivo →</a>
+          <a href="/line_items?<%= Rack::Utils.escape_html(Rack::Utils.build_query(@line_item_filters.merge('page' => @current_page + 1))) %>#line-items" class="btn btn-sm btn-outline-secondary">Successivo →</a>
         <% else %>
           <button class="btn btn-sm btn-outline-secondary" disabled>Successivo →</button>
         <% end %>

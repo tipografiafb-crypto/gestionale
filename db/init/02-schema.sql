@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS orders (
   source VARCHAR DEFAULT 'api',
   customer_name VARCHAR,
   customer_note TEXT,
+  payment_method VARCHAR,
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

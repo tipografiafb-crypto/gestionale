@@ -1530,7 +1530,8 @@ class PrintOrchestrator < Sinatra::Base
           product_name: product&.name || item.sku,
           category_name: category_name,
           category_id: product&.product_category_id,
-          has_notes: order.customer_note.present? || order.notes.present?
+          has_notes: order.customer_note.present? || order.notes.present?,
+          bank_transfer: order.bank_transfer?
         }
       end
     end
@@ -1542,6 +1543,9 @@ class PrintOrchestrator < Sinatra::Base
     @filter_category_id = params[:category_id]
     @filter_product_name = params[:product_name]
     @filter_status = params[:status_filter]
+    @filter_indicator = params[:indicator_filter]
+    @line_item_filters = params.slice('order_date', 'order_code', 'store_id', 'category_id',
+                                      'product_name', 'status_filter', 'indicator_filter').select { |_, value| value.present? }
     
     # Apply filters
     # Filter by date
@@ -1583,6 +1587,13 @@ class PrintOrchestrator < Sinatra::Base
       when 'rippato'
         @line_items = @line_items.select { |li| li[:item].print_status == 'ripped' }
       end
+    end
+
+    case @filter_indicator
+    when 'green'
+      @line_items.select! { |line_item| line_item[:has_notes] }
+    when 'red'
+      @line_items.select! { |line_item| line_item[:bank_transfer] }
     end
 
     # Keep line items grouped by order and display orders by arrival time,
