@@ -9,7 +9,7 @@ require 'zlib'
 
 class BackupManager
   BACKUP_EXTENSIONS = %w[.tar .zip].freeze
-  ORDER_FILE_DAYS = 15
+  COMPLETED_ORDER_DAYS = 30
   STORAGE_RESOURCES = %w[storage/pdfx_profiles storage/ai_configuration].freeze
 
   def self.perform_backup(config = nil)
@@ -31,7 +31,7 @@ class BackupManager
       run_command!('pg_dump', db_url, out: db_file)
       raise 'Il dump del database è vuoto' unless File.size?(db_file)
 
-      archive_recent_storage!(storage_tar, now - ORDER_FILE_DAYS.days)
+      archive_recent_storage!(storage_tar)
       raise 'Archivio storage vuoto' unless File.size?(storage_tar)
 
       # The old implementation placed storage.tar.gz inside another ZIP using
@@ -121,10 +121,10 @@ class BackupManager
   class << self
     private
 
-    def archive_recent_storage!(archive, cutoff)
+    def archive_recent_storage!(archive)
       raise 'Cartella storage non trovata' unless Dir.exist?('storage')
 
-      paths = recent_storage_paths(cutoff)
+      paths = recent_storage_paths
       if paths.empty?
         run_command!('tar', '-czf', archive, '--no-recursion', 'storage')
         return
@@ -138,8 +138,9 @@ class BackupManager
       end
     end
 
-    def recent_storage_paths(cutoff)
-      orders = Order.where('orders.created_at >= ?', cutoff)
+    def recent_storage_paths
+      recent_completed = Order.where(status: 'done').where('updated_at >= ?', COMPLETED_ORDER_DAYS.days.ago).select(:id)
+      orders = Order.where.not(status: 'done').or(Order.where(id: recent_completed))
       items = OrderItem.where(order_id: orders.select(:id))
       assets = Asset.where(order_item_id: items.select(:id)).where(deleted_at: nil)
       order_runs = AutomationRun.where(order_item_id: items.select(:id))
