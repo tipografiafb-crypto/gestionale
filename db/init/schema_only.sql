@@ -165,6 +165,7 @@ CREATE TABLE public.orders (
     customer_name character varying,
     customer_note text,
     payment_method character varying,
+    bank_transfer_paid_at timestamp(6) without time zone,
     notes text
 );
 

@@ -589,6 +589,19 @@ class PrintOrchestrator < Sinatra::Base
     { success: false, error: e.message }.to_json
   end
 
+  post '/orders/:id/confirm_bank_transfer' do
+    order = Order.find(params[:id])
+    order.with_lock do
+      halt 422, 'Questo ordine non prevede un pagamento con bonifico.' unless order.bank_transfer?
+
+      order.update!(bank_transfer_paid_at: Time.current) unless order.bank_transfer_paid_at?
+    end
+    redirect "/orders/#{order.id}", 303
+  rescue ActiveRecord::RecordNotFound
+    status 404
+    erb :not_found
+  end
+
   # POST /orders/:id/force_close - Force close an order
   post '/orders/:id/force_close' do
     @order = Order.find(params[:id])
@@ -1531,7 +1544,7 @@ class PrintOrchestrator < Sinatra::Base
           category_name: category_name,
           category_id: product&.product_category_id,
           has_notes: order.customer_note.present? || order.notes.present?,
-          bank_transfer: order.bank_transfer?
+          bank_transfer_indicator: order.bank_transfer_indicator
         }
       end
     end
@@ -1592,8 +1605,8 @@ class PrintOrchestrator < Sinatra::Base
     case @filter_indicator
     when 'green'
       @line_items.select! { |line_item| line_item[:has_notes] }
-    when 'red'
-      @line_items.select! { |line_item| line_item[:bank_transfer] }
+    when 'red', 'blue'
+      @line_items.select! { |line_item| line_item[:bank_transfer_indicator] == @filter_indicator }
     end
 
     # Keep line items grouped by order and display orders by arrival time,

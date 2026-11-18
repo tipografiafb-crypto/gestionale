@@ -14,7 +14,8 @@
     <select class="form-select form-select-sm" name="indicator_filter" aria-label="Filtra per pallino" onchange="this.form.submit()" style="width: auto;">
       <option value="">Tutti i pallini</option>
       <option value="green" <%= 'selected' if @filter_indicator == 'green' %>>Verde · Note</option>
-      <option value="red" <%= 'selected' if @filter_indicator == 'red' %>>Rosso · Bonifico</option>
+      <option value="red" <%= 'selected' if @filter_indicator == 'red' %>>Rosso · Bonifico da confermare</option>
+      <option value="blue" <%= 'selected' if @filter_indicator == 'blue' %>>Blu · Bonifico pagato</option>
     </select>
     <a href="/line_items" class="btn btn-outline-secondary btn-sm"><i class="fas fa-redo"></i> Reset</a>
   </form>
@@ -125,12 +126,14 @@
                   <i class="fas fa-circle" aria-hidden="true"></i>
                 </a>
               <% end %>
-              <% if li[:bank_transfer] %>
-                <a href="/orders/<%= li[:order].id %>" class="text-danger" title="Pagamento con bonifico bancario" aria-label="Pagamento con bonifico bancario">
+              <% if li[:bank_transfer_indicator] %>
+                <% paid = li[:bank_transfer_indicator] == 'blue' %>
+                <% label = paid ? 'Bonifico pagato' : 'Bonifico da confermare' %>
+                <a href="/orders/<%= li[:order].id %>" class="<%= paid ? 'text-primary' : 'text-danger' %>" title="<%= label %>" aria-label="<%= label %>">
                   <i class="fas fa-circle" aria-hidden="true"></i>
                 </a>
               <% end %>
-              <% unless li[:has_notes] || li[:bank_transfer] %>
+              <% unless li[:has_notes] || li[:bank_transfer_indicator] %>
                 <span class="text-muted">—</span>
               <% end %>
             </td>

@@ -25,6 +25,12 @@ class Order < ActiveRecord::Base
     payment_method == 'bacs'
   end
 
+  def bank_transfer_indicator
+    return unless bank_transfer?
+
+    bank_transfer_paid_at? ? 'blue' : 'red'
+  end
+
   # Check if all assets have been downloaded
   def assets_downloaded?
     assets.any? && assets.all? { |asset| asset.local_path.present? }

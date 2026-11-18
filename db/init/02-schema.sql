@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_name VARCHAR,
   customer_note TEXT,
   payment_method VARCHAR,
+  bank_transfer_paid_at TIMESTAMP(6),
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

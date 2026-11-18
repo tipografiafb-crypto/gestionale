@@ -70,6 +70,22 @@
             <th>Updated:</th>
             <td><%= @order.updated_at.strftime('%Y-%m-%d %H:%M:%S') %></td>
           </tr>
+          <% if @order.bank_transfer? %>
+            <tr>
+              <th>Pagamento</th>
+              <td>
+                <% if @order.bank_transfer_paid_at? %>
+                  <span class="text-primary"><i class="fas fa-circle" aria-hidden="true"></i> Bonifico pagato</span>
+                <% else %>
+                  <span class="text-danger"><i class="fas fa-circle" aria-hidden="true"></i> Bonifico da confermare</span>
+                  <form action="/orders/<%= @order.id %>/confirm_bank_transfer" method="post" class="mt-2"
+                        onsubmit="return confirm('Confermi di aver ricevuto il bonifico per questo ordine?');">
+                    <button type="submit" class="btn btn-outline-primary btn-sm">Segna bonifico come pagato</button>
+                  </form>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
         </table>
       </div>
     </div>
